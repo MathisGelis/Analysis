@@ -9,6 +9,7 @@ import { JOUEURS, RAPPORT_NEUVILLE, CLASSEMENT_POULE_C, CLUBS } from "@/data/dem
 import { ClubBadge } from "@/components/ClubBadge";
 import { Pitch } from "@/components/Pitch";
 import { DonutStat } from "@/components/Charts";
+import { BandeauDemo } from "@/components/BandeauDemo";
 import { Brain, ChevronRight, Cpu, Sparkles, Zap } from "lucide-react";
 
 export const metadata = { title: "Predictions IA · Foot Analytics" };
@@ -45,6 +46,12 @@ export default function IAPage() {
         </div>
         <span className="badge badge-sky"><Brain size={10}/> Modele v0.3 · heuristique</span>
       </header>
+
+      <BandeauDemo>
+        Prochain match, composition adverse et joueurs a risque proviennent d'un
+        jeu d'exemple (Chaponnay - Neuville) et d'une heuristique simple, pas
+        d'un modele entraine sur vos donnees.
+      </BandeauDemo>
 
       {/* Prediction match */}
       <section className="grid grid-cols-12 gap-4">

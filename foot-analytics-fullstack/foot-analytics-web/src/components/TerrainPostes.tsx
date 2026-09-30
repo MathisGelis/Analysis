@@ -92,34 +92,34 @@ export function TerrainPostes({ numerosFreq, height = 360 }: Props) {
           {/* Terrain : fond degrade vert + bandes pour effet rayures */}
           <defs>
             <linearGradient id="pitch" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"  stopColor="#1f3a25"/>
-              <stop offset="100%" stopColor="#15291a"/>
+              <stop offset="0%"  stopColor="rgb(var(--surface-2))"/>
+              <stop offset="100%" stopColor="rgb(var(--bg))"/>
             </linearGradient>
           </defs>
           <rect x="0" y="0" width="100" height="140" fill="url(#pitch)" />
           {/* Rayures horizontales */}
           {Array.from({ length: 7 }).map((_, i) => (
             <rect key={i} x="0" y={i * 20} width="100" height="10"
-                  fill="#ffffff" opacity="0.025" />
+                  fill="rgb(var(--turf))" opacity="0.05" />
           ))}
           {/* Bordures + ligne mediane + rond central */}
           <rect x="2" y="2" width="96" height="136" fill="none"
-                stroke="#9aa4ad" strokeWidth="0.5" opacity="0.5"/>
-          <line x1="2" y1="70" x2="98" y2="70" stroke="#9aa4ad"
+                stroke="rgb(var(--line-strong))" strokeWidth="0.5" opacity="0.5"/>
+          <line x1="2" y1="70" x2="98" y2="70" stroke="rgb(var(--line-strong))"
                 strokeWidth="0.4" opacity="0.5"/>
-          <circle cx="50" cy="70" r="9" fill="none" stroke="#9aa4ad"
+          <circle cx="50" cy="70" r="9" fill="none" stroke="rgb(var(--line-strong))"
                   strokeWidth="0.4" opacity="0.5"/>
-          <circle cx="50" cy="70" r="0.6" fill="#9aa4ad" opacity="0.5"/>
+          <circle cx="50" cy="70" r="0.6" fill="rgb(var(--line-strong))" opacity="0.5"/>
           {/* Surface de reparation BAS (recevant) */}
           <rect x="22" y="120" width="56" height="18" fill="none"
-                stroke="#9aa4ad" strokeWidth="0.4" opacity="0.5"/>
+                stroke="rgb(var(--line-strong))" strokeWidth="0.4" opacity="0.5"/>
           <rect x="34" y="130" width="32" height="8" fill="none"
-                stroke="#9aa4ad" strokeWidth="0.4" opacity="0.5"/>
+                stroke="rgb(var(--line-strong))" strokeWidth="0.4" opacity="0.5"/>
           {/* Surface HAUT (visiteur) */}
           <rect x="22" y="2"  width="56" height="18" fill="none"
-                stroke="#9aa4ad" strokeWidth="0.4" opacity="0.5"/>
+                stroke="rgb(var(--line-strong))" strokeWidth="0.4" opacity="0.5"/>
           <rect x="34" y="2"  width="32" height="8"  fill="none"
-                stroke="#9aa4ad" strokeWidth="0.4" opacity="0.5"/>
+                stroke="rgb(var(--line-strong))" strokeWidth="0.4" opacity="0.5"/>
 
           {/* Pastilles aux 11 postes : grise par defaut, turf si occupe. */}
           {Object.entries(POSTES).map(([k, poste]) => {
@@ -133,15 +133,15 @@ export function TerrainPostes({ numerosFreq, height = 360 }: Props) {
                 {occupe && count === max && max > 1 && (
                   <circle
                     cx={poste.x} cy={poste.y} r={r + 2.5}
-                    fill="none" stroke="#b6f24a" strokeWidth="0.4"
+                    fill="none" stroke="rgb(var(--turf))" strokeWidth="0.4"
                     opacity="0.45"
                   />
                 )}
                 <circle
                   cx={poste.x} cy={poste.y} r={r}
-                  fill={occupe ? "#b6f24a" : "#9aa4ad"}
+                  fill={occupe ? "rgb(var(--turf))" : "rgb(var(--faint))"}
                   opacity={occupe ? opacite(count) : 0.22}
-                  stroke="#0b0d10" strokeWidth="0.4"
+                  stroke="rgb(var(--bg))" strokeWidth="0.4"
                 />
                 {occupe && (
                   <text
@@ -149,7 +149,7 @@ export function TerrainPostes({ numerosFreq, height = 360 }: Props) {
                     textAnchor="middle"
                     fontSize="3.6"
                     fontWeight="700"
-                    fill="#0b0d10"
+                    fill="rgb(var(--bg))"
                     style={{ fontFamily: "var(--font-mono, monospace)" }}
                   >{count}</text>
                 )}

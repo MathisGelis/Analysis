@@ -6,6 +6,7 @@ import { JOUEURS } from "@/data/demo";
 import { Pitch } from "@/components/Pitch";
 import { onzeProbable } from "@/lib/stats";
 import { SaisonGuard, useLectureSeule } from "@/components/SaisonGuard";
+import { BandeauDemo } from "@/components/BandeauDemo";
 import { Lightbulb, Save, Sparkles } from "lucide-react";
 
 const FORMATIONS = ["4-4-2","4-2-3-1","4-3-3","3-5-2","5-3-2","3-4-3"];
@@ -40,6 +41,10 @@ function TactiqueContent() {
 
   return (
     <div className="space-y-6 fade-up">
+      <BandeauDemo>
+        Les joueurs proposes viennent du jeu d'exemple, pas de l'effectif de
+        l'equipe choisie, et « Enregistrer » ne sauvegarde pas encore la composition.
+      </BandeauDemo>
       <header className="flex items-end justify-between flex-wrap gap-3">
         <div>
           <div className="h-section">Plan de jeu</div>

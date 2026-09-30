@@ -52,11 +52,11 @@ export default async function RapportEquipe({
         </div>
         <div className="col-span-12 md:col-span-6 grid grid-cols-3 gap-3">
           <ScoreCard label="Score danger" value={rapport.scoreDanger}
-            icon={<Flame size={14}/>} color="#ff5c5c" />
+            icon={<Flame size={14}/>} color="rgb(var(--danger))" />
           <ScoreCard label="Score chaos" value={rapport.scoreChaos}
-            icon={<RotateCcw size={14}/>} color="#ffb648" />
+            icon={<RotateCcw size={14}/>} color="rgb(var(--amber))" />
           <ScoreCard label="Forme moyenne" value={rapport.formeMoy}
-            icon={<TrendingUp size={14}/>} color="#b6f24a" />
+            icon={<TrendingUp size={14}/>} color="rgb(var(--turf))" />
         </div>
       </header>
 
@@ -252,7 +252,7 @@ export default async function RapportEquipe({
             <>
               <div className="grid place-items-center mb-4">
                 <DonutStat value={rapport.changementsMoy.moyenne} size={120} stroke={10}
-                  color="#ffb648" label="min moy." max={90}/>
+                  color="rgb(var(--amber))" label="min moy." max={90}/>
               </div>
               <ul className="space-y-1.5 text-sm">
                 {rapport.changementsMoy.parTypeMatch.map((t: any) => (

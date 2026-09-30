@@ -13,14 +13,15 @@ import { PitchHeatmap } from "@/components/Charts";
 import { ArbitresMatchBlock } from "@/components/ArbitresMatchBlock";
 import { MatchActions } from "@/components/MatchActions";
 import {
-  ArrowLeft, Calendar, Clock, FileText, MapPin, User,
+  ArrowLeft, Calendar, Clock, FileText, Goal, MapPin, User, Users,
 } from "lucide-react";
 import type { EvenementMatch } from "@/lib/types";
 
 export default async function MatchDetailPage({ params }: { params: { id: string } }) {
   const ownClubId = getOwnClubIdServer();
-  const [match, CLUBS, allJoueurs, arbitresLiens] = await Promise.all([
+  const [match, CLUBS, allJoueurs, arbitresLiens, staffLiens] = await Promise.all([
     api.match(params.id), api.clubs(), api.joueurs(), api.arbitresForMatch(params.id),
+    api.coachsForMatch(params.id),
   ]);
   if (!match) notFound();
   const peutNoter = match.clubDom === ownClubId || match.clubExt === ownClubId;
@@ -55,9 +56,18 @@ export default async function MatchDetailPage({ params }: { params: { id: string
 
   const titulairesDom = (m.compoDom ?? []).filter((p: any) => p.titulaire);
   const titulairesExt = (m.compoExt ?? []).filter((p: any) => p.titulaire);
-  const banc = (l: typeof titulairesDom) => l;
 
-  // Heatmap mockee (les zones avec plus d'evenements offensifs)
+  // Arbitre principal : lien vers sa fiche quand la FMI l'a rattache a un arbitre.
+  const arbitrePrincipal = (arbitresLiens as any[]).find(
+    (l) => l.role === "principal" && l.arbitre?.id,
+  )?.arbitre;
+
+  // Libelles tolerants aux champs vides (FMI incomplete, match saisi a la main).
+  const dispositif = (f?: string | null) => (f ? ` · ${f}` : "");
+  const libelleCompetition = [m.competition, m.poule ? `Poule ${m.poule}` : null]
+    .filter(Boolean).join(" · ") || "—";
+
+  // Heatmap ILLUSTRATIVE (matrice fixe, pas calculee depuis les evenements)
   const heatmap = [
     [0,1,2,1],
     [1,2,4,3],
@@ -84,7 +94,7 @@ export default async function MatchDetailPage({ params }: { params: { id: string
             <div>
               <div className="font-display text-xl font-bold text-ink">{dom.nom}</div>
               <div className="text-[11px] text-faint uppercase tracking-wider">
-                Recevant · {m.formationDom}
+                Recevant{dispositif(m.formationDom)}
               </div>
             </div>
           </Link>
@@ -106,7 +116,7 @@ export default async function MatchDetailPage({ params }: { params: { id: string
             <div className="text-right">
               <div className="font-display text-xl font-bold text-ink">{ext.nom}</div>
               <div className="text-[11px] text-faint uppercase tracking-wider">
-                Visiteur · {m.formationExt}
+                Visiteur{dispositif(m.formationExt)}
               </div>
             </div>
             <ClubBadge clubId={ext.id} size={64}/>
@@ -116,9 +126,13 @@ export default async function MatchDetailPage({ params }: { params: { id: string
         {/* meta sous le score */}
         <div className="relative grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 pt-5 border-t border-line text-xs">
           <Meta icon={<MapPin size={12}/>} label="Terrain" value={m.terrain ?? "—"}/>
-          <Meta icon={<User size={12}/>} label="Arbitre" value={m.arbitre ?? "—"}/>
+          <Meta icon={<User size={12}/>} label="Arbitre" value={
+            arbitrePrincipal
+              ? <Link href={`/arbitres/${arbitrePrincipal.id}`} className="hover:text-turf">{m.arbitre ?? arbitrePrincipal.nom}</Link>
+              : (m.arbitre ?? "—")
+          }/>
           <Meta icon={<FileText size={12}/>} label="N° FMI" value={m.numeroFmi ?? "—"}/>
-          <Meta icon={<span className="text-turf">●</span>} label="Competition" value={`${m.competition} · Poule ${m.poule}`}/>
+          <Meta icon={<span className="text-turf">●</span>} label="Competition" value={libelleCompetition}/>
         </div>
       </header>
 
@@ -134,7 +148,7 @@ export default async function MatchDetailPage({ params }: { params: { id: string
               carton: cartonsParJoueur.get(`${p.nom} ${p.prenom}`),
             }))}
             titre={`${dom.nom} · titulaires`}
-            couleur={dom.couleur}
+            couleur="rgb(var(--turf))"
             oriente="haut"
           />
         </div>
@@ -148,7 +162,7 @@ export default async function MatchDetailPage({ params }: { params: { id: string
               carton: cartonsParJoueur.get(`${p.nom} ${p.prenom}`),
             }))}
             titre={`${ext.nom} · titulaires`}
-            couleur={ext.couleur}
+            couleur="rgb(var(--sky))"
             oriente="bas"
           />
         </div>
@@ -167,11 +181,14 @@ export default async function MatchDetailPage({ params }: { params: { id: string
           <Timeline events={m.evenements ?? []} domNom={dom.abbr} extNom={ext.abbr}/>
         </div>
         <div className="col-span-12 lg:col-span-5 panel p-5">
-          <div className="h-section mb-3">Heatmap pression · zones du terrain</div>
+          <div className="h-section mb-3 flex items-center gap-2">
+            Heatmap pression · zones du terrain
+            <span className="badge badge-amber">Illustratif</span>
+          </div>
           <PitchHeatmap matrix={heatmap}/>
           <p className="text-[11px] text-muted mt-2">
-            Estimation des zones de pression chaude — sera derivee automatiquement
-            des donnees d'evenements quand vous brancherez le module xT.
+            Donnees illustratives : cette carte n'est pas calculee a partir du
+            match. Elle sera derivee des evenements quand le module xT sera branche.
           </p>
         </div>
       </section>
@@ -187,12 +204,36 @@ export default async function MatchDetailPage({ params }: { params: { id: string
       </section>
 
       <ArbitresMatchBlock liens={arbitresLiens as any} peutNoter={peutNoter}/>
+
+      {/* Encadrement : educateurs / dirigeants releves sur la FMI */}
+      {(staffLiens as any[]).length > 0 && (
+        <section className="panel p-5">
+          <div className="h-section mb-3 flex items-center gap-2">
+            <Users size={11} className="text-turf"/> Encadrement
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {([["dom", dom], ["ext", ext]] as const).map(([cote, club]) => (
+              <div key={cote}>
+                <div className="text-[10px] uppercase tracking-wider text-faint mb-1">{club.nom}</div>
+                <ul className="space-y-1 text-sm">
+                  {(staffLiens as any[]).filter((l) => l.cote === cote).map((l) => (
+                    <li key={l.id} className="flex items-center gap-2">
+                      <span className="text-ink">{l.coach?.prenom} {l.coach?.nom}</span>
+                      <span className="badge">{l.fonctions}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
 
 /* ---- sous-composants ---- */
-function Meta({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function Meta({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 text-muted">
       <span className="text-faint">{icon}</span>
@@ -294,9 +335,14 @@ function CompoTable({ club, compo, joueurs, cartons }: any) {
 }
 
 function Timeline({ events, domNom, extNom }: { events: EvenementMatch[]; domNom: string; extNom: string }) {
+  // Ordre chronologique (minute puis temps additionnel) : l'ordre de stockage
+  // suit les tableaux de la FMI (cartons, puis remplacements...), pas le match.
+  const tries = [...events].sort(
+    (a, b) => (a.minute ?? 0) - (b.minute ?? 0) || (a.arret ?? 0) - (b.arret ?? 0),
+  );
   return (
     <ul className="space-y-3">
-      {events.map((e, i) => {
+      {tries.map((e, i) => {
         const m = `${e.minute ?? "?"}${e.arret ? `+${e.arret}` : ""}'`;
         const side = e.equipe === "dom" ? "left" : "right";
         let icon: React.ReactNode = null;
@@ -315,7 +361,7 @@ function Timeline({ events, domNom, extNom }: { events: EvenementMatch[]; domNom
           color = "text-danger";
           title = `Blessure · ${e.joueur} (${e.sousType})`;
         } else if (e.type === "but") {
-          icon = <span className="inline-block text-turf">⚽</span>;
+          icon = <Goal size={14} className="text-turf"/>;
           color = "text-turf";
           title = `BUT · ${e.joueur}`;
         }

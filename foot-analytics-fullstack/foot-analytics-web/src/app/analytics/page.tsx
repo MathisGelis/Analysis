@@ -8,6 +8,7 @@
 
 import { courbeButsChaponnay, bilanClub } from "@/lib/stats";
 import { BarsChart, DonutStat, PitchHeatmap, Sparkline } from "@/components/Charts";
+import { BandeauDemo } from "@/components/BandeauDemo";
 
 export const metadata = { title: "Analytics avancees · Foot Analytics" };
 
@@ -40,6 +41,12 @@ export default function Analytics() {
         <div className="h-section">Indicateurs avances</div>
         <h1 className="font-display text-2xl font-bold text-ink">Analytics avancees</h1>
       </header>
+
+      <BandeauDemo>
+        Les feuilles de match ne contiennent ni tirs ni positions : le xG, la
+        possession et les cartes de zones ci-dessous sont illustratifs (jeu
+        d'exemple), pas calcules sur vos matchs.
+      </BandeauDemo>
 
       {/* KPIs */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">

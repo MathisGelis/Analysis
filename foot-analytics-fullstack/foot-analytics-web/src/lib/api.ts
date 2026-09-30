@@ -24,6 +24,22 @@ export const API_URL =
 type Json = Record<string, any>;
 
 /**
+ * Erreur HTTP de l'API. `corps` contient le JSON renvoye par Nest quand il y
+ * en a un (ex. { code: "BLESSURE_CHEVAUCHANTE", conflits: [...] } sur un 409),
+ * pour que l'UI puisse reagir autrement que par un message generique.
+ */
+export class ApiError extends Error {
+  constructor(
+    readonly statut: number,
+    readonly chemin: string,
+    readonly corps: any = null,
+  ) {
+    super(`API ${statut} sur ${chemin}`);
+    this.name = "ApiError";
+  }
+}
+
+/**
  * Recupere le JWT courant, peu importe le contexte d'execution :
  *  - Server Components / Route Handlers Next : depuis le cookie fa_token
  *    (importe `next/headers` dynamiquement pour ne pas crasher cote client)
@@ -94,7 +110,10 @@ async function req<T>(
   const { fallback, ...init } = opts;
   try {
     const res = await fetchApi(path, init);
-    if (!res.ok) throw new Error(`API ${res.status} sur ${path}`);
+    if (!res.ok) {
+      const corps = await res.json().catch(() => null);
+      throw new ApiError(res.status, path, corps);
+    }
     return await parseJson<T>(res, fallback !== undefined ? fallback : null);
   } catch (e) {
     if (fallback !== undefined) {
@@ -265,6 +284,10 @@ export const api = {
   // Suppression de match (CRUD complet expose)
   deleteMatch: (id: string) =>
     req<{ ok: boolean }>(`/matchs/${id}`, { method: "DELETE" }),
+
+  /* ---- Encadrement (coachs) d'un match ---- */
+  coachsForMatch: (matchId: string) =>
+    req<any[]>(`/coachs/match/${matchId}`, { fallback: [] }),
 
   /* ---- Analyse equipe ---- */
   analyseClub: (clubId: string) =>
