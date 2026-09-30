@@ -191,7 +191,7 @@ export function ArbitresFiltrable({
       <div className="panel p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="h-section flex items-center gap-2">
-            <Filter size={11} className="text-turf"/>Filtres
+            <Filter size={11} className="text-accent"/>Filtres
           </div>
           {hasFilter && (
             <button onClick={reset}
@@ -217,7 +217,7 @@ export function ArbitresFiltrable({
                 return (
                   <button key={k}
                     onClick={() => toggle(roles, k, setRoles)}
-                    className={`badge text-[10px] ${on ? "badge-turf" : "opacity-70"}`}>
+                    className={`badge text-[10px] ${on ? "badge-accent" : "opacity-70"}`}>
                     {label}
                   </button>
                 );
@@ -235,8 +235,8 @@ export function ArbitresFiltrable({
                     onClick={() => toggle(profils, p, setProfils)}
                     className={`badge text-[10px] ${on
                       ? (p === "Strict" ? "badge-danger"
-                        : p === "Permissif" ? "badge-turf"
-                        : p === "Standard" ? "badge-amber" : "badge-turf")
+                        : p === "Permissif" ? "badge-accent"
+                        : p === "Standard" ? "badge-amber" : "badge-accent")
                       : "opacity-70"}`}>
                     {PROFILS_LABEL[p]}
                   </button>
@@ -291,7 +291,7 @@ export function ArbitresFiltrable({
                 return (
                   <tr key={a.id}>
                     <td>
-                      <Link href={`/arbitres/${a.id}`} className="font-semibold hover:text-turf">
+                      <Link href={`/arbitres/${a.id}`} className="font-semibold hover:text-accent">
                         <span className="text-faint mr-1">{a.prenom}</span>{a.nom}
                       </Link>
                     </td>
@@ -311,11 +311,11 @@ export function ArbitresFiltrable({
                       {s.profil ? (
                         <span className={`badge ${
                           s.profil === "Strict" ? "badge-danger"
-                          : s.profil === "Permissif" ? "badge-turf" : "badge-amber"
+                          : s.profil === "Permissif" ? "badge-accent" : "badge-amber"
                         }`}>{s.profil}</span>
                       ) : <span className="text-faint">—</span>}
                     </td>
-                    <td className="font-semibold text-turf tabular-nums">
+                    <td className="font-semibold text-accent tabular-nums">
                       {s.noteMoyenne != null ? s.noteMoyenne.toFixed(1) : <span className="text-faint">—</span>}
                     </td>
                     <td className="text-[11px] text-faint">{s.motifsTop ?? ""}</td>

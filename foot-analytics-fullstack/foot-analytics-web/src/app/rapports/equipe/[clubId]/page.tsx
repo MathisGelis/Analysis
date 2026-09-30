@@ -69,7 +69,7 @@ export default async function RapportEquipe({
           <ScoreCard label="Score chaos" value={rapport.scoreChaos}
             icon={<RotateCcw size={14}/>} color="rgb(var(--amber))" />
           <ScoreCard label="Forme moyenne" value={rapport.formeMoy}
-            icon={<TrendingUp size={14}/>} color="rgb(var(--turf))" />
+            icon={<TrendingUp size={14}/>} color="rgb(var(--accent))" />
         </div>
       </header>
 
@@ -123,7 +123,7 @@ export default async function RapportEquipe({
         {/* Joueurs cles */}
         <div className="col-span-12 lg:col-span-7 panel p-5">
           <div className="h-section mb-3 flex items-center gap-2">
-            <Award size={11} className="text-turf"/>
+            <Award size={11} className="text-accent"/>
             Joueurs cles
             <span className="text-[10px] text-faint normal-case font-normal tracking-normal ml-1">
               (titulaires reguliers a fort impact positif)
@@ -137,16 +137,16 @@ export default async function RapportEquipe({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {rapport.joueursCles.map((j: any) => (
-                <div key={j.joueurId} className="panel-inset p-3 flex items-center gap-3 border-l-2 border-turf">
-                  <div className="w-10 h-10 rounded-md bg-panel grid place-items-center font-display font-bold text-turf">
+                <div key={j.joueurId} className="panel-inset p-3 flex items-center gap-3 border-l-2 border-accent">
+                  <div className="w-10 h-10 rounded-md bg-panel grid place-items-center font-display font-bold text-accent">
                     {j.matchsAvec}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <Link href={`/joueur/${j.joueurId}`} className="font-display font-bold text-ink hover:text-turf truncate block">
+                    <Link href={`/joueur/${j.joueurId}`} className="font-display font-bold text-ink hover:text-accent truncate block">
                       {j.prenom} {j.nom}
                     </Link>
                     <div className="text-[11px] text-muted">{j.poste} · {j.titularisations} titu sur {rapport.matchsAnalyses}</div>
-                    <div className="text-[11px] text-turf mt-0.5">
+                    <div className="text-[11px] text-accent mt-0.5">
                       +{j.delta.toFixed(2)} pts/match · impact {j.impactPondere > 0 ? "+" : ""}{j.impactPondere}
                     </div>
                   </div>
@@ -159,7 +159,7 @@ export default async function RapportEquipe({
         {/* Stabilite par ligne */}
         <div className="col-span-12 lg:col-span-5 panel p-5">
           <div className="h-section mb-3 flex items-center gap-2">
-            <Shield size={11} className="text-turf"/>
+            <Shield size={11} className="text-accent"/>
             Stabilite ({rapport.stabilite.global} / 100)
           </div>
           <ul className="space-y-2">
@@ -170,7 +170,7 @@ export default async function RapportEquipe({
                 </span>
                 <div className="flex-1 bg-line h-1.5 rounded-full overflow-hidden">
                   <div className={`h-full ${
-                    s.stabilite >= 70 ? "bg-turf"
+                    s.stabilite >= 70 ? "bg-accent"
                     : s.stabilite >= 40 ? "bg-amber" : "bg-danger"
                   }`} style={{width:`${s.stabilite}%`}}/>
                 </div>
@@ -206,7 +206,7 @@ export default async function RapportEquipe({
                   {j.matchsAvec}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <Link href={`/joueur/${j.joueurId}`} className="font-display font-bold text-ink hover:text-turf truncate block">
+                  <Link href={`/joueur/${j.joueurId}`} className="font-display font-bold text-ink hover:text-accent truncate block">
                     {j.prenom} {j.nom}
                   </Link>
                   <div className="text-[11px] text-muted">
@@ -229,7 +229,7 @@ export default async function RapportEquipe({
         {/* Compo probable */}
         <div className="col-span-12 lg:col-span-7 panel p-5">
           <div className="h-section mb-3 flex items-center gap-2">
-            <Users size={11} className="text-turf"/>
+            <Users size={11} className="text-accent"/>
             Compo probable ({rapport.compoProbable.length}/11)
           </div>
           {rapport.compoProbable.length === 0 ? (
@@ -267,7 +267,7 @@ export default async function RapportEquipe({
         {/* Minute moyenne changements */}
         <div className="col-span-12 lg:col-span-5 panel p-5">
           <div className="h-section mb-3 flex items-center gap-2">
-            <Clock size={11} className="text-turf"/>
+            <Clock size={11} className="text-accent"/>
             Timing des changements
           </div>
           {rapport.changementsMoy.moyenne === 0 ? (
@@ -337,7 +337,7 @@ export default async function RapportEquipe({
       {rapport.coachs && rapport.coachs.length > 0 && (
         <section className="panel p-5">
           <div className="h-section mb-3 flex items-center gap-2">
-            <Users size={11} className="text-turf"/>
+            <Users size={11} className="text-accent"/>
             Staff identifie ({rapport.coachs.length})
           </div>
           <p className="text-[11px] text-faint mb-3">
@@ -368,7 +368,7 @@ export default async function RapportEquipe({
                   <td>
                     {c.fonctionPrincipale ? (
                       <span className={`badge text-[10px] ${
-                        c.fonctionPrincipale === "Entraineur" ? "badge-turf"
+                        c.fonctionPrincipale === "Entraineur" ? "badge-accent"
                         : c.fonctionPrincipale === "Adjoint" ? "badge-sky"
                         : c.fonctionPrincipale === "Medecin" ? "badge-amber"
                         : ""
@@ -383,7 +383,7 @@ export default async function RapportEquipe({
                     <span className="text-loss">{c.d}</span>
                   </td>
                   <td className={`text-right font-display font-bold tabular-nums ${
-                    c.txReussite >= 60 ? "text-turf"
+                    c.txReussite >= 60 ? "text-accent"
                     : c.txReussite >= 30 ? "text-amber" : "text-danger"
                   }`}>{c.txReussite}%</td>
                   <td className="text-center text-amber font-mono">{c.cartonsJaunes || ""}</td>
@@ -405,7 +405,7 @@ export default async function RapportEquipe({
       {rapport.partnerships.length > 0 && (
         <section className="panel p-5">
           <div className="h-section mb-3 flex items-center gap-2">
-            <BarChart3 size={11} className="text-turf"/>
+            <BarChart3 size={11} className="text-accent"/>
             Combinaisons de joueurs gagnantes
           </div>
           <p className="text-[11px] text-faint mb-3">
@@ -428,7 +428,7 @@ export default async function RapportEquipe({
                   <td>
                     <span className={`badge text-[10px] ${
                       p.type === "attaque" ? "badge-danger"
-                      : p.type === "defense" ? "badge-turf"
+                      : p.type === "defense" ? "badge-accent"
                       : "badge-amber"
                     }`}>{p.type}</span>
                   </td>
@@ -441,7 +441,7 @@ export default async function RapportEquipe({
                   </td>
                   <td className="text-center font-mono text-xs">{p.bp}-{p.bc}</td>
                   <td className={`text-right font-display font-bold tabular-nums ${
-                    p.txReussite >= 60 ? "text-turf"
+                    p.txReussite >= 60 ? "text-accent"
                     : p.txReussite >= 30 ? "text-amber" : "text-danger"
                   }`}>{p.txReussite}%</td>
                 </tr>
@@ -454,7 +454,7 @@ export default async function RapportEquipe({
       {/* Tableau impact tous joueurs */}
       <section className="panel p-5">
         <div className="h-section mb-3 flex items-center gap-2">
-          <Zap size={11} className="text-turf"/>
+          <Zap size={11} className="text-accent"/>
           Impact de chaque joueur sur les resultats
         </div>
         <p className="text-[11px] text-faint mb-3">
@@ -481,7 +481,7 @@ export default async function RapportEquipe({
             {rapport.impacts.slice(0, 20).map((i: any) => (
               <tr key={i.joueurId}>
                 <td>
-                  <Link href={`/joueur/${i.joueurId}`} className="font-semibold hover:text-turf">
+                  <Link href={`/joueur/${i.joueurId}`} className="font-semibold hover:text-accent">
                     <span className="text-faint">{i.prenom}</span> {i.nom}
                   </Link>
                 </td>
@@ -491,15 +491,15 @@ export default async function RapportEquipe({
                 <td className="text-right tabular-nums">{i.pointsParMatchAvec.toFixed(2)}</td>
                 <td className="text-right tabular-nums text-faint">{i.pointsParMatchSans.toFixed(2)}</td>
                 <td className={`text-right tabular-nums font-display font-bold ${
-                  i.delta > 0.5 ? "text-turf"
+                  i.delta > 0.5 ? "text-accent"
                   : i.delta < -0.5 ? "text-danger" : ""
                 }`}>
-                  {i.delta > 0 && <ArrowRight size={10} className="inline rotate-[-45deg] text-turf mr-0.5"/>}
+                  {i.delta > 0 && <ArrowRight size={10} className="inline rotate-[-45deg] text-accent mr-0.5"/>}
                   {i.delta < 0 && <ArrowRight size={10} className="inline rotate-[45deg] text-danger mr-0.5"/>}
                   {i.delta >= 0 ? "+" : ""}{i.delta.toFixed(2)}
                 </td>
                 <td className={`text-right tabular-nums font-display font-bold ${
-                  i.impactPondere > 0.5 ? "text-turf"
+                  i.impactPondere > 0.5 ? "text-accent"
                   : i.impactPondere < -0.5 ? "text-danger" : "text-faint"
                 }`}>
                   {i.impactPondere >= 0 ? "+" : ""}{i.impactPondere.toFixed(2)}

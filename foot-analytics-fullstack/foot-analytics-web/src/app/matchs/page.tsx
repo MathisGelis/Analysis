@@ -61,7 +61,7 @@ export default async function MatchsPage() {
           <div className="h-section">{headerLibelle}</div>
           <h1 className="font-display text-2xl font-bold text-ink">Matchs de la saison</h1>
         </div>
-        <Link href="/import" className="btn btn-turf">
+        <Link href="/import" className="btn btn-accent">
           <Upload size={14}/> Importer une feuille FMI
         </Link>
       </header>

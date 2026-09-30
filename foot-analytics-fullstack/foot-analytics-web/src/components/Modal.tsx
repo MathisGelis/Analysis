@@ -40,14 +40,14 @@ export function Modal({
     <div
       // overflow-y-auto sur l'overlay : si la modale est plus haute que le
       // viewport, on peut scroller dans la modale (et non dans la page).
-      className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm "
       onClick={onClose}
     >
       {/* Wrapper qui centre verticalement le contenu sur la hauteur du
           viewport, avec un padding qui permet aussi le scroll en interne. */}
       <div className="min-h-full flex items-center justify-center p-4">
         <div
-          className={`panel w-full ${maxWidth} p-6 my-auto`}
+          className={`panel-pop pop-in w-full ${maxWidth} p-6 my-auto`}
           onClick={(e) => e.stopPropagation()}
         >
           {children}

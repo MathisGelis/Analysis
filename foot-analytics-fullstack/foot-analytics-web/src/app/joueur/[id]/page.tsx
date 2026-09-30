@@ -81,12 +81,12 @@ export default async function JoueurPage({
       {saisonsProposees.length > 0 && (
         <nav aria-label="Saison consultee" className="flex items-center gap-2 flex-wrap">
           <span className="text-[11px] uppercase tracking-wider text-faint flex items-center gap-1.5">
-            <Calendar size={11} className="text-turf"/> Saison
+            <Calendar size={11} className="text-accent"/> Saison
           </span>
           {saisonsProposees.map((s: any) => (
             <Link key={s.id} href={`/joueur/${j.id}?saison=${s.id}`} scroll={false}
               aria-current={s.id === saison?.id ? "true" : undefined}
-              className={`badge ${s.id === saison?.id ? "badge-turf" : "hover:text-ink"}`}>
+              className={`badge ${s.id === saison?.id ? "badge-accent" : "hover:text-ink"}`}>
               {s.nom}{s.actif ? " · en cours" : ""}
             </Link>
           ))}
@@ -94,25 +94,28 @@ export default async function JoueurPage({
       )}
 
       {/* IDENTITE */}
-      <header className="panel p-6 grid grid-cols-12 gap-5">
-        <div className="col-span-12 md:col-span-6 flex items-center gap-5">
-          <div className="w-24 h-24 rounded-md bg-panel2 border border-line grid place-items-center font-display text-4xl font-black text-turf">
+      <header className="panel relative grid grid-cols-12 gap-5 overflow-hidden p-6">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-accentstrong/[0.16] via-transparent to-accent2/[0.06]" />
+        <div className="pitch-lines" />
+        <div className="relative col-span-12 flex items-center gap-5 md:col-span-6">
+          <div className="grid h-24 w-24 shrink-0 place-items-center rounded-3xl bg-gradient-to-br from-accentstrong to-accentdeep font-display text-5xl font-bold text-white shadow-glow"
+            title="Numero le plus porte sur la saison">
             {numero ?? "?"}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs uppercase tracking-[0.18em] text-faint">{j.poste ?? "—"}</div>
-            <h1 className="font-display text-3xl font-bold text-ink leading-tight">
+            <h1 className="font-display text-3xl font-bold leading-tight text-ink sm:text-4xl">
               {j.prenom} <span className="text-muted font-light">{j.nom}</span>
             </h1>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className={`badge ${
                 j.statutMutation === "Mutation" ? "badge-amber"
                 : j.statutMutation === "Mutation hors delai" ? "badge-amber"
-                : j.statutMutation === "Pas mutation" ? "badge-turf"
+                : j.statutMutation === "Pas mutation" ? "badge-accent"
                 : ""
               }`}>{j.statutMutation ?? "—"}</span>
               {club && (
-                <Link href={`/club/${club.id}`} className="badge flex items-center gap-1 hover:text-turf">
+                <Link href={`/club/${club.id}`} className="badge flex items-center gap-1 hover:text-accent">
                   <ClubBadge clubId={club.id} size={14}/> {club.nom}
                 </Link>
               )}
@@ -131,11 +134,11 @@ export default async function JoueurPage({
           </div>
         </div>
 
-        <div className="col-span-12 md:col-span-6 grid grid-cols-3 gap-3">
+        <div className="relative col-span-12 grid grid-cols-3 gap-3 md:col-span-6">
           <Card label="Score forme" big={
             saisonActive && j.scoreForme != null ? (
               <DonutStat value={j.scoreForme} size={96} stroke={9}
-                color={j.scoreForme>70?"rgb(var(--turf))":j.scoreForme>50?"rgb(var(--amber))":"rgb(var(--danger))"}
+                color={j.scoreForme>70?"rgb(var(--accent))":j.scoreForme>50?"rgb(var(--amber))":"rgb(var(--danger))"}
                 label="/ 100" />
             ) : (
               <Indisponible pourquoi={saisonActive ? "Pas encore calcule" : "Mesure de la saison en cours"} />
@@ -143,7 +146,7 @@ export default async function JoueurPage({
           } />
           <Card label="Note moyenne" big={
             totaux.noteMoyenne != null ? (
-              <div className="font-display text-5xl font-black text-turf">
+              <div className="font-display text-5xl font-black text-accent">
                 {totaux.noteMoyenne.toFixed(1)}
               </div>
             ) : (
@@ -156,7 +159,7 @@ export default async function JoueurPage({
                 <div className={`font-display text-3xl font-black ${
                   j.scoreFatigue >= 80 ? "text-danger"
                   : j.scoreFatigue >= 60 ? "text-amber"
-                  : j.scoreFatigue >= 40 ? "text-turf"
+                  : j.scoreFatigue >= 40 ? "text-accent"
                   : "text-faint"
                 }`}>
                   {j.scoreFatigue}
@@ -205,7 +208,7 @@ export default async function JoueurPage({
         statsContent={
           <section className="space-y-5">
             <div className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
-              <Calendar size={11} className="text-turf"/>
+              <Calendar size={11} className="text-accent"/>
               Stats sur la saison <strong className="text-ink">{saison?.nom ?? "—"}</strong>
               {equipe && <span className="text-faint">· {equipe.nom}</span>}
               {!entree && <span className="text-faint">· pas inscrit sur cette saison</span>}
@@ -229,7 +232,7 @@ export default async function JoueurPage({
                 value={`${discipline}/100`}
                 icon={<AlertTriangle size={14}/>}
                 accent={
-                  discipline >= 80 ? "turf"
+                  discipline >= 80 ? "accent"
                   : discipline >= 60 ? "amber"
                   : "danger"
                 }
@@ -262,23 +265,23 @@ export default async function JoueurPage({
                           <tr key={m.matchId}>
                             <td className="font-mono text-muted">{m.journee ?? "—"}</td>
                             <td>
-                              <Link href={`/club/${m.adversaireId}`} className="font-semibold hover:text-turf">
+                              <Link href={`/club/${m.adversaireId}`} className="font-semibold hover:text-accent">
                                 {adv?.nom ?? m.adversaireId}
                               </Link>
                             </td>
                             <td>
-                              <Link href={`/matchs/${m.matchId}`} className="font-mono font-semibold tabular-nums hover:text-turf">
+                              <Link href={`/matchs/${m.matchId}`} className="font-mono font-semibold tabular-nums hover:text-accent">
                                 {m.scoreEquipe}–{m.scoreAdversaire}
                               </Link>
                             </td>
                             <td>
-                              <span className={`badge ${m.titulaire ? "badge-turf" : ""}`}>
+                              <span className={`badge ${m.titulaire ? "badge-accent" : ""}`}>
                                 {m.titulaire ? "Titulaire" : "Remplacant"}
                               </span>
                             </td>
                             <td className="text-right font-mono tabular-nums text-muted">{m.minutes}'</td>
                             <td className="text-xs whitespace-nowrap">
-                              {m.buts > 0 && <span className="text-turf mr-1.5">{m.buts} but{m.buts > 1 ? "s" : ""}</span>}
+                              {m.buts > 0 && <span className="text-accent mr-1.5">{m.buts} but{m.buts > 1 ? "s" : ""}</span>}
                               {m.passesDecisives > 0 && <span className="text-sky mr-1.5">{m.passesDecisives} PD</span>}
                               {m.cartonsJaunes > 0 && <span className="text-amber mr-1.5">CJ</span>}
                               {m.cartonsRouges > 0 && <span className="text-danger">CR</span>}
@@ -301,7 +304,7 @@ export default async function JoueurPage({
                 <div className="h-section mb-3">Evolution du score de forme</div>
                 {saisonActive ? (
                   <>
-                    <Sparkline values={evolutionForme} width={500} height={120} color="rgb(var(--turf))"/>
+                    <Sparkline values={evolutionForme} width={500} height={120} color="rgb(var(--accent))"/>
                     <div className="text-[11px] text-faint mt-2">
                       Estimee depuis les dernieres seances et matchs.
                     </div>
@@ -403,9 +406,9 @@ function Mini({ icon, label, value }: { icon: React.ReactNode; label: string; va
   );
 }
 function Kpi({ label, value, suffix, icon, accent }: any) {
-  // accent = "turf" | "amber" | "danger" | undefined -> couleur du gros chiffre
+  // accent = "accent" | "amber" | "danger" | undefined -> couleur du gros chiffre
   const accentClass =
-    accent === "turf" ? "text-turf"
+    accent === "accent" ? "text-accent"
     : accent === "amber" ? "text-amber"
     : accent === "danger" ? "text-danger"
     : "";

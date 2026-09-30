@@ -37,8 +37,8 @@ test("acces : un visiteur anonyme est renvoye vers /login, et une cible externe 
     await p.goto(`${base}/matchs`);
     await expect(p).toHaveURL(`${base}/login?from=%2Fmatchs`);
     // Pas de coquille (barre laterale) ni de donnees de demo sur la page de connexion.
-    await expect(p.getByText("Connexion staff technique")).toBeVisible();
-    await expect(p.getByText("Console staff")).toHaveCount(0);
+    await expect(p.getByText("Connexion au staff technique")).toBeVisible();
+    await expect(p.getByRole("navigation", { name: "Navigation principale" })).toHaveCount(0);
 
     // Un `from` externe ne doit jamais etre suivi apres la connexion.
     await p.goto(`${base}/login?from=${encodeURIComponent("https://evil.example/piege")}`);

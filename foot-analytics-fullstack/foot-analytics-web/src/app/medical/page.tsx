@@ -114,7 +114,7 @@ export default async function Medical() {
         <h1 className="font-display text-2xl font-bold text-ink">{headerLibelle}</h1>
         {saisonCourante && (
           <div className="text-xs text-muted flex items-center gap-1.5 mt-1">
-            <HeartPulse size={11} className="text-turf"/>
+            <HeartPulse size={11} className="text-accent"/>
             Saison <strong className="text-ink">{saisonCourante.nom}</strong>
             {!estSaisonActive && (
               <span className="text-faint">· stats non pertinentes (saison inactive)</span>
@@ -183,7 +183,7 @@ export default async function Medical() {
                         <span className={
                           j.fatigue >= 80 ? "text-danger font-bold"
                           : j.fatigue >= 60 ? "text-amber font-bold"
-                          : "text-turf font-bold"}>
+                          : "text-accent font-bold"}>
                           {j.fatigue}
                         </span>
                       </td>
@@ -206,10 +206,10 @@ function Kpi({
 }: {
   label: string; value: number | string; suffix?: string;
   icon?: React.ReactNode;
-  tone?: "neutral" | "turf" | "danger" | "amber";
+  tone?: "neutral" | "accent" | "danger" | "amber";
 }) {
   const toneClass =
-    tone === "turf" ? "text-turf"
+    tone === "accent" ? "text-accent"
     : tone === "danger" ? "text-danger"
     : tone === "amber" ? "text-amber"
     : "text-ink";

@@ -204,12 +204,12 @@ export function OwnEquipeSwitcher() {
     <div className="relative" ref={rootRef}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full panel-inset px-3 py-2.5 text-left hover:border-turf/40 transition"
+        className="w-full panel-inset px-3 py-2.5 text-left hover:border-accent/40 transition"
       >
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="text-[10px] uppercase tracking-[0.18em] text-faint flex items-center gap-1">
-              <Calendar size={9} className="text-turf"/>
+              <Calendar size={9} className="text-accent"/>
               {booted ? (saisonChoisie?.nom ?? "Aucune saison") : "…"}
             </div>
             <div className="font-display font-bold text-ink mt-0.5 truncate">
@@ -237,7 +237,7 @@ export function OwnEquipeSwitcher() {
                 <button
                   onClick={() => onPickSaison(s.id)}
                   className={`w-full text-left px-2 py-1 rounded text-xs flex items-center justify-between
-                    ${s.id === saisonChoisie?.id ? "bg-turf/[0.10] text-turf font-semibold" : "hover:bg-line/40"}`}
+                    ${s.id === saisonChoisie?.id ? "bg-accent/[0.10] text-accent font-semibold" : "hover:bg-line/40"}`}
                 >
                   <span>{s.nom}{s.actif ? " ★" : ""}</span>
                   {s.id === saisonChoisie?.id && <Check size={11}/>}
@@ -266,7 +266,7 @@ export function OwnEquipeSwitcher() {
                   type="button"
                   onClick={() => reimporterEquipesSaisonPrecedente(saisonChoisie.id)}
                   disabled={reimportState === "loading"}
-                  className="w-full text-xs px-2 py-1.5 rounded border border-line hover:border-turf/40 hover:bg-turf/[0.06] hover:text-turf text-muted transition disabled:opacity-50 disabled:cursor-wait"
+                  className="w-full text-xs px-2 py-1.5 rounded border border-line hover:border-accent/40 hover:bg-accent/[0.06] hover:text-accent text-muted transition disabled:opacity-50 disabled:cursor-wait"
                 >
                   {reimportState === "loading"
                     ? "Import en cours…"
@@ -289,7 +289,7 @@ export function OwnEquipeSwitcher() {
                   <button
                     onClick={() => onPickEquipe(e.id)}
                     className={`w-full text-left px-2 py-1 rounded text-xs flex items-center justify-between
-                      ${e.id === equipeChoisie?.id ? "bg-turf/[0.10] text-turf font-semibold" : "hover:bg-line/40"}`}
+                      ${e.id === equipeChoisie?.id ? "bg-accent/[0.10] text-accent font-semibold" : "hover:bg-line/40"}`}
                   >
                     <span className="truncate">{e.nom}</span>
                     {e.id === equipeChoisie?.id && <Check size={11}/>}

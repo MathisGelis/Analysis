@@ -106,7 +106,7 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
       {/* Barre de filtres */}
       <div className="flex flex-wrap items-center gap-3 pb-3 border-b border-line">
         <div className="flex items-center gap-2 text-xs text-muted">
-          <Filter size={12} className="text-turf"/>
+          <Filter size={12} className="text-accent"/>
           <span className="uppercase tracking-wider font-bold">Filtres</span>
         </div>
 
@@ -118,7 +118,7 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
           return s ? (
             <span className="text-[10px] uppercase tracking-wider text-faint">
               Saison <span className="text-ink font-semibold">{s.nom}</span>
-              {s.actif && <span className="text-turf ml-1">★</span>}
+              {s.actif && <span className="text-accent ml-1">★</span>}
             </span>
           ) : null;
         })()}
@@ -204,7 +204,7 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
                   </td>
                   <td className="text-xs text-muted">{m.date || "—"}</td>
                   <td>
-                    <Link href={`/club/${m.clubDom}`} className="flex items-center gap-2 hover:text-turf">
+                    <Link href={`/club/${m.clubDom}`} className="flex items-center gap-2 hover:text-accent">
                       <ClubBadge clubId={m.clubDom} size={20}/>
                       <span className="font-semibold">{dom?.nom}</span>
                     </Link>
@@ -213,13 +213,13 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
                     {m.scoreDom}–{m.scoreExt}
                   </td>
                   <td>
-                    <Link href={`/club/${m.clubExt}`} className="flex items-center gap-2 hover:text-turf">
+                    <Link href={`/club/${m.clubExt}`} className="flex items-center gap-2 hover:text-accent">
                       <ClubBadge clubId={m.clubExt} size={20}/>
                       <span className="font-semibold">{ext?.nom}</span>
                     </Link>
                   </td>
                   <td><span className="badge">{m.competition}</span></td>
-                  <td>{isFmi && <span className="badge badge-turf">FMI</span>}</td>
+                  <td>{isFmi && <span className="badge badge-accent">FMI</span>}</td>
                   <td className="text-right">
                     <div className="inline-flex items-center gap-1">
                       <Link href={`/matchs/${m.id}`} className="btn text-xs">Detail</Link>

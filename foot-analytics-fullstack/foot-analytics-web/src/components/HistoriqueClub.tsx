@@ -20,7 +20,7 @@ export function HistoriqueClub({ historique, clubs }: Props) {
   return (
     <section className="panel p-5">
       <div className="h-section mb-3 flex items-center gap-2">
-        <Calendar size={11} className="text-turf"/>
+        <Calendar size={11} className="text-accent"/>
         Historique
       </div>
       {historique.length === 0 ? (

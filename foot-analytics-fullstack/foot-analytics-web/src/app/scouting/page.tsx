@@ -79,11 +79,11 @@ export default async function ScoutingList() {
                       {c.nom}
                     </div>
                     {dansMaPoule.has(c.id) && (
-                      <div className="text-[10px] uppercase tracking-wider text-turf">Ma poule</div>
+                      <div className="text-[10px] uppercase tracking-wider text-accent">Ma poule</div>
                     )}
                     {r?.dispositifAttendu && (
                       <div className="text-[11px] text-muted mt-0.5">
-                        Dispositif : <span className="text-turf font-semibold">{r.dispositifAttendu}</span>
+                        Dispositif : <span className="text-accent font-semibold">{r.dispositifAttendu}</span>
                       </div>
                     )}
                   </div>
@@ -108,7 +108,7 @@ export default async function ScoutingList() {
                 <ClubBadge clubId={c.id} size={32}/>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold truncate">{c.nom}</div>
-                  <div className="text-[11px] text-turf">Voir / creer →</div>
+                  <div className="text-[11px] text-accent">Voir / creer →</div>
                 </div>
               </Link>
             ))}

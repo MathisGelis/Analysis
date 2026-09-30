@@ -131,7 +131,7 @@ export function BlessuresEditeur({
                     )}
                     {!compact && (
                       <Link href={`/joueur/${b.joueurId}`}
-                        className="text-[11px] text-muted hover:text-turf">
+                        className="text-[11px] text-muted hover:text-accent">
                         · {joueurNom(b.joueurId)}
                       </Link>
                     )}

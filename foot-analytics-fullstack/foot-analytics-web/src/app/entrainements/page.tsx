@@ -156,7 +156,7 @@ export default function Entrainements() {
                       </div>
                       <span className={`badge ${
                         s.type === "Physique" ? "badge-danger"
-                        : s.type === "Tactique" ? "badge-turf"
+                        : s.type === "Tactique" ? "badge-accent"
                         : s.type === "Pre-match" ? "badge-amber" : ""}`}>{s.type}</span>
                     </div>
                     <div className="text-sm text-ink font-semibold">{s.theme}</div>
@@ -358,11 +358,11 @@ function SeanceForm({
       <div className="mt-5 panel-inset p-3">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Users size={14} className="text-turf"/>
+            <Users size={14} className="text-accent"/>
             <span className="font-display font-bold text-ink text-sm">
               Joueurs presents
             </span>
-            <span className="badge badge-turf">{presents.size} / {effectif.length}</span>
+            <span className="badge badge-accent">{presents.size} / {effectif.length}</span>
           </div>
           <div className="flex gap-2">
             <button className="btn text-xs" onClick={tousPresents}>
@@ -385,7 +385,7 @@ function SeanceForm({
                 <label
                   key={j.id}
                   className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer ${
-                    checked ? "bg-turf/10 text-ink" : "text-muted hover:bg-line/40"
+                    checked ? "bg-accent/10 text-ink" : "text-muted hover:bg-line/40"
                   }`}
                 >
                   <input type="checkbox" checked={checked} onChange={() => toggle(j.id)} />

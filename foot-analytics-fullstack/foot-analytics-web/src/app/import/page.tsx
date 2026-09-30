@@ -167,7 +167,7 @@ export default function ImportPage() {
           <h1 className="font-display text-2xl font-bold text-ink">Import FMI</h1>
         </div>
         <div className="flex items-center gap-2">
-          <span className="badge badge-turf">Parseur natif · pdfplumber</span>
+          <span className="badge badge-accent">Parseur natif · pdfplumber</span>
           <button className="btn text-xs" onClick={rebuildNow} disabled={busy}>
             <RefreshCw size={12} /> Recalculer effectifs + classement
           </button>
@@ -180,9 +180,9 @@ export default function ImportPage() {
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={onDrop}
-          className="panel p-8 border-dashed border-2 border-line hover:border-turf/60 transition text-center"
+          className="panel p-8 border-dashed border-2 border-line hover:border-accent/60 transition text-center"
         >
-          <CloudUpload size={32} className="text-turf mx-auto mb-2" strokeWidth={1.4} />
+          <CloudUpload size={32} className="text-accent mx-auto mb-2" strokeWidth={1.4} />
           <div className="font-display font-bold text-ink">Fichiers PDF</div>
           <p className="text-xs text-muted mt-1 mb-3">
             Glissez-deposez, ou selectionnez une ou plusieurs feuilles
@@ -218,7 +218,7 @@ export default function ImportPage() {
       </div>
 
       {derive && (
-        <div className="panel-inset p-3 border-l-2 border-turf text-sm text-ink">
+        <div className="panel-inset p-3 border-l-2 border-accent text-sm text-ink">
           {derive}
         </div>
       )}
@@ -279,7 +279,7 @@ export default function ImportPage() {
                 )}
                 {it.status === "ok" && (
                   <>
-                    <span className="badge badge-turf">
+                    <span className="badge badge-accent">
                       <Check size={10} /> {it.reimport ? "Mis a jour" : "Importe"}
                     </span>
                     {it.matchId && (
@@ -310,7 +310,7 @@ export default function ImportPage() {
 function Step({ n, titre, desc }: { n: string; titre: string; desc: string }) {
   return (
     <div className="panel-inset p-4">
-      <div className="font-display text-2xl font-black text-turf">{n}</div>
+      <div className="font-display text-2xl font-black text-accent">{n}</div>
       <div className="font-display font-bold text-ink mt-1">{titre}</div>
       <p className="text-[11px] text-muted mt-1 leading-relaxed">{desc}</p>
     </div>

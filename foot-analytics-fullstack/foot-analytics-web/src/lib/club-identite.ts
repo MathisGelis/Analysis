@@ -10,8 +10,8 @@
 // de couleurs codees en dur : l'ecusson suit le mode clair / sombre.
 
 // Jamais "danger" (rouge d'alerte) : un ecusson ne doit pas se lire comme un etat.
-export type Teinte = "turf" | "sky" | "amber" | "crest-violet" | "crest-teal" | "crest-rose";
-export const TEINTES: Teinte[] = ["turf", "sky", "amber", "crest-violet", "crest-teal", "crest-rose"];
+export type Teinte = "accent" | "sky" | "amber" | "crest-violet" | "crest-teal" | "crest-rose";
+export const TEINTES: Teinte[] = ["accent", "sky", "amber", "crest-violet", "crest-teal", "crest-rose"];
 /** 0 uni, 1 bandeau, 2 ecartele vertical, 3 chevron. */
 export const NB_MOTIFS = 4;
 

@@ -6,6 +6,7 @@
 //   2. Stats equipes : agreges par club (BM, BC, dom/ext, cartons, forme).
 //   3. Stats joueurs : top joueurs trans-clubs (matchs, forme, buts, etc).
 
+import { TabBar } from "@/components/TabBar";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ClubBadge } from "@/components/ClubBadge";
@@ -37,24 +38,7 @@ export function ClassementTabs({
   const [tab, setTab] = useState<Tab>("table");
   return (
     <div className="space-y-5">
-      <nav className="flex items-center gap-1 border-b border-line">
-        {TABS.map((t) => {
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`px-4 py-2 -mb-px text-sm font-semibold transition border-b-2 ${
-                active
-                  ? "text-turf border-turf"
-                  : "text-muted hover:text-ink border-transparent"
-              }`}
-            >
-              {t.label}
-            </button>
-          );
-        })}
-      </nav>
+      <TabBar onglets={TABS} actif={tab} onChange={setTab} label="Vues du classement" />
 
       {tab === "table" && (
         <TableClassement classement={classement} clubs={clubs} ownClubId={ownClubId}/>
@@ -133,7 +117,7 @@ function TableClassement({ classement, clubs, ownClubId }:
             <tr key={l.clubId} className={l.clubId === ownClubId ? "is-mine" : ""}>
               <td className="font-mono text-muted">{l.rang}</td>
               <td>
-                <Link href={`/club/${l.clubId}`} className="flex items-center gap-2 hover:text-turf">
+                <Link href={`/club/${l.clubId}`} className="flex items-center gap-2 hover:text-accent">
                   <ClubBadge clubId={l.clubId} size={22}/>
                   <span className="text-sm">{l.clubNom}</span>
                 </Link>
@@ -285,7 +269,7 @@ function TeamStats({ matchs, clubs, ownClubId }:
             {sorted.map((r) => (
               <tr key={r.clubId} className={r.clubId === ownClubId ? "is-mine" : ""}>
                 <td>
-                  <Link href={`/club/${r.clubId}`} className="flex items-center gap-2 hover:text-turf">
+                  <Link href={`/club/${r.clubId}`} className="flex items-center gap-2 hover:text-accent">
                     <ClubBadge clubId={r.clubId} size={20}/>
                     <span className="text-sm">{r.clubNom}</span>
                   </Link>
@@ -315,11 +299,11 @@ function KpiCard({ label, club, val }: { label: string; club: TeamRow; val: stri
   return (
     <div className="stat-tile">
       <div className="stat-label">{label}</div>
-      <Link href={`/club/${club.clubId}`} className="flex items-center gap-2 mt-2 hover:text-turf">
+      <Link href={`/club/${club.clubId}`} className="flex items-center gap-2 mt-2 hover:text-accent">
         <ClubBadge clubId={club.clubId} size={28}/>
         <div className="min-w-0 flex-1">
           <div className="font-display font-bold text-ink truncate text-sm">{club.clubNom}</div>
-          <div className="text-[11px] text-turf">{val}</div>
+          <div className="text-[11px] text-accent">{val}</div>
         </div>
       </Link>
     </div>
@@ -404,7 +388,7 @@ function PlayerStats({ joueurs, clubs, ownClubId }:
             <tr key={cle} className={isMine ? "is-mine" : ""}>
               <td>
                 {j.id ? (
-                  <Link href={`/joueur/${j.id}`} className="font-semibold hover:text-turf">
+                  <Link href={`/joueur/${j.id}`} className="font-semibold hover:text-accent">
                     <span className="text-faint">{j.prenom} </span>{j.nom}
                   </Link>
                 ) : (
@@ -414,7 +398,7 @@ function PlayerStats({ joueurs, clubs, ownClubId }:
                 )}
               </td>
               <td>
-                <Link href={`/club/${j.clubId}`} className="flex items-center gap-1.5 hover:text-turf">
+                <Link href={`/club/${j.clubId}`} className="flex items-center gap-1.5 hover:text-accent">
                   <ClubBadge clubId={j.clubId} size={16}/>
                   <span className="text-xs text-muted">{j.clubNom}</span>
                 </Link>
@@ -422,7 +406,7 @@ function PlayerStats({ joueurs, clubs, ownClubId }:
               <td className="text-center tabular-nums">{j.matchs}</td>
               <td className="text-center tabular-nums">{j.titularisations}</td>
               <td className="text-center tabular-nums text-muted">{j.minutes}</td>
-              <td className={`text-center tabular-nums ${isMine ? "text-turf" : ""}`}>
+              <td className={`text-center tabular-nums ${isMine ? "text-accent" : ""}`}>
                 {showOff(j.buts)}
               </td>
               <td className={`text-center tabular-nums ${isMine ? "text-sky" : ""}`}>
@@ -430,13 +414,13 @@ function PlayerStats({ joueurs, clubs, ownClubId }:
               </td>
               <td className="text-center tabular-nums text-amber">{j.cartonsJaunes || ""}</td>
               <td className="text-center tabular-nums text-danger">{j.cartonsRouges || ""}</td>
-              <td className="text-right font-semibold text-turf tabular-nums">
+              <td className="text-right font-semibold text-accent tabular-nums">
                 {j.noteMoyenne != null ? j.noteMoyenne.toFixed(1) : "—"}
               </td>
               <td className="text-right">
                 <div className="inline-flex items-center gap-1.5">
                   <div className="w-12 h-1.5 bg-line rounded-full overflow-hidden">
-                    <div className="h-full bg-turf" style={{width:`${j.scoreForme ?? 0}%`}}/>
+                    <div className="h-full bg-accent" style={{width:`${j.scoreForme ?? 0}%`}}/>
                   </div>
                   <span className="text-xs tabular-nums w-6 text-right">{j.scoreForme ?? 0}</span>
                 </div>
@@ -496,7 +480,7 @@ function SortHeader({
   return (
     <button
       onClick={onClick}
-      className={`inline-flex items-center gap-1 hover:text-ink ${active ? "text-turf" : ""}`}
+      className={`inline-flex items-center gap-1 hover:text-ink ${active ? "text-accent" : ""}`}
     >
       <span>{label}</span>
       {active ? (

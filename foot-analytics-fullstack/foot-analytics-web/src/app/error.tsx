@@ -39,7 +39,7 @@ export default function Erreur({
         <p className="text-[11px] text-faint font-mono mt-2">Reference : {error.digest}</p>
       )}
       <div className="flex items-center justify-center gap-2 mt-6">
-        <button onClick={reset} className="btn btn-turf">
+        <button onClick={reset} className="btn btn-accent">
           <RefreshCw size={14} /> Reessayer
         </button>
         <Link href="/" className="btn btn-ghost">

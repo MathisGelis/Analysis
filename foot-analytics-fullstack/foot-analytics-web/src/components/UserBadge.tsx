@@ -1,8 +1,8 @@
 "use client";
 // src/components/UserBadge.tsx
 //
-// Badge utilisateur affiche en bas de la sidebar : nom + login + lien
-// admin (si role=admin) + bouton deconnexion.
+// Utilisateur connecte, en bas de la barre laterale : initiales, nom, lien
+// d'administration (role admin) et deconnexion.
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { clearSession, getCachedUser, User } from "@/lib/auth";
 import { LogOut, ShieldCheck } from "lucide-react";
 
-export function UserBadge() {
+export function UserBadge({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
 
@@ -21,39 +21,45 @@ export function UserBadge() {
     router.replace("/login");
   }
 
-  if (!user) {
+  if (!user) return <div className="px-4 py-3 text-xs text-faint">{compact ? "" : "Non connecte"}</div>;
+
+  const initiales = `${user.prenom?.[0] ?? ""}${user.nom?.[0] ?? user.login?.[0] ?? ""}`.toUpperCase();
+
+  if (compact) {
     return (
-      <div className="px-3 py-2 border-t border-line text-xs text-faint">
-        Non connecte
+      <div className="flex flex-col items-center gap-2 py-3">
+        {user.role === "admin" && (
+          <Link href="/admin/utilisateurs" className="btn btn-ghost !p-2" title="Administration" aria-label="Administration">
+            <ShieldCheck size={16} />
+          </Link>
+        )}
+        <button onClick={logout} className="btn btn-ghost !p-2 text-danger" title="Se deconnecter" aria-label="Se deconnecter">
+          <LogOut size={16} />
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="px-3 py-2 border-t border-line space-y-2">
-      <div className="text-xs">
-        <div className="font-mono font-bold text-ink truncate">{user.login}</div>
-        <div className="text-[10px] text-faint truncate">
-          {user.prenom} {user.nom}
-          {user.role === "admin" && (
-            <span className="ml-1 badge text-[8px] badge-turf">ADMIN</span>
-          )}
+    <div className="flex items-center gap-3 px-4 pb-3 pt-1">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accentstrong to-accent2 font-display text-sm font-bold text-white">
+        {initiales}
+      </div>
+      <div className="min-w-0 flex-1 leading-tight">
+        <div className="truncate text-sm font-semibold text-ink">{user.prenom} {user.nom}</div>
+        <div className="flex items-center gap-1.5 text-[11px] text-faint">
+          <span className="truncate font-mono">{user.login}</span>
+          {user.role === "admin" && <span className="badge badge-accent !px-1.5 !py-0 !text-[10px]">Admin</span>}
         </div>
       </div>
-      <div className="flex gap-1">
-        {user.role === "admin" && (
-          <Link href="/admin/utilisateurs"
-            className="btn text-[10px] flex items-center gap-1 flex-1 justify-center"
-            title="Administration">
-            <ShieldCheck size={10}/> Admin
-          </Link>
-        )}
-        <button onClick={logout}
-          className="btn text-[10px] flex items-center gap-1 flex-1 justify-center text-danger"
-          title="Se deconnecter">
-          <LogOut size={10}/> Sortir
-        </button>
-      </div>
+      {user.role === "admin" && (
+        <Link href="/admin/utilisateurs" className="btn btn-ghost !p-2" title="Administration" aria-label="Administration">
+          <ShieldCheck size={16} />
+        </Link>
+      )}
+      <button onClick={logout} className="btn btn-ghost !p-2 hover:!text-danger" title="Se deconnecter" aria-label="Se deconnecter">
+        <LogOut size={16} />
+      </button>
     </div>
   );
 }

@@ -83,7 +83,7 @@ function TactiqueContent() {
         <div className="col-span-12 lg:col-span-5 panel p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="h-section">11 de depart</div>
-            <span className="badge badge-turf">{onzeJoueurs.length}/11</span>
+            <span className="badge badge-accent">{onzeJoueurs.length}/11</span>
           </div>
           <ol className="space-y-2">
             {onzeJoueurs.map((j, i) => (
@@ -103,15 +103,15 @@ function TactiqueContent() {
                       </option>
                     ))}
                 </select>
-                <span className="text-xs tabular-nums text-turf w-7 text-right">
+                <span className="text-xs tabular-nums text-accent w-7 text-right">
                   {j.noteMoyenne?.toFixed(1)}
                 </span>
               </li>
             ))}
           </ol>
 
-          <div className="mt-5 panel-inset p-3 border-l-2 border-turf">
-            <div className="flex items-center gap-2 text-turf">
+          <div className="mt-5 panel-inset p-3 border-l-2 border-accent">
+            <div className="flex items-center gap-2 text-accent">
               <Lightbulb size={14}/>
               <span className="text-[10px] font-bold uppercase tracking-wider">Suggestion IA</span>
             </div>

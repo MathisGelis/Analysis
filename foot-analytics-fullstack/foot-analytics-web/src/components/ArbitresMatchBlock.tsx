@@ -64,7 +64,7 @@ export function ArbitresMatchBlock({
   return (
     <section className="panel p-5">
       <div className="h-section mb-3 flex items-center gap-2">
-        <Award size={11} className="text-turf"/>
+        <Award size={11} className="text-accent"/>
         Arbitres ({sorted.length})
       </div>
 
@@ -92,7 +92,7 @@ export function ArbitresMatchBlock({
                     {ROLE_LIBELLE[l.role] ?? l.role}
                   </td>
                   <td>
-                    <Link href={`/arbitres/${l.arbitre.id}`} className="font-semibold hover:text-turf">
+                    <Link href={`/arbitres/${l.arbitre.id}`} className="font-semibold hover:text-accent">
                       {l.arbitre.prenom ? <span className="text-faint mr-1">{l.arbitre.prenom}</span> : null}
                       {l.arbitre.nom}
                     </Link>
@@ -101,7 +101,7 @@ export function ArbitresMatchBlock({
                     {l.arbitre.profil ? (
                       <span className={`badge ${
                         l.arbitre.profil === "Strict" ? "badge-danger"
-                        : l.arbitre.profil === "Permissif" ? "badge-turf"
+                        : l.arbitre.profil === "Permissif" ? "badge-accent"
                         : "badge-amber"
                       }`}>{l.arbitre.profil}</span>
                     ) : <span className="text-faint text-xs">—</span>}
@@ -128,7 +128,7 @@ export function ArbitresMatchBlock({
                         )}
                       </div>
                     ) : l.note != null ? (
-                      <span className="font-display font-bold text-turf tabular-nums flex items-center gap-1">
+                      <span className="font-display font-bold text-accent tabular-nums flex items-center gap-1">
                         <Star size={11}/> {l.note}
                       </span>
                     ) : (

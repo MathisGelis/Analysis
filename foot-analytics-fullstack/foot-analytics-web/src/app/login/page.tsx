@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import { setSession } from "@/lib/auth";
 import { LogIn } from "lucide-react";
 import { cheminInterne } from "@/lib/redirection";
+import { AuthShell } from "@/components/AuthShell";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -43,48 +44,41 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg p-4">
-      <form onSubmit={submit} className="panel p-8 w-full max-w-sm space-y-4">
-        <div className="flex items-center gap-3">
-          {/* Meme logo que la barre laterale */}
-          <div className="w-11 h-11 rounded-xl bg-turf grid place-items-center shrink-0
-                          font-display font-black text-bg tracking-tight">
-            FA
-          </div>
-          <div>
-            <h1 className="font-display text-2xl font-bold text-ink leading-tight">Foot Analytics</h1>
-            <p className="text-sm text-muted">Connexion staff technique</p>
-          </div>
-        </div>
+    <AuthShell>
+      <h1 className="font-display text-3xl font-bold text-ink">Bon retour</h1>
+      <p className="mt-1.5 text-sm text-muted">Connexion au staff technique.</p>
 
+      <form onSubmit={submit} className="mt-8 space-y-5">
         <label className="block">
-          <span className="text-[10px] uppercase tracking-wider text-faint">Identifiant</span>
+          <span className="text-[13px] font-semibold text-ink">Identifiant</span>
           <input
             value={login}
             onChange={(e) => setLogin(e.target.value.toUpperCase())}
             placeholder="MLEMAIRE"
             autoFocus
             autoCapitalize="characters"
-            className="select-fm mt-1 font-mono tracking-wider"
+            autoComplete="username"
+            className="inp mt-1.5 !py-3 font-mono tracking-wider"
             spellCheck={false}
           />
-          <span className="text-[10px] text-faint mt-1 block">
-            Format : 1ere lettre du prenom + nom, en MAJUSCULES
+          <span className="mt-1.5 block text-xs text-faint">
+            1ere lettre du prenom + nom, en majuscules.
           </span>
         </label>
 
         <label className="block">
-          <span className="text-[10px] uppercase tracking-wider text-faint">Mot de passe</span>
+          <span className="text-[13px] font-semibold text-ink">Mot de passe</span>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="select-fm mt-1"
+            autoComplete="current-password"
+            className="inp mt-1.5 !py-3"
           />
         </label>
 
         {error && (
-          <div className="text-xs text-danger bg-danger/10 border border-danger/30 rounded px-3 py-2">
+          <div role="alert" className="rounded-xl border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
             {error}
           </div>
         )}
@@ -92,12 +86,12 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading || !login.trim() || !password}
-          className="btn btn-turf w-full flex items-center justify-center gap-2"
+          className="btn btn-accent w-full !py-3 text-[15px]"
         >
-          <LogIn size={14} />
+          <LogIn size={16} />
           {loading ? "Connexion..." : "Se connecter"}
         </button>
       </form>
-    </div>
+    </AuthShell>
   );
 }

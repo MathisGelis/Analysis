@@ -23,7 +23,7 @@ function parseFormation(f: string | null | undefined): number[] {
 }
 
 export function Pitch({
-  formation, joueurs, couleur = "rgb(var(--turf))", titre, oriente = "haut",
+  formation, joueurs, couleur = "rgb(var(--accent))", titre, oriente = "haut",
 }: PitchProps) {
   const lignes = parseFormation(formation);
   const formationConnue = !!formation && formation.trim().length > 0;
@@ -45,7 +45,7 @@ export function Pitch({
       {titre && (
         <div className="flex items-center justify-between mb-2">
           <div className="h-section">{titre}</div>
-          <span className="badge badge-turf">{formationAffichee}</span>
+          <span className="badge badge-accent">{formationAffichee}</span>
         </div>
       )}
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto rounded-md">
@@ -57,7 +57,7 @@ export function Pitch({
           </linearGradient>
           <pattern id="stripes" width="40" height="40" patternUnits="userSpaceOnUse">
             <rect width="40" height="40" fill="url(#grass)" />
-            <rect width="40" height="20" fill="rgb(var(--turf) / 0.03)" />
+            <rect width="40" height="20" fill="rgb(var(--accent) / 0.03)" />
           </pattern>
         </defs>
         <rect width={W} height={H} fill="url(#stripes)" />
@@ -71,7 +71,7 @@ export function Pitch({
           <rect x={(W - 140) / 2} y={H - 62} width="140" height="56" />
           <rect x={(W - 60) / 2} y={H - 26} width="60" height="20" />
         </g>
-        {/* Joueurs : couleur rouge/amber selon carton, sinon turf */}
+        {/* Joueurs : couleur rouge/amber selon carton, sinon accent */}
         {placements.map((p, i) => {
           const j = joueurs[i];
           if (!j) return null;

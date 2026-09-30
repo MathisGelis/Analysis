@@ -43,8 +43,8 @@ export function JoueurAddModal({
   return (
     <Modal open={true} onClose={onClose} maxWidth="max-w-2xl">
       <div className="flex items-center gap-3 pb-4 mb-5 border-b border-line">
-        <div className="w-10 h-10 rounded-lg bg-turf/15 grid place-items-center shrink-0">
-          <UserPlus size={18} className="text-turf"/>
+        <div className="w-10 h-10 rounded-lg bg-accent/15 grid place-items-center shrink-0">
+          <UserPlus size={18} className="text-accent"/>
         </div>
         <div className="flex-1 min-w-0">
           <h2 className="font-display text-lg font-bold text-ink leading-tight">
@@ -69,7 +69,7 @@ export function JoueurAddModal({
           onClick={() => setMode("existant")}
           className={`flex-1 px-3 py-2 rounded-md text-xs font-semibold border transition flex items-center justify-center gap-1.5 ${
             mode === "existant"
-              ? "bg-turf/15 border-turf/40 text-turf"
+              ? "bg-accent/15 border-accent/40 text-accent"
               : "border-line text-muted hover:bg-line/30"
           }`}
         >
@@ -79,7 +79,7 @@ export function JoueurAddModal({
           onClick={() => setMode("nouveau")}
           className={`flex-1 px-3 py-2 rounded-md text-xs font-semibold border transition flex items-center justify-center gap-1.5 ${
             mode === "nouveau"
-              ? "bg-turf/15 border-turf/40 text-turf"
+              ? "bg-accent/15 border-accent/40 text-accent"
               : "border-line text-muted hover:bg-line/30"
           }`}
         >
@@ -196,7 +196,7 @@ function ExistantPanel({
                     <button
                       onClick={() => attach(j)}
                       disabled={attaching === j.id}
-                      className="btn btn-turf text-[10px]"
+                      className="btn btn-accent text-[10px]"
                     >
                       <Plus size={10}/> {attaching === j.id ? "..." : "Ajouter"}
                     </button>
@@ -345,7 +345,7 @@ function NouveauPanel({
 
       <div className="flex justify-end gap-2 pt-4 mt-5 border-t border-line">
         <button className="btn" onClick={onClose}>Annuler</button>
-        <button className="btn btn-turf" onClick={save} disabled={saving}>
+        <button className="btn btn-accent" onClick={save} disabled={saving}>
           <Save size={14}/> {saving ? "Creation..." : "Creer et ajouter"}
         </button>
       </div>

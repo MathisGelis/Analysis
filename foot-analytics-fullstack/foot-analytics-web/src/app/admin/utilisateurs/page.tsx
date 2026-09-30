@@ -60,11 +60,11 @@ export default function AdminUtilisateurs() {
       <header className="flex items-end justify-between gap-3 flex-wrap">
         <div>
           <div className="h-section flex items-center gap-2">
-            <ShieldCheck size={11} className="text-turf"/>Administration
+            <ShieldCheck size={11} className="text-accent"/>Administration
           </div>
           <h1 className="font-display text-2xl font-bold text-ink">Comptes utilisateurs</h1>
         </div>
-        <button className="btn btn-turf" onClick={() => setAdding(true)}>
+        <button className="btn btn-accent" onClick={() => setAdding(true)}>
           <Plus size={14}/> Nouveau compte
         </button>
       </header>
@@ -98,7 +98,7 @@ export default function AdminUtilisateurs() {
                     <td className="font-mono font-bold">{u.login}</td>
                     <td>{u.prenom} {u.nom}</td>
                     <td>
-                      <span className={`badge ${u.role === "admin" ? "badge-turf" : ""}`}>
+                      <span className={`badge ${u.role === "admin" ? "badge-accent" : ""}`}>
                         {u.role === "admin" ? "Admin" : "User"}
                       </span>
                     </td>
@@ -212,7 +212,7 @@ function UserForm({
       <Modal open={true} onClose={() => { onSaved(); }} maxWidth="max-w-md">
         <div className="space-y-4">
           <h2 className="font-display text-xl font-bold text-ink flex items-center gap-2">
-            <KeyRound size={18} className="text-turf"/> Compte cree
+            <KeyRound size={18} className="text-accent"/> Compte cree
           </h2>
           <p className="text-sm text-muted">
             Communique ces credentials au nouvel utilisateur. Le mot de
@@ -228,7 +228,7 @@ function UserForm({
               <div className="font-mono font-bold text-lg text-amber">{createdPassword}</div>
             </div>
           </div>
-          <button className="btn btn-turf w-full" onClick={onSaved}>OK</button>
+          <button className="btn btn-accent w-full" onClick={onSaved}>OK</button>
         </div>
       </Modal>
     );
@@ -239,7 +239,7 @@ function UserForm({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-xl font-bold text-ink flex items-center gap-2">
-            <UserCog size={18} className="text-turf"/>
+            <UserCog size={18} className="text-accent"/>
             {isEdit ? "Modifier le compte" : "Nouveau compte"}
           </h2>
           <button onClick={onClose} className="btn text-xs"><X size={14}/></button>
@@ -267,7 +267,7 @@ function UserForm({
             {["user", "admin"].map((r) => (
               <button key={r}
                 onClick={() => setRole(r as any)}
-                className={`btn text-xs ${role === r ? "btn-turf" : ""}`}>
+                className={`btn text-xs ${role === r ? "btn-accent" : ""}`}>
                 {r === "admin" ? "Administrateur" : "Utilisateur (staff)"}
               </button>
             ))}
@@ -296,7 +296,7 @@ function UserForm({
                     return (
                       <label key={e.id}
                         className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer ${
-                          on ? "bg-turf/10 text-ink" : "text-muted hover:bg-line/40"
+                          on ? "bg-accent/10 text-ink" : "text-muted hover:bg-line/40"
                         }`}>
                         <input type="checkbox" checked={on} onChange={() => toggleEquipe(e.id)}/>
                         <span className="flex-1 truncate">{e.nom}</span>
@@ -331,7 +331,7 @@ function UserForm({
 
         <div className="flex justify-end gap-2">
           <button className="btn" onClick={onClose}>Annuler</button>
-          <button className="btn btn-turf" onClick={submit} disabled={saving}>
+          <button className="btn btn-accent" onClick={submit} disabled={saving}>
             <Save size={14}/>
             {saving ? "Sauvegarde…" : (isEdit ? "Enregistrer" : "Creer le compte")}
           </button>

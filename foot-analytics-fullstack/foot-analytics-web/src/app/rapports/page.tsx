@@ -46,7 +46,7 @@ export default async function Rapports() {
       {/* Analyse d'equipe — selecteur de club */}
       <section className="panel p-5">
         <div className="flex items-center gap-2 mb-3">
-          <BarChart3 size={14} className="text-turf"/>
+          <BarChart3 size={14} className="text-accent"/>
           <div className="h-section">Rapport d'analyse d'equipe</div>
         </div>
         <p className="text-xs text-muted mb-4">
@@ -58,18 +58,18 @@ export default async function Rapports() {
         {monClub && (
           <Link
             href={`/rapports/equipe/${monClub.id}`}
-            className="panel-inset p-4 flex items-center gap-4 border-l-2 border-turf hover:bg-line/40 transition mb-3"
+            className="panel-inset p-4 flex items-center gap-4 border-l-2 border-accent hover:bg-line/40 transition mb-3"
           >
             <ClubBadge clubId={monClub.id} size={44}/>
             <div className="flex-1 min-w-0">
-              <div className="text-[10px] uppercase tracking-wider text-turf font-bold">
+              <div className="text-[10px] uppercase tracking-wider text-accent font-bold">
                 Mon equipe
               </div>
               <div className="font-display font-bold text-ink truncate">
                 {monClub.nom}
               </div>
             </div>
-            <FileText size={14} className="text-turf"/>
+            <FileText size={14} className="text-accent"/>
           </Link>
         )}
 
@@ -96,7 +96,7 @@ export default async function Rapports() {
         <ModeleCard
           titre="Pre-match"
           desc="Compo probable adverse, dispositif suggere, points cles, contre-strategies."
-          icon={<FileText size={18} className="text-turf"/>}
+          icon={<FileText size={18} className="text-accent"/>}
         />
         <ModeleCard
           titre="Post-match"
@@ -134,7 +134,7 @@ export default async function Rapports() {
                 <td className="text-xs text-muted font-mono">{r.date}</td>
                 <td className="text-sm text-muted">{r.auteur}</td>
                 <td>
-                  <span className={`badge ${r.statut==="Pret"?"badge-turf":"badge-amber"}`}>
+                  <span className={`badge ${r.statut==="Pret"?"badge-accent":"badge-amber"}`}>
                     {r.statut}
                   </span>
                 </td>

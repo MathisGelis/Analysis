@@ -277,7 +277,7 @@ export function AddMatchButton({ clubs }: { clubs: Club[] }) {
               className="mt-5 mb-3 w-full text-left flex items-center gap-2 panel-inset px-3 py-2 hover:bg-line/40"
             >
               {openCompo ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              <Users size={14} className="text-turf" />
+              <Users size={14} className="text-accent" />
               <span className="font-display font-bold text-ink">
                 Compositions (facultatif)
               </span>
@@ -315,7 +315,7 @@ export function AddMatchButton({ clubs }: { clubs: Club[] }) {
               className="mt-5 mb-3 w-full text-left flex items-center gap-2 panel-inset px-3 py-2 hover:bg-line/40"
             >
               {openArb ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              <Award size={14} className="text-turf" />
+              <Award size={14} className="text-accent" />
               <span className="font-display font-bold text-ink">
                 Arbitres (facultatif)
               </span>
@@ -340,7 +340,7 @@ export function AddMatchButton({ clubs }: { clubs: Club[] }) {
               />
             )}
 
-            {info && <p className="text-turf text-xs mt-3">{info}</p>}
+            {info && <p className="text-accent text-xs mt-3">{info}</p>}
             {error && <p className="text-danger text-xs mt-3">{error}</p>}
 
             <div className="flex justify-end gap-2 mt-5">
@@ -372,7 +372,7 @@ function CompoEditor({
     <div className="panel-inset p-3">
       <div className="flex items-center justify-between mb-2">
         <div className="font-display text-sm font-bold text-ink truncate">{titre}</div>
-        <span className="badge badge-turf">{titu} titu / {lignes.length}</span>
+        <span className="badge badge-accent">{titu} titu / {lignes.length}</span>
       </div>
       <div className="flex gap-2 mb-2">
         <button className="btn text-xs" onClick={onCharger}>

@@ -282,7 +282,7 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
             <X size={11}/> Annuler
           </button>
           <button onClick={() => save(conflits.length > 0)} disabled={saving}
-            className="btn btn-turf text-xs flex items-center gap-1">
+            className="btn btn-accent text-xs flex items-center gap-1">
             <Save size={11}/> {saving
               ? "Sauvegarde..."
               : conflits.length > 0 ? "Enregistrer quand meme" : "Enregistrer"}

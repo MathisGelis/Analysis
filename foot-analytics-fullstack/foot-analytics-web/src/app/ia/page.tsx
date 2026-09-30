@@ -66,7 +66,7 @@ export default function IAPage() {
           </div>
 
           <div className="space-y-3">
-            <ProbBar label="Victoire" value={Math.round(baseV)} color="rgb(var(--turf))"/>
+            <ProbBar label="Victoire" value={Math.round(baseV)} color="rgb(var(--accent))"/>
             <ProbBar label="Match nul" value={Math.round(baseN)} color="rgb(var(--amber))"/>
             <ProbBar label="Defaite" value={Math.round(baseD)} color="rgb(var(--danger))"/>
           </div>
@@ -96,7 +96,7 @@ export default function IAPage() {
             />
             <p className="text-[11px] text-muted mt-3">
               Issu de l'analyse de la derniere feuille de match Neuville et du
-              rapport scouting. Confiance estimee : <span className="text-turf font-semibold">78%</span>.
+              rapport scouting. Confiance estimee : <span className="text-accent font-semibold">78%</span>.
             </p>
           </div>
         </div>
@@ -146,11 +146,11 @@ export default function IAPage() {
       {/* Suggestions tactiques */}
       <section className="panel p-5">
         <div className="h-section mb-3 flex items-center gap-1.5">
-          <Zap size={11} className="text-turf"/> Suggestions tactiques contextuelles
+          <Zap size={11} className="text-accent"/> Suggestions tactiques contextuelles
         </div>
         <ul className="space-y-3 text-sm">
-          <li className="flex gap-3 panel-inset p-3 border-l-2 border-turf">
-            <div className="text-turf">▸</div>
+          <li className="flex gap-3 panel-inset p-3 border-l-2 border-accent">
+            <div className="text-accent">▸</div>
             <span><strong>Pressing decale a droite</strong> · Neuville construit principalement
               cote gauche (KHARKHACHE / GASPARD). Sur-orienter le bloc presse vers
               cette zone reduit les sorties de balle.</span>

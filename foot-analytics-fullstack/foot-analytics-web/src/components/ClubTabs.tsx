@@ -6,6 +6,7 @@
 // Les noms de joueurs sont resolus en liens vers leur fiche si le joueur
 // existe en base ; sinon affichage en clair.
 
+import { TabBar } from "@/components/TabBar";
 import { useState } from "react";
 import Link from "next/link";
 import type { Club, Equipe, Joueur, Match, RapportScouting, LigneClassement, Issue } from "@/lib/types";
@@ -85,7 +86,7 @@ function JoueurName({
   const label = `${prenom ?? ""} ${nom}`.trim();
   if (!id) return <span className={className}>{label}</span>;
   return (
-    <Link href={`/joueur/${id}`} className={`hover:text-turf ${className}`}>
+    <Link href={`/joueur/${id}`} className={`hover:text-accent ${className}`}>
       {label}
     </Link>
   );
@@ -105,17 +106,18 @@ export function ClubTabs({
     <div className="space-y-6 fade-up">
       {/* ============= EN-TETE COMMUN A TOUS LES ONGLETS ============== */}
       <header className="panel p-6 relative overflow-hidden">
-        <div className="absolute -top-24 -right-24 w-80 h-80 bg-turf/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-accentstrong/[0.16] via-transparent to-accent2/[0.06]" />
+        <div className="pitch-lines" />
         <div className="relative flex items-start gap-5 flex-wrap">
           <ClubBadge clubId={club.id} size={86} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="font-display text-3xl font-bold text-ink">{club.nom}</h1>
+              <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">{club.nom}</h1>
               {club.numeroFff && <span className="badge">FFF #{club.numeroFff}</span>}
-              {isMine && <span className="badge badge-turf">Mon club</span>}
+              {isMine && <span className="badge badge-accent">Mon club</span>}
               {!isMine && rapport && <span className="badge badge-amber">Rapport scouting</span>}
               {saisonNom && (
-                <span className={`badge ${saisonActif ? "badge-turf" : ""}`}>
+                <span className={`badge ${saisonActif ? "badge-accent" : ""}`}>
                   Saison {saisonNom}{saisonActif ? " ★" : ""}
                 </span>
               )}
@@ -125,7 +127,7 @@ export function ClubTabs({
                 {equipe.categorie} · {equipe.division} · Poule {equipe.poule}
                 {equipe.coach && <> · Coach {equipe.coach}</>}
                 {equipe.formationDef && (
-                  <> · Dispositif <span className="text-turf font-semibold">{equipe.formationDef}</span></>
+                  <> · Dispositif <span className="text-accent font-semibold">{equipe.formationDef}</span></>
                 )}
               </div>
             )}
@@ -133,7 +135,7 @@ export function ClubTabs({
           {ligne && (
             <div className="panel-inset px-5 py-3 text-center">
               <div className="h-section">Classement</div>
-              <div className="font-display text-4xl font-black text-turf leading-none mt-1">
+              <div className="font-display text-4xl font-black text-accent leading-none mt-1">
                 {ligne.rang}<span className="text-xs text-muted font-medium">/{totalClasses ?? ligne.rang}</span>
               </div>
               <div className="text-xs text-muted mt-1">{ligne.pts} pts</div>
@@ -153,26 +155,7 @@ export function ClubTabs({
       </header>
 
       {/* ============= BARRE D'ONGLETS ============= */}
-      <nav className="flex items-center gap-1 border-b border-line">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 px-4 py-2 -mb-px text-sm font-semibold transition ${
-                active
-                  ? "text-turf border-b-2 border-turf"
-                  : "text-muted hover:text-ink border-b-2 border-transparent"
-              }`}
-            >
-              <Icon size={13} />
-              {t.label}
-            </button>
-          );
-        })}
-      </nav>
+      <TabBar onglets={TABS} actif={tab} onChange={setTab} label="Sections du club" />
 
       {/* ============= PANELS ============= */}
       {tab === "overview" && <OverviewPanel
@@ -230,7 +213,7 @@ function OverviewPanel({
           <Mini label="Cartons jaunes" value={cumulCJ} accent="amber" />
           <Mini label="Cartons rouges" value={cumulCR} accent="loss" />
           {equipe?.formationDef && (
-            <Mini label="Dispositif" value={equipe.formationDef} accent="turf" />
+            <Mini label="Dispositif" value={equipe.formationDef} accent="accent" />
           )}
         </div>
       </div>
@@ -257,12 +240,12 @@ function OverviewPanel({
                     <td className="font-mono text-muted">{r.journee}</td>
                     <td><span className="badge">{r.lieu === "Domicile" ? "DOM" : "EXT"}</span></td>
                     <td>
-                      <Link href={`/club/${r.adversaireId}`} className="font-semibold hover:text-turf">
+                      <Link href={`/club/${r.adversaireId}`} className="font-semibold hover:text-accent">
                         {r.adversaire}
                       </Link>
                     </td>
                     <td>
-                      <Link href={`/matchs/${r.matchId}`} className="font-mono font-semibold tabular-nums hover:text-turf">
+                      <Link href={`/matchs/${r.matchId}`} className="font-mono font-semibold tabular-nums hover:text-accent">
                         {r.butsMarques}–{r.butsEncaisses}
                       </Link>
                     </td>
@@ -290,16 +273,16 @@ function OverviewPanel({
           <ul className="space-y-2">
             {topForme.map((j: Joueur, i: number) => (
               <li key={j.id ?? i} className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-md bg-panel2 border border-line grid place-items-center font-mono text-sm font-bold text-turf">
+                <div className="w-10 h-10 rounded-md bg-panel2 border border-line grid place-items-center font-mono text-sm font-bold text-accent">
                   {j.numeroFavori ?? "?"}
                 </div>
-                <Link href={j.id ? `/joueur/${j.id}` : "#"} className="flex-1 min-w-0 hover:text-turf">
+                <Link href={j.id ? `/joueur/${j.id}` : "#"} className="flex-1 min-w-0 hover:text-accent">
                   <div className="text-sm font-semibold truncate">{j.prenom} {j.nom}</div>
                   <div className="text-[11px] text-muted">{j.poste} · {j.matchs} mat. · {j.minutes}'</div>
                 </Link>
                 <div className="flex items-center gap-2">
                   <div className="w-14 h-1.5 bg-line rounded-full overflow-hidden">
-                    <div className="h-full bg-turf" style={{width: `${j.scoreForme ?? 0}%`}}/>
+                    <div className="h-full bg-accent" style={{width: `${j.scoreForme ?? 0}%`}}/>
                   </div>
                   <span className="text-xs tabular-nums w-6">{j.scoreForme ?? 0}</span>
                 </div>
@@ -355,7 +338,7 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
               <td className="font-mono text-muted">{j.numeroFavori ?? "—"}</td>
               <td>
                 {j.id ? (
-                  <Link href={`/joueur/${j.id}`} className="font-semibold hover:text-turf">
+                  <Link href={`/joueur/${j.id}`} className="font-semibold hover:text-accent">
                     {j.prenom} {j.nom}
                   </Link>
                 ) : (
@@ -366,20 +349,20 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
               <td className="text-center tabular-nums">{j.matchs}</td>
               <td className="text-center tabular-nums">{j.titularisations}</td>
               {isMine && <td className="tabular-nums text-muted">{j.minutes}'</td>}
-              <td className="font-semibold text-turf tabular-nums">{j.noteMoyenne?.toFixed(1)}</td>
+              <td className="font-semibold text-accent tabular-nums">{j.noteMoyenne?.toFixed(1)}</td>
               <td>
                 {j.scoreForme == null ? (
                   <span className="text-xs text-faint">—</span>
                 ) : (
                   <div className="flex items-center gap-2">
                     <div className="w-12 h-1.5 bg-line rounded-full overflow-hidden">
-                      <div className="h-full bg-turf" style={{width: `${j.scoreForme}%`}}/>
+                      <div className="h-full bg-accent" style={{width: `${j.scoreForme}%`}}/>
                     </div>
                     <span className="text-xs text-muted tabular-nums w-6">{j.scoreForme}</span>
                   </div>
                 )}
               </td>
-              <td className="text-center text-turf font-mono">{j.buts || ""}</td>
+              <td className="text-center text-accent font-mono">{j.buts || ""}</td>
               <td className="text-center text-sky font-mono">{j.passesDecisives || ""}</td>
               <td className="text-center text-amber font-mono">{j.cartonsJaunes || ""}</td>
               <td className="text-center text-danger font-mono">{j.cartonsRouges || ""}</td>
@@ -387,7 +370,7 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
                 {j.statutMutation && (
                   <span className={`badge ${
                     j.statutMutation==="Mutation" ? "badge-amber"
-                    : j.statutMutation==="Pas mutation" ? "badge-turf" : ""
+                    : j.statutMutation==="Pas mutation" ? "badge-accent" : ""
                   }`}>{j.statutMutation}</span>
                 )}
               </td>
@@ -431,12 +414,12 @@ function MatchsPanel({ resultats, clubId }: { resultats: ResultatLigne[]; clubId
                 <td className="font-mono text-muted">{r.journee}</td>
                 <td><span className="badge">{r.lieu === "Domicile" ? "DOM" : "EXT"}</span></td>
                 <td>
-                  <Link href={`/club/${r.adversaireId}`} className="font-semibold hover:text-turf">
+                  <Link href={`/club/${r.adversaireId}`} className="font-semibold hover:text-accent">
                     {r.adversaire}
                   </Link>
                 </td>
                 <td>
-                  <Link href={`/matchs/${r.matchId}`} className="font-mono font-semibold tabular-nums hover:text-turf">
+                  <Link href={`/matchs/${r.matchId}`} className="font-mono font-semibold tabular-nums hover:text-accent">
                     {r.butsMarques}–{r.butsEncaisses}
                   </Link>
                 </td>
@@ -495,7 +478,7 @@ function ScoutingPanel({
       <section className="grid grid-cols-12 gap-4">
         <div className="col-span-12 lg:col-span-4 panel p-5">
           <div className="h-section mb-3">Dispositif attendu</div>
-          <div className="font-display text-4xl font-black text-turf">{dispositif}</div>
+          <div className="font-display text-4xl font-black text-accent">{dispositif}</div>
           {rapport?.capitaine && (
             <div className="text-xs text-muted mt-2">
               Capitaine probable : <span className="text-ink font-semibold">{rapport.capitaine}</span>
@@ -526,7 +509,7 @@ function ScoutingPanel({
               <ul className="space-y-1">
                 {rapport.joueursCles.map((s: string) => (
                   <li key={s} className="flex items-center gap-2 text-sm">
-                    <Check size={12} className="text-turf"/>
+                    <Check size={12} className="text-accent"/>
                     <JoueurName nom={s.split(" ").slice(0,-1).join(" ")} prenom={s.split(" ").slice(-1)[0]} joueurs={joueurs}/>
                   </li>
                 ))}
@@ -562,12 +545,12 @@ function ScoutingPanel({
           {rapport?.forces?.length > 0 && (
             <div className="col-span-12 md:col-span-6 panel p-5">
               <div className="h-section mb-3 flex items-center gap-1.5">
-                <ArrowUpRight size={12} className="text-turf"/> Forces
+                <ArrowUpRight size={12} className="text-accent"/> Forces
               </div>
               <ul className="space-y-2.5">
                 {rapport.forces.map((f: string) => (
                   <li key={f} className="flex items-start gap-2.5 text-sm">
-                    <span className="w-1 h-1 mt-2 bg-turf rounded-full shrink-0"/>
+                    <span className="w-1 h-1 mt-2 bg-accent rounded-full shrink-0"/>
                     <span className="text-ink">{f}</span>
                   </li>
                 ))}
@@ -639,7 +622,7 @@ function ScoutingPanel({
                     ) : d.numero >= 12 ? (
                       <span className="badge">Remplacant</span>
                     ) : (
-                      <span className="badge badge-turf">Titulaire</span>
+                      <span className="badge badge-accent">Titulaire</span>
                     )}
                   </td>
                 </tr>
@@ -669,7 +652,7 @@ function Mini({ label, value, accent }: { label: string; value: any; accent?: st
   const c = accent === "amber" ? "text-amber"
     : accent === "loss" ? "text-loss"
     : accent === "win" ? "text-win"
-    : accent === "turf" ? "text-turf" : "text-ink";
+    : accent === "accent" ? "text-accent" : "text-ink";
   return (
     <div className="flex items-center justify-between border-b border-line/60 pb-2 last:border-0">
       <span className="text-xs text-muted">{label}</span>

@@ -10,6 +10,7 @@ import { api } from "@/lib/api";
 import { getCachedUser, setSession } from "@/lib/auth";
 import { Key } from "lucide-react";
 import { cheminInterne } from "@/lib/redirection";
+import { AuthShell } from "@/components/AuthShell";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
@@ -47,40 +48,29 @@ export default function ChangePasswordPage() {
     }
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-bg p-4">
-      <form onSubmit={submit} className="panel p-8 w-full max-w-sm space-y-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-ink">Changer le mot de passe</h1>
-          {u && (
-            <p className="text-sm text-muted">
-              Bonjour {u.prenom} {u.nom}. Pour des raisons de securite, tu dois
-              definir un nouveau mot de passe.
-            </p>
-          )}
-        </div>
+  const champ = (label: string, value: string, set: (v: string) => void, extra: object = {}) => (
+    <label className="block">
+      <span className="text-[13px] font-semibold text-ink">{label}</span>
+      <input type="password" value={value} onChange={(e) => set(e.target.value)} className="inp mt-1.5 !py-3" {...extra} />
+    </label>
+  );
 
-        <label className="block">
-          <span className="text-[10px] uppercase tracking-wider text-faint">Ancien mot de passe</span>
-          <input type="password" value={oldP}
-            onChange={(e) => setOldP(e.target.value)} autoFocus
-            className="select-fm mt-1"/>
-        </label>
-        <label className="block">
-          <span className="text-[10px] uppercase tracking-wider text-faint">Nouveau mot de passe (6 caracteres min)</span>
-          <input type="password" value={newP}
-            onChange={(e) => setNewP(e.target.value)}
-            className="select-fm mt-1"/>
-        </label>
-        <label className="block">
-          <span className="text-[10px] uppercase tracking-wider text-faint">Confirmer</span>
-          <input type="password" value={confirmP}
-            onChange={(e) => setConfirmP(e.target.value)}
-            className="select-fm mt-1"/>
-        </label>
+  return (
+    <AuthShell>
+      <h1 className="font-display text-3xl font-bold text-ink">Nouveau mot de passe</h1>
+      {u && (
+        <p className="mt-1.5 text-sm leading-relaxed text-muted">
+          Bonjour {u.prenom} {u.nom}. Pour votre securite, definissez un mot de passe personnel.
+        </p>
+      )}
+
+      <form onSubmit={submit} className="mt-8 space-y-5">
+        {champ("Ancien mot de passe", oldP, setOldP, { autoFocus: true, autoComplete: "current-password" })}
+        {champ("Nouveau mot de passe (6 caracteres minimum)", newP, setNewP, { autoComplete: "new-password" })}
+        {champ("Confirmer", confirmP, setConfirmP, { autoComplete: "new-password" })}
 
         {error && (
-          <div className="text-xs text-danger bg-danger/10 border border-danger/30 rounded px-3 py-2">
+          <div role="alert" className="rounded-xl border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
             {error}
           </div>
         )}
@@ -88,12 +78,12 @@ export default function ChangePasswordPage() {
         <button
           type="submit"
           disabled={loading || !oldP || !newP || !confirmP}
-          className="btn btn-turf w-full flex items-center justify-center gap-2"
+          className="btn btn-accent w-full !py-3 text-[15px]"
         >
-          <Key size={14}/>
+          <Key size={16} />
           {loading ? "Enregistrement..." : "Definir le mot de passe"}
         </button>
       </form>
-    </div>
+    </AuthShell>
   );
 }

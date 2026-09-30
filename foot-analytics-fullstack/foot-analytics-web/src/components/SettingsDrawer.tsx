@@ -127,7 +127,7 @@ export function SettingsDrawer({
 
             {/* Indicateur courant pour confirmer visuellement le clic */}
             <div className="mt-4 panel-inset px-3 py-2 text-[11px] text-muted flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-turf pulse-live"/>
+              <span className="w-1.5 h-1.5 rounded-full bg-accent pulse-live"/>
               Mode actuel : <span className="text-ink font-semibold">{theme === "dark" ? "Sombre" : "Clair"}</span>
             </div>
           </section>
@@ -162,12 +162,12 @@ function ThemeChoice({
       onClick={onClick}
       className={`flex flex-col items-center gap-1.5 px-3 py-4 rounded-lg border-2 transition-all cursor-pointer
         ${active
-          ? "border-turf/60 bg-turf/[0.08]"
+          ? "border-accent/60 bg-accent/[0.08]"
           : "border-line hover:border-line2 bg-panel2"
         }`}
       aria-pressed={active}
     >
-      <span className={active ? "text-turf" : "text-muted"}>{icon}</span>
+      <span className={active ? "text-accent" : "text-muted"}>{icon}</span>
       <span className={`text-xs font-semibold ${active ? "text-ink" : "text-muted"}`}>
         {label}
       </span>

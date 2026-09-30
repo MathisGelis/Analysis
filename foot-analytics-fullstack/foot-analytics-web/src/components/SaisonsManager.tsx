@@ -88,7 +88,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
               </li>
             ))}
           </ul>
-          <button className="btn btn-turf text-xs" onClick={onFusionner} disabled={busy}>
+          <button className="btn btn-accent text-xs" onClick={onFusionner} disabled={busy}>
             Fusionner maintenant
           </button>
         </div>
@@ -97,7 +97,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
       <div className="panel p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="h-section flex items-center gap-2">
-            <Calendar size={11} className="text-turf"/>
+            <Calendar size={11} className="text-accent"/>
             Saisons enregistrees ({saisons.length})
           </div>
           <button
@@ -160,12 +160,12 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
               {saisons.map((s) => (
                 <tr key={s.id} className={s.actif ? "is-mine" : ""}>
                   <td className="font-display font-bold">
-                    {s.actif && <Star size={11} className="inline text-turf mr-1.5"/>}
+                    {s.actif && <Star size={11} className="inline text-accent mr-1.5"/>}
                     {s.nom}
                   </td>
                   <td>
                     <span className={`badge text-[10px] ${
-                      s.statut === "en_cours" ? "badge-turf"
+                      s.statut === "en_cours" ? "badge-accent"
                       : s.statut === "terminee" ? "" : "badge-amber"
                     }`}>{LIBELLE_STATUT[s.statut] ?? s.statut}</span>
                   </td>
@@ -175,7 +175,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
                   </td>
                   <td className="text-right">
                     {s.actif ? (
-                      <span className="text-xs text-turf flex items-center justify-end gap-1">
+                      <span className="text-xs text-accent flex items-center justify-end gap-1">
                         <Check size={11}/> Active
                       </span>
                     ) : (
@@ -205,7 +205,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
               return (
                 <div key={s.id} className="panel-inset p-3">
                   <div className="font-display font-bold mb-2">
-                    {s.nom} {s.actif && <Star size={10} className="inline text-turf"/>}
+                    {s.nom} {s.actif && <Star size={10} className="inline text-accent"/>}
                   </div>
                   {equ.length === 0 ? (
                     <p className="text-xs text-faint">Aucune equipe rattachee.</p>

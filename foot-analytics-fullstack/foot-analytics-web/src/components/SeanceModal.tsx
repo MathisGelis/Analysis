@@ -196,11 +196,11 @@ export function SeanceModal({
       <div className="mt-5 panel-inset p-3">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Users size={14} className="text-turf"/>
+            <Users size={14} className="text-accent"/>
             <span className="font-display font-bold text-ink text-sm">
               Joueurs presents
             </span>
-            <span className="badge badge-turf">
+            <span className="badge badge-accent">
               {presents.size} / {effectif.length}
             </span>
           </div>
@@ -224,7 +224,7 @@ export function SeanceModal({
               return (
                 <label key={j.id}
                   className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer ${
-                    checked ? "bg-turf/10 text-ink" : "text-muted hover:bg-line/40"
+                    checked ? "bg-accent/10 text-ink" : "text-muted hover:bg-line/40"
                   }`}>
                   <input type="checkbox" checked={checked}
                     onChange={() => toggle(j.id)}/>

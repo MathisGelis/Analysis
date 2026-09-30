@@ -48,7 +48,7 @@ export default async function ArbitresList() {
       <section className="panel-inset p-4 text-xs text-muted leading-relaxed">
         <strong className="text-ink">Profil arbitre :</strong> calcule a partir
         du nombre de cartons donnes par match (en tant que principal uniquement) :
-        <span className="text-turf"> Permissif</span> &lt; 2/match,
+        <span className="text-accent"> Permissif</span> &lt; 2/match,
         <span className="text-amber"> Standard</span> 2 a 5/match,
         <span className="text-danger"> Strict</span> &gt; 5/match.
         Les stats sont restreintes au championnat selectionne — l'historique

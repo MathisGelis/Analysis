@@ -3,7 +3,7 @@
 //
 // Calendrier mensuel interactif :
 //  - Navigation mois (<- ->) + bouton "Aujourd'hui"
-//  - Jour actuel mis en evidence (border turf)
+//  - Jour actuel mis en evidence (border accent)
 //  - Matchs reels (api.matchs) de l'equipe propre
 //  - Entrainements reels (api.entrainements) de l'equipe propre
 //  - Evenements "Autre" (reunions, deplacements, etc.) stockes en
@@ -243,7 +243,7 @@ function CalendrierContent() {
       {/* Legende */}
       <div className="flex gap-5 text-[11px] text-muted flex-wrap">
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-sm bg-turf"/> Match
+          <span className="w-2.5 h-2.5 rounded-sm bg-accent"/> Match
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm bg-amber"/> Entrainement
@@ -255,7 +255,7 @@ function CalendrierContent() {
           <span className="w-2.5 h-2.5 rounded-sm border border-amber/30 bg-amber/5"/> Jour prevu (sans seance)
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-sm border-2 border-turf"/> Aujourd'hui
+          <span className="w-2.5 h-2.5 rounded-sm border-2 border-accent"/> Aujourd'hui
         </span>
       </div>
 
@@ -286,11 +286,11 @@ function CalendrierContent() {
             return (
               <div key={i}
                 className={`min-h-[110px] panel-inset p-2 relative group ${
-                  isToday ? "border-2 border-turf" : ""
+                  isToday ? "border-2 border-accent" : ""
                 }`}>
                 <div className="flex items-center justify-between">
                   <div className={`text-[11px] font-mono ${
-                    isToday ? "text-turf font-bold" : "text-muted"
+                    isToday ? "text-accent font-bold" : "text-muted"
                   }`}>
                     {slot.date.getDate()}
                   </div>
@@ -304,7 +304,7 @@ function CalendrierContent() {
                     <button
                       onClick={() => setAddOpen({ date: iso, type: "match" })}
                       title="Ajouter un match"
-                      className="text-[9px] px-1 py-0.5 rounded hover:bg-turf/20 text-turf">+M</button>
+                      className="text-[9px] px-1 py-0.5 rounded hover:bg-accent/20 text-accent">+M</button>
                     <button
                       onClick={() => setAddOpen({ date: iso, type: "autre" })}
                       title="Ajouter un evenement"
@@ -322,7 +322,7 @@ function CalendrierContent() {
                     return (
                       <Link href={`/matchs/${m.id}`} key={m.id}
                         className="block px-1.5 py-1 rounded-sm text-[10px] leading-tight
-                          bg-turf/15 text-turf border border-turf/30 hover:bg-turf/25">
+                          bg-accent/15 text-accent border border-accent/30 hover:bg-accent/25">
                         <div className="flex items-center gap-1">
                           {advId && <ClubBadge clubId={advId} size={12}/>}
                           <span className="font-bold truncate flex-1">{adv?.nom ?? advId}</span>
@@ -447,8 +447,8 @@ function PlanningModal({
   return (
     <Modal open={true} onClose={onClose} maxWidth="max-w-md">
       <ModalHeader
-        icon={<CalIcon size={18} className="text-turf"/>}
-        iconBg="bg-turf/15"
+        icon={<CalIcon size={18} className="text-accent"/>}
+        iconBg="bg-accent/15"
         title="Jours d'entrainement prevus"
         subtitle="Apparaissent en placeholder sur le calendrier, tant qu'aucune seance reelle n'est creee. Stocke localement (par equipe)."
         onClose={onClose}
@@ -462,7 +462,7 @@ function PlanningModal({
               return (
                 <button key={idx} onClick={() => toggle(idx)}
                   className={`px-3 py-1.5 rounded-md text-xs font-semibold border transition ${
-                    on ? "bg-turf/15 border-turf/40 text-turf"
+                    on ? "bg-accent/15 border-accent/40 text-accent"
                        : "border-line text-muted hover:bg-line/30"
                   }`}>
                   {label}
@@ -483,7 +483,7 @@ function PlanningModal({
       <ModalFooter>
         <button onClick={onClose} className="btn">Annuler</button>
         <button onClick={() => onSave({ jours: [...jours].sort(), heure })}
-          className="btn btn-turf">
+          className="btn btn-accent">
           <Save size={14}/> Enregistrer
         </button>
       </ModalFooter>
@@ -558,8 +558,8 @@ function MatchModal({
   return (
     <Modal open={true} onClose={onClose} maxWidth="max-w-lg">
       <ModalHeader
-        icon={<Trophy size={18} className="text-turf"/>}
-        iconBg="bg-turf/15"
+        icon={<Trophy size={18} className="text-accent"/>}
+        iconBg="bg-accent/15"
         title="Nouveau match"
         subtitle={`Date : ${formatDateFr(date)}`}
         onClose={onClose}
@@ -574,7 +574,7 @@ function MatchModal({
               return (
                 <button key={t} onClick={() => setTypeMatch(t)}
                   className={`flex-1 px-3 py-2 rounded-md text-xs font-semibold border transition ${
-                    on ? "bg-turf/15 border-turf/40 text-turf"
+                    on ? "bg-accent/15 border-accent/40 text-accent"
                        : "border-line text-muted hover:bg-line/30"
                   }`}>
                   {t}
@@ -608,14 +608,14 @@ function MatchModal({
             <div className="flex gap-1.5">
               <button onClick={() => setDomicile(true)}
                 className={`flex-1 px-3 py-2 rounded-md text-xs font-semibold border transition ${
-                  domicile ? "bg-turf/15 border-turf/40 text-turf"
+                  domicile ? "bg-accent/15 border-accent/40 text-accent"
                           : "border-line text-muted hover:bg-line/30"
                 }`}>
                 Domicile
               </button>
               <button onClick={() => setDomicile(false)}
                 className={`flex-1 px-3 py-2 rounded-md text-xs font-semibold border transition ${
-                  !domicile ? "bg-turf/15 border-turf/40 text-turf"
+                  !domicile ? "bg-accent/15 border-accent/40 text-accent"
                             : "border-line text-muted hover:bg-line/30"
                 }`}>
                 Exterieur
@@ -641,7 +641,7 @@ function MatchModal({
 
       <ModalFooter>
         <button className="btn" onClick={onClose}>Annuler</button>
-        <button className="btn btn-turf" onClick={save} disabled={saving}>
+        <button className="btn btn-accent" onClick={save} disabled={saving}>
           <Save size={14}/> {saving ? "Sauvegarde..." : "Creer le match"}
         </button>
       </ModalFooter>
@@ -717,7 +717,7 @@ function AutreEventModal({
 
       <ModalFooter>
         <button className="btn" onClick={onClose}>Annuler</button>
-        <button className="btn btn-turf" onClick={save}>
+        <button className="btn btn-accent" onClick={save}>
           <Save size={14}/> Ajouter
         </button>
       </ModalFooter>

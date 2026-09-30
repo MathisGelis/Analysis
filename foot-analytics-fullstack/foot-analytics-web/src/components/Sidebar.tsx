@@ -3,118 +3,146 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard, Trophy, Shield, Users, ClipboardList, Dumbbell,
-  Search, Layout, Calendar, HeartPulse, Award,
-  FileText, Upload, ChevronRight,
-} from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { useOwnClubId } from "@/lib/own-club-context";
+import { construireNavigation, lienActif } from "@/lib/navigation";
+import { Logo } from "@/components/Logo";
 import { OwnEquipeSwitcher } from "@/components/OwnEquipeSwitcher";
 import { UserBadge } from "@/components/UserBadge";
 
-export function Sidebar() {
+interface Props {
+  /** Rail d'icones (bureau uniquement). */
+  replie: boolean;
+  onBasculerReplie: () => void;
+  /** Tiroir mobile ouvert. */
+  mobileOuvert: boolean;
+  onFermerMobile: () => void;
+}
+
+/** Contenu commun a la barre laterale de bureau et au tiroir mobile. */
+function Contenu({
+  replie, onBasculerReplie, onFermerMobile, mobile,
+}: { replie: boolean; onBasculerReplie: () => void; onFermerMobile: () => void; mobile: boolean }) {
   const path = usePathname();
   const ownClubId = useOwnClubId();
-
-  const NAV: { section: string; items: { href: string; label: string; icon: any }[] }[] = [
-    {
-      section: "Vue d'ensemble",
-      items: [
-        { href: "/", label: "Dashboard", icon: LayoutDashboard },
-        { href: "/classement", label: "Classement", icon: Trophy },
-        { href: "/calendrier", label: "Calendrier", icon: Calendar },
-      ],
-    },
-    {
-      section: "Mon equipe",
-      items: [
-        { href: `/club/${ownClubId}`, label: "Mon club", icon: Shield },
-        { href: "/effectif", label: "Effectif", icon: Users },
-        { href: "/entrainements", label: "Entrainements", icon: Dumbbell },
-        { href: "/medical", label: "Medical & charge", icon: HeartPulse },
-      ],
-    },
-    {
-      section: "Match",
-      items: [
-        { href: "/matchs", label: "Matchs", icon: ClipboardList },
-        { href: "/tactique", label: "Tactique", icon: Layout },
-        { href: "/arbitres", label: "Arbitres", icon: Award },
-      ],
-    },
-    {
-      section: "Analyse",
-      items: [
-        { href: "/scouting", label: "Scouting", icon: Search },
-        { href: "/rapports", label: "Rapports", icon: FileText },
-      ],
-    },
-    {
-      section: "Donnees",
-      items: [
-        { href: "/import", label: "Import feuilles FMI", icon: Upload },
-      ],
-    },
-  ];
+  const nav = construireNavigation(ownClubId || null);
+  const compact = replie && !mobile;
 
   return (
-    <aside className="relative z-10 w-[244px] shrink-0 border-r border-line bg-panel/60 backdrop-blur-md">
-      <div className="sticky top-0 h-screen overflow-y-auto flex flex-col">
-        <div className="px-4 pt-5 pb-4 border-b border-line">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-xl bg-turf grid place-items-center text-base font-display font-black text-[15px]"
-                 style={{ color: "rgb(var(--bg))" }}>
-              FA
+    <div className="flex h-full flex-col">
+      {/* Marque */}
+      <div className={`flex items-center ${compact ? "justify-center px-2" : "justify-between px-4"} pt-4 pb-3`}>
+        <Link href="/" className="flex items-center gap-3 group min-w-0" title="Dashboard">
+          <Logo size={compact ? 38 : 40} className="shrink-0 transition-transform duration-300 group-hover:rotate-[-6deg] group-hover:scale-105" />
+          {!compact && (
+            <div className="leading-tight min-w-0">
+              <div className="font-display text-[17px] font-bold text-ink truncate">Foot Analytics</div>
+              <div className="text-[11px] font-medium text-faint">Console staff</div>
             </div>
-            <div className="leading-tight">
-              <div className="font-display font-bold text-ink group-hover:text-turf transition-colors">
-                Foot Analytics
-              </div>
-              <div className="text-[9px] uppercase tracking-[0.22em] text-faint font-semibold">
-                Console staff
-              </div>
-            </div>
-          </Link>
-        </div>
+          )}
+        </Link>
+        {mobile ? (
+          <button type="button" onClick={onFermerMobile} className="btn btn-ghost !p-2" aria-label="Fermer le menu">
+            <X size={18} />
+          </button>
+        ) : !compact ? (
+          <button type="button" onClick={onBasculerReplie} className="btn btn-ghost !p-2 hidden lg:inline-flex"
+            aria-label="Replier la barre laterale" title="Replier">
+            <PanelLeftClose size={16} />
+          </button>
+        ) : null}
+      </div>
+      {compact && (
+        <button type="button" onClick={onBasculerReplie} className="btn btn-ghost !p-2 mx-auto mb-2"
+          aria-label="Deplier la barre laterale" title="Deplier">
+          <PanelLeftOpen size={16} />
+        </button>
+      )}
 
-        <nav className="flex-1 py-4 px-2 space-y-5">
-          {NAV.map((g) => (
-            <div key={g.section}>
-              <div className="px-3 pb-1.5 h-section">{g.section}</div>
-              <ul className="space-y-0.5">
-                {g.items.map((it) => {
-                  const Icon = it.icon;
-                  const active =
-                    path === it.href || (it.href !== "/" && path.startsWith(it.href));
-                  return (
-                    <li key={it.href}>
-                      <Link
-                        href={it.href}
-                        className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all
-                          ${active
-                            ? "bg-turf/[0.12] text-turf font-semibold"
-                            : "text-muted hover:text-ink hover:bg-line/40"}`}
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto px-3 pb-3 space-y-3.5" aria-label="Navigation principale">
+        {nav.map((g) => (
+          <div key={g.section}>
+            {!compact ? (
+              <div className="px-3 pb-1 h-section">{g.section}</div>
+            ) : (
+              <div className="mx-auto mb-2 h-px w-6 bg-line" aria-hidden="true" />
+            )}
+            <ul className="space-y-0.5">
+              {g.items.map((it) => {
+                const Icon = it.icon;
+                const actif = lienActif(it.href, path);
+                return (
+                  <li key={it.label}>
+                    <Link
+                      href={it.href}
+                      title={compact ? it.label : undefined}
+                      aria-current={actif ? "page" : undefined}
+                      onClick={mobile ? onFermerMobile : undefined}
+                      className={`group relative flex items-center gap-3 rounded-xl py-1 text-[14px] font-medium transition-colors
+                        ${compact ? "justify-center px-1.5" : "px-2"}
+                        ${actif ? "bg-accent/[0.11] text-ink" : "text-muted hover:text-ink hover:bg-panel2"}`}
+                    >
+                      {actif && !compact && (
+                        <span className="absolute -left-3 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-accent" aria-hidden="true" />
+                      )}
+                      <span
+                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg transition-all duration-200
+                          ${actif
+                            ? "bg-accentstrong text-white shadow-glow"
+                            : "bg-panel2 text-muted group-hover:text-accent group-hover:scale-105"}`}
                       >
-                        <Icon size={15} strokeWidth={active ? 2.5 : 1.8} />
-                        <span className="flex-1">{it.label}</span>
-                        {active && <ChevronRight size={12} />}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-        </nav>
+                        <Icon size={15} strokeWidth={2} />
+                      </span>
+                      {!compact && <span className="flex-1 truncate">{it.label}</span>}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </nav>
 
-        {/* Footer : switcher + user. Reglages = icone settings de la TopBar. */}
-        <div className="border-t border-line">
-          <div className="p-3">
+      {/* Pied : equipe/saison + utilisateur */}
+      <div className="border-t border-line">
+        {!compact && (
+          <div className="px-3 pt-3 pb-2">
             <OwnEquipeSwitcher />
           </div>
-          <UserBadge />
-        </div>
+        )}
+        <UserBadge compact={compact} />
       </div>
-    </aside>
+    </div>
+  );
+}
+
+export function Sidebar({ replie, onBasculerReplie, mobileOuvert, onFermerMobile }: Props) {
+  return (
+    <>
+      {/* Bureau : colonne collante, largeur animee entre menu complet et rail d'icones. */}
+      <aside
+        className={`relative z-20 hidden lg:block shrink-0 border-r border-line glass transition-[width] duration-300 ease-smooth
+          ${replie ? "w-[84px]" : "w-[268px]"}`}
+      >
+        <div className="sticky top-0 h-screen">
+          <Contenu replie={replie} onBasculerReplie={onBasculerReplie} onFermerMobile={onFermerMobile} mobile={false} />
+        </div>
+      </aside>
+
+      {/* Mobile : tiroir coulissant sur fond assombri. */}
+      <div className={`lg:hidden fixed inset-0 z-50 ${mobileOuvert ? "" : "pointer-events-none"}`} aria-hidden={!mobileOuvert}>
+        <div
+          onClick={onFermerMobile}
+          className={`absolute inset-0 bg-black/55 backdrop-blur-sm transition-opacity duration-300 ${mobileOuvert ? "opacity-100" : "opacity-0"}`}
+        />
+        <aside
+          className={`absolute inset-y-0 left-0 w-[300px] max-w-[86vw] border-r border-line bg-panel shadow-pop transition-transform duration-300 ease-smooth
+            ${mobileOuvert ? "translate-x-0" : "-translate-x-full"}`}
+        >
+          <Contenu replie={false} onBasculerReplie={onBasculerReplie} onFermerMobile={onFermerMobile} mobile />
+        </aside>
+      </div>
+    </>
   );
 }

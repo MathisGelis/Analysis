@@ -50,7 +50,7 @@ export default function Analytics() {
 
       {/* KPIs */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Kpi label="xG cumule" value={xg.reduce((s,v)=>s+v,0).toFixed(2)} sub={`${bilan.bp} buts marques`} accent="turf"/>
+        <Kpi label="xG cumule" value={xg.reduce((s,v)=>s+v,0).toFixed(2)} sub={`${bilan.bp} buts marques`} accent="accent"/>
         <Kpi label="xGA cumule" value={xga.reduce((s,v)=>s+v,0).toFixed(2)} sub={`${bilan.bc} buts encaisses`} accent="danger"/>
         <Kpi label="Sur-performance" value={(bilan.bp - xg.reduce((s,v)=>s+v,0)).toFixed(1)} sub="vs xG attendu"/>
         <Kpi label="Possession moyenne" value="52%" sub="estimation"/>
@@ -63,7 +63,7 @@ export default function Analytics() {
           <BarsChart
             data={courbe.map((c, i) => ({ label: c.journee, a: c.bm, b: xg[i] }))}
             legend={["Buts","xG"]}
-            colorA="rgb(var(--turf))" colorB="rgb(var(--sky))"
+            colorA="rgb(var(--accent))" colorB="rgb(var(--sky))"
             height={220}
           />
         </div>
@@ -113,8 +113,8 @@ export default function Analytics() {
   );
 }
 
-function Kpi({ label, value, sub, accent }:{label:string;value:string|number;sub?:string;accent?:"turf"|"danger"}){
-  const c = accent==="turf"?"text-turf":accent==="danger"?"text-danger":"text-ink";
+function Kpi({ label, value, sub, accent }:{label:string;value:string|number;sub?:string;accent?:"accent"|"danger"}){
+  const c = accent==="accent"?"text-accent":accent==="danger"?"text-danger":"text-ink";
   return (
     <div className="stat-tile">
       <span className="stat-label">{label}</span>

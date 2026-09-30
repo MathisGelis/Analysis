@@ -87,11 +87,11 @@ export default async function ArbitreDetail({
         </Link>
         <nav className="flex gap-1 text-xs" aria-label="Portee de la fiche">
           <Link href={hrefPortee("saison")} scroll={false}
-            className={`btn ${portee === "saison" ? "btn-turf" : "btn-ghost"}`}>
+            className={`btn ${portee === "saison" ? "btn-accent" : "btn-ghost"}`}>
             Saison {saison?.nom ?? "courante"}
           </Link>
           <Link href={hrefPortee("carriere")} scroll={false}
-            className={`btn ${portee === "carriere" ? "btn-turf" : "btn-ghost"}`}>
+            className={`btn ${portee === "carriere" ? "btn-accent" : "btn-ghost"}`}>
             Carriere complete
           </Link>
         </nav>
@@ -100,7 +100,7 @@ export default async function ArbitreDetail({
       <header className="panel p-6 grid grid-cols-12 gap-5">
         <div className="col-span-12 md:col-span-7 flex items-center gap-4">
           <div className="w-20 h-20 rounded-md bg-panel2 border border-line grid place-items-center">
-            <Award size={28} className="text-turf"/>
+            <Award size={28} className="text-accent"/>
           </div>
           <div>
             <div className="text-xs uppercase tracking-[0.18em] text-faint">Arbitre</div>
@@ -112,7 +112,7 @@ export default async function ArbitreDetail({
               {totaux.profil ? (
                 <span className={`badge ${
                   totaux.profil === "Strict" ? "badge-danger"
-                  : totaux.profil === "Permissif" ? "badge-turf" : "badge-amber"
+                  : totaux.profil === "Permissif" ? "badge-accent" : "badge-amber"
                 }`}>Profil {totaux.profil}</span>
               ) : null}
               <span className="badge">{totaux.matchsOfficies} match{totaux.matchsOfficies > 1 ? "s" : ""} officie{totaux.matchsOfficies > 1 ? "s" : ""}</span>
@@ -123,7 +123,7 @@ export default async function ArbitreDetail({
         <div className="col-span-12 md:col-span-5 grid grid-cols-3 gap-3">
           <Card label="CJ donnes" value={totaux.cartonsJaunesDonnes} color="text-amber"/>
           <Card label="CR donnes" value={totaux.cartonsRougesDonnes} color="text-danger"/>
-          <Card label="Note moy." value={totaux.noteMoyenne != null ? totaux.noteMoyenne.toFixed(1) : "—"} color="text-turf"/>
+          <Card label="Note moy." value={totaux.noteMoyenne != null ? totaux.noteMoyenne.toFixed(1) : "—"} color="text-accent"/>
         </div>
       </header>
 
@@ -131,7 +131,7 @@ export default async function ArbitreDetail({
         <section className="panel p-5 text-sm text-muted">
           Cet arbitre n'a officie dans aucun match de la saison{" "}
           {saison?.nom ?? "selectionnee"}.{" "}
-          <Link href={hrefPortee("carriere")} className="text-turf hover:underline">
+          <Link href={hrefPortee("carriere")} className="text-accent hover:underline">
             Voir la carriere complete
           </Link>
         </section>
@@ -153,7 +153,7 @@ export default async function ArbitreDetail({
       {parChampionnat.length > 0 && (
         <section className="panel p-5">
           <div className="h-section mb-3 flex items-center gap-2">
-            <Award size={11} className="text-turf"/>
+            <Award size={11} className="text-accent"/>
             Profil par championnat ({parChampionnat.length})
           </div>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -172,7 +172,7 @@ export default async function ArbitreDetail({
                   {c.profil ? (
                     <span className={`badge ${
                       c.profil === "Strict" ? "badge-danger"
-                      : c.profil === "Permissif" ? "badge-turf" : "badge-amber"
+                      : c.profil === "Permissif" ? "badge-accent" : "badge-amber"
                     }`}>{c.profil}</span>
                   ) : <span className="badge opacity-60">Sans profil</span>}
                 </div>
@@ -246,14 +246,14 @@ export default async function ArbitreDetail({
                       </div>
                     </td>
                     <td>
-                      <Link href={`/matchs/${m.id}`} className="font-mono font-semibold tabular-nums hover:text-turf">
+                      <Link href={`/matchs/${m.id}`} className="font-mono font-semibold tabular-nums hover:text-accent">
                         {m.scoreDom}–{m.scoreExt}
                       </Link>
                     </td>
                     <td><span className="badge">{ROLE_LIBELLE[p.role] ?? p.role}</span></td>
                     <td>
                       {p.note != null ? (
-                        <span className="font-display font-bold text-turf tabular-nums flex items-center gap-1">
+                        <span className="font-display font-bold text-accent tabular-nums flex items-center gap-1">
                           <Star size={11}/> {p.note}
                         </span>
                       ) : <span className="text-faint text-xs">non notee</span>}

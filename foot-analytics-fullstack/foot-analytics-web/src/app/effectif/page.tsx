@@ -12,6 +12,7 @@ import { JoueurAddModal } from "@/components/JoueurAddModal";
 import type { Joueur } from "@/lib/types";
 import { Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { debug } from "@/lib/debug";
+import { postesCompacts } from "@/lib/postes";
 
 const POSTES = ["TOUS","GB","DD","DC","DG","MD","MO","AT","AG","MIL"];
 
@@ -146,41 +147,44 @@ export default function EffectifPage() {
         <table className="table-fm">
           <thead>
             <tr>
-              <th>#</th><th>Joueur</th><th>Poste</th>
+              <th>Joueur</th><th>Poste</th>
               <th className="text-center">Mat.</th><th className="text-center">Titu</th>
               <th>Minutes</th><th>Note</th><th>Forme</th>
               <th className="text-center" title="Buts">B</th>
               <th className="text-center" title="Passes decisives">PD</th>
               <th>CJ</th><th>CR</th>
-              <th>Statut</th><th>Postes joues</th><th className="text-right">Actions</th>
+              <th>Statut</th><th>Postes joues</th><th className="text-right"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             {data.map((j)=>(
               <tr key={j.id}>
-                <td className="font-mono text-muted">{j.numeroFavori ?? "—"}</td>
-                <td>
-                  <Link href={`/joueur/${j.id}`} className="font-semibold hover:text-turf">
-                    {j.prenom} {j.nom}
-                  </Link>
-                  {j.typeDiscipline && (
-                    <span className="ml-2 badge badge-danger text-[9px] !px-1.5 !py-0">
-                      {j.typeDiscipline}
-                    </span>
-                  )}
+                <td className="whitespace-nowrap">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-panel3 font-display text-sm font-bold text-muted"
+                      title="Numero le plus porte cette saison">{j.numeroFavori ?? "—"}</span>
+                    <div className="min-w-0">
+                      <Link href={`/joueur/${j.id}`} className="font-semibold text-ink transition-colors hover:text-accent">
+                        {j.prenom} {j.nom}
+                      </Link>
+                      {j.typeDiscipline && (
+                        <div className="mt-0.5"><span className="badge badge-danger !px-1.5 !py-0 !text-[10px]">{j.typeDiscipline}</span></div>
+                      )}
+                    </div>
+                  </div>
                 </td>
                 <td><span className="badge">{j.poste}</span></td>
                 <td className="text-center tabular-nums">{j.matchs}</td>
                 <td className="text-center tabular-nums">{j.titularisations}</td>
                 <td className="tabular-nums text-muted">{j.minutes}'</td>
-                <td className="font-semibold text-turf tabular-nums">{j.noteMoyenne?.toFixed(1)}</td>
+                <td className="font-semibold text-accent tabular-nums">{j.noteMoyenne?.toFixed(1)}</td>
                 <td>
                   {j.scoreForme == null ? (
                     <span className="text-xs text-faint">—</span>
                   ) : (
                     <div className="flex items-center gap-2">
                       <div className="w-14 h-1.5 bg-line rounded-full overflow-hidden">
-                        <div className="h-full bg-turf" style={{width:`${j.scoreForme}%`}}/>
+                        <div className="h-full bg-accent" style={{width:`${j.scoreForme}%`}}/>
                       </div>
                       <span className="text-xs text-muted tabular-nums w-6">{j.scoreForme}</span>
                     </div>
@@ -190,7 +194,7 @@ export default function EffectifPage() {
                   <Stepper
                     value={j.buts ?? 0}
                     onChange={(v) => patchStat(j.id, { buts: v })}
-                    color="turf"
+                    color="accent"
                   />
                 </td>
                 <td className="text-center">
@@ -205,10 +209,17 @@ export default function EffectifPage() {
                 <td>
                   <span className={`badge ${
                     j.statutMutation==="Mutation" ? "badge-amber"
-                    : j.statutMutation==="Pas mutation" ? "badge-turf" : ""
+                    : j.statutMutation==="Pas mutation" ? "badge-accent" : ""
                   }`}>{j.statutMutation}</span>
                 </td>
-                <td className="text-[10px] text-faint font-mono">{j.postes}</td>
+                <td className="whitespace-nowrap font-mono text-[11px] text-muted" title={j.postes ?? undefined}>
+                  {(() => {
+                    const { visibles, restants } = postesCompacts(j.postes);
+                    return visibles.length === 0 ? <span className="text-faint">—</span> : (
+                      <>{visibles.join(" · ")}{restants > 0 && <span className="ml-1 text-faint">+{restants}</span>}</>
+                    );
+                  })()}
+                </td>
                 <td>
                   <div className="flex items-center gap-1 justify-end">
                     <button className="btn text-xs" onClick={()=>setEdit(j)}>
@@ -361,14 +372,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 /* ---- Stepper compact (-) [N] (+) pour les stats editables en cellule. ---- */
 function Stepper({
-  value, onChange, min = 0, max = 99, color = "turf",
+  value, onChange, min = 0, max = 99, color = "accent",
 }: {
   value: number;
   onChange: (v: number) => void;
   min?: number; max?: number;
-  color?: "turf" | "sky";
+  color?: "accent" | "sky";
 }) {
-  const c = color === "sky" ? "text-sky" : "text-turf";
+  const c = color === "sky" ? "text-sky" : "text-accent";
   const dec = () => onChange(Math.max(min, value - 1));
   const inc = () => onChange(Math.min(max, value + 1));
   return (

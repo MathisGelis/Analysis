@@ -73,7 +73,7 @@ export default async function Classement() {
             Aucune ligne de classement pour cette competition.
             Verifie que les matchs ont bien ete importes et lance un
             rebuild si necessaire ({" "}
-            <code className="text-turf">POST /api/derivation/rebuild-all</code>
+            <code className="text-accent">POST /api/derivation/rebuild-all</code>
             ).
           </p>
         )}

@@ -87,9 +87,9 @@ export default async function MatchDetailPage({ params }: { params: { id: string
 
       {/* En-tete match */}
       <header className="panel p-6 relative overflow-hidden">
-        <div className="absolute -top-24 -right-24 w-80 h-80 bg-turf/5 rounded-full blur-3xl"/>
+        <div className="absolute -top-24 -right-24 w-80 h-80 bg-accent/5 rounded-full blur-3xl"/>
         <div className="relative flex items-center justify-between gap-6 flex-wrap">
-          <Link href={`/club/${dom.id}`} className="flex items-center gap-3 flex-1 min-w-0 hover:text-turf">
+          <Link href={`/club/${dom.id}`} className="flex items-center gap-3 flex-1 min-w-0 hover:text-accent">
             <ClubBadge clubId={dom.id} size={64}/>
             <div>
               <div className="font-display text-xl font-bold text-ink">{dom.nom}</div>
@@ -112,7 +112,7 @@ export default async function MatchDetailPage({ params }: { params: { id: string
             </div>
           </div>
 
-          <Link href={`/club/${ext.id}`} className="flex items-center gap-3 flex-1 min-w-0 justify-end hover:text-turf">
+          <Link href={`/club/${ext.id}`} className="flex items-center gap-3 flex-1 min-w-0 justify-end hover:text-accent">
             <div className="text-right">
               <div className="font-display text-xl font-bold text-ink">{ext.nom}</div>
               <div className="text-[11px] text-faint uppercase tracking-wider">
@@ -128,11 +128,11 @@ export default async function MatchDetailPage({ params }: { params: { id: string
           <Meta icon={<MapPin size={12}/>} label="Terrain" value={m.terrain ?? "—"}/>
           <Meta icon={<User size={12}/>} label="Arbitre" value={
             arbitrePrincipal
-              ? <Link href={`/arbitres/${arbitrePrincipal.id}`} className="hover:text-turf">{m.arbitre ?? arbitrePrincipal.nom}</Link>
+              ? <Link href={`/arbitres/${arbitrePrincipal.id}`} className="hover:text-accent">{m.arbitre ?? arbitrePrincipal.nom}</Link>
               : (m.arbitre ?? "—")
           }/>
           <Meta icon={<FileText size={12}/>} label="N° FMI" value={m.numeroFmi ?? "—"}/>
-          <Meta icon={<span className="text-turf">●</span>} label="Competition" value={libelleCompetition}/>
+          <Meta icon={<span className="text-accent">●</span>} label="Competition" value={libelleCompetition}/>
         </div>
       </header>
 
@@ -148,7 +148,7 @@ export default async function MatchDetailPage({ params }: { params: { id: string
               carton: cartonsParJoueur.get(`${p.nom} ${p.prenom}`),
             }))}
             titre={`${dom.nom} · titulaires`}
-            couleur="rgb(var(--turf))"
+            couleur="rgb(var(--accent))"
             oriente="haut"
           />
         </div>
@@ -209,7 +209,7 @@ export default async function MatchDetailPage({ params }: { params: { id: string
       {(staffLiens as any[]).length > 0 && (
         <section className="panel p-5">
           <div className="h-section mb-3 flex items-center gap-2">
-            <Users size={11} className="text-turf"/> Encadrement
+            <Users size={11} className="text-accent"/> Encadrement
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {([["dom", dom], ["ext", ext]] as const).map(([cote, club]) => (
@@ -301,7 +301,7 @@ function CompoTable({ club, compo, joueurs, cartons }: any) {
                 <td className="font-semibold">
                   <span className="inline-flex items-center gap-1.5">
                     {id ? (
-                      <Link href={`/joueur/${id}`} className="hover:text-turf">
+                      <Link href={`/joueur/${id}`} className="hover:text-accent">
                         {p.prenom} {p.nom}
                       </Link>
                     ) : (
@@ -321,7 +321,7 @@ function CompoTable({ club, compo, joueurs, cartons }: any) {
                 </td>
                 <td className="text-[11px] font-mono text-faint">{p.licence}</td>
                 <td>
-                  <span className={`badge ${p.titulaire ? "badge-turf" : ""}`}>
+                  <span className={`badge ${p.titulaire ? "badge-accent" : ""}`}>
                     {p.titulaire ? "Titulaire" : "Remplacant"}
                   </span>
                 </td>
@@ -361,8 +361,8 @@ function Timeline({ events, domNom, extNom }: { events: EvenementMatch[]; domNom
           color = "text-danger";
           title = `Blessure · ${e.joueur} (${e.sousType})`;
         } else if (e.type === "but") {
-          icon = <Goal size={14} className="text-turf"/>;
-          color = "text-turf";
+          icon = <Goal size={14} className="text-accent"/>;
+          color = "text-accent";
           title = `BUT · ${e.joueur}`;
         }
         return (

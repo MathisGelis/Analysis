@@ -12,6 +12,7 @@
 
 import { useState } from "react";
 import { User, BarChart3, HeartPulse, Calendar } from "lucide-react";
+import { TabBar } from "@/components/TabBar";
 
 const TABS = [
   { id: "infos", label: "Informations", icon: User },
@@ -41,27 +42,7 @@ export function JoueurTabs({
 
   return (
     <div className="space-y-5">
-      {/* Selecteur d'onglets */}
-      <div className="flex gap-1 border-b border-line overflow-x-auto -mx-1 px-1">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const on = t.id === active;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setActive(t.id)}
-              className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap flex items-center gap-2
-                border-b-2 -mb-px transition
-                ${on
-                  ? "border-turf text-turf"
-                  : "border-transparent text-muted hover:text-ink"}`}
-            >
-              <Icon size={13} />
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
+      <TabBar onglets={TABS} actif={active} onChange={setActive} label="Sections de la fiche joueur" />
 
       {/* Contenu de l'onglet actif */}
       <div className="fade-up">{content[active]}</div>

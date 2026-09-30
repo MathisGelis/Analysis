@@ -63,7 +63,7 @@ export function TerrainPostes({ numerosFreq, height = 360 }: Props) {
   const total = entries.reduce((s, e) => s + e.count, 0)
               + horsTerrain.reduce((s, e) => s + e.count, 0);
 
-  // Echelle de couleur : du turf pale (1 occurrence) au turf vif (max).
+  // Echelle de couleur : du accent pale (1 occurrence) au accent vif (max).
   // L'opacite varie aussi pour faire ressortir le poste principal.
   const opacite = (c: number) => (max <= 1 ? 0.85 : 0.45 + 0.55 * (c / max));
   const rayon = (c: number) => 5 + (max <= 1 ? 0 : 3 * (c / max));
@@ -100,7 +100,7 @@ export function TerrainPostes({ numerosFreq, height = 360 }: Props) {
           {/* Rayures horizontales */}
           {Array.from({ length: 7 }).map((_, i) => (
             <rect key={i} x="0" y={i * 20} width="100" height="10"
-                  fill="rgb(var(--turf))" opacity="0.05" />
+                  fill="rgb(var(--accent))" opacity="0.05" />
           ))}
           {/* Bordures + ligne mediane + rond central */}
           <rect x="2" y="2" width="96" height="136" fill="none"
@@ -121,7 +121,7 @@ export function TerrainPostes({ numerosFreq, height = 360 }: Props) {
           <rect x="34" y="2"  width="32" height="8"  fill="none"
                 stroke="rgb(var(--line-strong))" strokeWidth="0.4" opacity="0.5"/>
 
-          {/* Pastilles aux 11 postes : grise par defaut, turf si occupe. */}
+          {/* Pastilles aux 11 postes : grise par defaut, accent si occupe. */}
           {Object.entries(POSTES).map(([k, poste]) => {
             const num = parseInt(k, 10);
             const e = entries.find((x) => x.num === num);
@@ -133,13 +133,13 @@ export function TerrainPostes({ numerosFreq, height = 360 }: Props) {
                 {occupe && count === max && max > 1 && (
                   <circle
                     cx={poste.x} cy={poste.y} r={r + 2.5}
-                    fill="none" stroke="rgb(var(--turf))" strokeWidth="0.4"
+                    fill="none" stroke="rgb(var(--accent))" strokeWidth="0.4"
                     opacity="0.45"
                   />
                 )}
                 <circle
                   cx={poste.x} cy={poste.y} r={r}
-                  fill={occupe ? "rgb(var(--turf))" : "rgb(var(--faint))"}
+                  fill={occupe ? "rgb(var(--accent))" : "rgb(var(--faint))"}
                   opacity={occupe ? opacite(count) : 0.22}
                   stroke="rgb(var(--bg))" strokeWidth="0.4"
                 />

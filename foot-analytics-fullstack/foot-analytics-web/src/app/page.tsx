@@ -1,14 +1,13 @@
 // src/app/page.tsx
 //
-// Dashboard — vibe Football Manager + console d'entraineur.
+// Dashboard — grille "bento" sur fond de soiree de match.
 //
 // Composition :
-//  - Hero : Mon club + saison + bilan condensé (V/N/D, points, rang)
-//  - 4 scoreboards : Matchs, Buts marques, Buts encaisses, Discipline
-//  - Forme : frise des 10 derniers resultats + KPI bilan
-//  - Prochain match : carte panel
-//  - Top forme + Top discipline (deux colonnes)
-//  - Mini classement de la poule (5 lignes autour de mon rang)
+//  - Hero : Mon club + saison, rang / points / difference, forme et repartition V-N-D
+//  - Prochaine echeance et dernier match, cote a cote
+//  - 4 indicateurs avec leur courbe sur les matchs joues
+//  - Tops joueurs : forme, buteurs, indiscipline
+//  - Mini classement de la poule (les lignes autour de mon rang)
 //
 // Tout est filtre par saison choisie dans le switcher (cf. maj 49).
 // Animations : fade-up stagger sur les sections, count-up sur les
@@ -24,9 +23,10 @@ import {
 } from "@/lib/classement";
 import { ClubBadge } from "@/components/ClubBadge";
 import { CountUp } from "@/components/CountUp";
+import { Sparkline } from "@/components/Charts";
 import {
   ArrowRight, ArrowUpRight, Calendar, Crosshair, Flag, Flame,
-  ShieldAlert, Target, Trophy, Upload,
+  MapPin, ShieldAlert, Target, Trophy, Upload,
 } from "lucide-react";
 import type { Issue } from "@/lib/types";
 
@@ -99,270 +99,220 @@ export default async function Dashboard() {
     ? "Buteurs non renseignes dans les feuilles de match importees."
     : "Pas de but inscrit cette saison.";
 
+  // Courbes des indicateurs : une valeur par match joue, dans l'ordre.
+  const serieButsPour = joues.map((r) => r.butsMarques);
+  const serieButsContre = joues.map((r) => r.butsEncaisses);
+  const seriePoints = joues.reduce<number[]>((acc, r) => {
+    acc.push((acc[acc.length - 1] ?? 0) + (r.issue === "V" ? 3 : r.issue === "N" ? 1 : 0));
+    return acc;
+  }, []);
+  const maxTop = (items: { valeur: number }[]) => Math.max(1, ...items.map((i) => i.valeur));
+
   return (
-    <div className="space-y-6 fade-up-stagger max-w-[1400px]">
+    <div className="space-y-5 fade-up-stagger">
 
       {/* ============================================================
-          HERO — Mon club, saison, indicateurs principaux
+          HERO : mon club, ma saison, mon classement
           ============================================================ */}
       <header className="panel relative overflow-hidden">
-        {/* Halo turf subtil en arriere-plan */}
-        <div className="absolute -top-32 -right-20 w-96 h-96 rounded-full pointer-events-none"
-             style={{ background: "radial-gradient(closest-side, rgb(var(--turf) / .12), transparent)" }}/>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-accentstrong/[0.18] via-transparent to-accent2/[0.08]" />
+        <div className="pitch-lines" />
 
-        <div className="relative p-7 grid grid-cols-12 gap-6 items-center">
-
-          {/* Identite club */}
-          <div className="col-span-12 lg:col-span-5 flex items-center gap-4">
-            <ClubBadge clubId={clubPropreId} size={72} />
+        <div className="relative grid grid-cols-12 items-center gap-6 p-6 sm:p-8">
+          <div className="col-span-12 flex items-center gap-5 lg:col-span-6">
+            <div className="relative shrink-0">
+              <div className="absolute inset-0 -z-0 rounded-full bg-accentstrong/30 blur-2xl" aria-hidden="true" />
+              <ClubBadge clubId={clubPropreId} size={88} className="relative" />
+            </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="h-section">Mon club</span>
                 {saisonChoisie && (
-                  <span className={`badge ${saisonChoisie.actif ? "badge-turf" : ""}`}>
-                    {saisonChoisie.actif && <span className="w-1.5 h-1.5 rounded-full bg-turf pulse-live"/>}
-                    {saisonChoisie.nom}
+                  <span className={`badge ${saisonChoisie.actif ? "badge-accent" : ""}`}>
+                    {saisonChoisie.actif && <span className="pulse-live h-1.5 w-1.5 rounded-full bg-accent" />}
+                    Saison {saisonChoisie.nom}
                   </span>
                 )}
               </div>
               <Link href={`/club/${clubPropreId}`}
-                    className="font-display text-3xl font-bold text-ink leading-tight tracking-tight hover:text-turf transition-colors mt-1 block">
+                className="mt-1.5 block font-display text-3xl font-bold leading-[1.05] text-ink transition-colors hover:text-accent sm:text-[40px]">
                 {club?.nom ?? "Club non defini"}
               </Link>
               {equipe ? (
-                <div className="text-xs text-muted mt-0.5">
-                  {equipe.nom}
-                  {equipe.competitionLibelle ? ` · ${equipe.competitionLibelle}` : ""}
-                  {equipe.poule ? ` · Poule ${equipe.poule}` : ""}
+                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
+                  <span className="font-medium text-ink">{equipe.nom}</span>
+                  {equipe.competitionLibelle && <span className="text-faint">·</span>}
+                  {equipe.competitionLibelle && <span>{equipe.competitionLibelle}</span>}
                 </div>
               ) : (
-                <div className="text-xs text-amber mt-0.5">
-                  Aucune equipe sur cette saison : choisis-en une dans le selecteur en bas a gauche.
+                <div className="mt-2 text-sm text-amber">
+                  Aucune equipe sur cette saison : choisis-en une dans le selecteur de la barre laterale.
                 </div>
               )}
             </div>
           </div>
 
-          {/* Bilan ligne */}
-          <div className="col-span-12 lg:col-span-7 grid grid-cols-4 gap-3">
-            <HeroStat label="Rang" value={maLigne?.rang ?? "—"}
-              suffix={maLigne ? `/ ${lignes.length}` : undefined}
-              accent="turf" icon={<Trophy size={14}/>}/>
-            <HeroStat label="Points" value={maLigne?.pts ?? bilan.pts} accent="turf"/>
-            <HeroStat label="Diff. buts" value={diff}
-              accent={diff >= 0 ? "turf" : "danger"}
-              showSign/>
-            <HeroStat label="Joues" value={maLigne?.joues ?? bilan.joues} icon={<Calendar size={14}/>}/>
+          <div className="col-span-12 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:col-span-6">
+            <HeroStat label="Rang" value={maLigne?.rang ?? "—"} suffix={maLigne ? `/ ${lignes.length}` : undefined}
+              icon={<Trophy size={13} />} gradient />
+            <HeroStat label="Points" value={maLigne?.pts ?? bilan.pts} gradient />
+            <HeroStat label="Diff. buts" value={diff} showSign tone={diff >= 0 ? "win" : "loss"} />
+            <HeroStat label="Joues" value={maLigne?.joues ?? bilan.joues} icon={<Calendar size={13} />} />
           </div>
         </div>
 
-        {/* Strip de forme : 10 derniers resultats. Bordure top discrete. */}
+        {/* Forme et repartition */}
         {formeRecente.length > 0 && (
-          <div className="border-t border-line px-7 py-4 flex items-center gap-3 flex-wrap">
-            <span className="h-section">Forme · 10 derniers</span>
-            <div className="flex items-center gap-1">
-              {formeRecente.map((r, i) => (
-                <span key={i} className={r === "V" ? "pill-v" : r === "N" ? "pill-n" : "pill-d"}>
-                  {r}
-                </span>
-              ))}
+          <div className="relative flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-line/70 bg-panel2/40 px-6 py-4 sm:px-8">
+            <div className="flex items-center gap-3">
+              <span className="h-section">Forme</span>
+              <div className="flex flex-wrap items-center gap-1">
+                {formeRecente.map((r, i) => (
+                  <span key={i} className={r === "V" ? "pill-v" : r === "N" ? "pill-n" : "pill-d"}>{r}</span>
+                ))}
+              </div>
             </div>
-            <span className="text-xs text-muted ml-auto">
-              <span className="text-win font-semibold tabular-nums">{bilan.v}V</span>
-              <span className="mx-1.5">·</span>
-              <span className="text-draw font-semibold tabular-nums">{bilan.n}N</span>
-              <span className="mx-1.5">·</span>
-              <span className="text-loss font-semibold tabular-nums">{bilan.d}D</span>
-            </span>
+            <div className="ml-auto flex min-w-[220px] flex-1 items-center gap-3 sm:max-w-sm">
+              <RepartitionBar v={bilan.v} n={bilan.n} d={bilan.d} />
+            </div>
           </div>
         )}
       </header>
 
       {/* ============================================================
-          SCOREBOARDS — 4 KPI principaux
+          BENTO : prochaine echeance (large) + dernier match
           ============================================================ */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Scoreboard
-          label="Matchs joues"
-          value={bilan.joues}
-          icon={<Calendar size={14}/>}
-          tone="neutral"
-        />
-        <Scoreboard
-          label="Buts marques"
-          value={bilan.bp}
-          icon={<Target size={14}/>}
-          tone="turf"
-          subtitle={bilan.joues ? `${(bilan.bp / bilan.joues).toFixed(1)} / match` : "—"}
-        />
-        <Scoreboard
-          label="Buts encaisses"
-          value={bilan.bc}
-          icon={<ShieldAlert size={14}/>}
-          tone="danger"
-          subtitle={bilan.joues ? `${(bilan.bc / bilan.joues).toFixed(1)} / match` : "—"}
-        />
-        <Scoreboard
-          label="Cartons"
-          value={totalCJ + totalCR}
-          icon={<Flag size={14}/>}
-          tone="amber"
-          subtitle={`${totalCR} rouge${totalCR > 1 ? "s" : ""}`}
-        />
-      </section>
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
 
-      {/* ============================================================
-          PROCHAIN MATCH + DERNIER RESULTAT
-          ============================================================ */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-        {/* Prochain match : 2 col */}
-        <div className="lg:col-span-2 panel p-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="panel relative overflow-hidden p-6 lg:col-span-8">
+          <div className="mb-5 flex items-start justify-between gap-3">
             <div>
               <span className="h-section">Prochaine echeance</span>
-              <h3 className="font-display text-xl font-bold text-ink mt-1">
+              <h3 className="mt-1 font-display text-2xl font-bold text-ink">
                 {prochain ? `Journee ${prochain.journee ?? "—"}` : "Aucun match a venir"}
               </h3>
             </div>
             {prochain && (
-              <Link href={`/matchs/${prochain.id}`} className="btn btn-ghost text-xs">
-                Voir <ArrowRight size={12}/>
+              <Link href={`/matchs/${prochain.id}`} className="btn btn-primary text-sm">
+                Preparer le match <ArrowRight size={14} />
               </Link>
             )}
           </div>
 
-          {prochain ? (
-            <div className="grid grid-cols-12 items-center gap-3">
-              {/* Equipe 1 (toujours mon club a gauche pour la lisibilite) */}
-              {(() => {
-                const dom = prochain.equipeDomId === equipe?.id;
-                const advId = dom ? prochain.clubExt : prochain.clubDom;
-                return (
-                  <>
-                    <div className="col-span-5 flex items-center gap-3 justify-end text-right">
-                      <div>
-                        <div className="font-display font-bold text-ink">{club?.nom ?? "Mon club"}</div>
-                        <div className="text-[10px] uppercase tracking-wider text-faint mt-0.5">
-                          {dom ? "Domicile" : "Exterieur"}
-                        </div>
-                      </div>
-                      <ClubBadge clubId={clubPropreId} size={48}/>
-                    </div>
-
-                    {/* VS au milieu */}
-                    <div className="col-span-2 text-center">
-                      <div className="font-mono text-faint text-xs">VS</div>
-                      {prochain.date && (
-                        <div className="text-[10px] uppercase tracking-wider text-muted mt-1 font-semibold">
-                          {prochain.date}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Equipe 2 */}
-                    <div className="col-span-5 flex items-center gap-3">
-                      <ClubBadge clubId={advId} size={48}/>
-                      <div>
-                        <div className="font-display font-bold text-ink">{clubNom(advId)}</div>
-                        <div className="text-[10px] uppercase tracking-wider text-faint mt-0.5">
-                          {dom ? "Visiteur" : "Recoit"}
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          ) : (
-            <div className="text-sm text-muted py-6 text-center">
-              Pas de match programme dans la base.
-              <br/>
-              <Link href="/import" className="link-discrete text-turf underline mt-2 inline-block">
-                <Upload size={12} className="inline mr-1"/> Importer une feuille FMI
-              </Link>
+          {prochain ? (() => {
+            const dom = prochain.equipeDomId === equipe?.id;
+            const advId = dom ? prochain.clubExt : prochain.clubDom;
+            return (
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-2xl border border-line bg-panel2/60 p-5">
+                <div className="flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:justify-end sm:text-right">
+                  <div className="min-w-0 sm:order-1">
+                    <div className="truncate font-display text-lg font-bold text-ink">{club?.nom ?? "Mon club"}</div>
+                    <div className="text-xs text-muted">{dom ? "A domicile" : "A l'exterieur"}</div>
+                  </div>
+                  <ClubBadge clubId={clubPropreId} size={56} className="sm:order-2" />
+                </div>
+                <div className="text-center">
+                  <div className="font-display text-sm font-bold text-faint">VS</div>
+                  {prochain.date && <div className="mt-1 badge">{prochain.date}</div>}
+                </div>
+                <div className="flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:text-left">
+                  <ClubBadge clubId={advId} size={56} />
+                  <div className="min-w-0">
+                    <div className="truncate font-display text-lg font-bold text-ink">{clubNom(advId)}</div>
+                    <div className="text-xs text-muted">{dom ? "Visiteur" : "Recoit"}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })() : (
+            <div className="grid place-items-center rounded-2xl border border-dashed border-line2 py-10 text-center">
+              <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-accent/10 text-accent"><MapPin size={22} /></div>
+              <p className="max-w-sm text-sm text-muted">
+                Pas de match programme dans la base. Importe une feuille de match pour alimenter le calendrier.
+              </p>
+              <Link href="/import" className="btn btn-primary mt-4 text-sm"><Upload size={14} /> Importer une feuille FMI</Link>
             </div>
           )}
         </div>
 
-        {/* Dernier resultat */}
-        <div className="panel p-6">
+        <div className="panel p-6 lg:col-span-4">
           <span className="h-section">Dernier match</span>
           {dernier ? (
-            <>
-              <div className="flex items-center gap-3 mt-3">
-                <ClubBadge clubId={dernier.advClubId} size={40}/>
+            <Link href={`/matchs/${dernier.matchId}`} className="group mt-3 block">
+              <div className="flex items-center gap-3">
+                <ClubBadge clubId={dernier.advClubId} size={44} />
                 <div className="min-w-0 flex-1">
                   <div className="text-xs text-muted">{dernier.lieu}</div>
-                  <div className="font-display font-bold text-ink truncate">
+                  <div className="truncate font-display text-lg font-bold text-ink transition-colors group-hover:text-accent">
                     {clubNom(dernier.advClubId)}
                   </div>
                 </div>
               </div>
-              <div className="mt-4 flex items-end gap-2">
-                <div className="font-display text-4xl font-bold leading-none text-ink tabular-nums">
-                  {dernier.butsMarques}-{dernier.butsEncaisses}
+              <div className="mt-5 flex items-end gap-3">
+                <div className={`font-display text-[56px] font-bold leading-none tabular-nums ${
+                  dernier.issue === "V" ? "text-gradient" : "text-ink"}`}>
+                  {dernier.butsMarques}<span className="mx-1 text-faint">-</span>{dernier.butsEncaisses}
                 </div>
-                <span className={`pill-${dernier.issue.toLowerCase() as "v" | "n" | "d"} ml-auto`}>
-                  {dernier.issue}
-                </span>
+                <span className={`pill-${dernier.issue.toLowerCase() as "v" | "n" | "d"} mb-1.5 ml-auto`}>{dernier.issue}</span>
               </div>
-              <div className="text-[10px] uppercase tracking-wider text-faint mt-2">
-                J{dernier.journee.replace(/\D/g, "")} · {dernier.date}
+              <div className="mt-3 text-xs text-faint">
+                Journee {dernier.journee.replace(/\D/g, "")} · {dernier.date}
               </div>
-            </>
+            </Link>
           ) : (
-            <div className="text-sm text-muted py-6">Aucun match joue.</div>
+            <div className="py-8 text-sm text-muted">Aucun match joue.</div>
           )}
         </div>
+      </section>
+
+      {/* ============================================================
+          INDICATEURS : chacun avec sa courbe sur les matchs joues
+          ============================================================ */}
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Kpi label="Matchs joues" value={bilan.joues} icon={<Calendar size={14} />}
+          serie={seriePoints} serieLabel="Points cumules" />
+        <Kpi label="Buts marques" value={bilan.bp} icon={<Target size={14} />} tone="accent"
+          sous={bilan.joues ? `${(bilan.bp / bilan.joues).toFixed(1)} par match` : "—"}
+          serie={serieButsPour} serieLabel="Buts par match" />
+        <Kpi label="Buts encaisses" value={bilan.bc} icon={<ShieldAlert size={14} />} tone="danger"
+          sous={bilan.joues ? `${(bilan.bc / bilan.joues).toFixed(1)} par match` : "—"}
+          serie={serieButsContre} serieLabel="Buts par match" color="rgb(var(--chart-2))" />
+        <Kpi label="Cartons" value={totalCJ + totalCR} icon={<Flag size={14} />} tone="amber"
+          sous={`${totalCJ} jaune${totalCJ > 1 ? "s" : ""} · ${totalCR} rouge${totalCR > 1 ? "s" : ""}`} />
       </section>
 
       {/* ============================================================
           JOUEURS : tops forme / buteurs / discipline
           ============================================================ */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-        {/* Top forme */}
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <TopList
-          title="Forme"
-          icon={<Flame size={14}/>}
-          accent="turf"
+          title="Forme" icon={<Flame size={15} />} accent="accent"
           empty={estSaisonActive
             ? "Pas encore assez de matchs joues."
             : "L'indice de forme est un instantane : il n'existe que sur la saison active."}
           items={topForme.map((j: any) => ({
             id: j.id, nom: `${j.prenom ?? ""} ${j.nom}`.trim(),
-            poste: j.poste, valeur: j.scoreForme ?? 0,
-            valeurLabel: "/100",
+            poste: j.poste, valeur: j.scoreForme ?? 0, valeurLabel: "/100",
           }))}
+          max={100}
         />
-
-        {/* Top buteurs */}
         <TopList
-          title="Buteurs"
-          icon={<Crosshair size={14}/>}
-          accent="sky"
+          title="Buteurs" icon={<Crosshair size={15} />} accent="sky"
           empty={messageButeurs}
           items={topButeurs.map((j: any) => ({
             id: j.id, nom: `${j.prenom ?? ""} ${j.nom}`.trim(),
-            poste: j.poste,
-            valeur: j.buts ?? 0,
-            valeurLabel: "buts",
+            poste: j.poste, valeur: j.buts ?? 0, valeurLabel: "buts",
           }))}
+          max={maxTop(topButeurs.map((j: any) => ({ valeur: j.buts ?? 0 })))}
         />
-
-        {/* Top discipline */}
         <TopList
-          title="Indiscipline"
-          icon={<ShieldAlert size={14}/>}
-          accent="danger"
+          title="Indiscipline" icon={<ShieldAlert size={15} />} accent="danger"
           empty="Pas de carton recu."
           items={topDiscipline.map((j: any) => ({
             id: j.id, nom: `${j.prenom ?? ""} ${j.nom}`.trim(),
-            poste: j.poste,
-            valeur: (j.cartonsJaunes ?? 0) + (j.cartonsRouges ?? 0) * 3,
-            valeurLabel: "pts",
+            poste: j.poste, valeur: (j.cartonsJaunes ?? 0) + (j.cartonsRouges ?? 0) * 3, valeurLabel: "pts",
           }))}
+          max={maxTop(topDiscipline.map((j: any) => ({ valeur: (j.cartonsJaunes ?? 0) + (j.cartonsRouges ?? 0) * 3 })))}
         />
       </section>
 
@@ -371,17 +321,17 @@ export default async function Dashboard() {
           ============================================================ */}
       {tableauPoule.length > 0 && (
         <section className="panel p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <span className="h-section">Classement</span>
-              <h3 className="font-display text-xl font-bold text-ink mt-1">
+              <h3 className="mt-1 font-display text-xl font-bold text-ink">
                 {equipe?.competitionLibelle ?? "Championnat"}
                 {equipe?.poule ? ` · Poule ${equipe.poule}` : ""}
-                <span className="text-muted font-normal text-sm ml-2">{saisonChoisie?.nom}</span>
+                <span className="ml-2 text-sm font-normal text-muted">{saisonChoisie?.nom}</span>
               </h3>
             </div>
             <Link href="/classement" className="btn btn-ghost text-xs">
-              Tableau complet <ArrowUpRight size={12}/>
+              Tableau complet <ArrowUpRight size={13} />
             </Link>
           </div>
 
@@ -401,10 +351,10 @@ export default async function Dashboard() {
             <tbody>
               {tableauPoule.map((l) => (
                 <tr key={l.equipeId ?? l.clubId} className={l.equipeId === equipe?.id ? "is-mine" : ""}>
-                  <td className="font-mono text-muted">{l.rang}</td>
+                  <td className="font-display font-bold text-muted">{l.rang}</td>
                   <td>
-                    <Link href={`/club/${l.clubId}`} className="flex items-center gap-2 hover:text-turf transition-colors">
-                      <ClubBadge clubId={l.clubId} size={20}/>
+                    <Link href={`/club/${l.clubId}`} className="flex items-center gap-2.5 transition-colors hover:text-accent">
+                      <ClubBadge clubId={l.clubId} size={22} />
                       <span className="font-medium">{clubNom(l.clubId)}</span>
                     </Link>
                   </td>
@@ -413,13 +363,11 @@ export default async function Dashboard() {
                   <td className="text-center tabular-nums text-draw">{l.n}</td>
                   <td className="text-center tabular-nums text-loss">{l.d}</td>
                   <td className="text-center tabular-nums">
-                    <span className={diffButs(l) >= 0 ? "text-turf" : "text-danger"}>
+                    <span className={diffButs(l) >= 0 ? "text-win" : "text-loss"}>
                       {diffButs(l) > 0 ? "+" : ""}{diffButs(l)}
                     </span>
                   </td>
-                  <td className="text-right font-display font-bold text-ink tabular-nums">
-                    {l.pts}
-                  </td>
+                  <td className="text-right font-display text-base font-bold tabular-nums text-ink">{l.pts}</td>
                 </tr>
               ))}
             </tbody>
@@ -434,125 +382,144 @@ export default async function Dashboard() {
    COMPOSANTS INTERNES
    ============================================================ */
 
-/** Stat condensee du hero. Pas de count-up (server component). */
+/** Repartition victoires / nuls / defaites : une barre en trois segments separes. */
+function RepartitionBar({ v, n, d }: { v: number; n: number; d: number }) {
+  const total = Math.max(1, v + n + d);
+  const seg = (x: number, couleur: string) => x > 0 && (
+    <span className="h-full rounded-full" style={{ width: `${(x / total) * 100}%`, background: `rgb(var(--${couleur}))` }} />
+  );
+  return (
+    <div className="w-full">
+      <div className="flex h-2 gap-[2px] overflow-hidden rounded-full bg-line" role="img"
+        aria-label={`${v} victoires, ${n} nuls, ${d} defaites`}>
+        {seg(v, "win")}{seg(n, "draw")}{seg(d, "loss")}
+      </div>
+      <div className="mt-1.5 flex justify-between text-xs">
+        <span className="font-semibold tabular-nums text-win">{v} V</span>
+        <span className="font-semibold tabular-nums text-draw">{n} N</span>
+        <span className="font-semibold tabular-nums text-loss">{d} D</span>
+      </div>
+    </div>
+  );
+}
+
+/** Tuile du hero : un gros chiffre, en degrade pour les deux indicateurs phares. */
 function HeroStat({
-  label, value, suffix, accent, icon, showSign,
+  label, value, suffix, icon, gradient, showSign, tone,
 }: {
   label: string;
   value: number | string;
   suffix?: string;
-  accent?: "turf" | "danger";
   icon?: React.ReactNode;
+  gradient?: boolean;
   showSign?: boolean;
+  tone?: "win" | "loss";
 }) {
-  const valueClass =
-    accent === "turf" ? "text-turf"
-    : accent === "danger" ? "text-danger"
-    : "text-ink";
   const num = typeof value === "number" ? value : null;
+  const couleur = tone === "win" ? "text-win" : tone === "loss" ? "text-loss" : "text-ink";
   return (
-    <div className="panel-inset p-3.5">
-      <div className="flex items-center gap-1.5">
-        {icon && <span className="text-faint">{icon}</span>}
-        <span className="h-section text-[9px]">{label}</span>
+    <div className="stat-tile !p-4">
+      <div className="flex items-center gap-1.5 text-faint">
+        {icon}
+        <span className="stat-label">{label}</span>
       </div>
-      <div className={`font-display text-2xl font-bold leading-none tracking-tight mt-2 ${valueClass} tabular-nums`}>
+      <div className={`mt-2.5 font-display text-[34px] font-bold leading-none tabular-nums ${gradient ? "text-gradient" : couleur}`}>
         {showSign && num !== null && num > 0 ? "+" : ""}{value}
-        {suffix && <span className="text-xs text-faint font-medium ml-1">{suffix}</span>}
+        {suffix && <span className="ml-1 text-sm font-medium text-faint">{suffix}</span>}
       </div>
     </div>
   );
 }
 
-/** Scoreboard : KPI avec animation count-up, separateur vertical fin
- *  entre label et valeur (signature "afficheur de stade"). */
-function Scoreboard({
-  label, value, icon, tone = "neutral", subtitle,
+/** Indicateur : icone teintee, chiffre anime, sous-titre et courbe sur les matchs joues. */
+function Kpi({
+  label, value, icon, tone = "neutral", sous, serie, serieLabel, color,
 }: {
   label: string;
   value: number;
   icon?: React.ReactNode;
-  tone?: "neutral" | "turf" | "danger" | "amber" | "sky";
-  subtitle?: string;
+  tone?: "neutral" | "accent" | "danger" | "amber";
+  sous?: string;
+  serie?: number[];
+  serieLabel?: string;
+  color?: string;
 }) {
-  const toneClass =
-    tone === "turf"   ? "text-turf"
-    : tone === "danger" ? "text-danger"
-    : tone === "amber"  ? "text-amber"
-    : tone === "sky"    ? "text-sky"
-    : "text-ink";
+  const teinte =
+    tone === "accent" ? "bg-accent/12 text-accent"
+    : tone === "danger" ? "bg-danger/12 text-danger"
+    : tone === "amber" ? "bg-amber/12 text-amber"
+    : "bg-panel3 text-muted";
   return (
-    <div className="scoreboard">
-      <div className="flex items-center gap-2 text-faint">
-        {icon}
+    <div className="scoreboard !p-5">
+      <div className="flex items-center gap-2.5">
+        <span className={`grid h-8 w-8 place-items-center rounded-xl ${teinte}`}>{icon}</span>
         <span className="stat-label">{label}</span>
       </div>
-      <div className="mt-3 flex items-baseline gap-3">
-        {/* Separateur vertical : signature visuelle "afficheur stade" */}
-        <span className="block w-[2px] h-7 bg-line"/>
-        <span className={`stat-value ${toneClass}`}>
-          <CountUp value={value}/>
-        </span>
+      <div className="mt-4 flex items-end justify-between gap-2">
+        <div>
+          <div className="stat-value !text-[40px]"><CountUp value={value} /></div>
+          {sous && <div className="mt-1.5 text-xs text-muted">{sous}</div>}
+        </div>
+        {serie && serie.length > 1 && (
+          <div className="shrink-0 pb-1" title={serieLabel}>
+            <Sparkline values={serie} width={84} height={38} color={color} />
+          </div>
+        )}
       </div>
-      {subtitle && (
-        <div className="text-[11px] text-muted mt-1">{subtitle}</div>
-      )}
     </div>
   );
 }
 
-/** Liste top X joueurs, vibe Excel propre. */
+/** Classement de joueurs : puce de rang, nom, barre proportionnelle, valeur. */
 function TopList({
-  title, icon, accent, items, empty,
+  title, icon, accent, items, empty, max,
 }: {
   title: string;
   icon: React.ReactNode;
-  accent: "turf" | "sky" | "danger";
+  accent: "accent" | "sky" | "danger";
   items: { id: string | null; nom: string; poste?: string | null; valeur: number; valeurLabel: string }[];
   empty: string;
+  max: number;
 }) {
-  const accentText =
-    accent === "turf" ? "text-turf"
-    : accent === "sky" ? "text-sky"
-    : "text-danger";
+  const texte = accent === "accent" ? "text-accent" : accent === "sky" ? "text-sky" : "text-danger";
+  const fond = accent === "accent" ? "bg-accent" : accent === "sky" ? "bg-sky" : "bg-danger";
+  const teinte = accent === "accent" ? "bg-accent/12" : accent === "sky" ? "bg-sky/12" : "bg-danger/12";
   return (
-    <div className="panel p-5">
-      <div className="flex items-center gap-2 mb-4">
-        <span className={accentText}>{icon}</span>
-        <span className="h-section">{title}</span>
+    <div className="panel flex flex-col p-5">
+      <div className="mb-3 flex items-center gap-2.5">
+        <span className={`grid h-8 w-8 place-items-center rounded-xl ${teinte} ${texte}`}>{icon}</span>
+        <span className="font-display text-base font-bold text-ink">{title}</span>
       </div>
       {items.length === 0 ? (
-        <div className="text-xs text-faint py-4">{empty}</div>
+        <div className="grid flex-1 place-items-center rounded-xl border border-dashed border-line2 px-4 py-6 text-center text-xs leading-relaxed text-muted">{empty}</div>
       ) : (
-        <ul className="space-y-1.5">
-          {items.map((it, i) => (
-            <li key={it.id ?? `${it.nom}-${i}`}>
-              {/* Un joueur vu dans les feuilles mais absent de la table des profils n'a pas de fiche. */}
-              {(() => {
-                const Ligne: any = it.id ? Link : "div";
-                return (
-              <Ligne {...(it.id ? { href: `/joueur/${it.id}` } : {})}
-                className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-line/30 transition-colors group">
-                <span className="font-mono text-[11px] text-faint w-4">{i + 1}</span>
-                <span className="flex-1 min-w-0">
-                  <div className="font-medium text-ink truncate group-hover:text-turf transition-colors">
-                    {it.nom}
-                  </div>
-                  {it.poste && (
-                    <div className="text-[10px] text-faint uppercase tracking-wider">{it.poste}</div>
-                  )}
-                </span>
-                <span className="text-right">
-                  <div className={`font-display font-bold text-lg leading-none ${accentText} tabular-nums`}>
-                    {it.valeur}
-                  </div>
-                  <div className="text-[9px] text-faint uppercase tracking-wider">{it.valeurLabel}</div>
-                </span>
-              </Ligne>
-                );
-              })()}
-            </li>
-          ))}
+        <ul className="space-y-1">
+          {items.map((it, i) => {
+            // Un joueur vu dans les feuilles mais absent de la table des profils n'a pas de fiche.
+            const Ligne: any = it.id ? Link : "div";
+            return (
+              <li key={it.id ?? `${it.nom}-${i}`}>
+                <Ligne {...(it.id ? { href: `/joueur/${it.id}` } : {})}
+                  className="group flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-panel2">
+                  <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg text-[11px] font-bold ${
+                    i === 0 ? `${fond} text-white` : "bg-panel3 text-muted"}`}>{i + 1}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-baseline gap-2">
+                      <span className="truncate text-sm font-medium text-ink transition-colors group-hover:text-accent">{it.nom}</span>
+                      {it.poste && <span className="text-[11px] text-faint">{it.poste}</span>}
+                    </span>
+                    <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-line">
+                      <span className={`block h-full rounded-full ${fond}`} style={{ width: `${Math.max(4, (it.valeur / max) * 100)}%` }} />
+                    </span>
+                  </span>
+                  <span className="text-right">
+                    <span className={`block font-display text-lg font-bold leading-none tabular-nums ${texte}`}>{it.valeur}</span>
+                    <span className="text-[10px] text-faint">{it.valeurLabel}</span>
+                  </span>
+                </Ligne>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
