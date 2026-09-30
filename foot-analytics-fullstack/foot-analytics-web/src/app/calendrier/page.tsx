@@ -27,6 +27,7 @@ import { SeanceModal } from "@/components/SeanceModal";
 import { TimePicker24 } from "@/components/TimePicker24";
 import { ClubBadge } from "@/components/ClubBadge";
 import { SaisonGuard, useLectureSeule } from "@/components/SaisonGuard";
+import { dateVersIso, moisInitial } from "@/lib/calendrier";
 import {
   CalendarCheck, ChevronLeft, ChevronRight, Dumbbell,
   FileText, Plus, Save, Settings2, Trophy, X,
@@ -71,7 +72,7 @@ export default function Calendrier() {
 function CalendrierContent() {
   const lectureSeule = useLectureSeule();
   const ownClubId = useOwnClubId();
-  const { equipeId } = useOwnEquipe();
+  const { equipeId, saisonId } = useOwnEquipe();
   const [cursor, setCursor] = useState<Date>(() => startOfMonth(new Date()));
   const [seances, setSeances] = useState<any[]>([]);
   const [matchs, setMatchs] = useState<MatchEv[]>([]);
@@ -100,13 +101,20 @@ function CalendrierContent() {
   useEffect(() => {
     if (!equipeId) return;
     (async () => {
-      const [s, m, c, e, eff] = await Promise.all([
+      const [s, m, c, e, eff, saisons] = await Promise.all([
         api.entrainements(equipeId),
         api.matchs(),
         api.clubs(),
         api.equipes(),
         api.effectifEquipe(equipeId),
+        api.saisons(),
       ]);
+      // Ouvre le calendrier sur un mois de la SAISON choisie (et non sur
+      // "aujourd'hui" d'office : une saison archivee y serait vide).
+      const saison = saisons.find((x: any) => x.id === saisonId) ?? null;
+      setCursor(moisInitial(saison, m
+        .filter((mm: any) => mm.equipeDomId === equipeId || mm.equipeExtId === equipeId)
+        .map((mm: any) => mm.date)));
       setSeances(s);
       setEquipes(e);
       setClubs(c);
@@ -114,7 +122,7 @@ function CalendrierContent() {
       setMatchs(m.filter((mm: any) =>
         mm.equipeDomId === equipeId || mm.equipeExtId === equipeId));
     })();
-  }, [equipeId]);
+  }, [equipeId, saisonId]);
 
   const reload = async () => {
     if (!equipeId) return;
@@ -146,18 +154,20 @@ function CalendrierContent() {
   const seancesParDate = useMemo(() => {
     const map = new Map<string, any[]>();
     for (const s of seances) {
-      if (!s.date) continue;
-      const arr = map.get(s.date) ?? [];
+      const iso = dateVersIso(s.date);
+      if (!iso) continue;
+      const arr = map.get(iso) ?? [];
       arr.push(s);
-      map.set(s.date, arr);
+      map.set(iso, arr);
     }
     return map;
   }, [seances]);
   const matchsParDate = useMemo(() => {
     const map = new Map<string, MatchEv[]>();
     for (const m of matchs) {
-      if (!m.date) continue;
-      const iso = m.date.length >= 10 ? m.date.slice(0, 10) : m.date;
+      // Les FMI datent en JJ/MM/AAAA : cle normalisee en AAAA-MM-JJ.
+      const iso = dateVersIso(m.date);
+      if (!iso) continue;
       const arr = map.get(iso) ?? [];
       arr.push(m);
       map.set(iso, arr);
