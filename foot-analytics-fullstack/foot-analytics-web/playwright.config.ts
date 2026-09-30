@@ -52,7 +52,8 @@ export default defineConfig({
       reuseExistingServer: !!process.env.E2E_REUSE_SERVERS,
       timeout: 300_000,
       // NEXT_PUBLIC_* est fige a la compilation : le build doit deja viser l'API de test.
-      env: { NEXT_PUBLIC_API_URL: API_URL },
+      // Dossier de build dedie : ne pas ecraser le .next d'un `npm run dev` en cours.
+      env: { NEXT_PUBLIC_API_URL: API_URL, NEXT_DIST_DIR: ".next-e2e" },
     },
   ],
 });

@@ -182,6 +182,9 @@ export interface RapportScouting {
 
 export interface LigneClassement {
   clubId: string;
+  /** Equipe classee (null sur les lignes anciennes, au niveau club). */
+  equipeId?: string | null;
+  saisonId?: string | null;
   rang: number;
   joues: number;
   v: number;

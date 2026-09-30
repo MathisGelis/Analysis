@@ -17,123 +17,87 @@
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { getOwnClubIdServer } from "@/lib/own-club";
-import { getOwnSaisonIdServer } from "@/lib/own-equipe";
+import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
+import { bilanDesResultats, resultatsDeLEquipe } from "@/lib/matchs-equipe";
+import {
+  diffButs, fenetreClassement, ligneDeLEquipe, lignesDuChampionnat,
+} from "@/lib/classement";
 import { ClubBadge } from "@/components/ClubBadge";
 import { CountUp } from "@/components/CountUp";
 import {
   ArrowRight, ArrowUpRight, Calendar, Crosshair, Flag, Flame,
-  ShieldAlert, Target, Trophy, Upload, Users, Zap,
+  ShieldAlert, Target, Trophy, Upload,
 } from "lucide-react";
-import type { Issue, Match } from "@/lib/types";
+import type { Issue } from "@/lib/types";
 
 export const metadata = { title: "Dashboard · Foot Analytics" };
 
-function localBilan(joues: { butsMarques: number; butsEncaisses: number }[]) {
-  let v = 0, n = 0, d = 0, bp = 0, bc = 0;
-  for (const r of joues) {
-    bp += r.butsMarques; bc += r.butsEncaisses;
-    if (r.butsMarques > r.butsEncaisses) v++;
-    else if (r.butsMarques === r.butsEncaisses) n++;
-    else d++;
-  }
-  return { joues: joues.length, v, n, d, bp, bc, pts: 3 * v + n };
-}
-
 export default async function Dashboard() {
   const CLUB_PROPRE_ID = getOwnClubIdServer();
-  const ownSaisonId = getOwnSaisonIdServer();
 
-  const [clubs, joueurs, classement, matchsAll, saisons] = await Promise.all([
+  const [clubs, classement, matchs, equipes, saisons] = await Promise.all([
     api.clubs(),
-    api.joueurs(CLUB_PROPRE_ID),
     api.classement(),
-    api.matchs(CLUB_PROPRE_ID),
+    api.matchs(),
+    api.equipes(),
     api.saisons(),
   ]);
 
-  // Saison effective : switcher > active > rien.
-  const saisonActive = saisons.find((s: any) => s.actif);
-  const saisonChoisieId = ownSaisonId ?? saisonActive?.id ?? null;
-  const saisonChoisie = saisons.find((s: any) => s.id === saisonChoisieId);
-
-  // Filtres par saison.
-  const matchs: Match[] = saisonChoisieId
-    ? matchsAll.filter((m: any) => (m.saisonId ?? null) === saisonChoisieId)
-    : matchsAll;
-  const classementSaison = saisonChoisieId
-    ? classement.filter((l: any) => (l.saisonId ?? null) === saisonChoisieId)
-    : classement;
-
-  const club = clubs.find((c: any) => c.id === CLUB_PROPRE_ID);
+  // Tout le dashboard se lit du point de vue de MON EQUIPE (resolue depuis
+  // les cookies) et de SON championnat : un club aligne plusieurs equipes
+  // (Seniors, U20...) dont les matchs, classements et joueurs ne se melangent
+  // pas.
+  const { equipe, saison: saisonChoisie, equipesDuChampionnat } =
+    await resolveEquipePropre({ equipes, saisons, matchs });
+  const clubPropreId = equipe?.clubId ?? CLUB_PROPRE_ID;
+  const club = clubs.find((c: any) => c.id === clubPropreId);
   const clubNom = (id: string) => clubs.find((c: any) => c.id === id)?.nom ?? id;
-  const myRank = classementSaison.find((l: any) => l.clubId === CLUB_PROPRE_ID);
 
-  // Resultats ordonnes (= matchs joues, du plus ancien au plus recent).
-  type Resultat = {
-    matchId: string; journee: string; date: string;
-    lieu: "Domicile" | "Exterieur"; advClubId: string;
-    butsMarques: number; butsEncaisses: number;
-    issue: "V" | "N" | "D";
-  };
-  const parseDate = (s?: string | null): number => {
-    if (!s) return 0;
-    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (m) return new Date(+m[1], +m[2] - 1, +m[3]).getTime();
-    m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-    if (m) return new Date(+m[3], +m[2] - 1, +m[1]).getTime();
-    return 0;
-  };
-  const aVenir: Match[] = [];
-  const joues: Resultat[] = [];
-  for (const m of matchs) {
-    const cnt = (m.scoreDom ?? 0) + (m.scoreExt ?? 0);
-    if (m.statut !== "joue" && cnt === 0) {
-      aVenir.push(m); continue;
-    }
-    const dom = m.clubDom === CLUB_PROPRE_ID;
-    const bm = dom ? m.scoreDom : m.scoreExt;
-    const bc = dom ? m.scoreExt : m.scoreDom;
-    joues.push({
-      matchId: m.id, journee: m.journee ?? "—", date: m.date ?? "",
-      lieu: dom ? "Domicile" : "Exterieur",
-      advClubId: dom ? m.clubExt : m.clubDom,
-      butsMarques: bm, butsEncaisses: bc,
-      issue: bm > bc ? "V" : bm === bc ? "N" : "D",
-    });
-  }
-  joues.sort((a, b) => parseDate(a.date) - parseDate(b.date));
-  aVenir.sort((a, b) => parseDate(a.date ?? "") - parseDate(b.date ?? ""));
+  // Effectif de l'equipe : statistiques calculees sur SES matchs (pas les
+  // cumuls de carriere de la fiche joueur).
+  const effectif: any[] = equipe ? await api.effectifEquipe(equipe.id) : [];
+  const estSaisonActive = saisonChoisie?.actif === true;
 
-  const bilan = localBilan(joues);
-  // Diff. de buts : ligne de classement si presente, sinon calcul local.
-  const diffButs = myRank ? myRank.bp - myRank.bc : bilan.bp - bilan.bc;
+  // Matchs et bilan de l'equipe.
+  const { joues, aVenir } = equipe
+    ? resultatsDeLEquipe(matchs, equipe.id)
+    : { joues: [], aVenir: [] };
+  const bilan = bilanDesResultats(joues);
   const dernier = joues[joues.length - 1];
   const prochain = aVenir[0];
   const formeRecente: Issue[] = joues.slice(-10).map((r) => r.issue);
 
-  // Joueurs : tops
-  const actifs = joueurs.filter((j: any) => (j.matchs ?? 0) >= 3);
-  const topForme = [...actifs]
-    .sort((a: any, b: any) => (b.scoreForme ?? 0) - (a.scoreForme ?? 0))
-    .slice(0, 5);
-  const topButeurs = [...joueurs]
-    .filter((j: any) => (j.butsMarques ?? j.buts ?? 0) > 0)
-    .sort((a: any, b: any) => (b.butsMarques ?? b.buts ?? 0) - (a.butsMarques ?? a.buts ?? 0))
-    .slice(0, 5);
-  const topDiscipline = [...joueurs]
-    .filter((j: any) => (j.cartonsJaunes ?? 0) + (j.cartonsRouges ?? 0) > 0)
-    .sort((a: any, b: any) =>
-      (b.cartonsJaunes + b.cartonsRouges * 3) - (a.cartonsJaunes + a.cartonsRouges * 3))
-    .slice(0, 5);
+  // Classement du championnat de l'equipe, et ma ligne dedans.
+  const lignes = lignesDuChampionnat(classement, equipesDuChampionnat);
+  const maLigne = ligneDeLEquipe(lignes, equipe?.id);
+  const tableauPoule = fenetreClassement(lignes, equipe?.id, 5);
+  const diff = maLigne ? diffButs(maLigne) : bilan.bp - bilan.bc;
 
-  // Mini classement : 5 lignes autour de mon rang.
-  const monRang = myRank?.rang ?? 0;
-  const tableauPoule = monRang > 0
-    ? classementSaison.slice(
-        Math.max(0, monRang - 3),
-        Math.min(classementSaison.length, monRang + 2),
-      )
-    : classementSaison.slice(0, 5);
+  // Joueurs : tops. L'indice de forme est un instantane du moment present :
+  // il n'a de sens que sur la saison active (cf. effectif()).
+  const actifs = effectif.filter((j) => (j.matchs ?? 0) >= 3);
+  const topForme = estSaisonActive
+    ? [...actifs].filter((j) => j.scoreForme != null)
+        .sort((a, b) => (b.scoreForme ?? 0) - (a.scoreForme ?? 0)).slice(0, 5)
+    : [];
+  const topButeurs = [...effectif]
+    .filter((j) => (j.buts ?? 0) > 0)
+    .sort((a, b) => (b.buts ?? 0) - (a.buts ?? 0))
+    .slice(0, 5);
+  const topDiscipline = [...effectif]
+    .filter((j) => (j.cartonsJaunes ?? 0) + (j.cartonsRouges ?? 0) > 0)
+    .sort((a, b) =>
+      ((b.cartonsJaunes ?? 0) + (b.cartonsRouges ?? 0) * 3)
+      - ((a.cartonsJaunes ?? 0) + (a.cartonsRouges ?? 0) * 3))
+    .slice(0, 5);
+  const totalCJ = effectif.reduce((s, j) => s + (j.cartonsJaunes ?? 0), 0);
+  const totalCR = effectif.reduce((s, j) => s + (j.cartonsRouges ?? 0), 0);
+  // Les FMI n'ont pas toujours le tableau des buteurs : on le dit plutot
+  // que d'afficher "aucun but" a une equipe qui en a marque 56.
+  const butsAttribues = effectif.reduce((s, j) => s + (j.buts ?? 0), 0);
+  const messageButeurs = bilan.bp > 0 && butsAttribues === 0
+    ? "Buteurs non renseignes dans les feuilles de match importees."
+    : "Pas de but inscrit cette saison.";
 
   return (
     <div className="space-y-6 fade-up-stagger max-w-[1400px]">
@@ -150,7 +114,7 @@ export default async function Dashboard() {
 
           {/* Identite club */}
           <div className="col-span-12 lg:col-span-5 flex items-center gap-4">
-            <ClubBadge clubId={CLUB_PROPRE_ID} size={72} />
+            <ClubBadge clubId={clubPropreId} size={72} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="h-section">Mon club</span>
@@ -161,26 +125,34 @@ export default async function Dashboard() {
                   </span>
                 )}
               </div>
-              <Link href={`/club/${CLUB_PROPRE_ID}`}
+              <Link href={`/club/${clubPropreId}`}
                     className="font-display text-3xl font-bold text-ink leading-tight tracking-tight hover:text-turf transition-colors mt-1 block">
                 {club?.nom ?? "Club non defini"}
               </Link>
-              {club?.ville && (
-                <div className="text-xs text-muted mt-0.5">{club.ville}</div>
+              {equipe ? (
+                <div className="text-xs text-muted mt-0.5">
+                  {equipe.nom}
+                  {equipe.competitionLibelle ? ` · ${equipe.competitionLibelle}` : ""}
+                  {equipe.poule ? ` · Poule ${equipe.poule}` : ""}
+                </div>
+              ) : (
+                <div className="text-xs text-amber mt-0.5">
+                  Aucune equipe sur cette saison : choisis-en une dans le selecteur en bas a gauche.
+                </div>
               )}
             </div>
           </div>
 
           {/* Bilan ligne */}
           <div className="col-span-12 lg:col-span-7 grid grid-cols-4 gap-3">
-            <HeroStat label="Rang" value={myRank?.rang ?? "—"}
-              suffix={myRank ? `/ ${classementSaison.length}` : undefined}
+            <HeroStat label="Rang" value={maLigne?.rang ?? "—"}
+              suffix={maLigne ? `/ ${lignes.length}` : undefined}
               accent="turf" icon={<Trophy size={14}/>}/>
-            <HeroStat label="Points" value={myRank?.pts ?? bilan.pts} accent="turf"/>
-            <HeroStat label="Diff. buts" value={diffButs}
-              accent={diffButs >= 0 ? "turf" : "danger"}
+            <HeroStat label="Points" value={maLigne?.pts ?? bilan.pts} accent="turf"/>
+            <HeroStat label="Diff. buts" value={diff}
+              accent={diff >= 0 ? "turf" : "danger"}
               showSign/>
-            <HeroStat label="Joues" value={bilan.joues} icon={<Calendar size={14}/>}/>
+            <HeroStat label="Joues" value={maLigne?.joues ?? bilan.joues} icon={<Calendar size={14}/>}/>
           </div>
         </div>
 
@@ -232,10 +204,10 @@ export default async function Dashboard() {
         />
         <Scoreboard
           label="Cartons"
-          value={joueurs.reduce((s: number, j: any) => s + (j.cartonsJaunes ?? 0) + (j.cartonsRouges ?? 0), 0)}
+          value={totalCJ + totalCR}
           icon={<Flag size={14}/>}
           tone="amber"
-          subtitle={`${joueurs.reduce((s: number, j: any) => s + (j.cartonsRouges ?? 0), 0)} rouges`}
+          subtitle={`${totalCR} rouge${totalCR > 1 ? "s" : ""}`}
         />
       </section>
 
@@ -264,7 +236,7 @@ export default async function Dashboard() {
             <div className="grid grid-cols-12 items-center gap-3">
               {/* Equipe 1 (toujours mon club a gauche pour la lisibilite) */}
               {(() => {
-                const dom = prochain.clubDom === CLUB_PROPRE_ID;
+                const dom = prochain.equipeDomId === equipe?.id;
                 const advId = dom ? prochain.clubExt : prochain.clubDom;
                 return (
                   <>
@@ -275,7 +247,7 @@ export default async function Dashboard() {
                           {dom ? "Domicile" : "Exterieur"}
                         </div>
                       </div>
-                      <ClubBadge clubId={CLUB_PROPRE_ID} size={48}/>
+                      <ClubBadge clubId={clubPropreId} size={48}/>
                     </div>
 
                     {/* VS au milieu */}
@@ -355,7 +327,9 @@ export default async function Dashboard() {
           title="Forme"
           icon={<Flame size={14}/>}
           accent="turf"
-          empty="Pas encore assez de matchs joues."
+          empty={estSaisonActive
+            ? "Pas encore assez de matchs joues."
+            : "L'indice de forme est un instantane : il n'existe que sur la saison active."}
           items={topForme.map((j: any) => ({
             id: j.id, nom: `${j.prenom ?? ""} ${j.nom}`.trim(),
             poste: j.poste, valeur: j.scoreForme ?? 0,
@@ -368,11 +342,11 @@ export default async function Dashboard() {
           title="Buteurs"
           icon={<Crosshair size={14}/>}
           accent="sky"
-          empty="Pas de but inscrit cette saison."
+          empty={messageButeurs}
           items={topButeurs.map((j: any) => ({
             id: j.id, nom: `${j.prenom ?? ""} ${j.nom}`.trim(),
             poste: j.poste,
-            valeur: j.butsMarques ?? j.buts ?? 0,
+            valeur: j.buts ?? 0,
             valeurLabel: "buts",
           }))}
         />
@@ -401,7 +375,9 @@ export default async function Dashboard() {
             <div>
               <span className="h-section">Classement</span>
               <h3 className="font-display text-xl font-bold text-ink mt-1">
-                {saisonChoisie?.nom ?? "Saison courante"}
+                {equipe?.competitionLibelle ?? "Championnat"}
+                {equipe?.poule ? ` · Poule ${equipe.poule}` : ""}
+                <span className="text-muted font-normal text-sm ml-2">{saisonChoisie?.nom}</span>
               </h3>
             </div>
             <Link href="/classement" className="btn btn-ghost text-xs">
@@ -423,8 +399,8 @@ export default async function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {tableauPoule.map((l: any) => (
-                <tr key={l.clubId} className={l.clubId === CLUB_PROPRE_ID ? "is-mine" : ""}>
+              {tableauPoule.map((l) => (
+                <tr key={l.equipeId ?? l.clubId} className={l.equipeId === equipe?.id ? "is-mine" : ""}>
                   <td className="font-mono text-muted">{l.rang}</td>
                   <td>
                     <Link href={`/club/${l.clubId}`} className="flex items-center gap-2 hover:text-turf transition-colors">
@@ -433,16 +409,16 @@ export default async function Dashboard() {
                     </Link>
                   </td>
                   <td className="text-center tabular-nums text-muted">{l.joues}</td>
-                  <td className="text-center tabular-nums text-win">{l.victoires}</td>
-                  <td className="text-center tabular-nums text-draw">{l.nuls}</td>
-                  <td className="text-center tabular-nums text-loss">{l.defaites}</td>
+                  <td className="text-center tabular-nums text-win">{l.v}</td>
+                  <td className="text-center tabular-nums text-draw">{l.n}</td>
+                  <td className="text-center tabular-nums text-loss">{l.d}</td>
                   <td className="text-center tabular-nums">
-                    <span className={l.diffButs >= 0 ? "text-turf" : "text-danger"}>
-                      {l.diffButs > 0 ? "+" : ""}{l.diffButs}
+                    <span className={diffButs(l) >= 0 ? "text-turf" : "text-danger"}>
+                      {diffButs(l) > 0 ? "+" : ""}{diffButs(l)}
                     </span>
                   </td>
                   <td className="text-right font-display font-bold text-ink tabular-nums">
-                    {l.points}
+                    {l.pts}
                   </td>
                 </tr>
               ))}
@@ -532,7 +508,7 @@ function TopList({
   title: string;
   icon: React.ReactNode;
   accent: "turf" | "sky" | "danger";
-  items: { id: string; nom: string; poste?: string | null; valeur: number; valeurLabel: string }[];
+  items: { id: string | null; nom: string; poste?: string | null; valeur: number; valeurLabel: string }[];
   empty: string;
 }) {
   const accentText =
@@ -550,8 +526,12 @@ function TopList({
       ) : (
         <ul className="space-y-1.5">
           {items.map((it, i) => (
-            <li key={it.id}>
-              <Link href={`/joueur/${it.id}`}
+            <li key={it.id ?? `${it.nom}-${i}`}>
+              {/* Un joueur vu dans les feuilles mais absent de la table des profils n'a pas de fiche. */}
+              {(() => {
+                const Ligne: any = it.id ? Link : "div";
+                return (
+              <Ligne {...(it.id ? { href: `/joueur/${it.id}` } : {})}
                 className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-line/30 transition-colors group">
                 <span className="font-mono text-[11px] text-faint w-4">{i + 1}</span>
                 <span className="flex-1 min-w-0">
@@ -568,7 +548,9 @@ function TopList({
                   </div>
                   <div className="text-[9px] text-faint uppercase tracking-wider">{it.valeurLabel}</div>
                 </span>
-              </Link>
+              </Ligne>
+                );
+              })()}
             </li>
           ))}
         </ul>

@@ -29,6 +29,8 @@ interface Props {
   club: Club;
   equipe?: Equipe;
   ligne?: LigneClassement;
+  /** Nombre d'equipes classees dans le championnat de `ligne`. */
+  totalClasses?: number;
   bilan: {
     joues: number; v: number; n: number; d: number;
     bp: number; bc: number; diff?: number; pts?: number;
@@ -86,7 +88,7 @@ function JoueurName({
 }
 
 export function ClubTabs({
-  club, equipe, ligne, bilan, resultats, joueurs, rapport, isMine, initialTab,
+  club, equipe, ligne, totalClasses, bilan, resultats, joueurs, rapport, isMine, initialTab,
   saisonNom, saisonActif,
 }: Props) {
   const [tab, setTab] = useState<Tab>(initialTab ?? "overview");
@@ -128,7 +130,7 @@ export function ClubTabs({
             <div className="panel-inset px-5 py-3 text-center">
               <div className="h-section">Classement</div>
               <div className="font-display text-4xl font-black text-turf leading-none mt-1">
-                {ligne.rang}<span className="text-xs text-muted font-medium">/{Math.max(12, ligne.rang)}</span>
+                {ligne.rang}<span className="text-xs text-muted font-medium">/{totalClasses ?? ligne.rang}</span>
               </div>
               <div className="text-xs text-muted mt-1">{ligne.pts} pts</div>
             </div>

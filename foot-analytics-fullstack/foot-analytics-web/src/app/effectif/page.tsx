@@ -109,7 +109,7 @@ export default function EffectifPage() {
     <div className="space-y-6 fade-up">
       <header className="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <div className="h-section">FC Chaponnay-Marennes</div>
+          <div className="h-section">{equipeNom || "Aucune equipe selectionnee"}</div>
           <h1 className="font-display text-2xl font-bold text-ink">
             Effectif <span className="text-muted font-light">({data.length})</span>
           </h1>
