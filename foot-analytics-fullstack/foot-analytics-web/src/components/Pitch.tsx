@@ -3,9 +3,29 @@
 // Terrain vu de dessus avec joueurs disposes selon une formation textuelle.
 // Toutes les couleurs utilisent les CSS vars du theme.
 
+export interface JoueurTerrain {
+  numero: number;
+  nom: string;
+  carton?: "jaune" | "rouge";
+  capitaine?: boolean;
+  /** Pastille de statut de mutation : "M" (mute) ou "HD" (mute hors delai). */
+  marque?: "M" | "HD" | null;
+  /** Indisponible (blesse, suspendu) : contour rouge, nom barre. */
+  indisponible?: boolean;
+}
+
 interface PitchProps {
   formation: string | null | undefined;       // ex. "4-2-3-1" ; null = dispositif inconnu (4-4-2 par defaut)
-  joueurs: { numero: number; nom: string; carton?: "jaune" | "rouge"; capitaine?: boolean }[];
+  /**
+   * Un joueur par poste, dans l'ordre du terrain (gardien d'abord). `null` = poste vide (cercle en
+   * pointilles) ; au-dela de la fin du tableau, rien n'est dessine.
+   */
+  joueurs: (JoueurTerrain | null)[];
+  /** Libelles des postes vides ("GB", "DEF 1"...), dans le meme ordre. */
+  libellesPostes?: string[];
+  /** Rend les postes cliquables (et focusables au clavier) : composition interactive. */
+  onSelectionne?: (index: number) => void;
+  indexSelectionne?: number | null;
   couleur?: string;
   titre?: string;
   oriente?: "haut" | "bas";
@@ -23,7 +43,7 @@ function parseFormation(f: string | null | undefined): number[] {
 }
 
 export function Pitch({
-  formation, joueurs, couleur = "rgb(var(--accent))", titre, oriente = "haut",
+  formation, joueurs, libellesPostes, onSelectionne, indexSelectionne, couleur = "rgb(var(--accent))", titre, oriente = "haut",
 }: PitchProps) {
   const lignes = parseFormation(formation);
   const formationConnue = !!formation && formation.trim().length > 0;
@@ -74,23 +94,56 @@ export function Pitch({
         {/* Joueurs : couleur rouge/amber selon carton, sinon accent */}
         {placements.map((p, i) => {
           const j = joueurs[i];
-          if (!j) return null;
-          const c = j.carton === "rouge" ? "rgb(var(--danger))"
+          if (j === undefined) return null;
+          const interactif = !!onSelectionne;
+          const choisi = indexSelectionne === i;
+          const groupe = {
+            transform: `translate(${p.x},${p.y})`,
+            ...(interactif ? {
+              role: "button" as const, tabIndex: 0, style: { cursor: "pointer", outline: "none" },
+              "aria-label": j ? `${j.nom}, poste ${i + 1}` : `Poste ${libellesPostes?.[i] ?? i + 1} vide`,
+              "aria-pressed": choisi,
+              onClick: () => onSelectionne!(i),
+              onKeyDown: (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectionne!(i); } },
+            } : {}),
+          };
+          if (!j) {
+            return (
+              <g key={i} {...groupe}>
+                {choisi && <circle r="18" fill="none" stroke="rgb(var(--accent))" strokeWidth="1.5" opacity=".7" />}
+                <circle r="13" fill="rgb(var(--bg))" stroke="rgb(var(--line-strong))" strokeWidth="1.5" strokeDasharray="3 3" />
+                <text textAnchor="middle" dy="4" fontSize="13" fill="rgb(var(--faint))">+</text>
+                <text textAnchor="middle" y="26" fontSize="8" fontWeight="600" fill="rgb(var(--faint))"
+                  fontFamily="'Bricolage Grotesque Variable', ui-sans-serif, sans-serif">{libellesPostes?.[i] ?? ""}</text>
+              </g>
+            );
+          }
+          const c = j.indisponible || j.carton === "rouge" ? "rgb(var(--danger))"
             : j.carton === "jaune" ? "rgb(var(--amber))" : couleur;
           return (
-            <g key={i} transform={`translate(${p.x},${p.y})`}>
+            <g key={i} {...groupe}>
+              {choisi && <circle r="18" fill="none" stroke="rgb(var(--accent))" strokeWidth="1.5" opacity=".7" />}
               <circle r="13" fill="rgb(var(--bg))" stroke={c} strokeWidth="2" />
               <text textAnchor="middle" dy="3.6" fontSize="11" fontWeight="700"
                 fill={c} fontFamily="'Bricolage Grotesque Variable', ui-sans-serif, sans-serif">
                 {j.numero}
               </text>
               <text textAnchor="middle" y="26" fontSize="8.5" fontWeight="600"
-                fill="rgb(var(--ink))" fontFamily="'Bricolage Grotesque Variable', ui-sans-serif, sans-serif">
+                fill="rgb(var(--ink))" textDecoration={j.indisponible ? "line-through" : undefined}
+                fontFamily="'Bricolage Grotesque Variable', ui-sans-serif, sans-serif">
                 {j.nom.split(" ")[0].slice(0, 9)}
                 {j.capitaine && (
                   <tspan dx="2" fill="rgb(var(--amber))" fontSize="7">(C)</tspan>
                 )}
               </text>
+              {j.marque && (
+                <g transform="translate(8,-19)">
+                  <rect x="-1" y="-7" width={j.marque === "HD" ? 17 : 12} height="11" rx="5.5"
+                    fill={j.marque === "HD" ? "rgb(var(--danger))" : "rgb(var(--amber))"} stroke="rgb(var(--bg))" strokeWidth="1.5" />
+                  <text x={j.marque === "HD" ? 7.5 : 5} y="1.2" textAnchor="middle" fontSize="6.5" fontWeight="800" fill="rgb(var(--bg))"
+                    fontFamily="'Bricolage Grotesque Variable', ui-sans-serif, sans-serif">{j.marque}</text>
+                </g>
+              )}
             </g>
           );
         })}

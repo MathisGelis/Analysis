@@ -16,7 +16,7 @@ import {
 } from "@/data/demo";
 import type { DynamiquePoule } from "@/lib/analyse-types";
 import type {
-  Club, HistoriqueSaison, Joueur, LigneClassement, Match, MatchJoue, RapportScouting,
+  Club, HistoriqueSaison, Joueur, LigneClassement, Match, MatchJoue, RapportScouting, TactiquePlan,
 } from "@/lib/types";
 
 export const API_URL =
@@ -360,6 +360,24 @@ export const api = {
    *  (matchs, buts, cartons...) et fatigue globale (toutes equipes). */
   effectifEquipe: (equipeId: string) =>
     req<any[]>(`/joueurs/effectif?equipeId=${equipeId}`, { fallback: [] }),
+
+  /* ---- Tactique ---- */
+  /** Plan de jeu de l'equipe (pour un match, ou plan courant) ; null s'il n'y en a pas. */
+  tactique: (equipeId: string, matchId?: string | null) => {
+    const qs = new URLSearchParams({ equipeId });
+    if (matchId) qs.set("matchId", matchId);
+    return req<TactiquePlan | null>(`/tactiques?${qs}`, { fallback: null });
+  },
+  /** Enregistre le plan. Refus 422 (code REGLE_MUTATIONS) si plus de 6 mutes dont 2 hors delai. */
+  enregistrerTactique: (plan: {
+    equipeId: string; matchId?: string | null; formation: string; titulaires: (string | null)[];
+    remplacants: string[]; capitaineId?: string | null; notes?: string | null;
+  }) => req<TactiquePlan>("/tactiques", { method: "PUT", body: JSON.stringify(plan) }),
+  supprimerTactique: (equipeId: string, matchId?: string | null) => {
+    const qs = new URLSearchParams({ equipeId });
+    if (matchId) qs.set("matchId", matchId);
+    return req<{ ok: boolean; supprime: boolean }>(`/tactiques?${qs}`, { method: "DELETE" });
+  },
 
   /* ---- Auth ---- */
   authLogin: (login: string, password: string) =>

@@ -14,6 +14,7 @@ import { Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { debug } from "@/lib/debug";
 import { postesCompacts } from "@/lib/postes";
 import { FatigueBar } from "@/components/FatigueBar";
+import { classeBadgeMutation, STATUTS_MUTATION } from "@/lib/mutations";
 import { useFeedback } from "@/lib/feedback-context";
 
 const POSTES = ["TOUS","GB","DD","DC","DG","MD","MO","AT","AG","MIL"];
@@ -211,10 +212,7 @@ export default function EffectifPage() {
                 <td className="text-amber font-mono">{j.cartonsJaunes || ""}</td>
                 <td className="text-danger font-mono">{j.cartonsRouges || ""}</td>
                 <td className="hidden min-[1440px]:table-cell">
-                  <span className={`badge ${
-                    j.statutMutation==="Mutation" ? "badge-amber"
-                    : j.statutMutation==="Pas mutation" ? "badge-accent" : ""
-                  }`}>{j.statutMutation}</span>
+                  <span className={`badge ${classeBadgeMutation(j.statutMutation)}`}>{j.statutMutation}</span>
                 </td>
                 <td className="hidden whitespace-nowrap font-mono text-[11px] text-muted 2xl:table-cell" title={j.postes ?? undefined}>
                   {(() => {
@@ -346,7 +344,7 @@ function JoueurForm({
           <Field label="Statut">
             <select className="inp" value={form.statutMutation}
               onChange={(e)=>set("statutMutation", e.target.value)}>
-              <option>Pas mutation</option><option>Mutation</option><option>Non connu</option>
+              {STATUTS_MUTATION.map((st)=><option key={st}>{st}</option>)}
             </select>
           </Field>
           <div className="col-span-2">

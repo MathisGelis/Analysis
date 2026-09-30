@@ -157,6 +157,20 @@ export interface ArbitreMatch {
   arbitre?: Arbitre;
 }
 
+/** Plan de jeu enregistre d'une equipe (dispositif, onze, remplacants). */
+export interface TactiquePlan {
+  id: string;
+  equipeId: string;
+  matchId: string | null;
+  formation: string;
+  /** 11 cases dans l'ordre des postes du terrain : id du joueur, "" = poste vide. */
+  titulaires: string[];
+  remplacants: string[];
+  capitaineId: string | null;
+  notes: string | null;
+  modifieLe: string;
+}
+
 export interface EvenementMatch {
   type: "carton" | "carton_vert" | "but" | "remplacement" | "blessure";
   sousType?: string;         // jaune|rouge / type but / localisation

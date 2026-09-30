@@ -14,6 +14,7 @@ import { ClubBadge } from "@/components/ClubBadge";
 import { BarsChart, FormeStrip, Sparkline } from "@/components/Charts";
 import { FatigueBar } from "@/components/FatigueBar";
 import { plusFatigues } from "@/lib/fatigue";
+import { classeBadgeMutation } from "@/lib/mutations";
 import { Pitch } from "@/components/Pitch";
 import {
   AlertTriangle, ArrowDownRight, ArrowUpRight, Check, FileText, Printer,
@@ -356,10 +357,7 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
               <td className="text-center text-danger font-mono">{j.cartonsRouges || ""}</td>
               <td>
                 {j.statutMutation && (
-                  <span className={`badge ${
-                    j.statutMutation==="Mutation" ? "badge-amber"
-                    : j.statutMutation==="Pas mutation" ? "badge-accent" : ""
-                  }`}>{j.statutMutation}</span>
+                  <span className={`badge ${classeBadgeMutation(j.statutMutation)}`}>{j.statutMutation}</span>
                 )}
               </td>
               <td className="text-[10px] text-faint font-mono">{j.postes}</td>

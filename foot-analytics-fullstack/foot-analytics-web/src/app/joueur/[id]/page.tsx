@@ -11,6 +11,7 @@ import { JoueurEditButton } from "@/components/JoueurEditButton";
 import { DonutStat, Sparkline } from "@/components/Charts";
 import { FatiguePanel, FatigueLegende } from "@/components/FatiguePanel";
 import { COULEUR_NIVEAU, LIBELLE_NIVEAU, lireDetailFatigue, niveauFatigue } from "@/lib/fatigue";
+import { classeBadgeMutation } from "@/lib/mutations";
 import { ClubBadge } from "@/components/ClubBadge";
 import { TerrainPostes } from "@/components/TerrainPostes";
 import { HistoriqueClub } from "@/components/HistoriqueClub";
@@ -110,12 +111,7 @@ export default async function JoueurPage({
               {j.prenom} <span className="text-muted font-light">{j.nom}</span>
             </h1>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <span className={`badge ${
-                j.statutMutation === "Mutation" ? "badge-amber"
-                : j.statutMutation === "Mutation hors delai" ? "badge-amber"
-                : j.statutMutation === "Pas mutation" ? "badge-accent"
-                : ""
-              }`}>{j.statutMutation ?? "—"}</span>
+              <span className={`badge ${classeBadgeMutation(j.statutMutation)}`}>{j.statutMutation ?? "—"}</span>
               {club && (
                 <Link href={`/club/${club.id}`} className="badge flex items-center gap-1 hover:text-accent">
                   <ClubBadge clubId={club.id} size={14}/> {club.nom}

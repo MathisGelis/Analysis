@@ -4,7 +4,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { WEB_PORT } from "../playwright.config";
+import { API_URL, WEB_PORT } from "../playwright.config";
 import { MOT_DE_PASSE } from "./global-setup";
 
 test.describe.configure({ mode: "serial" });
@@ -160,6 +160,53 @@ test("suppression d'un joueur : confirmation dans une modale, notification, jama
   page.removeAllListeners("dialog");
 });
 
+test("tactique : composition sur l'effectif reel, regle des mutes imposee, plan enregistre puis relu", async () => {
+  // Effectif de l'equipe choisie : 7 mutes, 3 mutes hors delai (donc 10 au total, plus que le maximum de 6),
+  // et 9 joueurs sans mutation. Crees par l'API avec le jeton de la session.
+  const equipeId = (await contexte.cookies()).find((c) => c.name === "ownEquipeId")!.value;
+  const token = await page.evaluate(() => localStorage.getItem("fa.token"));
+  const creer = async (prenom: string, nom: string, poste: string, statutMutation: string) => {
+    const res = await fetch(`${API_URL}/joueurs/equipe/${equipeId}/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ prenom, nom, poste, statutMutation }),
+    });
+    expect(res.ok).toBe(true);
+  };
+  const postes = ["GB", "DC", "DC", "DD", "DG", "MD", "MO", "MO", "AG", "AT"];
+  for (let i = 0; i < 7; i++) await creer("Mu", `MUTE${i + 1}`, postes[i], "Mutation");
+  for (let i = 0; i < 3; i++) await creer("Hd", `HORSDELAI${i + 1}`, postes[i + 7], "Mutation hors delai");
+  for (let i = 0; i < 9; i++) await creer("Lib", `LIBRE${i + 1}`, postes[i % 10], "Pas mutation");
+
+  await page.goto("/tactique");
+  // Plus de jeu d'exemple : les joueurs sont ceux de l'effectif.
+  await expect(page.getByText(/jeu d'exemple/)).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "11 de depart" })).toBeVisible();
+
+  // Le onze suggere ne depasse jamais 6 mutes dont 2 hors delai (titulaires + remplacants).
+  await page.getByRole("button", { name: /Onze suggere/ }).click();
+  const nombre = async (id: string) => Number((await page.getByTestId(id).innerText()).split("/")[0].trim());
+  expect(await nombre("mutes")).toBeLessThanOrEqual(6);
+  expect(await nombre("hors-delai")).toBeLessThanOrEqual(2);
+  await expect(page.getByText("Conforme", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("nb-titulaires")).toHaveText("11/11");
+
+  // Quota atteint : un mute de plus est grise dans la liste des remplacants, avec sa raison.
+  const ajout = page.getByLabel("Ajouter un remplacant");
+  const grises = await ajout.locator("option[disabled]").allInnerTexts();
+  expect(grises.length).toBeGreaterThan(0);
+  expect(grises.every((t) => /regle des mutes|indisponible/.test(t))).toBe(true);
+
+  // Enregistrement, puis le plan est relu apres rechargement.
+  await page.getByLabel("Dispositif").selectOption("3-5-2");
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByText(/Composition enregistree/).first()).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Dispositif")).toHaveValue("3-5-2");
+  await expect(page.getByRole("status")).toContainText("Enregistre le");
+  expect(await nombre("mutes")).toBeLessThanOrEqual(6);
+});
+
 test("fatigue : jamais de score invente hors saison active ni sans donnee, et l'effectif se trie par fatigue", async () => {
   // Saison choisie : 2026-2027, a venir (non active). La fatigue est une mesure du moment, elle n'existe pas.
   await page.goto("/medical");
@@ -212,7 +259,9 @@ test("saison archivee : /tactique s'affiche en consultation seule", async () => 
   await page.goto("/tactique");
 
   await expect(page.getByText(/archivee, en consultation seule/)).toBeVisible();
-  await expect(page.getByRole("button", { name: /Enregistrer/ })).toBeDisabled();
+  // Aucune ecriture possible : pas de bouton Enregistrer actif (ici l'effectif archive est vide, la page le dit).
+  await expect(page.getByText("Aucun joueur dans l'effectif")).toBeVisible();
+  await expect(page.locator("button:enabled", { hasText: "Enregistrer" })).toHaveCount(0);
 });
 
 test("palette de commandes : Ctrl+K, recherche tolerante, Entree ouvre la page", async () => {

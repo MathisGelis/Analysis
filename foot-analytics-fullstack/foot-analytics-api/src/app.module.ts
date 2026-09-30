@@ -23,6 +23,7 @@ import { AuthModule } from "@/modules/auth/auth.module";
 import { JwtAuthGuard } from "@/modules/auth/auth.module";
 import { UtilisateursModule } from "@/modules/utilisateurs/utilisateurs.module";
 import { BootstrapModule } from "@/modules/bootstrap/bootstrap.module";
+import { TactiquesModule } from "@/modules/tactiques/tactiques.module";
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { BootstrapModule } from "@/modules/bootstrap/bootstrap.module";
     AuthModule,
     UtilisateursModule,
     BootstrapModule,
+    TactiquesModule,
   ],
   providers: [
     // Guard global : toute requete sous /api requiert un JWT valide.
