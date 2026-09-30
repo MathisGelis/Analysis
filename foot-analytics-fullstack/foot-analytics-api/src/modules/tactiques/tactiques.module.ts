@@ -13,9 +13,10 @@ import {
 import { IsArray, IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { In, IsNull, Not, Repository } from "typeorm";
-import { Composition, Equipe, Joueur, Match, Tactique } from "@/entities";
+import { Composition, Equipe, EvenementMatch, Joueur, Match, Tactique } from "@/entities";
 import { bilanMutations, MAX_HORS_DELAI, MAX_MUTES } from "@/common/mutations";
 import { estMatchJoue } from "@/common/match-joue";
+import { designeLeJoueur, minutesJouees } from "@/common/minutes";
 import { parseDateFlexible } from "@/common/periode";
 import { comparerPlanRealise, ComparaisonPlanRealise } from "@/common/plan-realise";
 
@@ -71,6 +72,7 @@ export class TactiquesService {
     @InjectRepository(Joueur) private joueurs: Repository<Joueur>,
     @InjectRepository(Match) private matchs: Repository<Match>,
     @InjectRepository(Composition) private compos: Repository<Composition>,
+    @InjectRepository(EvenementMatch) private evenements: Repository<EvenementMatch>,
   ) {}
 
   private ou(equipeId: string, matchId?: string | null) {
@@ -193,7 +195,17 @@ export class TactiquesService {
     };
 
     const cote = domicile ? "dom" : "ext";
-    const feuille = await this.compos.find({ where: { matchId: match.id, cote } });
+    // Les minutes ne sont pas stockees apres un import FMI : on les deduit des remplacements.
+    const [compos, evts] = await Promise.all([
+      this.compos.find({ where: { matchId: match.id, cote } }),
+      this.evenements.find({ where: { matchId: match.id, type: "remplacement" } }),
+    ]);
+    const feuille = compos.map((c) => ({
+      nom: c.nom, prenom: c.prenom, licence: c.licence, titulaire: c.titulaire, capitaine: c.capitaine,
+      minutes: minutesJouees(c, evts),
+      // Une entree a la 90e vaut zero minute : l'evenement dit qu'il est bien entre.
+      entre: !c.titulaire && (c.minutes > 0 || evts.some((e) => e.equipe === cote && designeLeJoueur(e.joueur2, c))),
+    }));
     const ids = [...plan.titulaires, ...plan.remplacants].filter(Boolean);
     const base = ids.length ? await this.joueurs.find({ where: { id: In(ids) } }) : [];
     const comparaison = comparerPlanRealise({
@@ -232,7 +244,7 @@ class TactiquesController {
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Tactique, Equipe, Joueur, Match, Composition])],
+  imports: [TypeOrmModule.forFeature([Tactique, Equipe, Joueur, Match, Composition, EvenementMatch])],
   controllers: [TactiquesController],
   providers: [TactiquesService],
   exports: [TactiquesService],

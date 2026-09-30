@@ -19,6 +19,8 @@ export interface LigneFeuille {
   titulaire: boolean;
   capitaine?: boolean | null;
   minutes?: number | null;
+  /** Remplacant entre en jeu, quand l'appelant le sait (evenements du match). Sinon : minutes > 0. */
+  entre?: boolean | null;
 }
 
 export interface PlanComparable {
@@ -112,7 +114,7 @@ export function comparerPlanRealise(e: {
     return feuille[i];
   };
   const roleReel = (l: LigneFeuille | null): RoleReel =>
-    !l ? "absent" : l.titulaire ? "titulaire" : (l.minutes ?? 0) > 0 ? "entre" : "banc";
+    !l ? "absent" : l.titulaire ? "titulaire" : (l.entre ?? (l.minutes ?? 0) > 0) ? "entre" : "banc";
 
   const lignes: LigneComparaison[] = [];
   const ajouterPrevu = (id: string, prevu: Exclude<RolePrevu, null>) => {

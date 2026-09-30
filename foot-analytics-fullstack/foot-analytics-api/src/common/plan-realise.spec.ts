@@ -61,6 +61,12 @@ describe("comparerPlanRealise", () => {
     expect(releve.detail).toContain("Prenom4 NOM4 (non utilise)");
   });
 
+  it("`entre` explicite prime sur les minutes (entree a la 90e : zero minute, mais entre)", () => {
+    const feuille = feuilleConforme().map((l) => (l.nom === "NOM13" ? { ...l, minutes: 0, entre: true } : l));
+    const c = comparerPlanRealise({ plan: plan(), joueurs, feuille });
+    expect(c.lignes.find((l) => l.joueurId === "j13")).toMatchObject({ reel: "entre", ecart: "conforme" });
+  });
+
   it("remplacant prevu qui entre : conforme ; remplacant non prevu qui entre : signale ; non prevu non utilise : ignore", () => {
     const feuille = feuilleConforme().map((l) => (l.nom === "NOM13" ? { ...l, minutes: 20 } : l));
     feuille.push(ligne(50, { nom: "EXTRA", prenom: "Un", licence: "L50", titulaire: false, minutes: 12 }));

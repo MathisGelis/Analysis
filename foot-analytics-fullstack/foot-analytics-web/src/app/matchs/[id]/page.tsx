@@ -12,10 +12,14 @@ import { Pitch } from "@/components/Pitch";
 import { PitchHeatmap } from "@/components/Charts";
 import { ArbitresMatchBlock } from "@/components/ArbitresMatchBlock";
 import { MatchActions } from "@/components/MatchActions";
+import { PlanRealise } from "@/components/tactique/PlanRealise";
 import {
-  ArrowLeft, Calendar, Clock, FileText, Goal, MapPin, Target, User, Users,
+  ArrowLeft, Calendar, Clock, ClipboardCheck, FileText, Goal, MapPin, Target, User, Users,
 } from "lucide-react";
 import type { EvenementMatch } from "@/lib/types";
+
+/** Un match sans feuille n'a pas de score : le statut remplace le "resultat final". */
+const LIBELLE_STATUT: Record<string, string> = { prevu: "A venir", a_venir: "A venir", reporte: "Reporte", annule: "Annule" };
 
 export default async function MatchDetailPage({ params }: { params: { id: string } }) {
   const ownClubId = getOwnClubIdServer();
@@ -26,8 +30,12 @@ export default async function MatchDetailPage({ params }: { params: { id: string
   if (!match) notFound();
   const peutNoter = match.clubDom === ownClubId || match.clubExt === ownClubId;
   // Match de mon club pas encore joue : on propose le rapport de preparation contre l'adversaire.
-  const aPreparer = peutNoter && ["prevu", "a_venir"].includes((match as any).statut ?? "");
+  const statut: string = (match as any).statut ?? "joue";
+  const aPreparer = peutNoter && ["prevu", "a_venir"].includes(statut);
   const adversaireId = match.clubDom === ownClubId ? match.clubExt : match.clubDom;
+  // Plan prepare contre feuille jouee : seulement pour un match de mon club deja joue.
+  const monEquipeId = match.clubDom === ownClubId ? match.equipeDomId : match.clubExt === ownClubId ? match.equipeExtId : null;
+  const planRealise = peutNoter && monEquipeId && statut === "joue" ? await api.planContreRealise(monEquipeId, match.id) : null;
 
   // Le backend renvoie `compositions` avec un champ `cote` ('dom'|'ext').
   // Les donnees de demo exposent deja `compoDom`/`compoExt`. On normalise.
@@ -111,10 +119,12 @@ export default async function MatchDetailPage({ params }: { params: { id: string
 
           <div className="text-center px-4">
             <div className="text-[10px] uppercase tracking-[0.18em] text-faint mb-1">
-              Resultat final
+              {LIBELLE_STATUT[statut] ?? "Resultat final"}
             </div>
             <div className="font-display text-6xl font-black text-ink tabular-nums leading-none">
-              {m.scoreDom}<span className="text-muted mx-3 font-light">–</span>{m.scoreExt}
+              {LIBELLE_STATUT[statut]
+                ? <span className="text-faint">VS</span>
+                : <>{m.scoreDom}<span className="text-muted mx-3 font-light">–</span>{m.scoreExt}</>}
             </div>
             <div className="flex items-center justify-center gap-3 text-[11px] text-muted mt-3">
               <span className="flex items-center gap-1"><Calendar size={11}/>{m.date}</span>
@@ -177,6 +187,23 @@ export default async function MatchDetailPage({ params }: { params: { id: string
           />
         </div>
       </section>
+
+      {/* Plan de jeu prepare contre feuille de match */}
+      {planRealise?.etat === "ok" && (
+        <section className="panel p-5" aria-labelledby="plan-realise">
+          <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 id="plan-realise" className="h-section flex items-center gap-2"><ClipboardCheck size={11} className="text-accent"/>Plan contre realise</h2>
+            <span className="text-[11px] text-faint">le onze prepare dans l'onglet Tactique, compare a la feuille de match</span>
+          </div>
+          <PlanRealise donnees={planRealise} />
+        </section>
+      )}
+      {planRealise?.etat === "pas_de_plan" && (
+        <p className="flex items-center gap-2 px-1 text-xs text-faint">
+          <ClipboardCheck size={13} aria-hidden /> Aucun plan de jeu n'avait ete prepare pour ce match.
+          <Link href="/tactique" className="text-accent hover:underline">Preparer le prochain</Link>
+        </p>
+      )}
 
       {/* Bancs */}
       <section className="grid grid-cols-12 gap-4">

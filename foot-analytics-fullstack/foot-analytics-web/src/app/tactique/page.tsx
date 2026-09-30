@@ -28,6 +28,7 @@ import { SaisonGuard, useLectureSeule } from "@/components/SaisonGuard";
 import { RegleMutations } from "@/components/tactique/RegleMutations";
 import { SelecteurJoueur } from "@/components/tactique/SelecteurJoueur";
 import { FatigueBar } from "@/components/FatigueBar";
+import { DernierPlanRealise } from "@/components/tactique/DernierPlanRealise";
 import {
   AlertTriangle, CalendarClock, Eraser, Info, Plus, Save, Sparkles, X,
 } from "lucide-react";
@@ -427,6 +428,8 @@ function TactiqueContent() {
                 onChange={(e) => setNotes(e.target.value)} placeholder="Coups de pied arretes, pressing, joueur a surveiller..." />
             </label>
           </section>
+
+          {equipeId && <DernierPlanRealise equipeId={equipeId} />}
         </div>
       </section>
     </div>

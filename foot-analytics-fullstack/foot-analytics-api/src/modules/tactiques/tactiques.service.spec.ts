@@ -1,6 +1,6 @@
 import { BadRequestException, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
 import { DataSource } from "typeorm";
-import { Composition, Equipe, Joueur, Match, Tactique } from "@/entities";
+import { Composition, Equipe, EvenementMatch, Joueur, Match, Tactique } from "@/entities";
 import { creerBaseTest, fabriques } from "@/testing/test-db";
 import { formationValide, TactiquesService } from "./tactiques.module";
 
@@ -17,7 +17,7 @@ describe("TactiquesService", () => {
   beforeEach(async () => {
     ds = await creerBaseTest();
     f = fabriques(ds);
-    svc = new TactiquesService(ds.getRepository(Tactique), ds.getRepository(Equipe), ds.getRepository(Joueur), ds.getRepository(Match), ds.getRepository(Composition));
+    svc = new TactiquesService(ds.getRepository(Tactique), ds.getRepository(Equipe), ds.getRepository(Joueur), ds.getRepository(Match), ds.getRepository(Composition), ds.getRepository(EvenementMatch));
   });
   afterEach(() => ds.destroy());
 
@@ -194,6 +194,26 @@ describe("TactiquesService", () => {
       expect(r.plan).toMatchObject({ source: "match", modifieApresMatch: false, formation: "4-4-2" });
       expect(r.comparaison).toMatchObject({ etat: "ok", adequation: 100, titulairesConformes: 11 });
       expect(r.comparaison!.capitaine.identique).toBe(true);
+    });
+
+    it("minutes a 0 apres un import FMI : le remplacant entre est reconnu par l'evenement, minutes deduites", async () => {
+      const c = await contexte();
+      const match = await jouerMatch(c);
+      // Comme apres un import FMI : aucune minute stockee.
+      await ds.getRepository(Composition).update({ matchId: match.id }, { minutes: 0 });
+      // j3 (prevu titulaire) sort a la 60e pour j13 (prevu remplacant) ; j14 entre a la 90e.
+      const nomDe = (i: number) => `${c.joueurs[i].nom} ${c.joueurs[i].prenom}`;
+      await f.evenement({ matchId: match.id, type: "remplacement", equipe: "dom", joueur: nomDe(2), joueur2: nomDe(12), minute: 60 });
+      await f.evenement({ matchId: match.id, type: "remplacement", equipe: "dom", joueur: nomDe(3), joueur2: nomDe(13), minute: 90 });
+      await preparer(c, match.id, "2026-01-20");
+
+      const r = await svc.comparer(c.eq.id, match.id);
+
+      const ligne = (i: number) => r.comparaison!.lignes.find((l) => l.joueurId === c.joueurs[i].id)!;
+      expect(ligne(12)).toMatchObject({ reel: "entre", minutes: 30, ecart: "conforme" });
+      expect(ligne(13)).toMatchObject({ reel: "entre", minutes: 0, ecart: "conforme" });
+      expect(ligne(2)).toMatchObject({ reel: "titulaire", minutes: 60 });
+      expect(ligne(14)).toMatchObject({ reel: "banc" });
     });
 
     it("un titulaire prevu absent de la feuille est releve", async () => {

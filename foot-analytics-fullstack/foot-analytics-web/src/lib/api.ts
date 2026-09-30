@@ -16,6 +16,7 @@ import {
 } from "@/data/demo";
 import type { DynamiquePoule } from "@/lib/analyse-types";
 import type { RapportPrematch } from "@/lib/prematch-types";
+import type { PlanContreRealise } from "@/lib/plan-realise-types";
 import type {
   Club, HistoriqueSaison, Joueur, LigneClassement, Match, MatchJoue, RapportScouting, TactiquePlan,
 } from "@/lib/types";
@@ -375,6 +376,12 @@ export const api = {
     const qs = new URLSearchParams({ equipeId });
     if (matchId) qs.set("matchId", matchId);
     return req<TactiquePlan | null>(`/tactiques?${qs}`, { fallback: null });
+  },
+  /** Plan prepare contre feuille de match jouee : pour `matchId`, sinon le dernier match joue qui avait un plan. */
+  planContreRealise: (equipeId: string, matchId?: string | null) => {
+    const qs = new URLSearchParams({ equipeId });
+    if (matchId) qs.set("matchId", matchId);
+    return req<PlanContreRealise | null>(`/tactiques/comparaison?${qs}`, { fallback: null });
   },
   /** Enregistre le plan. Refus 422 (code REGLE_MUTATIONS) si plus de 6 mutes dont 2 hors delai. */
   enregistrerTactique: (plan: {
