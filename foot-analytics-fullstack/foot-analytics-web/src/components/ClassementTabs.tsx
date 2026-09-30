@@ -7,7 +7,7 @@
 //   3. Stats joueurs : top joueurs trans-clubs (matchs, forme, buts, etc).
 
 import { TabBar } from "@/components/TabBar";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { ClubBadge } from "@/components/ClubBadge";
 import { FormeStrip } from "@/components/Charts";
@@ -459,8 +459,12 @@ function useSortable<T>(
     }
   }
 
+  // Les extracteurs sont recrees a chaque rendu par l'appelant : on lit la derniere version
+  // sans en faire une dependance du tri (le tri ne bouge que si lignes ou cle changent).
+  const extracteurs = useRef(extractors);
+  extracteurs.current = extractors;
   const sorted = useMemo(() => {
-    const ex = extractors[sortKey] as ((r: T) => any) | undefined;
+    const ex = extracteurs.current[sortKey] as ((r: T) => any) | undefined;
     const get = (r: T): any => ex ? ex(r) : (r as any)[sortKey];
     return [...rows].sort((a, b) => {
       const av = get(a); const bv = get(b);

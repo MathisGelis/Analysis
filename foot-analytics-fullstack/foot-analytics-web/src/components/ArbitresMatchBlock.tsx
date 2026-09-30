@@ -9,6 +9,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { Award, Save, Star } from "lucide-react";
+import { useFeedback } from "@/lib/feedback-context";
 
 const ROLE_LIBELLE: Record<string, string> = {
   principal: "Arbitre principal",
@@ -32,6 +33,7 @@ export function ArbitresMatchBlock({
   liens: Lien[];
   peutNoter: boolean;
 }) {
+  const { notifier, confirmer } = useFeedback();
   const [local, setLocal] = useState<Lien[]>(liens);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export function ArbitresMatchBlock({
     const raw = drafts[linkId];
     const v = raw === "" ? null : Number(raw);
     if (v != null && (isNaN(v) || v < 0 || v > 10)) {
-      alert("La note doit etre comprise entre 0 et 10.");
+      notifier.erreur("La note doit etre comprise entre 0 et 10.");
       return;
     }
     setSavingId(linkId);
@@ -55,7 +57,7 @@ export function ArbitresMatchBlock({
       setLocal((arr) => arr.map((l) => l.id === linkId ? { ...l, note: updated.note } : l));
       setDrafts((d) => { const n = { ...d }; delete n[linkId]; return n; });
     } catch (e) {
-      alert("Echec de la sauvegarde : " + (e as Error).message);
+      notifier.erreur("Echec de la sauvegarde : " + (e as Error).message);
     } finally {
       setSavingId(null);
     }

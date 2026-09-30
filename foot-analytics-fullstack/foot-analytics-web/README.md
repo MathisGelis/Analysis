@@ -76,8 +76,11 @@ Fair-play, Import FMI (upload reel vers le parseur du backend).
 - Pas de dependance graphique externe : tous les graphiques sont des SVG
   ecrits a la main dans `src/components/Charts.tsx` (BarsChart, Sparkline,
   DonutStat, FormeStrip, PitchHeatmap) — l'app reste tres legere.
-- Police : **Archivo** (display) + **IBM Plex Mono** (chiffres)
-- Theme dark Football-Manager-like, accent vert citron `#b6f24a`
+- Polices auto-hebergees (paquets `@fontsource-variable`, aucun appel a Google Fonts) :
+  **Bricolage Grotesque** (titres, grands chiffres), **Instrument Sans** (texte),
+  **JetBrains Mono** (codes)
+- Direction artistique "Soiree de match" : bleu nuit + accent violet, mode nuit / jour
+  (voir *Design system* plus bas)
 
 ---
 
@@ -119,6 +122,31 @@ Puis :
 
 ```bash
 npm run dev
+```
+
+### Design system
+
+Tout passe par des **jetons CSS** (`src/app/globals.css`), jamais de couleur en dur :
+surfaces (`--bg`, `--surface`, `--surface-2`, `--surface-3`), texte (`--ink`, `--muted`,
+`--faint`), accent (`--accent` pour le texte et les icones, `--accent-strong` pour les aplats
+portant du texte blanc), donnees (`--sky`, `--amber`, `--danger`, `--win/--draw/--loss`),
+series de graphiques (`--chart-1..3`, validees pour le daltonisme). Deux modes, choisis par
+`data-theme` ; contrastes texte >= 4,5:1 dans les deux. Tailwind expose ces jetons
+(`text-accent`, `bg-panel2`, `border-line`...).
+
+Classes de composants : `.panel`, `.panel-inset`, `.glass`, `.stat-tile`, `.scoreboard`,
+`.badge(-accent|-amber|-danger|-sky)`, `.pill-v/n/d`, `.table-fm`, `.btn(-accent|-ghost)`,
+`.inp`, `.kbd`, `.skeleton`, `.text-gradient`, `.pitch-lines`. Composants partages :
+`TabBar` (onglets a curseur), `Charts` (barres, courbe, anneau : marques fines, info-bulle,
+tableau pour lecteurs d'ecran), `CommandPalette`, `ClubBadge`, `Logo`.
+
+Navigation : barre laterale repliable en rail (etat memorise dans un cookie) et tiroir sur
+mobile ; **Ctrl/Cmd + K** (ou `/`) ouvre la palette de commandes (pages, clubs, joueurs avec
+recherche floue cote serveur, arbitres, actions). `prefers-reduced-motion` desactive les
+animations.
+
+```bash
+npm run lint      # ESLint (next/core-web-vitals)
 ```
 
 ### Tests unitaires (Vitest)

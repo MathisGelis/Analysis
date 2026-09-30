@@ -15,6 +15,7 @@ import {
   Calendar, Check, Clock, Dumbbell, MapPin, Maximize2,
   Pencil, Plus, Save, Trash2, Users, X,
 } from "lucide-react";
+import { useFeedback } from "@/lib/feedback-context";
 
 const TYPES = ["Tactique","Physique","Technique","Recup","Activation","Pre-match"];
 
@@ -57,6 +58,7 @@ interface Seance {
 }
 
 export default function Entrainements() {
+  const { notifier, confirmer } = useFeedback();
   const ownClubId = useOwnClubId();
   const { equipeId: ownEquipeId } = useOwnEquipe();
   const [seances, setSeances] = useState<Seance[]>([]);
@@ -96,9 +98,14 @@ export default function Entrainements() {
     setSeances(await api.entrainements(equipe.id));
   }
   async function onDelete(id: string) {
-    if (!confirm("Supprimer cette seance ?")) return;
-    await api.deleteEntrainement(id);
-    await reload();
+    if (!(await confirmer({ titre: "Supprimer cette seance ?", message: "Sa charge sort des calculs de forme et de fatigue.", danger: true }))) return;
+    try {
+      await api.deleteEntrainement(id);
+      await reload();
+      notifier.succes("Seance supprimee.");
+    } catch (e) {
+      notifier.erreur("Suppression impossible : " + (e as Error).message);
+    }
   }
 
   const chargeTotale = seances.reduce((s, x) => s + (x.charge ?? 0), 0);

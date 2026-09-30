@@ -81,11 +81,11 @@ export function Pitch({
             <g key={i} transform={`translate(${p.x},${p.y})`}>
               <circle r="13" fill="rgb(var(--bg))" stroke={c} strokeWidth="2" />
               <text textAnchor="middle" dy="3.6" fontSize="11" fontWeight="700"
-                fill={c} fontFamily="Geist, sans-serif">
+                fill={c} fontFamily="'Bricolage Grotesque Variable', ui-sans-serif, sans-serif">
                 {j.numero}
               </text>
               <text textAnchor="middle" y="26" fontSize="8.5" fontWeight="600"
-                fill="rgb(var(--ink))" fontFamily="Geist, sans-serif">
+                fill="rgb(var(--ink))" fontFamily="'Bricolage Grotesque Variable', ui-sans-serif, sans-serif">
                 {j.nom.split(" ")[0].slice(0, 9)}
                 {j.capitaine && (
                   <tspan dx="2" fill="rgb(var(--amber))" fontSize="7">(C)</tspan>

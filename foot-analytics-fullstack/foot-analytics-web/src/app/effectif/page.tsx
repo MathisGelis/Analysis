@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { useOwnClubId } from "@/lib/own-club-context";
 import { useOwnEquipe } from "@/lib/own-equipe-context";
@@ -13,10 +13,12 @@ import type { Joueur } from "@/lib/types";
 import { Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { debug } from "@/lib/debug";
 import { postesCompacts } from "@/lib/postes";
+import { useFeedback } from "@/lib/feedback-context";
 
 const POSTES = ["TOUS","GB","DD","DC","DG","MD","MO","AT","AG","MIL"];
 
 export default function EffectifPage() {
+  const { notifier, confirmer } = useFeedback();
   const CLUB_PROPRE_ID = useOwnClubId();
   const { equipeId } = useOwnEquipe();   // <- equipe selectionnee globalement
   const router = useRouter();
@@ -34,7 +36,7 @@ export default function EffectifPage() {
   // Charge l'effectif filtre sur l'equipe propre selectionnee. Si aucune
   // n'est selectionnee (pas de cookie encore), on retombe sur l'effectif
   // global du club.
-  async function reload() {
+  const reload = useCallback(async () => {
     setLoading(true);
     if (equipeId) {
       debug("[effectif] reload equipe", equipeId);
@@ -59,8 +61,8 @@ export default function EffectifPage() {
       setEquipeNom("");
     }
     setLoading(false);
-  }
-  useEffect(() => { reload(); }, [CLUB_PROPRE_ID, equipeId]);
+  }, [equipeId]);
+  useEffect(() => { reload(); }, [reload, CLUB_PROPRE_ID]);
 
   const data = useMemo(() => {
     let r = [...joueurs];
@@ -81,12 +83,17 @@ export default function EffectifPage() {
   }, [joueurs, q, posteFilter, sort]);
 
   async function handleDelete(j: Joueur) {
-    if (!confirm(`Supprimer ${j.prenom} ${j.nom} de l'effectif ?`)) return;
+    if (!(await confirmer({
+      titre: `Supprimer ${j.prenom} ${j.nom} ?`,
+      message: "Le joueur est supprime de la base, toutes saisons confondues (ses stats de match restent dans les feuilles).",
+      danger: true,
+    }))) return;
     try {
       await api.deleteJoueur(j.id);
       await reload();
+      notifier.succes(`${j.prenom} ${j.nom} supprime.`);
     } catch (e) {
-      alert("Suppression impossible : le backend est-il demarre ? " + (e as Error).message);
+      notifier.erreur("Suppression impossible : le backend est-il demarre ? " + (e as Error).message);
     }
   }
 
@@ -103,7 +110,7 @@ export default function EffectifPage() {
       await api.definirStatEquipe(id, equipeId, patch);
     } catch (e) {
       setJoueurs((arr) => arr.map((x) => (x.id === id ? prev : x)));
-      alert("Sauvegarde impossible : " + (e as Error).message);
+      notifier.erreur("Sauvegarde impossible : " + (e as Error).message);
     }
   }
 
@@ -153,7 +160,7 @@ export default function EffectifPage() {
               <th className="text-center" title="Buts">B</th>
               <th className="text-center" title="Passes decisives">PD</th>
               <th>CJ</th><th>CR</th>
-              <th>Statut</th><th>Postes joues</th><th className="text-right"><span className="sr-only">Actions</span></th>
+              <th>Statut</th><th className="hidden 2xl:table-cell">Postes joues</th><th className="text-right"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -212,7 +219,7 @@ export default function EffectifPage() {
                     : j.statutMutation==="Pas mutation" ? "badge-accent" : ""
                   }`}>{j.statutMutation}</span>
                 </td>
-                <td className="whitespace-nowrap font-mono text-[11px] text-muted" title={j.postes ?? undefined}>
+                <td className="hidden whitespace-nowrap font-mono text-[11px] text-muted 2xl:table-cell" title={j.postes ?? undefined}>
                   {(() => {
                     const { visibles, restants } = postesCompacts(j.postes);
                     return visibles.length === 0 ? <span className="text-faint">—</span> : (
@@ -222,11 +229,13 @@ export default function EffectifPage() {
                 </td>
                 <td>
                   <div className="flex items-center gap-1 justify-end">
-                    <button className="btn text-xs" onClick={()=>setEdit(j)}>
-                      <Pencil size={11}/>
+                    <button className="btn !p-2" onClick={()=>setEdit(j)}
+                      aria-label={`Modifier ${j.prenom} ${j.nom}`} title="Modifier">
+                      <Pencil size={13}/>
                     </button>
-                    <button className="btn text-xs" onClick={()=>handleDelete(j)}>
-                      <Trash2 size={11}/>
+                    <button className="btn !p-2 hover:!border-danger/50 hover:!text-danger" onClick={()=>handleDelete(j)}
+                      aria-label={`Supprimer ${j.prenom} ${j.nom}`} title="Supprimer">
+                      <Trash2 size={13}/>
                     </button>
                   </div>
                 </td>

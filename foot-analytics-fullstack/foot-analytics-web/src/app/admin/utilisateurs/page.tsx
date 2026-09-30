@@ -13,6 +13,7 @@ import { Modal } from "@/components/Modal";
 import {
   KeyRound, Pencil, Plus, Save, ShieldCheck, Trash2, UserCog, X,
 } from "lucide-react";
+import { useFeedback } from "@/lib/feedback-context";
 
 function buildLogin(prenom: string, nom: string) {
   const p = (prenom ?? "").trim();
@@ -22,6 +23,7 @@ function buildLogin(prenom: string, nom: string) {
 }
 
 export default function AdminUtilisateurs() {
+  const { notifier, confirmer } = useFeedback();
   const router = useRouter();
   const [users, setUsers] = useState<any[]>([]);
   const [clubs, setClubs] = useState<any[]>([]);
@@ -46,12 +48,13 @@ export default function AdminUtilisateurs() {
   useEffect(() => { reload(); }, []);
 
   async function onDelete(id: string) {
-    if (!confirm("Supprimer ce compte ? Cette action est irreversible.")) return;
+    if (!(await confirmer({ titre: "Supprimer ce compte ?", message: "Cette action est irreversible.", danger: true }))) return;
     try {
       await api.deleteUtilisateur(id);
       await reload();
+      notifier.succes("Compte supprime.");
     } catch (e: any) {
-      alert(e?.message ?? "Erreur");
+      notifier.erreur(e?.message ?? "Erreur");
     }
   }
 

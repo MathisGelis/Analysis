@@ -15,6 +15,7 @@ import { api } from "@/lib/api";
 import { BlessureModal } from "@/components/BlessureModal";
 import { joursManques, blessureEnCours } from "@/lib/blessures";
 import { AlertTriangle, Clock, Dumbbell, Pencil, Plus, Trash2 } from "lucide-react";
+import { useFeedback } from "@/lib/feedback-context";
 
 interface Blessure {
   id: string;
@@ -46,6 +47,7 @@ interface Props {
 export function BlessuresEditeur({
   initialBlessures, joueurs, joueurId, titre = "Blessures", compact = false,
 }: Props) {
+  const { notifier, confirmer } = useFeedback();
   const router = useRouter();
   const [blessures, setBlessures] = useState<Blessure[]>(initialBlessures);
   const [modalOpen, setModalOpen] = useState(false);
@@ -62,11 +64,14 @@ export function BlessuresEditeur({
   };
 
   const confirmDelete = async (id: string) => {
-    if (!confirm("Supprimer cette blessure ?")) return;
+    if (!(await confirmer({ titre: "Supprimer cette blessure ?", message: "Elle disparait de l'historique medical du joueur.", danger: true }))) return;
     setDeleting(id);
     try {
       await api.deleteBlessure(id);
       await reload();
+      notifier.succes("Blessure supprimee.");
+    } catch (e) {
+      notifier.erreur("Suppression impossible : " + (e as Error).message);
     } finally {
       setDeleting(null);
     }

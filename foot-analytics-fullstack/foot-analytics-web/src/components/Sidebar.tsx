@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { useOwnClubId } from "@/lib/own-club-context";
 import { construireNavigation, lienActif } from "@/lib/navigation";
@@ -117,7 +118,26 @@ function Contenu({
   );
 }
 
+/**
+ * Bureau (>= 1024 px) ou non ; null avant la mesure. Le contenu de la barre laterale
+ * n'est monte qu'UNE fois : deux exemplaires (bureau masque + tiroir mobile) auraient
+ * chacun leur selecteur d'equipe, avec leurs propres listes, et se contrediraient apres
+ * un changement de saison.
+ */
+function useBureau(): boolean | null {
+  const [bureau, setBureau] = useState<boolean | null>(null);
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 1024px)");
+    const maj = () => setBureau(mql.matches);
+    maj();
+    mql.addEventListener("change", maj);
+    return () => mql.removeEventListener("change", maj);
+  }, []);
+  return bureau;
+}
+
 export function Sidebar({ replie, onBasculerReplie, mobileOuvert, onFermerMobile }: Props) {
+  const bureau = useBureau();
   return (
     <>
       {/* Bureau : colonne collante, largeur animee entre menu complet et rail d'icones. */}
@@ -126,7 +146,9 @@ export function Sidebar({ replie, onBasculerReplie, mobileOuvert, onFermerMobile
           ${replie ? "w-[84px]" : "w-[268px]"}`}
       >
         <div className="sticky top-0 h-screen">
-          <Contenu replie={replie} onBasculerReplie={onBasculerReplie} onFermerMobile={onFermerMobile} mobile={false} />
+          {bureau !== false && (
+            <Contenu replie={replie} onBasculerReplie={onBasculerReplie} onFermerMobile={onFermerMobile} mobile={false} />
+          )}
         </div>
       </aside>
 
@@ -140,7 +162,9 @@ export function Sidebar({ replie, onBasculerReplie, mobileOuvert, onFermerMobile
           className={`absolute inset-y-0 left-0 w-[300px] max-w-[86vw] border-r border-line bg-panel shadow-pop transition-transform duration-300 ease-smooth
             ${mobileOuvert ? "translate-x-0" : "-translate-x-full"}`}
         >
-          <Contenu replie={false} onBasculerReplie={onBasculerReplie} onFermerMobile={onFermerMobile} mobile />
+          {bureau === false && (
+            <Contenu replie={false} onBasculerReplie={onBasculerReplie} onFermerMobile={onFermerMobile} mobile />
+          )}
         </aside>
       </div>
     </>

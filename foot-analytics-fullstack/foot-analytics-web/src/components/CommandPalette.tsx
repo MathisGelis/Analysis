@@ -30,8 +30,10 @@ interface Resultat {
   action: () => void;
 }
 
-// Donnees gardees entre deux ouvertures (une seule charge par session de page).
-let cache: { clubs: Club[]; joueurs: Joueur[]; arbitres: any[] } | null = null;
+// Clubs et arbitres, gardes entre deux ouvertures (une seule charge par session de page).
+// Les joueurs, eux, sont cherches cote serveur (recherche floue) : les charger tous
+// pesait de plus en plus lourd et ne tolerait aucune faute de frappe.
+let cache: { clubs: Club[]; arbitres: any[] } | null = null;
 const LIMITE_PAR_GROUPE = 6;
 
 export function CommandPalette({ ouverte, onFermer }: { ouverte: boolean; onFermer: () => void }) {
@@ -47,13 +49,25 @@ export function CommandPalette({ ouverte, onFermer }: { ouverte: boolean; onFerm
   // Charge les donnees a la premiere ouverture.
   useEffect(() => {
     if (!ouverte || cache) return;
-    Promise.all([
-      api.clubs().catch(() => []), api.joueurs().catch(() => []), api.arbitres().catch(() => []),
-    ]).then(([clubs, joueurs, arbitres]) => {
-      cache = { clubs, joueurs, arbitres };
+    Promise.all([api.clubs().catch(() => []), api.arbitres().catch(() => [])]).then(([clubs, arbitres]) => {
+      cache = { clubs, arbitres };
       setDonnees(cache);
     });
   }, [ouverte]);
+
+  // Joueurs : recherche floue du serveur, apres une courte pause de frappe. Un numero de
+  // requete evite qu'une reponse tardive ecrase une plus recente.
+  const [joueurs, setJoueurs] = useState<Joueur[]>([]);
+  const requete = useRef(0);
+  useEffect(() => {
+    const terme = q.trim();
+    if (!ouverte || terme.length < 2) { setJoueurs([]); return; }
+    const n = ++requete.current;
+    const minuteur = setTimeout(() => {
+      api.searchJoueurs(terme).then((r) => { if (n === requete.current) setJoueurs(r as Joueur[]); }).catch(() => {});
+    }, 150);
+    return () => clearTimeout(minuteur);
+  }, [q, ouverte]);
 
   // Remise a zero et focus a chaque ouverture ; le defilement de la page est verrouille.
   useEffect(() => {
@@ -92,12 +106,13 @@ export function CommandPalette({ ouverte, onFermer }: { ouverte: boolean; onFerm
         ajouter({ id: `club:${c.id}`, groupe: "Clubs", label: c.nom, sous: c.ville ?? undefined, icone: Shield, clubId: c.id, action: aller(`/club/${c.id}`) },
           scoreRecherche(q, c.nom, c.ville));
       }
-      for (const j of donnees.joueurs) {
+      // L'ordre du serveur (pertinence) est conserve : score decroissant.
+      joueurs.forEach((j, i) => {
         const clubNom = donnees.clubs.find((c) => c.id === j.clubId)?.nom;
         ajouter({ id: `joueur:${j.id}`, groupe: "Joueurs", label: `${j.prenom ?? ""} ${j.nom}`.trim(),
           sous: [clubNom, j.poste].filter(Boolean).join(" · "), icone: Users, action: aller(`/joueur/${j.id}`) },
-          scoreRecherche(q, j.nom, j.prenom, `${j.prenom} ${j.nom}`));
-      }
+          1000 - i);
+      });
       for (const a of donnees.arbitres) {
         ajouter({ id: `arbitre:${a.id}`, groupe: "Arbitres", label: `${a.prenom ? a.prenom + " " : ""}${a.nom}`.trim(),
           sous: a.profil ? `Profil ${a.profil}` : undefined, icone: Award, action: aller(`/arbitres/${a.id}`) },
@@ -110,7 +125,7 @@ export function CommandPalette({ ouverte, onFermer }: { ouverte: boolean; onFerm
     return ordre.flatMap((g) =>
       out.filter((r) => r.groupe === g).sort((a, b) => b.score - a.score).slice(0, q.trim() ? LIMITE_PAR_GROUPE : 99));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, donnees, ownClubId, theme]);
+  }, [q, donnees, joueurs, ownClubId, theme]);
 
   // Garde la selection dans les bornes et visible.
   useEffect(() => { setActif(0); }, [q]);
@@ -118,14 +133,21 @@ export function CommandPalette({ ouverte, onFermer }: { ouverte: boolean; onFerm
     listeRef.current?.querySelector<HTMLElement>(`[data-index="${actif}"]`)?.scrollIntoView({ block: "nearest" });
   }, [actif]);
 
-  if (!ouverte || typeof window === "undefined") return null;
+  // Clavier ecoute sur la fenetre tant que la palette est ouverte : Echap et les fleches
+  // marchent meme avant que le champ ait pris le focus.
+  useEffect(() => {
+    if (!ouverte) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowDown") { e.preventDefault(); setActif((i) => Math.min(resultats.length - 1, i + 1)); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); setActif((i) => Math.max(0, i - 1)); }
+      else if (e.key === "Enter") { e.preventDefault(); resultats[actif]?.action(); }
+      else if (e.key === "Escape") { e.preventDefault(); onFermer(); }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [ouverte, resultats, actif, onFermer]);
 
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowDown") { e.preventDefault(); setActif((i) => Math.min(resultats.length - 1, i + 1)); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setActif((i) => Math.max(0, i - 1)); }
-    else if (e.key === "Enter") { e.preventDefault(); resultats[actif]?.action(); }
-    else if (e.key === "Escape") { e.preventDefault(); onFermer(); }
-  };
+  if (!ouverte || typeof window === "undefined") return null;
 
   let groupeCourant = "";
   return createPortal(
@@ -134,7 +156,6 @@ export function CommandPalette({ ouverte, onFermer }: { ouverte: boolean; onFerm
       <div
         role="dialog" aria-modal="true" aria-label="Palette de commandes"
         className="pop-in glass panel-pop relative w-full max-w-xl overflow-hidden"
-        onKeyDown={onKeyDown}
       >
         <div className="flex items-center gap-3 border-b border-line px-4 py-3.5">
           <Search size={18} className="text-accent shrink-0" />

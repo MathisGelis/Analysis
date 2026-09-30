@@ -11,8 +11,10 @@ import { api } from "@/lib/api";
 import { Modal } from "@/components/Modal";
 import type { Match } from "@/lib/types";
 import { Pencil, Save, Trash2, X } from "lucide-react";
+import { useFeedback } from "@/lib/feedback-context";
 
 export function MatchActions({ match }: { match: Match }) {
+  const { notifier, confirmer } = useFeedback();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -49,16 +51,17 @@ export function MatchActions({ match }: { match: Match }) {
   }
 
   async function remove() {
-    if (!confirm(
-      `Supprimer ce match (${match.journee} · score ${match.scoreDom}–${match.scoreExt}) ? ` +
-      "Les compositions, evenements et liens arbitres seront aussi supprimes.",
-    )) return;
+    if (!(await confirmer({
+      titre: `Supprimer ce match ?`,
+      message: `Journee ${match.journee}, score ${match.scoreDom}–${match.scoreExt}. Les compositions, evenements et liens arbitres seront aussi supprimes.`,
+      danger: true,
+    }))) return;
     try {
       await api.deleteMatch(match.id);
       await api.rebuildDerivation().catch(() => undefined);
       router.push("/matchs");
     } catch (e) {
-      alert("Suppression impossible : " + (e as Error).message);
+      notifier.erreur("Suppression impossible : " + (e as Error).message);
     }
   }
 

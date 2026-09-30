@@ -12,6 +12,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { AppShell } from "@/components/AppShell";
 import { NavProgress } from "@/components/NavProgress";
+import { FeedbackProvider } from "@/lib/feedback-context";
 import { cookies } from "next/headers";
 import { ThemeProvider } from "@/lib/theme-context";
 import { getServerTheme, themeBootstrapScript } from "@/lib/theme-server";
@@ -59,6 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               initialSaisonId={initialSaisonId}
             >
               <ClubsProvider clubs={clubs}>
+              <FeedbackProvider>
               <NavProgress />
               {connecte ? (
                 <AppShell sidebarRepliee={cookies().get("fa_sidebar")?.value === "replie"}>
@@ -67,6 +69,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               ) : (
                 <main className="relative z-10">{children}</main>
               )}
+              </FeedbackProvider>
               </ClubsProvider>
             </OwnEquipeProvider>
           </OwnClubProvider>

@@ -6,6 +6,7 @@
 // le mode clair / sombre). Un club qui a une vraie couleur en base (jeu de
 // demo) la garde. Un club inconnu du layout affiche un ecusson neutre "?".
 
+import { useId } from "react";
 import { useClub } from "@/lib/clubs-context";
 import { identiteClub } from "@/lib/club-identite";
 import { getClub } from "@/data/demo";
@@ -34,7 +35,8 @@ export function ClubBadge({ clubId, size = 28, className = "" }: Props) {
   const couleur = id.couleurPerso ?? `rgb(var(--${inconnu ? "faint" : id.teinte}))`;
   const remplissage = id.couleurPerso ? `${id.couleurPerso}26` : `rgb(var(--${inconnu ? "faint" : id.teinte}) / .16)`;
   const motif = MOTIFS[id.motif];
-  const clipId = `ecu-${clubId}`.replace(/[^a-zA-Z0-9_-]/g, "");
+  // Un identifiant par instance : un clipPath defini dans un SVG masque (display: none) n'est pas resolu par les autres.
+  const clipId = `ecu-${useId().replace(/:/g, "")}`;
   const initiales = inconnu ? "?" : id.initiales;
   const taillePolice = initiales.length >= 3 ? 8.5 : 10.5;
 
@@ -59,7 +61,7 @@ export function ClubBadge({ clubId, size = 28, className = "" }: Props) {
         <path d={ECU} fill="none" stroke={couleur} strokeWidth="1.5" strokeLinejoin="round" />
         <text
           x="16" y="19.6" textAnchor="middle"
-          fontFamily="Geist, Inter, sans-serif" fontWeight="800"
+          fontFamily="'Bricolage Grotesque Variable', ui-sans-serif, sans-serif" fontWeight="800"
           fontSize={taillePolice} letterSpacing="0.3" fill={couleur}
         >
           {initiales}

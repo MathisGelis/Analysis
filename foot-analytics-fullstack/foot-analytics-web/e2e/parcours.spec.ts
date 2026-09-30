@@ -124,7 +124,7 @@ test("effectif 2026-2027 : ajout d'un joueur existant (recherche floue) puis d'u
   await modale.getByPlaceholder(/Tape le nom/).fill("diagolla");
   await modale.getByRole("button", { name: /Ajouter$/ }).last().click();
   await expect(titreModale).toBeHidden();
-  await expect(page.getByRole("cell", { name: /DIAGOLA/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /DIAGOLA/ })).toBeVisible();
 
   // Nouveau joueur.
   await page.getByRole("button", { name: /Ajouter/ }).first().click();
@@ -133,7 +133,31 @@ test("effectif 2026-2027 : ajout d'un joueur existant (recherche floue) puis d'u
   await modale.locator("input.inp").nth(1).fill("TESTEUR");
   await modale.getByRole("button", { name: "Creer et ajouter" }).click();
   await expect(titreModale).toBeHidden();
-  await expect(page.getByRole("cell", { name: /TESTEUR/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /TESTEUR/ })).toBeVisible();
+});
+
+test("suppression d'un joueur : confirmation dans une modale, notification, jamais de boite du navigateur", async () => {
+  // Une boite alert()/confirm() native figerait la page : elle ne doit plus apparaitre.
+  let dialogueNatif = false;
+  page.on("dialog", (d) => { dialogueNatif = true; void d.dismiss(); });
+
+  await page.goto("/effectif");
+  await page.getByRole("button", { name: "Supprimer Alex TESTEUR" }).click();
+  const modale = page.getByRole("heading", { name: "Supprimer Alex TESTEUR ?" });
+  await expect(modale).toBeVisible();
+
+  // Annuler ne supprime rien.
+  await page.getByRole("button", { name: "Annuler" }).click();
+  await expect(modale).toBeHidden();
+  await expect(page.getByRole("link", { name: /TESTEUR/ })).toBeVisible();
+
+  // Confirmer supprime et previent sans bloquer.
+  await page.getByRole("button", { name: "Supprimer Alex TESTEUR" }).click();
+  await page.getByRole("button", { name: "Supprimer", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Alex TESTEUR supprime" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /TESTEUR/ })).toHaveCount(0);
+  expect(dialogueNatif).toBe(false);
+  page.removeAllListeners("dialog");
 });
 
 test("import FMI : la feuille est importee puis consultable", async () => {
@@ -157,6 +181,66 @@ test("saison archivee : /tactique s'affiche en consultation seule", async () => 
 
   await expect(page.getByText(/archivee, en consultation seule/)).toBeVisible();
   await expect(page.getByRole("button", { name: /Enregistrer/ })).toBeDisabled();
+});
+
+test("palette de commandes : Ctrl+K, recherche tolerante, Entree ouvre la page", async () => {
+  await page.goto("/");
+  await page.keyboard.press("Control+k");
+  const palette = page.getByRole("dialog", { name: "Palette de commandes" });
+  await expect(palette).toBeVisible();
+
+  // Les joueurs sont cherches cote serveur : une faute de frappe est toleree.
+  await page.keyboard.type("diagolla");
+  await expect(palette.getByRole("option", { name: /DIAGOLA/ })).toBeVisible();
+  await page.keyboard.press("Control+a");
+  await page.keyboard.press("Backspace");
+
+  // Sans accent ni majuscule, un mot-cle suffit ; la fleche et Entree ouvrent le resultat.
+  await page.keyboard.type("blessures");
+  await expect(palette.getByRole("option", { name: /Medical & charge/ })).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/medical$/);
+  await expect(palette).toBeHidden();
+
+  // Echap ferme sans naviguer.
+  await page.keyboard.press("Control+k");
+  await expect(palette).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(palette).toBeHidden();
+});
+
+test("barre laterale : repliee en rail, l'etat survit au rechargement", async () => {
+  await page.goto("/effectif");
+  await page.getByRole("button", { name: "Replier la barre laterale" }).click();
+  await expect(page.getByRole("button", { name: "Deplier la barre laterale" })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Deplier la barre laterale" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Deplier la barre laterale" }).click();
+  await expect(page.getByRole("button", { name: "Replier la barre laterale" })).toBeVisible();
+});
+
+test("mobile : menu en tiroir, ferme apres navigation, sans debordement horizontal", async ({ browser }) => {
+  const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, storageState: await contexte.storageState() });
+  const p = await mobile.newPage();
+  try {
+    await p.goto("/");
+    await expect(p.getByRole("button", { name: "Ouvrir le menu" })).toBeVisible();
+    await expect(p.getByRole("navigation", { name: "Navigation principale" })).toBeHidden();
+
+    await p.getByRole("button", { name: "Ouvrir le menu" }).click();
+    await expect(p.getByRole("navigation", { name: "Navigation principale" })).toBeVisible();
+    await p.getByRole("link", { name: "Classement" }).click();
+    await expect(p).toHaveURL(/\/classement$/);
+    await expect(p.getByRole("button", { name: "Fermer le menu" })).toBeHidden();
+
+    // La page ne deborde pas de l'ecran (les tableaux defilent dans leur panneau).
+    const debordement = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(debordement).toBeLessThanOrEqual(1);
+  } finally {
+    await mobile.close();
+  }
 });
 
 function pdfplumberDisponible(): boolean {
