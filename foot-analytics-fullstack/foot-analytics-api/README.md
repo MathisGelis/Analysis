@@ -44,6 +44,7 @@ pip install -r parser/requirements.txt
 | `PYTHON_BIN` | `python3` | Binaire Python pour le parseur |
 | `FMI_PARSER_PATH` | `parser/parse_fmi.py` | Script de parsing |
 | `AUTO_SEED` | `true` | Peuple la base si vide au demarrage |
+| `LOG_LEVEL` | `log` | `fatal`, `error`, `warn`, `log`, `debug`, `verbose` : `debug` active les traces de diagnostic (clone de saison, effectif, attache) |
 
 ### Passer sur Supabase / Postgres
 
@@ -95,6 +96,18 @@ Toutes les routes sont prefixees par `/api`.
 - `POST   /fmi/import` — multipart/form-data, champ `file` (PDF).
   Execute le parseur, cree le match + compositions + evenements.
   Si le `numeroFmi` existe deja, **met a jour** au lieu de dupliquer.
+  La reponse contient `avertissements` (donnees partielles : compositions
+  incompletes, equipes non rattachees...).
+- `POST   /fmi/import-batch` — champ `files` repete. Renvoie un **rapport par
+  fichier** (`statut` : `importe` / `mis_a_jour` / `echec`, `code` d'echec :
+  `parse_impossible` / `fmi_invalide` / `erreur_interne`, `avertissements`) et
+  le bilan du lot (`nouveaux`, `mis_a_jour`, `echecs`, `avec_avertissements`).
+  `ok` vaut `false` s'il y a au moins un echec ou si la reconstruction des
+  effectifs a echoue.
+
+### Blessures
+Une blessure qui chevauche une autre du meme joueur est refusee (`409`,
+`code: "BLESSURE_CHEVAUCHANTE"`, liste `conflits`) sauf `forcer: true`.
 
 ### Administration
 - `POST   /seed/reset` — vide et recree les donnees de demonstration.
@@ -116,6 +129,17 @@ curl -X POST http://localhost:4000/api/entrainements \
 curl -X POST http://localhost:4000/api/fmi/import \
   -F "file=@parser/FMI_Neuville1.pdf"
 ```
+
+## Tests
+
+```bash
+npm test                      # Jest : services sur une base SQLite en memoire (sql.js), sans mock
+cd parser
+pip install -r requirements-dev.txt
+pytest tests                  # parseur FMI : feuille de reference + PDF de parser/tests/fixtures/
+```
+
+Les PDF de non-regression a ajouter sont listes dans `parser/tests/fixtures/README.md`.
 
 ## Arborescence
 

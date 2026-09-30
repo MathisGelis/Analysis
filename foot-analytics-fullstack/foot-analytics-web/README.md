@@ -121,6 +121,23 @@ Puis :
 npm run dev
 ```
 
+### Tests de bout en bout (Playwright)
+
+```bash
+npx playwright install chromium     # une seule fois
+npm run test:e2e
+```
+
+Les tests demarrent leur propre API (port 4100, base SQLite temporaire) et leur
+propre front (port 3100) : la base de developpement n'est jamais touchee. Le
+parcours d'import FMI exige Python + pdfplumber (`PYTHON_BIN=chemin/vers/python`),
+il est ignore sinon. Voir `playwright.config.ts` pour les variables.
+
+### Diagnostic
+
+`NEXT_PUBLIC_DEBUG=1` active les traces `console.debug` du front (`[switcher]`,
+`[effectif]`, `[middleware]`...). Silencieux par defaut.
+
 ### 3. Parseur FMI standalone
 
 ```bash
