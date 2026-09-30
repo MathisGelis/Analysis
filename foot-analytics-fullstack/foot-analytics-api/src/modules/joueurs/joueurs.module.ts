@@ -9,6 +9,7 @@ import { Composition, Equipe, EvenementMatch, Joueur, Match, Saison } from "@/en
 import { CreateJoueurDto, UpdateJoueurDto } from "./joueur.dto";
 import { equipeDuCote, isEquipeSurCote } from "@/common/matching-cote";
 import { scoreRecherche } from "@/common/fuzzy";
+import { minutesJouees } from "@/common/minutes";
 
 /** Score minimal (0-1) pour qu'un joueur apparaisse dans la recherche. */
 const SEUIL_RECHERCHE = 0.6;
@@ -106,29 +107,6 @@ export class JoueursService {
       arr.push(e);
       evtsByMatch.set(e.matchId, arr);
     }
-    // Helper : si la composition a deja des minutes (import recent), on
-    // les utilise. Sinon on retombe sur les events de remplacement.
-    const computeMinutes = (c: Composition, evts: EvenementMatch[]): number => {
-      if (typeof c.minutes === "number" && c.minutes > 0) return c.minutes;
-      const subs = evts.filter(
-        (e) => e.type === "remplacement" && (e as any).equipe === (c as any).cote,
-      );
-      if (c.titulaire) {
-        // Titulaire : 90 min sauf s'il est sorti (apparait comme joueur sortant d'un sub).
-        const off = subs.find((s) => {
-          const nom = (s.joueur ?? "").toLowerCase();
-          return nom.includes((c.nom ?? "").toLowerCase());
-        });
-        return off ? (off.minute ?? 90) : 90;
-      }
-      // Remplacant : entre a la minute X -> 90 - X.
-      const on = subs.find((s) => {
-        const nom = (s.joueur2 ?? "").toLowerCase();
-        return nom.includes((c.nom ?? "").toLowerCase());
-      });
-      return on ? Math.max(0, 90 - (on.minute ?? 90)) : 0;
-    };
-
     // Agrege par joueur : matchs joues (titu OU remplacant), buts,
     // passes, cartons jaunes/rouges DANS LE CADRE de cette equipe.
     type Acc = {
@@ -157,7 +135,7 @@ export class JoueursService {
       // Comptabilise seulement les titulaires ET les remplacants
       // effectivement entres en jeu (minutes > 0). Les remplacants restes
       // sur le banc ne comptent pas comme un match joue.
-      const minutesCePmatch = computeMinutes(c, evtsByMatch.get(c.matchId) ?? []);
+      const minutesCePmatch = minutesJouees(c, evtsByMatch.get(c.matchId) ?? []);
       if (!c.titulaire && minutesCePmatch === 0) continue;
       a.matchs++;
       if (c.titulaire) a.titularisations++;
@@ -329,23 +307,6 @@ export class JoueursService {
       arr.push(e);
       evtsByMatch.set(e.matchId, arr);
     }
-    // Re-use du helper minutes (titulaire = 90 sauf si sorti, sinon
-    // 90 - minute d'entree pour les remplacants). Identique a effectif().
-    const computeMinutes = (c: Composition, evtsM: EvenementMatch[]): number => {
-      if (typeof c.minutes === "number" && c.minutes > 0) return c.minutes;
-      const subs = evtsM.filter(
-        (e) => e.type === "remplacement" && (e as any).equipe === (c as any).cote,
-      );
-      if (c.titulaire) {
-        const off = subs.find((s) =>
-          (s.joueur ?? "").toLowerCase().includes((c.nom ?? "").toLowerCase()));
-        return off ? (off.minute ?? 90) : 90;
-      }
-      const on = subs.find((s) =>
-        (s.joueur2 ?? "").toLowerCase().includes((c.nom ?? "").toLowerCase()));
-      return on ? Math.max(0, 90 - (on.minute ?? 90)) : 0;
-    };
-
     // Agreg par joueur (cle = licence si dispo, sinon nom+prenom+cote).
     type Acc = {
       licence: string | null; nom: string; prenom: string | null;
@@ -366,7 +327,7 @@ export class JoueursService {
       // n'appartient pas au championnat (ex: match coupe contre une
       // equipe d'une autre poule).
       if (!equipeIdComp || !equipeIds.has(equipeIdComp)) continue;
-      const minutes = computeMinutes(c, evtsByMatch.get(m.id) ?? []);
+      const minutes = minutesJouees(c, evtsByMatch.get(m.id) ?? []);
       // Skip remplacant non entre en jeu (coherent avec effectif()).
       if (!c.titulaire && minutes === 0) continue;
       const k = keyOf(c.licence, c.nom, c.prenom);
@@ -618,6 +579,21 @@ export class JoueursService {
       .getMany();
     const matchById = new Map(matchs.map((m) => [m.id, m]));
 
+    // Evenements de ces matchs : les minutes ne sont pas stockees sur les
+    // compositions importees (0), on les deduit des remplacements comme
+    // effectif() (sinon la fiche joueur affichait 0 minute).
+    const evts = matchIds.length === 0 ? [] : await this.evtsRepo
+      .createQueryBuilder("e")
+      .where("e.match_id IN (:...ids)", { ids: matchIds })
+      .andWhere("e.type = :t", { t: "remplacement" })
+      .getMany();
+    const evtsByMatch = new Map<string, EvenementMatch[]>();
+    for (const e of evts) {
+      const arr = evtsByMatch.get(e.matchId) ?? [];
+      arr.push(e);
+      evtsByMatch.set(e.matchId, arr);
+    }
+
     // 3) Recupere UNIQUEMENT les equipes referencees par ces matchs.
     const equipeIds = new Set<string>();
     for (const m of matchs) {
@@ -659,8 +635,12 @@ export class JoueursService {
         a = { cle: { saisonId, equipeId, clubId }, matchs: 0, minutes: 0, titu: 0 };
         accByKey.set(key, a);
       }
+      // Un remplacant reste sur le banc n'a pas joue (comme effectif()) : la
+      // ligne d'equipe existe, mais le match n'est pas compte.
+      const minutes = minutesJouees(c, evtsByMatch.get(c.matchId) ?? []);
+      if (!c.titulaire && minutes === 0) continue;
       a.matchs++;
-      a.minutes += c.minutes ?? 0;
+      a.minutes += minutes;
       if (c.titulaire) a.titu++;
     }
 

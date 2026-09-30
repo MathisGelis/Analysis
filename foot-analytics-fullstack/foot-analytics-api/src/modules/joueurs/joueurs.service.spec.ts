@@ -163,6 +163,24 @@ describe("JoueursService", () => {
       expect(chezMoi).toMatchObject({ matchs: 1, titularisations: 1, minutes: 90, equipeNom: "Seniors" });
     });
 
+    it("minutes deduites des remplacements (colonne non renseignee a l'import), banc = 0 match", async () => {
+      const c = await contexte();
+      const titu = await f.joueur({ nom: "TITU", prenom: "Ari", licence: "11", clubId: c.moi.id });
+      const entrant = await f.joueur({ nom: "ENTRANT", prenom: "Bo", licence: "12", clubId: c.moi.id });
+      const banc = await f.joueur({ nom: "BANC", prenom: "Cy", licence: "13", clubId: c.moi.id });
+      const m = await f.match({ clubDom: c.moi.id, clubExt: c.adv.id, equipeDomId: c.seniors.id, saisonId: c.saison.id });
+      await f.compo({ matchId: m.id, cote: "dom", nom: "TITU", prenom: "Ari", licence: "11", minutes: 0 });
+      await f.compo({ matchId: m.id, cote: "dom", nom: "ENTRANT", prenom: "Bo", licence: "12", titulaire: false, minutes: 0, numero: 14 });
+      await f.compo({ matchId: m.id, cote: "dom", nom: "BANC", prenom: "Cy", licence: "13", titulaire: false, minutes: 0, numero: 15 });
+      await f.evenement({ matchId: m.id, type: "remplacement", equipe: "dom", joueur: "TITU Ari", joueur2: "ENTRANT Bo", minute: 60 });
+
+      const ligne = async (j: Joueur) => (await svc.historique(j.id))[0].lignes[0];
+
+      expect(await ligne(titu)).toMatchObject({ matchs: 1, titularisations: 1, minutes: 60 });
+      expect(await ligne(entrant)).toMatchObject({ matchs: 1, titularisations: 0, minutes: 30 });
+      expect(await ligne(banc)).toMatchObject({ matchs: 0, titularisations: 0, minutes: 0 });
+    });
+
     it("groupe par saison, la plus recente d'abord", async () => {
       const c = await contexte();
       const s24 = await f.saison("2024-2025", 2024);
