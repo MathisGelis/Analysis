@@ -51,7 +51,7 @@ export function AppShell({
     <div className="flex min-h-screen">
       {/* Lien d'evitement : le clavier saute la navigation et va droit au contenu. */}
       <a href="#contenu"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[90] focus:rounded-xl focus:bg-accentstrong focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white">
+        className="sr-only print:hidden focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[90] focus:rounded-xl focus:bg-accentstrong focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white">
         Aller au contenu
       </a>
       <Sidebar

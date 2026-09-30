@@ -8,7 +8,7 @@
 //   GET /api/analyse/prematch?equipeId=&adversaireId=[&matchId=]
 //   equipeId : MON equipe (donc la saison et le championnat) ; adversaireId : le CLUB adverse.
 
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, forwardRef, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 import { Arbitre, Club, Equipe, LigneClassement, Match, Saison } from "@/entities";
@@ -62,7 +62,9 @@ export interface RapportPrematch {
 @Injectable()
 export class PrematchService {
   constructor(
-    private analyse: AnalyseService,
+    // forwardRef : analyse.module.ts importe ce fichier et inversement (cycle d'import), donc la
+    // classe n'existe pas encore quand TypeScript emet les types du constructeur.
+    @Inject(forwardRef(() => AnalyseService)) private analyse: AnalyseService,
     @InjectRepository(Match) private matchs: Repository<Match>,
     @InjectRepository(Equipe) private equipes: Repository<Equipe>,
     @InjectRepository(Club) private clubs: Repository<Club>,

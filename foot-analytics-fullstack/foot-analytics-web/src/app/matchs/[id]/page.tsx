@@ -13,7 +13,7 @@ import { PitchHeatmap } from "@/components/Charts";
 import { ArbitresMatchBlock } from "@/components/ArbitresMatchBlock";
 import { MatchActions } from "@/components/MatchActions";
 import {
-  ArrowLeft, Calendar, Clock, FileText, Goal, MapPin, User, Users,
+  ArrowLeft, Calendar, Clock, FileText, Goal, MapPin, Target, User, Users,
 } from "lucide-react";
 import type { EvenementMatch } from "@/lib/types";
 
@@ -25,6 +25,9 @@ export default async function MatchDetailPage({ params }: { params: { id: string
   ]);
   if (!match) notFound();
   const peutNoter = match.clubDom === ownClubId || match.clubExt === ownClubId;
+  // Match de mon club pas encore joue : on propose le rapport de preparation contre l'adversaire.
+  const aPreparer = peutNoter && ["prevu", "a_venir"].includes((match as any).statut ?? "");
+  const adversaireId = match.clubDom === ownClubId ? match.clubExt : match.clubDom;
 
   // Le backend renvoie `compositions` avec un champ `cote` ('dom'|'ext').
   // Les donnees de demo exposent deja `compoDom`/`compoExt`. On normalise.
@@ -82,7 +85,14 @@ export default async function MatchDetailPage({ params }: { params: { id: string
         <Link href="/matchs" className="text-xs text-muted hover:text-ink flex items-center gap-1">
           <ArrowLeft size={12}/> Retour aux matchs
         </Link>
-        <MatchActions match={match}/>
+        <div className="flex items-center gap-2">
+          {aPreparer && (
+            <Link href={`/rapports/prematch/${adversaireId}?matchId=${match.id}`} className="btn btn-primary text-xs">
+              <Target size={12}/> Rapport pre-match
+            </Link>
+          )}
+          <MatchActions match={match}/>
+        </div>
       </div>
 
       {/* En-tete match */}

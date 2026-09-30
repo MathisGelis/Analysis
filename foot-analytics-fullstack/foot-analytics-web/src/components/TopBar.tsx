@@ -62,7 +62,7 @@ export function TopBar({ onOuvrirMenu, onOuvrirPalette }: Props) {
 
   return (
     <>
-      <header className="sticky top-0 z-30 glass border-b border-line">
+      <header className="sticky top-0 z-30 glass border-b border-line print:hidden">
         <div className="mx-auto flex max-w-[1500px] items-center gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
           <button type="button" onClick={onOuvrirMenu} className="btn btn-ghost !p-2 lg:hidden" aria-label="Ouvrir le menu">
             <Menu size={20} />

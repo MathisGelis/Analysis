@@ -190,9 +190,13 @@ export default async function Dashboard() {
               </h3>
             </div>
             {prochain && (
-              <Link href={`/matchs/${prochain.id}`} className="btn btn-primary text-sm">
-                Preparer le match <ArrowRight size={14} />
-              </Link>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Link href={`/matchs/${prochain.id}`} className="btn text-sm">Fiche du match</Link>
+                <Link href={`/rapports/prematch/${prochain.equipeDomId === equipe?.id ? prochain.clubExt : prochain.clubDom}?matchId=${prochain.id}`}
+                  className="btn btn-primary text-sm">
+                  Rapport pre-match <ArrowRight size={14} />
+                </Link>
+              </div>
             )}
           </div>
 

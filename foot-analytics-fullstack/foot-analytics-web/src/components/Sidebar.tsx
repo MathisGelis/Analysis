@@ -142,7 +142,7 @@ export function Sidebar({ replie, onBasculerReplie, mobileOuvert, onFermerMobile
     <>
       {/* Bureau : colonne collante, largeur animee entre menu complet et rail d'icones. */}
       <aside
-        className={`relative z-20 hidden lg:block shrink-0 border-r border-line glass transition-[width] duration-300 ease-smooth
+        className={`relative z-20 hidden lg:block print:!hidden shrink-0 border-r border-line glass transition-[width] duration-300 ease-smooth
           ${replie ? "w-[84px]" : "w-[268px]"}`}
       >
         <div className="sticky top-0 h-screen">
@@ -153,7 +153,7 @@ export function Sidebar({ replie, onBasculerReplie, mobileOuvert, onFermerMobile
       </aside>
 
       {/* Mobile : tiroir coulissant sur fond assombri. */}
-      <div className={`lg:hidden fixed inset-0 z-50 ${mobileOuvert ? "" : "pointer-events-none"}`} aria-hidden={!mobileOuvert}>
+      <div className={`lg:hidden print:hidden fixed inset-0 z-50 ${mobileOuvert ? "" : "pointer-events-none"}`} aria-hidden={!mobileOuvert}>
         <div
           onClick={onFermerMobile}
           className={`absolute inset-0 bg-black/55 backdrop-blur-sm transition-opacity duration-300 ${mobileOuvert ? "opacity-100" : "opacity-0"}`}

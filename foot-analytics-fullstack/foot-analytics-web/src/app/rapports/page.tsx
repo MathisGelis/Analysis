@@ -10,13 +10,13 @@ import { getOwnClubIdServer } from "@/lib/own-club";
 import { getOwnSaisonIdServer } from "@/lib/own-equipe";
 import { clubsDeLaSaison } from "@/lib/clubs-saison";
 import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
+import { resultatsDeLEquipe } from "@/lib/matchs-equipe";
 import { ClubBadge } from "@/components/ClubBadge";
 import { BandeauDemo } from "@/components/BandeauDemo";
 import { DynamiquePoule } from "@/components/analyse/DynamiquePoule";
-import { Download, Eye, FileText, Mail, Printer, BarChart3, TrendingUp } from "lucide-react";
+import { Download, Eye, FileText, Mail, Printer, BarChart3, Target, TrendingUp } from "lucide-react";
 
 const RAPPORTS = [
-  { id:"prematch-j22", type:"Pre-match", titre:"Pre-match J22 · vs Neuville S/S 2",  date:"26/01/2026", auteur:"Auto",          statut:"Pret" },
   { id:"postmatch-j21",type:"Post-match",titre:"Post-match J21 · vs Meys Grezieu",   date:"19/01/2026", auteur:"L. Martin",     statut:"Pret" },
   { id:"mensuel-jan",  type:"Mensuel",   titre:"Bilan mensuel · Janvier 2026",       date:"01/02/2026", auteur:"Auto",          statut:"Brouillon" },
   { id:"forme-eff",    type:"Effectif",  titre:"Etat de forme effectif",             date:"22/01/2026", auteur:"Staff sportif", statut:"Pret" },
@@ -36,6 +36,11 @@ export default async function Rapports() {
   const { equipe: maEquipe } = await resolveEquipePropre({ equipes, saisons, matchs });
   const poule = maEquipe ? await api.dynamiquePoule(maEquipe.id) : null;
   const monClub = clubs.find((c) => c.id === ownClubId);
+  // Prochain match de mon equipe : le rapport pre-match s'ouvre en un clic.
+  const prochain = maEquipe ? resultatsDeLEquipe(matchs, maEquipe.id).aVenir[0] : undefined;
+  const advProchain = prochain
+    ? clubs.find((c) => c.id === (prochain.equipeDomId === maEquipe?.id ? prochain.clubExt : prochain.clubDom))
+    : undefined;
   // Uniquement les clubs qui ont une equipe sur la saison choisie.
   const autres = clubsDeLaSaison(clubs, equipes, saison?.id ?? null, ownClubId);
 
@@ -47,6 +52,38 @@ export default async function Rapports() {
           <h1 className="font-display text-2xl font-bold text-ink">Rapports</h1>
         </div>
       </header>
+
+      {/* Rapport pre-match : le prochain match, en un clic */}
+      <section className="panel relative overflow-hidden p-5">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-accentstrong/[0.12] via-transparent to-accent2/[0.06]" />
+        <div className="relative flex flex-wrap items-center gap-4">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-accent/10 text-accent"><Target size={20} aria-hidden /></div>
+          <div className="min-w-0 flex-1">
+            <div className="h-section">Rapport pre-match</div>
+            {prochain && advProchain ? (
+              <div className="mt-1 flex items-center gap-2.5">
+                <ClubBadge clubId={advProchain.id} size={28}/>
+                <div className="min-w-0">
+                  <div className="truncate font-display text-lg font-bold text-ink">{advProchain.nom}</div>
+                  <div className="text-xs text-muted">
+                    {prochain.journee ? `Journee ${String(prochain.journee).replace(/\D/g, "") || prochain.journee}` : "Prochain match"}
+                    {prochain.date ? ` · ${prochain.date}` : ""}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-1 text-sm text-muted">
+                Aucun match programme : choisissez un adversaire dans la liste ci-dessous pour preparer la rencontre.
+              </p>
+            )}
+          </div>
+          {prochain && advProchain && (
+            <Link href={`/rapports/prematch/${advProchain.id}?matchId=${prochain.id}`} className="btn btn-primary text-sm">
+              Generer le rapport
+            </Link>
+          )}
+        </div>
+      </section>
 
       {/* Dynamique de la poule */}
       {poule && poule.equipes.length > 0 && (
@@ -96,26 +133,22 @@ export default async function Rapports() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {autres.map((c) => (
-            <Link
-              key={c.id}
-              href={`/rapports/equipe/${c.id}`}
-              className="panel-inset px-3 py-2 flex items-center gap-3 hover:bg-line/40 transition"
-            >
-              <ClubBadge clubId={c.id} size={24}/>
-              <span className="text-sm truncate flex-1">{c.nom}</span>
-              <FileText size={11} className="text-faint"/>
-            </Link>
+            <div key={c.id} className="panel-inset flex items-center gap-1 pr-2 transition hover:bg-line/40">
+              <Link href={`/rapports/equipe/${c.id}`} className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2">
+                <ClubBadge clubId={c.id} size={24}/>
+                <span className="text-sm truncate flex-1">{c.nom}</span>
+              </Link>
+              <Link href={`/rapports/prematch/${c.id}`} className="btn btn-ghost !px-2 !py-1 text-[11px]"
+                title={`Rapport pre-match contre ${c.nom}`} aria-label={`Rapport pre-match contre ${c.nom}`}>
+                <Target size={12} aria-hidden/> Pre-match
+              </Link>
+            </div>
           ))}
         </div>
       </section>
 
       {/* Modeles disponibles : la generation n'est pas encore branchee */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <ModeleCard
-          titre="Pre-match"
-          desc="Compo probable adverse, dispositif suggere, points cles, contre-strategies."
-          icon={<FileText size={18} className="text-accent"/>}
-        />
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ModeleCard
           titre="Post-match"
           desc="Resume FMI : cartons, remplacements, blessures, notes individuelles."

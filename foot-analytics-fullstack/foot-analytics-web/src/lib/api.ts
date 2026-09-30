@@ -15,6 +15,7 @@ import {
   CLASSEMENT_POULE_C as DEMO_CLASSEMENT,
 } from "@/data/demo";
 import type { DynamiquePoule } from "@/lib/analyse-types";
+import type { RapportPrematch } from "@/lib/prematch-types";
 import type {
   Club, HistoriqueSaison, Joueur, LigneClassement, Match, MatchJoue, RapportScouting, TactiquePlan,
 } from "@/lib/types";
@@ -328,6 +329,13 @@ export const api = {
   /** Dynamique de toutes les equipes du championnat de l'equipe donnee (forme, series, sens). */
   dynamiquePoule: (equipeId: string) =>
     req<DynamiquePoule | null>(`/analyse/poule?equipeId=${equipeId}`, { fallback: null }),
+
+  /** Rapport pre-match : mon equipe contre un club adverse (match optionnel, sinon le prochain programme). */
+  prematch: (equipeId: string, adversaireId: string, matchId?: string | null) => {
+    const qs = new URLSearchParams({ equipeId, adversaireId });
+    if (matchId) qs.set("matchId", matchId);
+    return req<RapportPrematch | null>(`/analyse/prematch?${qs}`, { fallback: null });
+  },
 
   /* ---- Saisons ---- */
   saisons: () => req<any[]>("/saisons", { fallback: [] }),

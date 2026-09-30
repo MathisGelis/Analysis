@@ -564,3 +564,13 @@ body::before {
 
 .link-discrete { color: rgb(var(--ink)); transition: color 140ms; }
 .link-discrete:hover { color: rgb(var(--accent)); }
+
+/* ----- Impression : on ne garde que le contenu, sur fond blanc ---- */
+@media print {
+  @page { margin: 12mm; }
+  body::before { display: none; }
+  html, body { background: #fff; }
+  .panel, .panel-inset, .stat-tile { box-shadow: none; }
+  .panel, .panel-inset, .stat-tile, .no-coupure { break-inside: avoid; }
+  .fade-up, .fade-up-stagger, .fade-up-stagger > * { animation: none !important; opacity: 1 !important; transform: none !important; }
+}

@@ -151,7 +151,7 @@ export function CommandPalette({ ouverte, onFermer }: { ouverte: boolean; onFerm
 
   let groupeCourant = "";
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-start justify-center px-4 pt-[12vh]" role="presentation">
+    <div className="fixed inset-0 z-[70] flex items-start justify-center px-4 pt-[12vh] print:hidden" role="presentation">
       <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onFermer} aria-hidden="true" />
       <div
         role="dialog" aria-modal="true" aria-label="Palette de commandes"

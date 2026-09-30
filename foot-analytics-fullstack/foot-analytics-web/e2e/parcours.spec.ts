@@ -251,6 +251,43 @@ test("rapport d'equipe : sans match analyse sur la saison, la page l'explique sa
   await expect(page.getByRole("img", { name: /au moins 6 matchs pour juger une dynamique/ })).toBeVisible();
 });
 
+test("rapport pre-match : un clic depuis /rapports, rapport lisible, imprimable sans la coquille", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : l'adversaire vient de la FMI importee");
+
+  // L'adversaire est un club cree par l'import de la FMI (il n'a pas d'equipe sur la saison choisie).
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const clubs: { id: string; nom: string }[] = await (await fetch(`${API_URL}/clubs`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })).json();
+  const adversaire = clubs.find((c) => c.nom !== "OL Sud E2E");
+  expect(adversaire, "l'import FMI cree au moins un club adverse").toBeTruthy();
+
+  await page.goto(`/rapports/prematch/${adversaire!.id}`);
+  await expect(page.getByText("Rapport pre-match", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pistes pour le match" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Les deux equipes" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Face-a-face" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Arbitre" })).toBeVisible();
+  // Aucun match programme : le rapport le dit au lieu d'inventer une rencontre.
+  await expect(page.getByText(/Aucun match programme/)).toBeVisible();
+
+  // Impression : la barre laterale, la barre du haut et le bouton disparaissent.
+  const bouton = page.getByRole("button", { name: "Imprimer / PDF" });
+  await expect(bouton).toBeVisible();
+  await page.emulateMedia({ media: "print" });
+  await expect(bouton).toBeHidden();
+  await expect(page.locator("aside").first()).toBeHidden();
+  await expect(page.locator("header.glass")).toBeHidden();
+  await page.emulateMedia({ media: "screen" });
+
+  // Un club inconnu : page d'erreur propre, pas d'exception.
+  await page.goto("/rapports/prematch/club-inexistant");
+  await expect(page.getByText(/introuvable|n'existe pas|404/i).first()).toBeVisible();
+});
+
 test("saison archivee : /tactique s'affiche en consultation seule", async () => {
   await page.goto("/");
   await ouvrirSelecteur(page);
