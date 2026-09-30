@@ -13,7 +13,7 @@ import {
 import { IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { Club, Entrainement, Equipe, Joueur, LigneClassement, Match } from "@/entities";
+import { Club, Entrainement, Equipe, Joueur, LigneClassement, Match, StatJoueurEquipe } from "@/entities";
 import { AdminGuard, AuthModule } from "../auth/auth.module";
 
 const minuscule = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
@@ -315,6 +315,14 @@ export class EquipesService {
     }
 
     const seances = await m.getRepository(Entrainement).update({ equipeId: sourceId }, { equipeId: cibleId });
+    // Buts / passes saisis a la main : ils suivent l'equipe ; si un joueur a deja
+    // une saisie dans la cible, c'est elle qui fait foi.
+    const statsRepo = m.getRepository(StatJoueurEquipe);
+    const deCible = new Set((await statsRepo.find({ where: { equipeId: cibleId } })).map((r) => r.joueurId));
+    for (const r of await statsRepo.find({ where: { equipeId: sourceId } })) {
+      if (deCible.has(r.joueurId)) await statsRepo.remove(r);
+      else { r.equipeId = cibleId; await statsRepo.save(r); }
+    }
     await m.getRepository(Match).update({ equipeDomId: sourceId }, { equipeDomId: cibleId });
     await m.getRepository(Match).update({ equipeExtId: sourceId }, { equipeExtId: cibleId });
     // Lignes de classement de la source : recalculees par la derivation, on ne les deplace pas.

@@ -60,3 +60,9 @@ export class UpdateJoueurDto {
   @IsOptional() @IsString() postes?: string;
   @IsOptional() @IsString() typeDiscipline?: string;
 }
+
+/** Saisie manuelle des buts / passes d'un joueur dans une equipe (une saison). */
+export class StatEquipeDto {
+  @IsOptional() @IsInt() @Min(0) @Max(200) buts?: number | null;
+  @IsOptional() @IsInt() @Min(0) @Max(200) passesDecisives?: number | null;
+}

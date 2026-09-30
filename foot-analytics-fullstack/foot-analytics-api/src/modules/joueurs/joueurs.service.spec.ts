@@ -1,5 +1,5 @@
 import { DataSource } from "typeorm";
-import { Composition, Equipe, EvenementMatch, Joueur, Match, Saison } from "@/entities";
+import { Composition, Equipe, EvenementMatch, Joueur, Match, Saison, StatJoueurEquipe } from "@/entities";
 import { creerBaseTest, fabriques } from "@/testing/test-db";
 import { JoueursService } from "./joueurs.module";
 
@@ -13,6 +13,7 @@ describe("JoueursService", () => {
     svc = new JoueursService(
       ds.getRepository(Joueur), ds.getRepository(Composition), ds.getRepository(Match),
       ds.getRepository(EvenementMatch), ds.getRepository(Equipe), ds.getRepository(Saison),
+      ds.getRepository(StatJoueurEquipe),
     );
     f = fabriques(ds);
   });
@@ -239,6 +240,98 @@ describe("JoueursService", () => {
       const c = await contexte();
       const j = await f.joueur({ nom: "FANTOME", prenom: "Zoe", clubId: c.moi.id });
       expect(await svc.historique(j.id)).toEqual([]);
+    });
+  });
+
+  /** Un joueur qui a joue deux saisons : 1 but + 1 jaune en 24-25, 2 buts + 1 passe en 25-26. */
+  async function joueurSurDeuxSaisons() {
+    const c = await contexte();
+    const s24 = await f.saison("2024-2025", 2024);
+    const eq24 = await f.equipe({ clubId: c.moi.id, nom: "Seniors", categorie: "Seniors", saisonId: s24.id });
+    const adv24 = await f.equipe({ clubId: c.adv.id, nom: "Adverse Seniors", categorie: "Seniors", saisonId: s24.id });
+    const j = await f.joueur({ nom: "MARCON", prenom: "Leo", licence: "111", clubId: c.moi.id });
+    const m24 = await f.match({ clubDom: c.moi.id, clubExt: c.adv.id, equipeDomId: eq24.id, equipeExtId: adv24.id, saisonId: s24.id });
+    const m25 = await f.match({ clubDom: c.moi.id, clubExt: c.adv.id, equipeDomId: c.seniors.id, equipeExtId: c.advEq.id, saisonId: c.saison.id });
+    for (const m of [m24, m25]) await f.compo({ matchId: m.id, cote: "dom", nom: "MARCON", prenom: "Leo", licence: "111", numero: 9 });
+    await f.compo({ matchId: m25.id, cote: "dom", nom: "AMI", prenom: "Paul", licence: "222", numero: 7 });
+    await f.evenement({ matchId: m24.id, type: "but", equipe: "dom", joueur: "MARCON Leo", minute: 5 });
+    await f.evenement({ matchId: m24.id, type: "carton", sousType: "jaune", equipe: "dom", joueur: "MARCON Leo", minute: 60 });
+    await f.evenement({ matchId: m25.id, type: "but", equipe: "dom", joueur: "MARCON Leo", minute: 10 });
+    await f.evenement({ matchId: m25.id, type: "but", equipe: "dom", joueur: "MARCON Leo", minute: 20 });
+    await f.evenement({ matchId: m25.id, type: "but", equipe: "dom", joueur: "AMI Paul", joueur2: "MARCON Leo", minute: 30 });
+    return { c, j, eq24, s24 };
+  }
+
+  describe("stats sensibles a la saison", () => {
+    it("historique : buts, passes, cartons et numeros par saison, sans melanger", async () => {
+      const { j } = await joueurSurDeuxSaisons();
+
+      const h = await svc.historique(j.id);
+      const l25 = h.find((s) => s.saisonNom === "2025-2026")!.lignes[0];
+      const l24 = h.find((s) => s.saisonNom === "2024-2025")!.lignes[0];
+
+      expect(l25).toMatchObject({ buts: 2, passesDecisives: 1, cartonsJaunes: 0, numeros: { 9: 1 } });
+      expect(l24).toMatchObject({ buts: 1, passesDecisives: 0, cartonsJaunes: 1, numeros: { 9: 1 } });
+      expect(h.find((s) => s.saisonNom === "2025-2026")!.saisonActive).toBe(true);
+      expect(h.find((s) => s.saisonNom === "2024-2025")!.saisonActive).toBe(false);
+    });
+
+    it("effectif d'une equipe passee : ses seuls buts et cartons", async () => {
+      const { eq24 } = await joueurSurDeuxSaisons();
+      const rows = await svc.effectif(eq24.id);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ nom: "MARCON", buts: 1, cartonsJaunes: 1, passesDecisives: 0, numeroFavori: 9, postes: "9 (1)" });
+    });
+
+    it("effectif et championnat comptent pareil (passes, cartons, prenoms)", async () => {
+      const { c } = await joueurSurDeuxSaisons();
+      const effectif = (await svc.effectif(c.seniors.id)).find((r) => r.nom === "MARCON")!;
+      const champ = (await svc.championnat(c.seniors.id)).find((r) => r.nom === "MARCON")!;
+      for (const cle of ["matchs", "minutes", "buts", "passesDecisives", "cartonsJaunes", "cartonsRouges"]) {
+        expect([cle, champ[cle]]).toEqual([cle, effectif[cle]]);
+      }
+      expect(champ.equipeId).toBe(c.seniors.id);
+    });
+
+    it("saisie manuelle : propre a l'equipe, prime sur les feuilles, ne deborde pas sur l'autre saison", async () => {
+      const { c, j, eq24 } = await joueurSurDeuxSaisons();
+
+      await svc.definirStatEquipe(j.id, c.seniors.id, { buts: 7, passesDecisives: 3 });
+
+      const e25 = (await svc.effectif(c.seniors.id)).find((r) => r.nom === "MARCON")!;
+      const e24 = (await svc.effectif(eq24.id))[0];
+      expect(e25).toMatchObject({ buts: 7, passesDecisives: 3 });
+      expect(e24).toMatchObject({ buts: 1, passesDecisives: 0 });
+      const h = await svc.historique(j.id);
+      expect(h.find((s) => s.saisonNom === "2025-2026")!.lignes[0]).toMatchObject({ buts: 7, passesDecisives: 3 });
+      expect(h.find((s) => s.saisonNom === "2024-2025")!.lignes[0]).toMatchObject({ buts: 1 });
+      expect((await svc.championnat(c.seniors.id)).find((r) => r.nom === "MARCON")).toMatchObject({ buts: 7, passesDecisives: 3 });
+    });
+
+    it("saisie : null efface, undefined laisse en l'etat, une ligne vide est supprimee", async () => {
+      const { c, j } = await joueurSurDeuxSaisons();
+      const total = () => svc.effectif(c.seniors.id).then((r) => r.find((x) => x.nom === "MARCON")!);
+
+      await svc.definirStatEquipe(j.id, c.seniors.id, { buts: 5, passesDecisives: 2 });
+      await svc.definirStatEquipe(j.id, c.seniors.id, { buts: null });
+      expect(await total()).toMatchObject({ buts: 2, passesDecisives: 2 });   // buts = calcul feuilles, passes saisies gardees
+
+      await svc.definirStatEquipe(j.id, c.seniors.id, { passesDecisives: null });
+      expect(await total()).toMatchObject({ buts: 2, passesDecisives: 1 });
+      expect(await ds.getRepository(StatJoueurEquipe).count()).toBe(0);
+    });
+
+    it("saisie : 404 pour un joueur ou une equipe inconnus", async () => {
+      const { c, j } = await joueurSurDeuxSaisons();
+      await expect(svc.definirStatEquipe("inconnu", c.seniors.id, { buts: 1 })).rejects.toThrow(/introuvable/);
+      await expect(svc.definirStatEquipe(j.id, "inconnue", { buts: 1 })).rejects.toThrow(/introuvable/);
+    });
+
+    it("joueur attache sans match : la saisie de son equipe s'affiche", async () => {
+      const c = await contexte();
+      const j = await f.joueur({ nom: "RECRUE", prenom: "Kim", clubId: c.moi.id, equipesAttachees: [c.seniors.id] });
+      await svc.definirStatEquipe(j.id, c.seniors.id, { buts: 2 });
+      expect((await svc.effectif(c.seniors.id))[0]).toMatchObject({ id: j.id, matchs: 0, buts: 2 });
     });
   });
 

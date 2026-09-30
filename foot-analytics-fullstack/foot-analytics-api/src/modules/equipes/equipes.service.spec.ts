@@ -1,5 +1,5 @@
 import { DataSource } from "typeorm";
-import { Entrainement, Equipe, Joueur } from "@/entities";
+import { Entrainement, Equipe, Joueur, StatJoueurEquipe } from "@/entities";
 import { creerBaseTest, fabriques } from "@/testing/test-db";
 import { EquipesService } from "./equipes.module";
 
@@ -234,6 +234,27 @@ describe("EquipesService", () => {
       expect((await repoJ.findOneByOrFail({ id: j1.id })).equipesAttachees).toEqual([eq.id]);
       expect((await repoJ.findOneByOrFail({ id: j2.id })).equipesAttachees).toEqual([eq.id]);
       expect(await ds.getRepository(Entrainement).count({ where: { equipeId: eq.id } })).toBe(1);
+    });
+
+    it("les buts / passes saisis suivent l'equipe absorbee ; la saisie de la cible fait foi", async () => {
+      const c = await contexte();
+      const j1 = await f.joueur({ nom: "UN", clubId: c.club.id });
+      const j2 = await f.joueur({ nom: "DEUX", clubId: c.club.id });
+      const repoS = ds.getRepository(StatJoueurEquipe);
+      const source = await f.equipe({ clubId: c.club.id, nom: "Provisoire", categorie: "U20", division: "D1", saisonId: c.s26.id });
+      const cible = await f.equipe({ clubId: c.club.id, nom: "Reelle", categorie: "U20", division: "D1", poule: "B", saisonId: c.s26.id });
+      await repoS.save([
+        { joueurId: j1.id, equipeId: source.id, buts: 4, passesDecisives: null },
+        { joueurId: j2.id, equipeId: source.id, buts: 9, passesDecisives: null },
+        { joueurId: j2.id, equipeId: cible.id, buts: 2, passesDecisives: null },
+      ]);
+
+      await svc.fusionner(source.id, cible.id);
+
+      const lignes = await repoS.find();
+      expect(lignes.map((l) => [l.joueurId, l.equipeId, l.buts]).sort()).toEqual(
+        [[j1.id, cible.id, 4], [j2.id, cible.id, 2]].sort(),
+      );
     });
 
     it("n'absorbe jamais une equipe deja jouee", async () => {

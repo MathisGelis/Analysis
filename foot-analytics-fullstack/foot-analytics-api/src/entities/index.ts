@@ -408,8 +408,26 @@ export class Utilisateur {
   @CreateDateColumn() createdAt: Date;
 }
 
+/**
+ * Buts et passes decisives saisis a la main pour un joueur DANS UNE EQUIPE
+ * (donc une saison). Les FMI ne listent pas toujours les buteurs : le staff
+ * complete a la main, et cette saisie ne doit pas deborder sur les autres
+ * saisons (contrairement aux compteurs globaux de `Joueur`).
+ * Une valeur null = pas de saisie, on garde le calcul depuis les feuilles.
+ */
+@Entity("stats_joueur_equipe")
+@Index(["joueurId", "equipeId"], { unique: true })
+export class StatJoueurEquipe {
+  @PrimaryGeneratedColumn("uuid") id: string;
+  @Column({ name: "joueur_id" }) joueurId: string;
+  @Column({ name: "equipe_id" }) equipeId: string;
+  @Column({ type: "int", nullable: true }) buts: number | null;
+  @Column({ type: "int", nullable: true }) passesDecisives: number | null;
+}
+
 export const ALL_ENTITIES = [
   Club, Equipe, Joueur, Match, Composition, EvenementMatch,
   Entrainement, Blessure, RapportScouting, LigneClassement,
   Arbitre, ArbitreMatch, Coach, StaffMatch, Saison, Utilisateur,
+  StatJoueurEquipe,
 ];

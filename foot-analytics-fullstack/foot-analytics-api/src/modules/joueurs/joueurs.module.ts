@@ -1,15 +1,19 @@
 // src/modules/joueurs/joueurs.module.ts
 import {
   Body, Controller, Delete, Get, Injectable, Logger, NotFoundException, Param,
-  Patch, Post, Query, Module,
+  Patch, Post, Put, Query, Module,
 } from "@nestjs/common";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { Composition, Equipe, EvenementMatch, Joueur, Match, Saison } from "@/entities";
-import { CreateJoueurDto, UpdateJoueurDto } from "./joueur.dto";
+import {
+  Composition, Equipe, EvenementMatch, Joueur, Match, Saison, StatJoueurEquipe,
+} from "@/entities";
+import { CreateJoueurDto, StatEquipeDto, UpdateJoueurDto } from "./joueur.dto";
 import { equipeDuCote, isEquipeSurCote } from "@/common/matching-cote";
 import { scoreRecherche } from "@/common/fuzzy";
 import { minutesJouees } from "@/common/minutes";
+import { cumuler, statsDuMatch, STATS_MATCH_VIDES, StatsMatch } from "@/common/stats-match";
+import { noteIndicative } from "@/common/indicateurs";
 
 /** Score minimal (0-1) pour qu'un joueur apparaisse dans la recherche. */
 const SEUIL_RECHERCHE = 0.6;
@@ -25,6 +29,7 @@ export class JoueursService {
     @InjectRepository(EvenementMatch) private evtsRepo: Repository<EvenementMatch>,
     @InjectRepository(Equipe) private equipesRepo: Repository<Equipe>,
     @InjectRepository(Saison) private saisonsRepo: Repository<Saison>,
+    @InjectRepository(StatJoueurEquipe) private statsEquipeRepo: Repository<StatJoueurEquipe>,
   ) {}
 
   findAll(clubId?: string, poste?: string) {
@@ -92,9 +97,7 @@ export class JoueursService {
       joueursParNomCle.set(cleNom(j.nom, j.prenom), j);
     }
 
-    // Charge les evenements pour le fallback de calcul minutes
-    // (utile si les anciennes compositions ont minutes=0 par defaut).
-    // Skip si aucun match (les joueurs attaches seulement).
+    // Evenements des matchs : minutes (remplacements), buts, passes, cartons.
     const evtsAll = matchIds.length > 0
       ? await this.evtsRepo
           .createQueryBuilder("e")
@@ -107,118 +110,81 @@ export class JoueursService {
       arr.push(e);
       evtsByMatch.set(e.matchId, arr);
     }
-    // Agrege par joueur : matchs joues (titu OU remplacant), buts,
-    // passes, cartons jaunes/rouges DANS LE CADRE de cette equipe.
+    // Agrege par joueur : matchs joues (titu OU remplacant), buts, passes,
+    // cartons DANS LE CADRE de cette equipe (donc de sa saison).
     type Acc = {
       joueur: Joueur | null;
       nom: string; prenom?: string; licence?: string;
       matchs: number; titularisations: number; minutes: number;
-      buts: number; passes: number;
-      cartonsJaunes: number; cartonsRouges: number;
-      derniersMatchs: { matchId: string; date: string | null; titu: boolean }[];
+      stats: StatsMatch;
+      numeros: Record<number, number>;
     };
     const acc = new Map<string, Acc>();
     for (const c of composPourEquipe) {
       const key = cleNom(c.nom, c.prenom);
       let a = acc.get(key);
       if (!a) {
-        const j = joueursParNomCle.get(key) ?? null;
         a = {
-          joueur: j, nom: c.nom, prenom: c.prenom ?? undefined,
+          joueur: joueursParNomCle.get(key) ?? null,
+          nom: c.nom, prenom: c.prenom ?? undefined,
           licence: c.licence ?? undefined,
           matchs: 0, titularisations: 0, minutes: 0,
-          buts: 0, passes: 0,
-          cartonsJaunes: 0, cartonsRouges: 0, derniersMatchs: [],
+          stats: { ...STATS_MATCH_VIDES }, numeros: {},
         };
         acc.set(key, a);
       }
-      // Comptabilise seulement les titulaires ET les remplacants
-      // effectivement entres en jeu (minutes > 0). Les remplacants restes
-      // sur le banc ne comptent pas comme un match joue.
-      const minutesCePmatch = minutesJouees(c, evtsByMatch.get(c.matchId) ?? []);
-      if (!c.titulaire && minutesCePmatch === 0) continue;
+      const evtsDuMatch = evtsByMatch.get(c.matchId) ?? [];
+      // Un carton recu depuis le banc compte, meme sans entrer en jeu.
+      a.stats = cumuler(a.stats, statsDuMatch(c, evtsDuMatch));
+      // Matchs / minutes : titulaires ET remplacants effectivement entres en
+      // jeu. Les remplacants restes sur le banc n'ont pas joue.
+      const minutesCeMatch = minutesJouees(c, evtsDuMatch);
+      if (!c.titulaire && minutesCeMatch === 0) continue;
       a.matchs++;
       if (c.titulaire) a.titularisations++;
-      a.minutes += minutesCePmatch;
-      const m = matchById.get(c.matchId);
-      a.derniersMatchs.push({
-        matchId: c.matchId, date: m?.date ?? null, titu: c.titulaire,
-      });
+      a.minutes += minutesCeMatch;
+      if (typeof c.numero === "number" && c.numero > 0) {
+        a.numeros[c.numero] = (a.numeros[c.numero] ?? 0) + 1;
+      }
     }
 
-    // Buts / passes / cartons : on reutilise evtsAll deja fetche pour
-    // le calcul des minutes (evite un second round-trip SQL).
-    //
-    // Optim : on parse "NOM Prenom" UNE seule fois par string distincte
-    // (memoisation), pas par event. Sur 10 events qui referencent le
-    // meme joueur, le parsing nom est fait 1 fois au lieu de 10.
-    const parseNameCache = new Map<string, string>();
-    const parseEventName = (raw: string): string => {
-      const cached = parseNameCache.get(raw);
-      if (cached !== undefined) return cached;
-      let nomFam = "";
-      let prenom = "";
-      // Split sur espaces, separation nom (UPPER) vs prenom (autre).
-      // On evite l'expression reguliere complexe et on teste simplement
-      // si le premier char est en majuscule ET il n'y a pas de minuscule
-      // dans le mot (= patronyme FFF "DUPONT", "DE LA TOUR").
-      const parts = raw.split(/\s+/);
-      for (const p of parts) {
-        if (!p) continue;
-        // Test ultra-rapide : "DUPONT" -> tout en upper ; "Pierre" -> mixed.
-        const isUpper = p === p.toUpperCase() && p !== p.toLowerCase();
-        if (isUpper) nomFam += (nomFam ? " " : "") + p;
-        else prenom += (prenom ? " " : "") + p;
-      }
-      if (!nomFam) nomFam = raw;
-      const key = cleNom(nomFam, prenom);
-      parseNameCache.set(raw, key);
-      return key;
-    };
-
-    for (const e of evtsAll) {
-      const m = matchById.get(e.matchId);
-      if (!m) continue;
-      if (!isEquipeSurCote(m, equipe, (e as any).equipe)) continue;
-      const nomJoueur = (e.joueur ?? "").trim();
-      if (!nomJoueur) continue;
-      const key = parseEventName(nomJoueur);
-      const a = acc.get(key);
-      if (!a) continue;
-      if (e.type === "but") a.buts++;
-      if (e.type === "but" && e.joueur2) {
-        const passKey = parseEventName((e.joueur2 ?? "").trim());
-        const pa = acc.get(passKey);
-        if (pa) pa.passes++;
-      }
-      if (e.type === "carton" && e.sousType === "jaune") a.cartonsJaunes++;
-      if (e.type === "carton" && (e.sousType === "rouge" || e.sousType === "double_jaune")) a.cartonsRouges++;
-    }
+    // Buts / passes saisis a la main pour CETTE equipe : ils priment sur le
+    // calcul depuis les feuilles (qui n'ont pas toujours les buteurs).
+    const saisies = await this.saisiesEquipe(equipeId);
 
     // Resultat : on prend le joueur global si dispo, sinon on bricole.
-    const rows = [...acc.values()].map((a) => ({
-      id: a.joueur?.id ?? null,
-      nom: a.nom, prenom: a.prenom, licence: a.licence,
-      poste: a.joueur?.poste ?? null,
-      numeroFavori: a.joueur?.numeroFavori ?? null,
-      statut: a.joueur?.statutMutation ?? null,
-      scoreForme: equipeDansSaisonActive ? (a.joueur?.scoreForme ?? null) : null,
-      // Stats specifiques a CETTE equipe :
-      matchs: a.matchs,
-      titularisations: a.titularisations,
-      minutes: a.minutes,
-      buts: a.buts,
-      passesDecisives: a.passes,
-      cartonsJaunes: a.cartonsJaunes,
-      cartonsRouges: a.cartonsRouges,
-      typeDiscipline: a.joueur?.typeDiscipline ?? null,
-      tailleCm: a.joueur?.tailleCm ?? null,
-      poidsKg: a.joueur?.poidsKg ?? null,
-      piedFort: a.joueur?.piedFort ?? null,
-      blessuresAnt: a.joueur?.blessuresAnt ?? null,
-      clubId: equipe.clubId,
-      equipeId, equipeNom: equipe.nom,
-    })).sort((a, b) => b.matchs - a.matchs);
+    const rows = [...acc.values()].map((a) => {
+      const saisie = a.joueur ? saisies.get(a.joueur.id) : undefined;
+      // Numeros portes DANS CETTE equipe : le numero favori et les "postes
+      // joues" d'un joueur n'ont pas le meme sens en Seniors et en U20.
+      const numeros = Object.entries(a.numeros).sort((x, y) => y[1] - x[1]);
+      return {
+        id: a.joueur?.id ?? null,
+        nom: a.nom, prenom: a.prenom, licence: a.licence,
+        poste: a.joueur?.poste ?? null,
+        numeroFavori: numeros.length ? +numeros[0][0] : (a.joueur?.numeroFavori ?? null),
+        statut: a.joueur?.statutMutation ?? null,
+        statutMutation: a.joueur?.statutMutation ?? null,
+        scoreForme: equipeDansSaisonActive ? (a.joueur?.scoreForme ?? null) : null,
+        // Stats specifiques a CETTE equipe :
+        matchs: a.matchs,
+        titularisations: a.titularisations,
+        minutes: a.minutes,
+        buts: saisie?.buts ?? a.stats.buts,
+        passesDecisives: saisie?.passesDecisives ?? a.stats.passesDecisives,
+        cartonsJaunes: a.stats.cartonsJaunes,
+        cartonsRouges: a.stats.cartonsRouges,
+        noteMoyenne: a.matchs > 0 ? noteIndicative(a.matchs, a.stats.cartonsRouges) : null,
+        postes: numeros.length ? numeros.map(([n, k]) => `${n} (${k})`).join(" / ") : null,
+        typeDiscipline: a.joueur?.typeDiscipline ?? null,
+        tailleCm: a.joueur?.tailleCm ?? null,
+        poidsKg: a.joueur?.poidsKg ?? null,
+        piedFort: a.joueur?.piedFort ?? null,
+        blessuresAnt: a.joueur?.blessuresAnt ?? null,
+        clubId: equipe.clubId,
+        equipeId, equipeNom: equipe.nom,
+      };
+    }).sort((a, b) => b.matchs - a.matchs);
 
     // -- Joueurs attaches manuellement (en plus de ceux ayant joue) --
     // Permet de constituer l'effectif d'une saison future quand aucun
@@ -243,7 +209,7 @@ export class JoueursService {
         scoreForme: equipeDansSaisonActive ? j.scoreForme : null,
         noteMoyenne: null,
         matchs: 0, titularisations: 0, minutes: 0,
-        buts: 0, butsMarques: 0, passesDecisives: 0,
+        buts: saisies.get(j.id)?.buts ?? 0, passesDecisives: saisies.get(j.id)?.passesDecisives ?? 0,
         cartonsJaunes: 0, cartonsRouges: 0,
         typeDiscipline: j.typeDiscipline ?? null,
         tailleCm: j.tailleCm, poidsKg: j.poidsKg, piedFort: j.piedFort,
@@ -307,12 +273,12 @@ export class JoueursService {
       arr.push(e);
       evtsByMatch.set(e.matchId, arr);
     }
-    // Agreg par joueur (cle = licence si dispo, sinon nom+prenom+cote).
+    // Agreg par joueur (cle = licence si dispo, sinon nom+prenom).
     type Acc = {
       licence: string | null; nom: string; prenom: string | null;
-      clubId: string;
+      clubId: string; equipeId: string;
       matchs: number; titularisations: number; minutes: number;
-      buts: number; passes: number; jaunes: number; rouges: number;
+      stats: StatsMatch;
     };
     const accByKey = new Map<string, Acc>();
     const keyOf = (lic: string | null, nom: string, prenom: string | null) =>
@@ -321,93 +287,108 @@ export class JoueursService {
     for (const c of compos) {
       const m = matchById.get(c.matchId);
       if (!m) continue;
-      const cote: "dom" | "ext" = (c as any).cote;
-      const { clubId, equipeId: equipeIdComp } = equipeDuCote(m, cote);
-      // Filtre defensif : ignore les composiions cote oppose si l'equipe
+      const { clubId, equipeId: equipeIdComp } = equipeDuCote(m, c.cote);
+      // Filtre defensif : ignore les compositions cote oppose si l'equipe
       // n'appartient pas au championnat (ex: match coupe contre une
       // equipe d'une autre poule).
       if (!equipeIdComp || !equipeIds.has(equipeIdComp)) continue;
-      const minutes = minutesJouees(c, evtsByMatch.get(m.id) ?? []);
-      // Skip remplacant non entre en jeu (coherent avec effectif()).
-      if (!c.titulaire && minutes === 0) continue;
+      const evtsDuMatch = evtsByMatch.get(m.id) ?? [];
+      const minutes = minutesJouees(c, evtsDuMatch);
       const k = keyOf(c.licence, c.nom, c.prenom);
       let a = accByKey.get(k);
       if (!a) {
         a = {
-          licence: c.licence, nom: c.nom, prenom: c.prenom, clubId,
-          matchs: 0, titularisations: 0, minutes: 0,
-          buts: 0, passes: 0, jaunes: 0, rouges: 0,
+          licence: c.licence, nom: c.nom, prenom: c.prenom, clubId, equipeId: equipeIdComp,
+          matchs: 0, titularisations: 0, minutes: 0, stats: { ...STATS_MATCH_VIDES },
         };
         accByKey.set(k, a);
       }
+      a.stats = cumuler(a.stats, statsDuMatch(c, evtsDuMatch));
+      // Skip remplacant non entre en jeu (coherent avec effectif()).
+      if (!c.titulaire && minutes === 0) continue;
       a.matchs++;
       a.minutes += minutes;
       if (c.titulaire) a.titularisations++;
     }
 
-    // Buts/passes/cartons : depuis les evenements (qui pointent un joueur
-    // par son nom — match approximatif).
+    // Reconciliation avec les Joueur en base pour recuperer poste, numero,
+    // etc. Match par licence en priorite, sinon par nom. Le perimetre est le
+    // club des joueurs du championnat, pas toute la base.
     const norm = (s: string | null | undefined) => (s ?? "").toLowerCase().trim();
-    const findAccByName = (name: string): Acc | null => {
-      const n = norm(name);
-      for (const a of accByKey.values()) {
-        const ln = norm(a.nom);
-        const pn = norm(a.prenom);
-        if (n.includes(ln) && (pn === "" || n.includes(pn.charAt(0)))) {
-          return a;
-        }
-      }
-      return null;
-    };
-    for (const e of evts) {
-      const m = matchById.get(e.matchId);
-      if (!m) continue;
-      const equipeIdEvt = e.equipe === "dom" ? m.equipeDomId : m.equipeExtId;
-      if (!equipeIdEvt || !equipeIds.has(equipeIdEvt)) continue;
-      const a = findAccByName(e.joueur ?? "");
-      if (!a) continue;
-      if (e.type === "but" && (e as any).sousType !== "csc") a.buts++;
-      else if (e.type === "passe_decisive") a.passes++;
-      else if (e.type === "carton" && e.sousType === "jaune") a.jaunes++;
-      else if (e.type === "carton" && e.sousType === "rouge") a.rouges++;
-    }
-
-    // Reconciliation avec les Joueur en base pour recuperer le scoreForme,
-    // poste, numero, etc. Match par licence en priorite, sinon par nom.
-    const jouersTous = await this.repo.find();
-    const byLicence = new Map(jouersTous.filter((j) => j.licence).map((j) => [j.licence, j]));
+    const clubIds = [...new Set([...accByKey.values()].map((a) => a.clubId))];
+    const joueursTous = clubIds.length === 0 ? [] : await this.repo
+      .createQueryBuilder("j")
+      .where("j.clubId IN (:...ids)", { ids: clubIds })
+      .getMany();
+    const byLicence = new Map(joueursTous.filter((j) => j.licence).map((j) => [j.licence, j]));
     const findJoueurEnBase = (a: Acc): Joueur | null => {
       if (a.licence && byLicence.has(a.licence)) return byLicence.get(a.licence)!;
       const ln = norm(a.nom);
       const pn = norm(a.prenom);
-      return jouersTous.find((j) =>
-        norm(j.nom) === ln && (pn === "" || norm(j.prenom).startsWith(pn[0]))
+      return joueursTous.find((j) =>
+        j.clubId === a.clubId && norm(j.nom) === ln && (pn === "" || norm(j.prenom).startsWith(pn[0]))
       ) ?? null;
     };
+
+    // Saisies manuelles (buts / passes) de chaque equipe du championnat.
+    const saisiesParEquipe = new Map<string, Map<string, { buts: number | null; passesDecisives: number | null }>>();
+    for (const eid of equipeIds) saisiesParEquipe.set(eid, await this.saisiesEquipe(eid));
 
     return [...accByKey.values()]
       .filter((a) => a.matchs > 0)
       .map((a) => {
         const j = findJoueurEnBase(a);
+        const saisie = j ? saisiesParEquipe.get(a.equipeId)?.get(j.id) : undefined;
+        const buts = saisie?.buts ?? a.stats.buts;
         return {
           id: j?.id ?? null,
           licence: a.licence, nom: a.nom, prenom: a.prenom,
-          clubId: a.clubId, equipeId: null,
+          clubId: a.clubId, equipeId: a.equipeId,
           matchs: a.matchs, titularisations: a.titularisations,
           minutes: a.minutes,
-          buts: a.buts, butsMarques: a.buts,
-          passesDecisives: a.passes,
-          cartonsJaunes: a.jaunes, cartonsRouges: a.rouges,
-          // Stats du PROFIL persistent (poste, photo, etc.) ;
-          // pas de stat de match globale.
+          buts, butsMarques: buts,
+          passesDecisives: saisie?.passesDecisives ?? a.stats.passesDecisives,
+          cartonsJaunes: a.stats.cartonsJaunes, cartonsRouges: a.stats.cartonsRouges,
+          // Profil persistant (poste, numero) ; pas de compteur global.
           poste: j?.poste ?? null,
           numeroFavori: j?.numeroFavori ?? null,
-          scoreForme: j?.scoreForme ?? null,
-          noteMoyenne: null,
+          scoreForme: null,
+          noteMoyenne: noteIndicative(a.matchs, a.stats.cartonsRouges),
         };
       })
       .sort((a, b) => b.matchs - a.matchs);
   }
+
+  /**
+   * Buts / passes saisis a la main pour une equipe, par joueur. Seule une
+   * valeur non nulle prime sur le calcul depuis les feuilles.
+   */
+  private async saisiesEquipe(equipeId: string) {
+    const rows = await this.statsEquipeRepo.find({ where: { equipeId } });
+    return new Map(rows.map((r) => [r.joueurId, { buts: r.buts, passesDecisives: r.passesDecisives }]));
+  }
+
+  /**
+   * Enregistre les buts / passes d'un joueur dans une equipe (donc une saison).
+   * `undefined` laisse la valeur en l'etat, `null` l'efface (retour au calcul
+   * depuis les feuilles). Une ligne devenue vide est supprimee.
+   */
+  async definirStatEquipe(joueurId: string, equipeId: string, dto: StatEquipeDto) {
+    await this.findOne(joueurId);
+    const eq = await this.equipesRepo.findOne({ where: { id: equipeId } });
+    if (!eq) throw new NotFoundException(`Equipe ${equipeId} introuvable`);
+    const ligne = await this.statsEquipeRepo.findOne({ where: { joueurId, equipeId } })
+      ?? this.statsEquipeRepo.create({ joueurId, equipeId, buts: null, passesDecisives: null });
+    if (dto.buts !== undefined) ligne.buts = dto.buts;
+    if (dto.passesDecisives !== undefined) ligne.passesDecisives = dto.passesDecisives;
+    if (ligne.buts == null && ligne.passesDecisives == null) {
+      if (ligne.id) await this.statsEquipeRepo.remove(ligne);
+      return { joueurId, equipeId, buts: null, passesDecisives: null };
+    }
+    const saved = await this.statsEquipeRepo.save(ligne);
+    return { joueurId, equipeId, buts: saved.buts, passesDecisives: saved.passesDecisives };
+  }
+
   /**
    * Recherche floue par nom/prenom (accents, casse, ordre, fautes de frappe)
    * ou par debut de licence. Classement par pertinence puis par nom. Utilisee
@@ -581,11 +562,10 @@ export class JoueursService {
 
     // Evenements de ces matchs : les minutes ne sont pas stockees sur les
     // compositions importees (0), on les deduit des remplacements comme
-    // effectif() (sinon la fiche joueur affichait 0 minute).
+    // effectif() ; buts, passes et cartons viennent des memes evenements.
     const evts = matchIds.length === 0 ? [] : await this.evtsRepo
       .createQueryBuilder("e")
       .where("e.match_id IN (:...ids)", { ids: matchIds })
-      .andWhere("e.type = :t", { t: "remplacement" })
       .getMany();
     const evtsByMatch = new Map<string, EvenementMatch[]>();
     for (const e of evts) {
@@ -623,7 +603,11 @@ export class JoueursService {
 
     // 5) Agregation memoire : par (saisonId, equipeId, clubId).
     type Cle = { saisonId: string | null; equipeId: string | null; clubId: string };
-    const accByKey = new Map<string, { cle: Cle; matchs: number; minutes: number; titu: number }>();
+    type AccLigne = {
+      cle: Cle; matchs: number; minutes: number; titu: number;
+      stats: StatsMatch; numeros: Record<number, number>;
+    };
+    const accByKey = new Map<string, AccLigne>();
     for (const c of composJoueur) {
       const m = matchById.get(c.matchId);
       if (!m) continue;
@@ -632,16 +616,19 @@ export class JoueursService {
       const key = `${saisonId ?? ""}|${equipeId ?? clubId}`;
       let a = accByKey.get(key);
       if (!a) {
-        a = { cle: { saisonId, equipeId, clubId }, matchs: 0, minutes: 0, titu: 0 };
+        a = { cle: { saisonId, equipeId, clubId }, matchs: 0, minutes: 0, titu: 0, stats: { ...STATS_MATCH_VIDES }, numeros: {} };
         accByKey.set(key, a);
       }
+      const evtsDuMatch = evtsByMatch.get(c.matchId) ?? [];
+      a.stats = cumuler(a.stats, statsDuMatch(c, evtsDuMatch));
       // Un remplacant reste sur le banc n'a pas joue (comme effectif()) : la
       // ligne d'equipe existe, mais le match n'est pas compte.
-      const minutes = minutesJouees(c, evtsByMatch.get(c.matchId) ?? []);
+      const minutes = minutesJouees(c, evtsDuMatch);
       if (!c.titulaire && minutes === 0) continue;
       a.matchs++;
       a.minutes += minutes;
       if (c.titulaire) a.titu++;
+      if (typeof c.numero === "number" && c.numero > 0) a.numeros[c.numero] = (a.numeros[c.numero] ?? 0) + 1;
     }
 
     // 6a) AJOUT : equipes attachees manuellement sans matchs joues
@@ -679,10 +666,19 @@ export class JoueursService {
         if (accByKey.has(key)) continue; // deja represente par ses matchs
         accByKey.set(key, {
           cle: { saisonId: eq.saisonId ?? null, equipeId: eqId, clubId: eq.clubId },
-          matchs: 0, minutes: 0, titu: 0,
+          matchs: 0, minutes: 0, titu: 0, stats: { ...STATS_MATCH_VIDES }, numeros: {},
         });
       }
     }
+
+    // Buts / passes saisis a la main, par equipe (donc par saison).
+    const equipeIdsLignes = [...accByKey.values()].map((a) => a.cle.equipeId).filter((x): x is string => !!x);
+    const saisies = equipeIdsLignes.length === 0 ? [] : await this.statsEquipeRepo
+      .createQueryBuilder("s")
+      .where("s.joueurId = :jid", { jid: joueurId })
+      .andWhere("s.equipeId IN (:...eids)", { eids: equipeIdsLignes })
+      .getMany();
+    const saisieParEquipe = new Map(saisies.map((r) => [r.equipeId, r]));
 
     // 6) Resultat groupe par saison + tri.
     const bySaison = new Map<string, { saison: any; lignes: any[] }>();
@@ -700,12 +696,20 @@ export class JoueursService {
         matchs: a.matchs,
         titularisations: a.titu,
         minutes: a.minutes,
+        buts: saisieParEquipe.get(a.cle.equipeId ?? "")?.buts ?? a.stats.buts,
+        passesDecisives: saisieParEquipe.get(a.cle.equipeId ?? "")?.passesDecisives ?? a.stats.passesDecisives,
+        cartonsJaunes: a.stats.cartonsJaunes,
+        cartonsRouges: a.stats.cartonsRouges,
+        noteMoyenne: a.matchs > 0 ? noteIndicative(a.matchs, a.stats.cartonsRouges) : null,
+        // Numeros portes dans CETTE equipe / saison : { "6": 3, "8": 5 }.
+        numeros: a.numeros,
       });
     }
     const result = [...bySaison.entries()].map(([sid, v]) => ({
       saisonId: sid === "_inconnue" ? null : sid,
       saisonNom: (v.saison as any)?.nom ?? "Saison inconnue",
       anneeDebut: (v.saison as any)?.anneeDebut ?? 0,
+      saisonActive: !!(v.saison as any)?.actif,
       lignes: v.lignes.sort((a, b) => b.matchs - a.matchs),
     }));
     result.sort((a, b) => (b.anneeDebut ?? 0) - (a.anneeDebut ?? 0));
@@ -792,6 +796,15 @@ class JoueursController {
     return this.svc.numerosFreq(id);
   }
 
+  /** PUT /joueurs/:id/stats-equipe/:equipeId : buts / passes saisis a la main
+   *  pour CETTE equipe (donc cette saison) ; null efface la saisie. */
+  @Put(":id/stats-equipe/:equipeId")
+  definirStatEquipe(
+    @Param("id") id: string, @Param("equipeId") equipeId: string, @Body() dto: StatEquipeDto,
+  ) {
+    return this.svc.definirStatEquipe(id, equipeId, dto);
+  }
+
   /** GET /joueurs/:id/historique : parcours du joueur par saison
    *  (saisons / equipes / clubs ou il a evolue). */
   @Get(":id/historique")
@@ -816,7 +829,7 @@ class JoueursController {
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Joueur, Composition, Match, EvenementMatch, Equipe, Saison])],
+  imports: [TypeOrmModule.forFeature([Joueur, Composition, Match, EvenementMatch, Equipe, Saison, StatJoueurEquipe])],
   controllers: [JoueursController],
   providers: [JoueursService],
   exports: [JoueursService],

@@ -16,6 +16,7 @@ import {
   Arbitre, ArbitreMatch, Blessure, Club, Coach, Composition, Entrainement,
   Equipe, EvenementMatch, Joueur, LigneClassement, Match, Saison, StaffMatch,
 } from "@/entities";
+import { noteIndicative } from "@/common/indicateurs";
 
 const POSTE_BY_NUM: Record<number, string> = {
   1: "GB", 2: "DD", 3: "DG", 4: "DC", 5: "DC",
@@ -584,7 +585,7 @@ export class DerivationService {
       const numeroFavori = numeros.length ? +numeros[0][0] : null;
       const postes = numeros.map(([n, c]) => `${n} (${c})`).join(" / ");
       const posteInfere = numeroFavori != null ? POSTE_BY_NUM[numeroFavori] ?? "MIL" : "MIL";
-      const noteMoyenne = Math.round((5.5 + a.matchs * 0.04 - a.cr * 0.5) * 10) / 10;
+      const noteMoyenne = noteIndicative(a.matchs, a.cr);
 
       const found =
         (a.licence && idxLic.get(`lic:${a.licence}`)) ||
