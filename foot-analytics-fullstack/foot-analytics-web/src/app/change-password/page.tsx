@@ -9,11 +9,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { getCachedUser, setSession } from "@/lib/auth";
 import { Key } from "lucide-react";
+import { cheminInterne } from "@/lib/redirection";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
   const params = useSearchParams();
-  const from = params.get("from") || "/";
+  const from = cheminInterne(params.get("from"));
   const u = getCachedUser();
 
   const [oldP, setOldP] = useState("");

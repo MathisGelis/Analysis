@@ -1,7 +1,10 @@
 // src/middleware.ts
 //
-// Middleware execute AVANT tout rendu de page. UNIQUE responsable de la
-// selection automatique de l'equipe au demarrage : si le cookie
+// Middleware execute AVANT tout rendu de page. Deux responsabilites :
+//
+// 1. Garde d'acces : pas de jeton valide -> redirection vers /login.
+// 2. UNIQUE responsable de la selection automatique de l'equipe au
+//    demarrage : si le cookie
 // `ownEquipeId` est absent (apres login, changement de club, cookies
 // vides), on interroge le backend, on choisit l'equipe par defaut du club
 // et on pose `ownEquipeId` + `ownSaisonId` (et `ownClubId` si on a du
@@ -42,11 +45,26 @@ async function getJson<T>(chemin: string, headers: HeadersInit): Promise<T> {
 
 export async function middleware(req: NextRequest) {
   const token = req.cookies.get("fa_token")?.value;
-  // Rien a faire si une equipe est deja choisie, ou si l'utilisateur n'est
-  // pas authentifie (il ira vers /login de toute facon).
-  if (req.cookies.get("ownEquipeId")?.value || !token) return NextResponse.next();
+  const payload = token ? decoderPayloadJwt(token) : null;
 
-  const payload = decoderPayloadJwt(token);
+  // GARDE D'ACCES : sans jeton lisible et non expire, on renvoie vers /login
+  // (avec la page demandee en "from"). Avant, un visiteur anonyme obtenait la
+  // page complete remplie avec les donnees de DEMONSTRATION (repli de api.ts
+  // sur les 401). Les routes /login, /change-password et /api sont exclues par
+  // le matcher.
+  if (!payload || (payload.exp && payload.exp * 1000 < Date.now())) {
+    const url = req.nextUrl.clone();
+    const demandee = req.nextUrl.pathname + req.nextUrl.search;
+    url.pathname = "/login";
+    url.search = "";
+    if (demandee !== "/") url.searchParams.set("from", demandee);
+    const res = NextResponse.redirect(url);
+    if (token) res.cookies.delete("fa_token");
+    return res;
+  }
+
+  // Selection automatique : rien a faire si une equipe est deja choisie.
+  if (req.cookies.get("ownEquipeId")?.value) return NextResponse.next();
   const estAdmin = payload?.role === "admin";
   const clubJwt = !estAdmin ? payload?.clubId ?? null : null;
   const clubCookie = req.cookies.get("ownClubId")?.value ?? null;

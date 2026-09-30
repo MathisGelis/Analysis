@@ -10,11 +10,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { setSession } from "@/lib/auth";
 import { LogIn } from "lucide-react";
+import { cheminInterne } from "@/lib/redirection";
 
 export default function LoginPage() {
   const router = useRouter();
   const params = useSearchParams();
-  const from = params.get("from") || "/";
+  // Cible validee : jamais une URL externe (open redirect).
+  const from = cheminInterne(params.get("from"));
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);

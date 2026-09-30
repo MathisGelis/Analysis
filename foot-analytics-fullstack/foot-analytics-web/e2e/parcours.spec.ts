@@ -4,6 +4,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
+import { WEB_PORT } from "../playwright.config";
 import { MOT_DE_PASSE } from "./global-setup";
 
 test.describe.configure({ mode: "serial" });
@@ -27,6 +28,28 @@ const selecteur = (page: Page) => page.locator("aside button.panel-inset, nav bu
 async function ouvrirSelecteur(page: Page) {
   await selecteur(page).click();
 }
+
+test("acces : un visiteur anonyme est renvoye vers /login, et une cible externe est ignoree", async ({ browser }) => {
+  const base = `http://localhost:${WEB_PORT}`;
+  const anonyme = await browser.newContext();
+  const p = await anonyme.newPage();
+  try {
+    await p.goto(`${base}/matchs`);
+    await expect(p).toHaveURL(`${base}/login?from=%2Fmatchs`);
+    // Pas de coquille (barre laterale) ni de donnees de demo sur la page de connexion.
+    await expect(p.getByText("Connexion staff technique")).toBeVisible();
+    await expect(p.getByText("Console staff")).toHaveCount(0);
+
+    // Un `from` externe ne doit jamais etre suivi apres la connexion.
+    await p.goto(`${base}/login?from=${encodeURIComponent("https://evil.example/piege")}`);
+    await p.getByPlaceholder("MLEMAIRE").fill("AADMIN");
+    await p.locator("input[type=password]").fill(MOT_DE_PASSE);
+    await p.getByRole("button", { name: "Se connecter" }).click();
+    await p.waitForURL(`${base}/`);
+  } finally {
+    await anonyme.close();
+  }
+});
 
 test("connexion : refus d'un mauvais mot de passe puis acces, equipe choisie d'office", async () => {
   await page.goto("/login");

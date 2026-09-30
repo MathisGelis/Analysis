@@ -15,6 +15,7 @@ import { OwnEquipeProvider } from "@/lib/own-equipe-context";
 import { OwnClubProvider } from "@/lib/own-club-context";
 import { getOwnClubIdServer } from "@/lib/own-club";
 import { getOwnEquipeIdServer, getOwnSaisonIdServer } from "@/lib/own-equipe";
+import { getCurrentUserServer } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Foot Analytics — Console d'entraineur",
@@ -22,8 +23,13 @@ export const metadata: Metadata = {
     "Analyse et suivi de saison pour staff de football amateur.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const initialTheme = getServerTheme();
+  // Utilisateur connecte (jeton present et non expire) : la coquille de l'app
+  // (barre laterale, recherche, selecteur d'equipe) n'a de sens qu'apres
+  // connexion. Sur /login elle affichait "Non connecte" et declenchait des
+  // appels API refuses.
+  const connecte = (await getCurrentUserServer()) !== null;
   // Lecture cookies serveur -> injectee dans les providers.
   // Ces valeurs se rafraichissent a chaque router.refresh(), donc quand
   // le switcher persist un nouveau choix + refresh, tout le Client tree
@@ -44,13 +50,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               initialEquipeId={initialEquipeId}
               initialSaisonId={initialSaisonId}
             >
-              <div className="flex min-h-screen">
-                <Sidebar />
-                <main className="flex-1 min-w-0 relative z-10">
-                  <TopBar />
-                  <div className="px-6 py-6">{children}</div>
-                </main>
-              </div>
+              {connecte ? (
+                <div className="flex min-h-screen">
+                  <Sidebar />
+                  <main className="flex-1 min-w-0 relative z-10">
+                    <TopBar />
+                    <div className="px-6 py-6">{children}</div>
+                  </main>
+                </div>
+              ) : (
+                <main className="relative z-10">{children}</main>
+              )}
             </OwnEquipeProvider>
           </OwnClubProvider>
         </ThemeProvider>
