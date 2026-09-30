@@ -1,5 +1,6 @@
 import {
-  Apparition, changementDeClub, clubParSaison, derniereApparition, derniereSaison, saisonCourte, SaisonRef,
+  Apparition, apparitionsDesEquipes, changementDeClub, clubParSaison, derniereApparition, derniereSaison, saisonCourte, SaisonRef,
+  statutMutationDeduit, statutSaisi,
 } from "./parcours-joueur";
 
 const s24: SaisonRef = { id: "s24", nom: "2024-2025", anneeDebut: 2024 };
@@ -65,5 +66,64 @@ describe("saisonCourte", () => {
     expect(saisonCourte("2024-2025")).toBe("24-25");
     expect(saisonCourte("2025 / 2026")).toBe("25-26");
     expect(saisonCourte("Saison test")).toBe("Saison test");
+  });
+});
+
+describe("rattachement a une equipe", () => {
+  it("vaut presence dans la saison de l'equipe : Pas mutation pour un joueur du club sans match cette saison", () => {
+    // A joue au club l'an dernier, pas encore de match cette saison, mais il est dans l'effectif de la saison.
+    const apps = [app("OL", "s25", "07/12/2025"), ...apparitionsDesEquipes([{ clubId: "OL", saisonId: "s26" }])];
+    expect(changementDeClub(apps, saisons)).toBe("meme_club");
+  });
+
+  it("arrive d'un autre club et rattache a l'effectif sans avoir encore joue : club different", () => {
+    const apps = [app("MIONS", "s25", "07/12/2025"), ...apparitionsDesEquipes([{ clubId: "OL", saisonId: "s26" }])];
+    expect(changementDeClub(apps, saisons)).toBe("club_different");
+  });
+
+  it("un match plus recent dans la saison prime sur le rattachement (date du match contre debut de saison)", () => {
+    const apps = [...apparitionsDesEquipes([{ clubId: "OL", saisonId: "s26" }]), app("AUTRE", "s26", "06/09/2026"), app("OL", "s25", "01/10/2025")];
+    expect(changementDeClub(apps, saisons)).toBe("club_different");
+  });
+});
+
+describe("statutSaisi", () => {
+  it("le drapeau, ou une valeur que le calcul n'ecrit jamais (Mutation, hors delai)", () => {
+    expect(statutSaisi("Pas mutation", true)).toBe(true);
+    expect(statutSaisi("Mutation", false)).toBe(true);
+    expect(statutSaisi("Mutation hors delai", null)).toBe(true);
+    expect(statutSaisi("Pas mutation", false)).toBe(false);
+    expect(statutSaisi("Non connu", undefined)).toBe(false);
+    expect(statutSaisi(null, false)).toBe(false);
+  });
+});
+
+describe("statutMutationDeduit", () => {
+  const base = { parDefaut: "Non connu" };
+
+  it("meme club : Pas mutation, meme si une autre valeur etait saisie", () => {
+    expect(statutMutationDeduit({ ...base, actuel: "Mutation hors delai", saisi: true, changement: "meme_club" })).toBe("Pas mutation");
+  });
+
+  it("club different : Mutation par defaut, y compris sur Non connu et sur un Pas mutation calcule", () => {
+    expect(statutMutationDeduit({ ...base, actuel: "Non connu", saisi: false, changement: "club_different" })).toBe("Mutation");
+    expect(statutMutationDeduit({ ...base, actuel: "Pas mutation", saisi: false, changement: "club_different" })).toBe("Mutation");
+    expect(statutMutationDeduit({ ...base, actuel: null, saisi: false, changement: "club_different" })).toBe("Mutation");
+  });
+
+  it("club different : la saisie du staff est respectee (hors delai, ou Pas mutation voulu)", () => {
+    expect(statutMutationDeduit({ ...base, actuel: "Mutation hors delai", saisi: true, changement: "club_different" })).toBe("Mutation hors delai");
+    expect(statutMutationDeduit({ ...base, actuel: "Pas mutation", saisi: true, changement: "club_different" })).toBe("Pas mutation");
+  });
+
+  it("parcours insuffisant : la valeur en place, sinon la valeur par defaut", () => {
+    expect(statutMutationDeduit({ parDefaut: "Pas mutation", actuel: null, saisi: false, changement: "inconnu" })).toBe("Pas mutation");
+    expect(statutMutationDeduit({ parDefaut: "Pas mutation", actuel: "Non connu", saisi: false, changement: "inconnu" })).toBe("Pas mutation");
+    expect(statutMutationDeduit({ parDefaut: "Non connu", actuel: "Non connu", saisi: false, changement: "inconnu" })).toBe("Non connu");
+    expect(statutMutationDeduit({ parDefaut: "Non connu", actuel: "Pas mutation", saisi: false, changement: "inconnu" })).toBe("Pas mutation");
+  });
+
+  it("parcours insuffisant : un Non connu saisi a la main est conserve", () => {
+    expect(statutMutationDeduit({ parDefaut: "Pas mutation", actuel: "Non connu", saisi: true, changement: "inconnu" })).toBe("Non connu");
   });
 });

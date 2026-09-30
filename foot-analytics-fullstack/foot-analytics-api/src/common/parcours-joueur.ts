@@ -86,3 +86,45 @@ export function saisonCourte(nom: string): string {
   const m = (nom ?? "").match(/^(\d{4})\s*[-/]\s*(\d{4})$/);
   return m ? `${m[1].slice(2)}-${m[2].slice(2)}` : nom;
 }
+
+// ---------------------------------------------------------------------------
+//  Statut de mutation
+// ---------------------------------------------------------------------------
+
+export const PAS_MUTATION = "Pas mutation";
+export const MUTATION = "Mutation";
+export const MUTATION_HORS_DELAI = "Mutation hors delai";
+export const NON_CONNU = "Non connu";
+
+/** Un rattachement a une equipe (effectif) vaut presence dans la saison de cette equipe, au club de l'equipe. */
+export function apparitionsDesEquipes(equipes: { clubId: string; saisonId?: string | null }[]): Apparition[] {
+  return equipes.map((e) => ({ clubId: e.clubId, saisonId: e.saisonId ?? null, date: null }));
+}
+
+/**
+ * Une valeur est-elle une saisie du staff ? Le drapeau l'affirme pour les modifications recentes ; "Mutation" et
+ * "Mutation hors delai" ne sont jamais ecrits par le calcul automatique : ce sont forcement des saisies.
+ */
+export function statutSaisi(actuel: string | null | undefined, drapeau: boolean | null | undefined): boolean {
+  return !!drapeau || actuel === MUTATION || actuel === MUTATION_HORS_DELAI;
+}
+
+/**
+ * Statut de mutation par defaut d'un joueur d'apres son parcours de clubs :
+ *  - meme club cette saison et la precedente : Pas mutation, toujours (sans changement de club il n'y a pas de mutation) ;
+ *  - club different de la saison precedente : Mutation, sauf saisie du staff (par exemple Mutation hors delai) ;
+ *  - parcours insuffisant : la valeur en place ; `parDefaut` remplace une valeur absente ou "Non connu".
+ */
+export function statutMutationDeduit(p: {
+  actuel: string | null | undefined;
+  saisi: boolean;
+  changement: ChangementClub;
+  parDefaut: string;
+}): string {
+  if (p.changement === "meme_club") return PAS_MUTATION;
+  if (p.changement === "club_different") return p.saisi && p.actuel ? p.actuel : MUTATION;
+  // Parcours insuffisant : on garde ce qui est en place. "Non connu" n'est qu'un defaut (il ne vaut que pour les
+  // adversaires) : il laisse la place au defaut du moment, par exemple Pas mutation pour un joueur de mon club.
+  if (p.saisi && p.actuel) return p.actuel;
+  return p.actuel && p.actuel !== NON_CONNU ? p.actuel : p.parDefaut;
+}

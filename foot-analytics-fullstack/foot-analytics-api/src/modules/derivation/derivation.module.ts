@@ -13,7 +13,9 @@ import { Controller, Injectable, Module, Post, Query, UseGuards } from "@nestjs/
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { chargerDetailsMatchs } from "@/common/details-matchs";
-import { Apparition, changementDeClub, derniereApparition, SaisonRef } from "@/common/parcours-joueur";
+import {
+  Apparition, apparitionsDesEquipes, changementDeClub, derniereApparition, SaisonRef, statutMutationDeduit, statutSaisi,
+} from "@/common/parcours-joueur";
 import {
   Arbitre, ArbitreMatch, Blessure, Club, Coach, Composition, Entrainement,
   Equipe, EvenementMatch, Joueur, LigneClassement, Match, Saison, StaffMatch,
@@ -227,17 +229,9 @@ export class DerivationService {
       }
     }
 
-    // ---- Club actuel ----
-    // Un joueur identifie par sa licence est UNE fiche, quel que soit le club : son club est celui de sa
-    // derniere apparition, pas celui du premier match rencontre (l'ordre de lecture n'est pas chronologique).
-    // Sans cela, un joueur arrive cette saison restait rattache a son ancien club.
     const saisonsRef = new Map<string, SaisonRef>(
       (await this.saisonsRepo.find()).map((s) => [s.id, { id: s.id, nom: s.nom, anneeDebut: s.anneeDebut }]),
     );
-    for (const a of agg.values()) {
-      const recente = derniereApparition(a.apps, saisonsRef);
-      if (recente) a.clubId = recente.clubId;
-    }
 
     // ---- Donnees additionnelles pour le calcul de la fatigue ----
     const [trainings, blessuresAll] = await Promise.all([
@@ -515,6 +509,17 @@ export class DerivationService {
         (a.licence && idxLic.get(`lic:${a.licence}`)) ||
         idxName.get(nameKey(a.nom, a.prenom, a.clubId));
 
+      // Parcours : ses matchs, plus ses rattachements a une equipe (un joueur ajoute a l'effectif d'une saison y
+      // est present meme sans avoir encore joue). Son club est celui de sa presence la plus RECENTE : un joueur
+      // identifie par sa licence est UNE fiche, quel que soit le club, et l'ordre de lecture des matchs n'est pas
+      // chronologique (sans cela, un joueur arrive cette saison restait rattache a son ancien club).
+      const rattaches = ((found as any)?.equipesAttachees ?? [])
+        .map((id: string) => equipeById.get(id))
+        .filter((e: Equipe | undefined): e is Equipe => !!e);
+      const parcours: Apparition[] = [...a.apps, ...apparitionsDesEquipes(rattaches)];
+      const recente = derniereApparition(parcours, saisonsRef);
+      if (recente) a.clubId = recente.clubId;
+
       const isMine = ownClubIds.has(a.clubId);
       const fatigue = fatigueDe(a, found ?? null, isMine);
 
@@ -522,12 +527,14 @@ export class DerivationService {
       const typeDiscipline = typeDisciplineFor(discKey);
       const scoreDiscipline = scoreDisciplineFor(discKey);
 
-      // Statut mutation. Meme club cette saison et la precedente : jamais une mutation, quoi qu'on ait
-      // saisi. Sinon la valeur saisie prime ; a defaut mon club passe en "Pas mutation", les
-      // adversaires en "Non connu".
-      const statutMutation = changementDeClub(a.apps, saisonsRef) === "meme_club"
-        ? "Pas mutation"
-        : (found as any)?.statutMutation ?? (isMine ? "Pas mutation" : "Non connu");
+      // Statut de mutation d'apres le parcours de clubs (voir common/parcours-joueur.ts). Sans parcours exploitable,
+      // la valeur en place ; a defaut mon club passe en "Pas mutation" et les adversaires en "Non connu".
+      const statutMutation = statutMutationDeduit({
+        actuel: (found as any)?.statutMutation,
+        saisi: statutSaisi((found as any)?.statutMutation, (found as any)?.statutMutationSaisi),
+        changement: changementDeClub(parcours, saisonsRef),
+        parDefaut: isMine ? "Pas mutation" : "Non connu",
+      });
 
       toSave.push({
         ...(found ?? {}),

@@ -186,8 +186,63 @@ describe("DerivationService - cartons et arbitres", () => {
       const j = await fiche("GUEDES");
       expect(j.clubId).toBe(c.ol.id);
       expect(await ds.getRepository(Joueur).count({ where: { nom: "GUEDES" } })).toBe(1);
-      // Club different : on n'invente ni "Mutation" ni "Pas mutation", la valeur saisie reste.
-      expect(j.statutMutation).toBe("Non connu");
+      // Club different de la saison precedente : Mutation par defaut (il etait "Non connu").
+      expect(j.statutMutation).toBe("Mutation");
+    });
+
+    it("club different : la saisie du staff est respectee, le calcul ne la remplace pas", async () => {
+      const c = await contexte();
+      const horsDelai = { nom: "HORS", prenom: "Delai", licence: "301" };
+      const voulu = { nom: "VOULU", prenom: "Pas", licence: "302" };
+      await f.joueur({ ...horsDelai, clubId: c.ol.id, statutMutation: "Mutation hors delai" });
+      await f.joueur({ ...voulu, clubId: c.ol.id, statutMutation: "Pas mutation", statutMutationSaisi: true });
+      for (const j of [horsDelai, voulu]) {
+        await c.jouer(c.mions, c.s25, "07/12/2025", j);
+        await c.jouer(c.ol, c.s26, "06/09/2026", j);
+      }
+
+      await svc.recomputeJoueurs();
+
+      expect((await fiche("HORS")).statutMutation).toBe("Mutation hors delai");
+      expect((await fiche("VOULU")).statutMutation).toBe("Pas mutation");
+    });
+
+    it("un Pas mutation non saisi (calcule ou par defaut) devient Mutation quand le club change", async () => {
+      const c = await contexte();
+      const arrive = { nom: "ARRIVE", prenom: "Tom", licence: "303" };
+      await f.joueur({ ...arrive, clubId: c.ol.id, statutMutation: "Pas mutation" });   // defaut de l'epoque
+      await c.jouer(c.mions, c.s25, "07/12/2025", arrive);
+      await c.jouer(c.ol, c.s26, "06/09/2026", arrive);
+
+      await svc.recomputeJoueurs();
+
+      expect((await fiche("ARRIVE")).statutMutation).toBe("Mutation");
+    });
+
+    it("joueur du club l'an dernier, rattache a l'effectif cette saison sans avoir joue : Pas mutation", async () => {
+      const c = await contexte();
+      const fidele = { nom: "RESTE", prenom: "Sam", licence: "304" };
+      const equipe26 = await f.equipe({ clubId: c.ol.id, nom: "Seniors", categorie: "Seniors", saisonId: c.s26.id });
+      await f.joueur({ ...fidele, clubId: c.ol.id, statutMutation: "Non connu", equipesAttachees: [equipe26.id] });
+      await c.jouer(c.ol, c.s25, "07/12/2025", fidele);      // jouait au club l'an dernier, aucun match cette saison
+
+      await svc.recomputeJoueurs();
+
+      expect((await fiche("RESTE")).statutMutation).toBe("Pas mutation");
+    });
+
+    it("arrive d'un autre club et rattache a l'effectif sans avoir joue : Mutation", async () => {
+      const c = await contexte();
+      const nouveau = { nom: "NOUVEAU", prenom: "Zed", licence: "305" };
+      const equipe26 = await f.equipe({ clubId: c.ol.id, nom: "Seniors", categorie: "Seniors", saisonId: c.s26.id });
+      await f.joueur({ ...nouveau, clubId: c.mions.id, statutMutation: "Non connu", equipesAttachees: [equipe26.id] });
+      await c.jouer(c.mions, c.s25, "07/12/2025", nouveau);
+
+      await svc.recomputeJoueurs();
+
+      const j = await fiche("NOUVEAU");
+      expect(j.statutMutation).toBe("Mutation");
+      expect(j.clubId).toBe(c.ol.id);          // son club est celui de l'effectif auquel il est rattache
     });
 
     it("meme club cette saison et la precedente : Pas mutation, meme si une autre valeur etait saisie", async () => {

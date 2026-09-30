@@ -88,6 +88,9 @@ export class Joueur {
   // "Pas mutation" (defaut pour mon club), "Mutation", "Mutation hors delai",
   // ou "Non connu" (uniquement adversaires).
   @Column({ nullable: true }) statutMutation: string;
+  // Vrai quand le staff a MODIFIE le statut a la main : le calcul automatique (club different de la saison
+  // precedente => Mutation) ne le remplace plus.
+  @Column({ default: false }) statutMutationSaisi: boolean;
   @Column({ nullable: true }) commentaire: string;
   @Column({ nullable: true }) dateNaissance: string;
   // donnees morphologiques (saisie manuelle, mon effectif)

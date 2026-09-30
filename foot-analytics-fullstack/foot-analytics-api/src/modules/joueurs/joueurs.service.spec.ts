@@ -371,6 +371,63 @@ describe("JoueursService", () => {
     });
   });
 
+  describe("statut de mutation", () => {
+    async function saisonsEtEquipes() {
+      const c = await contexte();
+      const s26 = await f.saison("2026-2027", 2026, { actif: true });
+      const mions = await f.club("Mions");
+      const seniors26 = await f.equipe({ clubId: c.moi.id, nom: "Seniors", categorie: "Seniors", saisonId: s26.id });
+      const jouerL = async (club: { id: string }, date: string, compo: { nom: string; prenom: string; licence: string }) => {
+        const m = await f.match({ clubDom: club.id, clubExt: c.adv.id, saisonId: c.saison.id, date });
+        await f.compo({ matchId: m.id, cote: "dom", ...compo });
+      };
+      return { c, mions, seniors26, jouerL };
+    }
+
+    it("ajoute a l'effectif apres avoir joue ailleurs la saison precedente : Mutation par defaut", async () => {
+      const { c, mions, seniors26, jouerL } = await saisonsEtEquipes();
+      const p = { nom: "GUEDES", prenom: "Matteo", licence: "2544602641" };
+      const j = await f.joueur({ ...p, clubId: mions.id, statutMutation: "Non connu" });
+      await jouerL(mions, "07/12/2025", p);
+
+      const r = await svc.attachEquipe(j.id, seniors26.id);
+
+      expect(r.statutMutation).toBe("Mutation");
+      expect(c.moi.id).toBeTruthy();
+    });
+
+    it("ajoute a l'effectif apres avoir joue au club la saison precedente : Pas mutation", async () => {
+      const { c, seniors26, jouerL } = await saisonsEtEquipes();
+      const p = { nom: "FIDELE", prenom: "Paul", licence: "111" };
+      const j = await f.joueur({ ...p, clubId: c.moi.id, statutMutation: "Non connu" });
+      await jouerL(c.moi, "07/12/2025", p);
+
+      expect((await svc.attachEquipe(j.id, seniors26.id)).statutMutation).toBe("Pas mutation");
+    });
+
+    it("sans parcours connu, le statut en place n'est pas touche ; une saisie du staff n'est pas ecrasee", async () => {
+      const { mions, seniors26, jouerL } = await saisonsEtEquipes();
+      const inconnu = await f.joueur({ nom: "NEUF", prenom: "Zed", clubId: mions.id, statutMutation: "Pas mutation" });
+      expect((await svc.attachEquipe(inconnu.id, seniors26.id)).statutMutation).toBe("Pas mutation");
+
+      const p = { nom: "VOULU", prenom: "Pas", licence: "222" };
+      const voulu = await f.joueur({ ...p, clubId: mions.id, statutMutation: "Pas mutation", statutMutationSaisi: true });
+      await jouerL(mions, "07/12/2025", p);
+      expect((await svc.attachEquipe(voulu.id, seniors26.id)).statutMutation).toBe("Pas mutation");
+    });
+
+    it("modifier le statut a la main pose le drapeau de saisie ; renvoyer la meme valeur ne le pose pas", async () => {
+      const { mions } = await saisonsEtEquipes();
+      const j = await f.joueur({ nom: "MAIN", prenom: "Lea", clubId: mions.id, statutMutation: "Non connu" });
+
+      const inchange = await svc.update(j.id, { statutMutation: "Non connu", poste: "DC" });
+      expect(inchange.statutMutationSaisi).toBe(false);
+
+      const modifie = await svc.update(j.id, { statutMutation: "Pas mutation" });
+      expect(modifie).toMatchObject({ statutMutation: "Pas mutation", statutMutationSaisi: true });
+    });
+  });
+
   describe("joueur arrive d'un autre club", () => {
     /** Matteo a joue a Mions en 25-26 puis au club actuel ; sa fiche porte encore Mions. */
     async function arrive() {

@@ -15,7 +15,10 @@ import { minutesJouees } from "@/common/minutes";
 import { cumuler, statsDuMatch, STATS_MATCH_VIDES, StatsMatch } from "@/common/stats-match";
 import { noteIndicative } from "@/common/indicateurs";
 import { parseDateFlexible } from "@/common/periode";
-import { Apparition, derniereApparition, derniereSaison, saisonCourte, SaisonRef } from "@/common/parcours-joueur";
+import {
+  Apparition, apparitionsDesEquipes, changementDeClub, derniereApparition, derniereSaison, saisonCourte, SaisonRef,
+  statutMutationDeduit, statutSaisi,
+} from "@/common/parcours-joueur";
 
 /** Score minimal (0-1) pour qu'un joueur apparaisse dans la recherche. */
 const SEUIL_RECHERCHE = 0.6;
@@ -459,12 +462,33 @@ export class JoueursService {
    */
   private async avecParcours(joueurs: Joueur[]): Promise<JoueurRecherche[]> {
     if (joueurs.length === 0) return [];
+    const { saisons, courante, apps } = await this.parcoursDe(joueurs);
+    return joueurs.map((j) => {
+      const parcours = apps.get(j.id) ?? [];
+      const derniere = derniereApparition(parcours, saisons);
+      const saison = derniereSaison(parcours, saisons);
+      return {
+        ...j,
+        clubId: derniere?.clubId ?? j.clubId,
+        derniereSaison: saison
+          ? { id: saison.id, nom: saison.nom, court: saisonCourte(saison.nom), enCours: saison.id === courante?.id }
+          : null,
+      };
+    });
+  }
+
+  /**
+   * Parcours de chaque joueur : ses apparitions sur les feuilles de match (par licence, sinon par nom et club de la
+   * fiche) et ses rattachements manuels a une equipe. `courante` : la saison active, sinon la plus recente de la base.
+   */
+  private async parcoursDe(joueurs: Joueur[]): Promise<{
+    saisons: Map<string, SaisonRef>; courante: Saison | null; apps: Map<string, Apparition[]>;
+  }> {
     const saisonsBase = await this.saisonsRepo.find();
     const saisons = new Map<string, SaisonRef>(saisonsBase.map((s) => [s.id, { id: s.id, nom: s.nom, anneeDebut: s.anneeDebut }]));
     const courante = saisonsBase.find((s) => s.actif)
       ?? [...saisonsBase].sort((a, b) => b.anneeDebut - a.anneeDebut)[0] ?? null;
 
-    // Apparitions sur feuille : par licence, sinon par nom et club de la fiche.
     const licences = [...new Set(joueurs.map((j) => j.licence).filter((l): l is string => !!l))];
     const sansLicence = joueurs.filter((j) => !j.licence);
     const qb = this.compos.createQueryBuilder("c")
@@ -478,35 +502,43 @@ export class JoueursService {
     const lignes: { licence: string | null; nom: string; prenom: string | null; cote: string; date: string | null;
       saisonId: string | null; clubDom: string; clubExt: string }[] = licences.length || sansLicence.length ? await qb.getRawMany() : [];
 
-    // Rattachements manuels a une equipe : leur saison compte, leur club aussi.
     const equipeIds = [...new Set(joueurs.flatMap((j) => j.equipesAttachees ?? []))];
     const equipes = equipeIds.length ? await this.equipesRepo.find({ where: { id: In(equipeIds) } }) : [];
     const equipeParId = new Map(equipes.map((e) => [e.id, e]));
 
-    return joueurs.map((j) => {
+    const apps = new Map<string, Apparition[]>();
+    for (const j of joueurs) {
       const cle = `${normaliser(j.nom)}|${normaliser(j.prenom)}`;
-      const apps: Apparition[] = [];
+      const liste: Apparition[] = [];
       for (const l of lignes) {
         const club = l.cote === "dom" ? l.clubDom : l.clubExt;
         const estLui = j.licence
           ? l.licence === j.licence
           : !l.licence && club === j.clubId && `${normaliser(l.nom)}|${normaliser(l.prenom)}` === cle;
-        if (estLui) apps.push({ clubId: club, saisonId: l.saisonId, date: l.date });
+        if (estLui) liste.push({ clubId: club, saisonId: l.saisonId, date: l.date });
       }
-      for (const id of j.equipesAttachees ?? []) {
-        const e = equipeParId.get(id);
-        if (e) apps.push({ clubId: e.clubId, saisonId: e.saisonId ?? null, date: null });
-      }
-      const derniere = derniereApparition(apps, saisons);
-      const saison = derniereSaison(apps, saisons);
-      return {
-        ...j,
-        clubId: derniere?.clubId ?? j.clubId,
-        derniereSaison: saison
-          ? { id: saison.id, nom: saison.nom, court: saisonCourte(saison.nom), enCours: saison.id === courante?.id }
-          : null,
-      };
+      const rattaches = (j.equipesAttachees ?? []).map((id) => equipeParId.get(id)).filter((e): e is Equipe => !!e);
+      liste.push(...apparitionsDesEquipes(rattaches));
+      apps.set(j.id, liste);
+    }
+    return { saisons, courante, apps };
+  }
+
+  /**
+   * Recalcule le statut de mutation d'un joueur d'apres son parcours de clubs (voir common/parcours-joueur.ts).
+   * Appele quand son effectif change : ajoute a l'effectif d'une saison, il y est present meme sans match.
+   */
+  private async recalculerStatutMutation(j: Joueur): Promise<Joueur> {
+    const { saisons, apps } = await this.parcoursDe([j]);
+    const statut = statutMutationDeduit({
+      actuel: j.statutMutation,
+      saisi: statutSaisi(j.statutMutation, j.statutMutationSaisi),
+      changement: changementDeClub(apps.get(j.id) ?? [], saisons),
+      parDefaut: j.statutMutation ?? "Non connu",
     });
+    if (statut === j.statutMutation) return j;
+    j.statutMutation = statut;
+    return this.repo.save(j);
   }
 
   /** Attache un joueur existant a une equipe. */
@@ -518,7 +550,7 @@ export class JoueursService {
     const list = new Set(j.equipesAttachees ?? []);
     list.add(equipeId);
     j.equipesAttachees = [...list];
-    const saved = await this.repo.save(j);
+    const saved = await this.recalculerStatutMutation(await this.repo.save(j));
     this.log.debug(`[attach] joueur=${j.prenom} ${j.nom} (${joueurId}) -> equipe=${eq.nom} (${equipeId}) | equipesAttachees=[${saved.equipesAttachees.join(",")}]`);
     return saved;
   }
@@ -528,7 +560,7 @@ export class JoueursService {
     const j = await this.repo.findOne({ where: { id: joueurId } });
     if (!j) throw new NotFoundException(`Joueur ${joueurId} introuvable`);
     j.equipesAttachees = (j.equipesAttachees ?? []).filter((id) => id !== equipeId);
-    return await this.repo.save(j);
+    return this.recalculerStatutMutation(await this.repo.save(j));
   }
 
   /**
@@ -884,7 +916,10 @@ export class JoueursService {
 
   async update(id: string, dto: UpdateJoueurDto) {
     const j = await this.findOne(id);
+    // Un statut de mutation MODIFIE a la main n'est plus remplace par le calcul automatique.
+    const statutModifie = dto.statutMutation !== undefined && dto.statutMutation !== j.statutMutation;
     Object.assign(j, dto);
+    if (statutModifie) j.statutMutationSaisi = true;
     return this.repo.save(j);
   }
 
