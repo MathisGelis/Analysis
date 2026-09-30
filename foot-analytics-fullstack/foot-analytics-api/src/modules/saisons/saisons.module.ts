@@ -9,7 +9,7 @@
 
 import {
   Body, Controller, Delete, Get, Injectable, Module, NotFoundException,
-  Param, Patch, Post, Query, forwardRef, Inject, Logger,
+  Param, Patch, Post, Query, Logger,
 } from "@nestjs/common";
 import { IsBoolean, IsInt, IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
@@ -36,7 +36,6 @@ export class SaisonsService {
 
   constructor(
     @InjectRepository(Saison) private repo: Repository<Saison>,
-    @Inject(forwardRef(() => EquipesService))
     private equipesService: EquipesService,
   ) {}
 
@@ -248,7 +247,7 @@ class SaisonsController {
 @Module({
   imports: [
     TypeOrmModule.forFeature([Saison]),
-    forwardRef(() => EquipesModule),
+    EquipesModule,
   ],
   controllers: [SaisonsController],
   providers: [SaisonsService],
