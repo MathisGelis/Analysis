@@ -13,7 +13,7 @@ import {
 import { IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { Equipe } from "@/entities";
+import { Equipe, Match } from "@/entities";
 
 class UpsertEquipeDto {
   @IsString() clubId: string;
@@ -203,9 +203,11 @@ export class EquipesService {
     // (auto-clone recente, jamais associee a une FMI).
     // Cela permet de corriger une equipe D2 clonee qui doit devenir D1.
     if (categorie && args.saisonId) {
+      // Jointure sur l'entite Match avec les NOMS DE PROPRIETES : les colonnes
+      // reelles sont equipe_dom / equipe_ext (et non equipe_dom_id).
       const memeCategorie = await this.repo.createQueryBuilder("e")
-        .leftJoin("matchs", "m",
-          "(m.equipe_dom_id = e.id OR m.equipe_ext_id = e.id)")
+        .leftJoin(Match, "m",
+          "(m.equipeDomId = e.id OR m.equipeExtId = e.id)")
         .where("e.club_id = :cid", { cid: args.clubId })
         .andWhere("e.saison_id = :sid", { sid: args.saisonId })
         .andWhere("LOWER(e.categorie) = LOWER(:cat)", { cat: categorie })

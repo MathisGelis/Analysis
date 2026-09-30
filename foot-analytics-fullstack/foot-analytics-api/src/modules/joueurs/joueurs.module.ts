@@ -7,6 +7,7 @@ import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Composition, Equipe, EvenementMatch, Joueur, Match, Saison } from "@/entities";
 import { CreateJoueurDto, UpdateJoueurDto } from "./joueur.dto";
+import { equipeDuCote, isEquipeSurCote } from "@/common/matching-cote";
 
 @Injectable()
 export class JoueursService {
@@ -73,9 +74,7 @@ export class JoueursService {
       : [];
     const composPourEquipe = compos.filter((c) => {
       const m = matchById.get(c.matchId);
-      if (!m) return false;
-      const isHost = m.clubDom === equipe.clubId;
-      return (isHost && c.cote === "dom") || (!isHost && c.cote === "ext");
+      return !!m && isEquipeSurCote(m, equipe, c.cote);
     });
 
     // Tous les joueurs en base du club (referentiel pour recuperer
@@ -198,9 +197,7 @@ export class JoueursService {
     for (const e of evtsAll) {
       const m = matchById.get(e.matchId);
       if (!m) continue;
-      const isHost = m.clubDom === equipe.clubId;
-      const cote = (e as any).equipe;
-      if ((isHost && cote !== "dom") || (!isHost && cote !== "ext")) continue;
+      if (!isEquipeSurCote(m, equipe, (e as any).equipe)) continue;
       const nomJoueur = (e.joueur ?? "").trim();
       if (!nomJoueur) continue;
       const key = parseEventName(nomJoueur);
@@ -360,12 +357,11 @@ export class JoueursService {
       const m = matchById.get(c.matchId);
       if (!m) continue;
       const cote: "dom" | "ext" = (c as any).cote;
-      const equipeIdComp = cote === "dom" ? m.equipeDomId : m.equipeExtId;
+      const { clubId, equipeId: equipeIdComp } = equipeDuCote(m, cote);
       // Filtre defensif : ignore les composiions cote oppose si l'equipe
       // n'appartient pas au championnat (ex: match coupe contre une
       // equipe d'une autre poule).
       if (!equipeIdComp || !equipeIds.has(equipeIdComp)) continue;
-      const clubId = cote === "dom" ? m.clubDom : m.clubExt;
       const minutes = computeMinutes(c, evtsByMatch.get(m.id) ?? []);
       // Skip remplacant non entre en jeu (coherent avec effectif()).
       if (!c.titulaire && minutes === 0) continue;
@@ -636,8 +632,7 @@ export class JoueursService {
     for (const c of composJoueur) {
       const m = matchById.get(c.matchId);
       if (!m) continue;
-      const clubId = c.cote === "dom" ? m.clubDom : m.clubExt;
-      const equipeId = c.cote === "dom" ? (m.equipeDomId ?? null) : (m.equipeExtId ?? null);
+      const { clubId, equipeId } = equipeDuCote(m, c.cote);
       const saisonId = m.saisonId ?? null;
       const key = `${saisonId ?? ""}|${equipeId ?? clubId}`;
       let a = accByKey.get(key);
