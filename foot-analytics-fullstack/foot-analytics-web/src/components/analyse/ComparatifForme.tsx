@@ -36,7 +36,7 @@ export function ComparatifForme({ forme }: { forme: DynamiqueForme }) {
       <caption className="sr-only">Les {fenetre} derniers matchs compares au reste de la saison</caption>
       <thead>
         <tr className="text-[10px] font-semibold uppercase tracking-[0.08em] text-faint">
-          <th className="pb-1 text-left font-semibold" />
+          <th className="pb-1 text-left font-semibold"><span className="sr-only">Indicateur</span></th>
           <th className="whitespace-nowrap pb-1 pl-2 text-right font-semibold">{fenetre} derniers</th>
           <th className="pb-1 pl-2 text-right font-semibold">Avant</th>
           <th className="hidden pb-1 pl-2 text-right font-semibold sm:table-cell">Saison</th>

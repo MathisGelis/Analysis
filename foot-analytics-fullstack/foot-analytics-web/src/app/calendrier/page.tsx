@@ -375,7 +375,7 @@ function CalendrierContent() {
                   {showPlaceholder && !lectureSeule && (
                     <button onClick={() => setAddOpen({ date: iso, type: "entrainement" })}
                       className="w-full px-1.5 py-1 rounded-sm text-[10px] leading-tight
-                        border border-dashed border-amber/30 text-amber/70
+                        border border-dashed border-amber/30 text-amber
                         hover:bg-amber/5 hover:text-amber transition text-left">
                       <div className="flex items-center gap-1">
                         <CalendarCheck size={9}/>

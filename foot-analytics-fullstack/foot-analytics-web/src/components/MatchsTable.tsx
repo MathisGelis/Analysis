@@ -189,7 +189,7 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
               <th>Visiteur</th>
               <th>Compet.</th>
               <th>FMI</th>
-              <th></th>
+              <th><span className="sr-only">Ouvrir</span></th>
             </tr>
           </thead>
           <tbody>

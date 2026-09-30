@@ -131,10 +131,12 @@ export default async function Dashboard() {
                   </span>
                 )}
               </div>
-              <Link href={`/club/${clubPropreId}`}
-                className="mt-1.5 block font-display text-3xl font-bold leading-[1.05] text-ink transition-colors hover:text-accent sm:text-[40px]">
-                {club?.nom ?? "Club non defini"}
-              </Link>
+              <h1 className="mt-1.5">
+                <Link href={`/club/${clubPropreId}`}
+                  className="block font-display text-3xl font-bold leading-[1.05] text-ink transition-colors hover:text-accent sm:text-[40px]">
+                  {club?.nom ?? "Club non defini"}
+                </Link>
+              </h1>
               {equipe ? (
                 <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
                   <span className="font-medium text-ink">{equipe.nom}</span>
@@ -185,9 +187,9 @@ export default async function Dashboard() {
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
               <span className="h-section">Prochaine echeance</span>
-              <h3 className="mt-1 font-display text-2xl font-bold text-ink">
+              <h2 className="mt-1 font-display text-2xl font-bold text-ink">
                 {prochain ? `Journee ${prochain.journee ?? "—"}` : "Aucun match a venir"}
-              </h3>
+              </h2>
             </div>
             {prochain && (
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -325,11 +327,11 @@ export default async function Dashboard() {
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <span className="h-section">Classement</span>
-              <h3 className="mt-1 font-display text-xl font-bold text-ink">
+              <h2 className="mt-1 font-display text-xl font-bold text-ink">
                 {equipe?.competitionLibelle ?? "Championnat"}
                 {equipe?.poule ? ` · Poule ${equipe.poule}` : ""}
                 <span className="ml-2 text-sm font-normal text-muted">{saisonChoisie?.nom}</span>
-              </h3>
+              </h2>
             </div>
             <Link href="/classement" className="btn btn-ghost text-xs">
               Tableau complet <ArrowUpRight size={13} />

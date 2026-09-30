@@ -170,8 +170,8 @@ export function TerrainPostes({ numerosFreq, height = 360 }: Props) {
               </span>
             ))}
           {horsTerrain.map((e) => (
-            <span key={e.num} className="badge text-[10px] opacity-70">
-              #{e.num} <span className="text-faint">×{e.count}</span>
+            <span key={e.num} className="badge text-[10px] text-muted">
+              #{e.num} <span className="text-muted">×{e.count}</span>
             </span>
           ))}
         </div>

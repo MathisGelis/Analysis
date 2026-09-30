@@ -3,6 +3,7 @@
 
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API_URL, WEB_PORT } from "../playwright.config";
 import { MOT_DE_PASSE } from "./global-setup";
@@ -266,7 +267,7 @@ test("rapport pre-match : un clic depuis /rapports, rapport lisible, imprimable 
   expect(adversaire, "l'import FMI cree au moins un club adverse").toBeTruthy();
 
   await page.goto(`/rapports/prematch/${adversaire!.id}`);
-  await expect(page.getByText("Rapport pre-match", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /^Rapport pre-match : .+ contre .+/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Pistes pour le match" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Les deux equipes" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Face-a-face" })).toBeVisible();
@@ -286,6 +287,41 @@ test("rapport pre-match : un clic depuis /rapports, rapport lisible, imprimable 
   // Un club inconnu : page d'erreur propre, pas d'exception.
   await page.goto("/rapports/prematch/club-inexistant");
   await expect(page.getByText(/introuvable|n'existe pas|404/i).first()).toBeVisible();
+});
+
+test("accessibilite : aucune violation axe sur les pages principales, en theme nuit et jour", async () => {
+  test.setTimeout(180_000);
+  const axe = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+  // Une page de rapport pre-match vise un club cree par l'import FMI : on va le chercher par l'API.
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const clubs: { id: string; nom: string }[] = await (await fetch(`${API_URL}/clubs`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })).json();
+  const adversaire = clubs.find((c) => c.nom !== "OL Sud E2E");
+  const pages = ["/", "/rapports", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical",
+    ...(adversaire ? [`/rapports/prematch/${adversaire.id}`] : [])];
+
+  const violations: string[] = [];
+  for (const chemin of pages) {
+    await page.goto(chemin);
+    await page.waitForLoadState("networkidle");
+    await page.evaluate(axe);
+    for (const theme of ["dark", "light"]) {
+      // Le theme ne change que les variables CSS : poser l'attribut suffit a auditer les contrastes.
+      await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
+      // Les couleurs se fondent en ~250 ms : mesurees en cours de route, elles donneraient de faux contrastes.
+      await page.waitForTimeout(600);
+      const trouves: string[] = await page.evaluate(async () => {
+        const r = await (window as any).axe.run(document, { resultTypes: ["violations"] });
+        return r.violations.map((v: any) => `${v.impact} ${v.id} x${v.nodes.length} : ${v.nodes[0].target.join(" ")}`);
+      });
+      violations.push(...trouves.map((t) => `${chemin} (${theme}) ${t}`));
+    }
+  }
+  expect(violations, "violations d'accessibilite (axe-core)").toEqual([]);
 });
 
 test("saison archivee : /tactique s'affiche en consultation seule", async () => {

@@ -58,7 +58,9 @@ export default async function RapportPrematch({
 
       {/* En-tete : l'affiche du match */}
       <header className="panel p-6">
-        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-faint">Rapport pre-match</div>
+        <h1 className="text-xs font-semibold uppercase tracking-[0.18em] text-faint">
+          Rapport pre-match<span className="sr-only"> : {moi.clubNom} contre {adv.clubNom}</span>
+        </h1>
         <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
           <div className="flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:justify-end sm:text-right">
             <div className="min-w-0 sm:order-1">

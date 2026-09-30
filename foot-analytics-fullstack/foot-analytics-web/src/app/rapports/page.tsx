@@ -200,7 +200,7 @@ export default async function Rapports() {
                     )}
                     <button className="btn text-xs"><Download size={11}/> PDF</button>
                     <button className="btn text-xs"><Mail size={11}/> Envoyer</button>
-                    <button className="btn text-xs"><Printer size={11}/></button>
+                    <button className="btn text-xs" aria-label={`Imprimer ${r.titre}`}><Printer size={11} aria-hidden/></button>
                   </div>
                 </td>
               </tr>

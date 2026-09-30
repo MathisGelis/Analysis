@@ -16,7 +16,7 @@ const ATOUTS = [
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative z-10 grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
-      <aside className="relative hidden overflow-hidden border-r border-line lg:block">
+      <aside aria-label="Presentation" className="relative hidden overflow-hidden border-r border-line lg:block">
         <div className="absolute inset-0 bg-gradient-to-br from-accentstrong/30 via-panel to-accent2/15" />
         <div className="pitch-lines !opacity-100" style={{ maskPosition: "right 20% top 45%", WebkitMaskPosition: "right 20% top 45%", maskSize: "auto 120%", WebkitMaskSize: "auto 120%" }} />
         <div className="relative flex h-full flex-col justify-between p-12 xl:p-16">
@@ -51,7 +51,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex items-center justify-center p-5 sm:p-10">
+      <div className="flex items-center justify-center p-5 sm:p-10">
         <div className="fade-up w-full max-w-sm">
           <div className="mb-8 flex items-center gap-3 lg:hidden">
             <Logo size={40} />
@@ -59,7 +59,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           </div>
           {children}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

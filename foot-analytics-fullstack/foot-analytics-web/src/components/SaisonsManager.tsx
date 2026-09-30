@@ -153,7 +153,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
                 <th>Statut</th>
                 <th className="text-center">Annee debut</th>
                 <th className="text-center">Equipes</th>
-                <th className="text-right"></th>
+                <th className="text-right"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>

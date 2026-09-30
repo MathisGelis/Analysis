@@ -9,7 +9,7 @@
    Deux modes (nuit par defaut / jour), switches par data-theme.
    Toutes les couleurs sont des triplets R G B pour supporter <alpha-value>
    dans Tailwind (bg-accent/30 etc.). Contrastes verifies (WCAG AA) :
-   texte >= 4.5:1 sur toutes les surfaces, en nuit comme en jour.
+   texte >= 4.5:1 sur toutes les surfaces, en nuit comme en jour, y compris sur les fonds teintes (texte sur `bg-<ton>/10`).
    Les polices sont auto-hebergees (paquets @fontsource, importes dans layout.tsx).
    ============================================================ */
 
@@ -85,16 +85,16 @@
 
   --ink:           11 16 32;      /* #0B1020 */
   --muted:         82 94 122;     /* #525E7A */
-  --faint:         98 110 140;    /* #626E8C */
+  --faint:         92 104 133;    /* #5C6885 */
 
-  --accent:         91 71 232;    /* #5B47E8 */
+  --accent:         84 64 224;    /* #5440E0 */
   --accent-dim:     76 58 210;    /* #4C3AD2 */
   --accent-deep:    52 38 160;    /* #3426A0 */
   --accent-strong:  91 71 232;
   --accent-2:        2 132 199;   /* #0284C7 */
 
   --sky:            2 110 175;    /* #026EAF */
-  --amber:        160 96 0;       /* #A06000 */
+  --amber:        145 85 0;       /* #915500 */
   --danger:       190 35 35;      /* #BE2323 */
 
   --crest-violet: 112 86 170;
@@ -105,8 +105,8 @@
   --chart-2:       190 35 35;     /* #BE2323 */
   --chart-3:         2 110 175;   /* #026EAF */
 
-  --win:            4 115 80;     /* #047350 */
-  --draw:         160 96 0;
+  --win:            3 105 73;     /* #036949 */
+  --draw:         145 85 0;
   --loss:         190 35 35;
 
   --shadow-panel: 0 1px 2px rgb(11 16 32 / .04), 0 12px 32px -22px rgb(30 41 90 / .35);

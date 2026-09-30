@@ -135,10 +135,10 @@ export default function EffectifPage() {
               className="bg-transparent outline-none text-sm w-44 placeholder:text-faint"
             />
           </div>
-          <select value={posteFilter} onChange={(e)=>setPosteFilter(e.target.value)} className="btn">
+          <select value={posteFilter} onChange={(e)=>setPosteFilter(e.target.value)} className="btn" aria-label="Filtrer par poste">
             {POSTES.map(p=><option key={p} value={p}>{p}</option>)}
           </select>
-          <select value={sort} onChange={(e)=>setSort(e.target.value as any)} className="btn">
+          <select value={sort} onChange={(e)=>setSort(e.target.value as any)} className="btn" aria-label="Trier l'effectif">
             <option value="matchs">Tri · Matchs</option>
             <option value="fatigue">Tri · Fatigue</option>
             <option value="discipline">Tri · Discipline</option>
