@@ -73,3 +73,70 @@ describe("CoachsService.fiche", () => {
     await expect(svc.fiche("inconnu")).rejects.toBeInstanceOf(NotFoundException);
   });
 });
+
+describe("CoachsService.rechercher / findAll", () => {
+  let ds: DataSource;
+  let svc: CoachsService;
+  let f: ReturnType<typeof fabriques>;
+
+  beforeEach(async () => {
+    ds = await creerBaseTest();
+    svc = new CoachsService(ds.getRepository(Coach), ds.getRepository(StaffMatch));
+    f = fabriques(ds);
+  });
+  afterEach(() => ds.destroy());
+
+  async function coach(nom: string, prenom: string, clubId: string) {
+    return ds.getRepository(Coach).save({ nom, prenom, clubId, cartonsJaunes: 0, cartonsRouges: 0 });
+  }
+
+  it("retrouve un entraineur par prenom puis nom, dans n'importe quel ordre, sans casse", async () => {
+    const mions = await f.club("Mions");
+    await coach("MARTIN", "Luc", mions.id);
+    await coach("DURAND", "Luc", mions.id);
+
+    expect((await svc.rechercher("luc martin")).map((c) => c.nom)).toEqual(["MARTIN"]);
+    expect((await svc.rechercher("martin LUC")).map((c) => c.nom)).toEqual(["MARTIN"]);
+    expect((await svc.rechercher("luc")).map((c) => c.nom)).toEqual(["DURAND", "MARTIN"]);
+    expect(await svc.rechercher("   ")).toEqual([]);
+    expect(await svc.rechercher("zzz")).toEqual([]);
+  });
+
+  it("renvoie le club le plus recent d'apres les feuilles, pas celui de la premiere apparition", async () => {
+    const s25 = await f.saison("2025-2026", 2025);
+    const s26 = await f.saison("2026-2027", 2026, { actif: true });
+    const mions = await f.club("Mions");
+    const ol = await f.club("OL Sud");
+    const adv = await f.club("Adverse");
+    const c = await coach("MARTIN", "Luc", mions.id);
+    const m1 = await f.match({ clubDom: mions.id, clubExt: adv.id, saisonId: s25.id, date: "07/09/2025", scoreDom: 1, scoreExt: 0 });
+    const m2 = await f.match({ clubDom: ol.id, clubExt: adv.id, saisonId: s26.id, date: "06/09/2026", scoreDom: 1, scoreExt: 1 });
+    await ds.getRepository(StaffMatch).save({ matchId: m1.id, coachId: c.id, cote: "dom", fonctions: "E" });
+    await ds.getRepository(StaffMatch).save({ matchId: m2.id, coachId: c.id, cote: "dom", fonctions: "E" });
+
+    const [trouve] = await svc.rechercher("martin");
+
+    expect(trouve).toMatchObject({ id: c.id, clubId: ol.id });
+  });
+
+  it("sans feuille : garde le club enregistre ; limite le nombre de resultats", async () => {
+    const mions = await f.club("Mions");
+    for (let i = 0; i < 12; i++) await coach(`NOM${String(i).padStart(2, "0")}`, "Test", mions.id);
+
+    const r = await svc.rechercher("test");
+
+    expect(r).toHaveLength(8);
+    expect(r[0].clubId).toBe(mions.id);
+  });
+
+  it("findAll : le filtre de nom ne deborde pas du filtre de club (precedence de OR)", async () => {
+    const mions = await f.club("Mions");
+    const ol = await f.club("OL Sud");
+    await coach("MARTIN", "Luc", mions.id);
+    await coach("DURAND", "Martin", ol.id);      // "martin" dans le prenom, mais dans un autre club
+
+    const r = await svc.findAll(mions.id, "martin");
+
+    expect(r.map((c) => c.prenom)).toEqual(["Luc"]);
+  });
+});

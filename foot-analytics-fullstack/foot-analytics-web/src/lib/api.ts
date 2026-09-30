@@ -318,6 +318,9 @@ export const api = {
   /* ---- Encadrement (coachs) d'un match ---- */
   coachsForMatch: (matchId: string) =>
     req<any[]>(`/coachs/match/${matchId}`, { fallback: [] }),
+  /** Recherche d'entraineurs par nom (tous clubs) ; le club renvoye est le plus recent. */
+  coachs: (q: string) => req<{ id: string; nom: string; prenom?: string | null; clubId?: string | null }[]>(
+    `/coachs/recherche?q=${encodeURIComponent(q)}`, { fallback: [] }),
   /** Fiche d'un entraineur : bilan (sur une saison, sinon toute la carriere), par saison, parcours, matchs. */
   ficheCoach: (id: string, saisonId?: string | null) =>
     req<FicheCoach | null>(`/coachs/${id}/fiche${saisonId ? `?saisonId=${saisonId}` : ""}`, { fallback: null }),

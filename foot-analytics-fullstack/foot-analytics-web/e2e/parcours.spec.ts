@@ -406,30 +406,73 @@ test("saison archivee : /tactique s'affiche en consultation seule", async () => 
   await expect(page.locator("button:enabled", { hasText: "Enregistrer" })).toHaveCount(0);
 });
 
-test("palette de commandes : Ctrl+K, recherche tolerante, Entree ouvre la page", async () => {
+test("recherche : Ctrl+K et / placent le curseur, fiches seulement, Entree ouvre la fiche", async () => {
   await page.goto("/");
+  const champ = page.getByRole("combobox", { name: /Rechercher/ });
+  // Tape tout de suite apres le raccourci : aucune lettre ne doit se perdre.
   await page.keyboard.press("Control+k");
-  const palette = page.getByRole("dialog", { name: "Palette de commandes" });
-  await expect(palette).toBeVisible();
+  await page.keyboard.type("diagolla");
+  await expect(champ).toBeFocused();
+  await expect(champ).toHaveValue("diagolla");
 
   // Les joueurs sont cherches cote serveur : une faute de frappe est toleree.
-  await page.keyboard.type("diagolla");
-  await expect(palette.getByRole("option", { name: /DIAGOLA/ })).toBeVisible();
-  await page.keyboard.press("Control+a");
-  await page.keyboard.press("Backspace");
-
-  // Sans accent ni majuscule, un mot-cle suffit ; la fleche et Entree ouvrent le resultat.
-  await page.keyboard.type("blessures");
-  await expect(palette.getByRole("option", { name: /Medical & charge/ })).toBeVisible();
+  await expect(page.getByRole("option", { name: /DIAGOLA/ })).toBeVisible();
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/medical$/);
-  await expect(palette).toBeHidden();
+  await expect(page).toHaveURL(/\/joueur\//);
+  await expect(champ).toHaveValue("");
+  await expect(page.getByRole("listbox")).toBeHidden();
 
-  // Echap ferme sans naviguer.
-  await page.keyboard.press("Control+k");
-  await expect(palette).toBeVisible();
+  // "/" hors d'un champ rend le curseur ; la recherche ne propose jamais de page : c'est le role de la barre laterale.
+  await page.keyboard.press("/");
+  await expect(champ).toBeFocused();
+  await page.keyboard.type("blessures");
+  await expect(page.getByText(/Rien ne correspond/)).toBeVisible();
+  await expect(page.getByRole("option")).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Medical & charge" })).toBeVisible();
+
+  // Echap efface d'abord la saisie, puis rend la main, sans jamais naviguer.
+  const url = page.url();
   await page.keyboard.press("Escape");
-  await expect(palette).toBeHidden();
+  await expect(champ).toHaveValue("");
+  await page.keyboard.press("Escape");
+  await expect(champ).not.toBeFocused();
+  expect(page.url()).toBe(url);
+});
+
+test("recherche : un club se trouve par son nom et ouvre sa fiche", async () => {
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const clubs: { id: string; nom: string }[] = await (await fetch(`${API_URL}/clubs`, { headers: { Authorization: `Bearer ${token}` } })).json();
+  const club = clubs[0];
+  const mot = club.nom.split(/\s+/).find((m) => m.length >= 3) ?? club.nom;
+
+  await page.goto("/");
+  const champ = page.getByRole("combobox", { name: /Rechercher/ });
+  await champ.fill(mot);
+  const option = page.getByRole("option", { name: new RegExp(club.nom.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).first();
+  await expect(option).toBeVisible();
+  await expect(page.getByText("Clubs", { exact: true })).toBeVisible();
+  await option.click();
+  await expect(page).toHaveURL(new RegExp(`/club/${club.id}`));
+});
+
+test("recherche : un entraineur se trouve par son nom et ouvre sa fiche", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : les entraineurs viennent de la FMI importee");
+
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const [coach] = await (await fetch(`${API_URL}/coachs`, { headers: { Authorization: `Bearer ${token}` } })).json();
+  expect(coach, "la feuille importee compte au moins un entraineur").toBeTruthy();
+
+  await page.goto("/");
+  await page.getByRole("combobox", { name: /Rechercher/ }).fill(coach.nom);
+  await expect(page.getByText("Entraineurs", { exact: true })).toBeVisible();
+  await page.getByRole("option", { name: new RegExp(coach.nom) }).first().click();
+  await expect(page).toHaveURL(/\/coachs\//);
 });
 
 test("barre laterale : repliee en rail, l'etat survit au rechargement", async () => {
@@ -457,6 +500,15 @@ test("mobile : menu en tiroir, ferme apres navigation, sans debordement horizont
     await p.getByRole("link", { name: "Classement" }).click();
     await expect(p).toHaveURL(/\/classement$/);
     await expect(p.getByRole("button", { name: "Fermer le menu" })).toBeHidden();
+
+    // La recherche est separee du menu : une icone ouvre un champ pleine largeur, qui cherche des fiches.
+    await p.getByRole("button", { name: "Rechercher", exact: true }).click();
+    const champ = p.getByRole("combobox", { name: /Rechercher/ });
+    await expect(champ).toBeFocused();
+    await champ.fill("diagolla");
+    await expect(p.getByRole("option", { name: /DIAGOLA/ })).toBeVisible();
+    await p.getByRole("button", { name: "Fermer", exact: true }).click();
+    await expect(champ).toBeHidden();
 
     // La page ne deborde pas de l'ecran (les tableaux defilent dans leur panneau).
     const debordement = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

@@ -1,10 +1,12 @@
 // src/lib/navigation.ts
 //
-// Plan de navigation de l'application, partage par la barre laterale, la barre
-// du haut (titre de la page) et la palette de commandes. Fonctions pures.
+// Plan de navigation de l'application, partage par la barre laterale et la barre
+// du haut (titre de la page). Il ne sert qu'a naviguer entre les pages : la barre
+// de recherche, elle, ne cherche que des fiches (joueurs, clubs, arbitres...).
+// Fonctions pures.
 
 import {
-  Award, Brain, Calendar, ClipboardList, Dumbbell, FileText, HeartPulse, Layout,
+  Award, Brain, Calendar, CalendarRange, ClipboardList, Dumbbell, FileText, HeartPulse, Layout,
   LayoutDashboard, Search, Shield, Trophy, Upload, Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -13,8 +15,6 @@ export interface LienNav {
   href: string;
   label: string;
   icon: LucideIcon;
-  /** Mots-cles supplementaires pour la palette de commandes. */
-  motsCles?: string;
 }
 export interface SectionNav {
   section: string;
@@ -26,40 +26,41 @@ export function construireNavigation(ownClubId: string | null): SectionNav[] {
     {
       section: "Vue d'ensemble",
       items: [
-        { href: "/", label: "Dashboard", icon: LayoutDashboard, motsCles: "accueil resume" },
-        { href: "/classement", label: "Classement", icon: Trophy, motsCles: "poule rang points buteurs" },
-        { href: "/calendrier", label: "Calendrier", icon: Calendar, motsCles: "agenda planning" },
+        { href: "/", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/classement", label: "Classement", icon: Trophy },
+        { href: "/calendrier", label: "Calendrier", icon: Calendar },
       ],
     },
     {
       section: "Mon equipe",
       items: [
-        { href: ownClubId ? `/club/${ownClubId}` : "/", label: "Mon club", icon: Shield, motsCles: "equipe fiche" },
-        { href: "/effectif", label: "Effectif", icon: Users, motsCles: "joueurs liste" },
-        { href: "/entrainements", label: "Entrainements", icon: Dumbbell, motsCles: "seances charge" },
-        { href: "/medical", label: "Medical & charge", icon: HeartPulse, motsCles: "blessures fatigue sante" },
+        { href: ownClubId ? `/club/${ownClubId}` : "/", label: "Mon club", icon: Shield },
+        { href: "/effectif", label: "Effectif", icon: Users },
+        { href: "/entrainements", label: "Entrainements", icon: Dumbbell },
+        { href: "/medical", label: "Medical & charge", icon: HeartPulse },
       ],
     },
     {
       section: "Match",
       items: [
-        { href: "/matchs", label: "Matchs", icon: ClipboardList, motsCles: "resultats feuilles fmi" },
-        { href: "/tactique", label: "Tactique", icon: Layout, motsCles: "composition dispositif" },
-        { href: "/arbitres", label: "Arbitres", icon: Award, motsCles: "arbitrage cartons" },
+        { href: "/matchs", label: "Matchs", icon: ClipboardList },
+        { href: "/tactique", label: "Tactique", icon: Layout },
+        { href: "/arbitres", label: "Arbitres", icon: Award },
       ],
     },
     {
       section: "Analyse",
       items: [
-        { href: "/scouting", label: "Scouting", icon: Search, motsCles: "adversaires rapport observation" },
-        { href: "/ia", label: "Predictions", icon: Brain, motsCles: "prochain match resultat systeme dispositif onze probable projection" },
-        { href: "/rapports", label: "Rapports", icon: FileText, motsCles: "analyse equipe pdf" },
+        { href: "/scouting", label: "Scouting", icon: Search },
+        { href: "/ia", label: "Predictions", icon: Brain },
+        { href: "/rapports", label: "Rapports", icon: FileText },
       ],
     },
     {
       section: "Donnees",
       items: [
-        { href: "/import", label: "Import feuilles FMI", icon: Upload, motsCles: "importer pdf fmi" },
+        { href: "/import", label: "Import feuilles FMI", icon: Upload },
+        { href: "/saisons", label: "Saisons", icon: CalendarRange },
       ],
     },
   ];

@@ -138,12 +138,13 @@ Classes de composants : `.panel`, `.panel-inset`, `.glass`, `.stat-tile`, `.scor
 `.badge(-accent|-amber|-danger|-sky)`, `.pill-v/n/d`, `.table-fm`, `.btn(-accent|-ghost)`,
 `.inp`, `.kbd`, `.skeleton`, `.text-gradient`, `.pitch-lines`. Composants partages :
 `TabBar` (onglets a curseur), `Charts` (barres, courbe, anneau : marques fines, info-bulle,
-tableau pour lecteurs d'ecran), `CommandPalette`, `ClubBadge`, `Logo`.
+tableau pour lecteurs d'ecran), `RechercheGlobale`, `ClubBadge`, `Logo`.
 
-Navigation : barre laterale repliable en rail (etat memorise dans un cookie) et tiroir sur
-mobile ; **Ctrl/Cmd + K** (ou `/`) ouvre la palette de commandes (pages, clubs, joueurs avec
-recherche floue cote serveur, arbitres, actions). `prefers-reduced-motion` desactive les
-animations.
+Navigation et recherche sont separees. La **navigation** est la barre laterale (repliable en rail,
+etat memorise dans un cookie ; tiroir sur mobile). La **recherche** est le champ de la barre du
+haut : elle ne trouve que des fiches (joueurs et entraineurs par recherche floue cote serveur,
+clubs, arbitres). **Ctrl/Cmd + K** (ou `/`) y place le curseur. `prefers-reduced-motion`
+desactive les animations.
 
 ```bash
 npm run lint      # ESLint (next/core-web-vitals)

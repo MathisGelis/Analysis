@@ -3,22 +3,22 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Check, ChevronDown, Lock, Menu, Moon, Search, Settings, Sun } from "lucide-react";
+import { Check, ChevronDown, Lock, Menu, Moon, Settings, Sun } from "lucide-react";
 import { api } from "@/lib/api";
 import { useOwnClubId } from "@/lib/own-club-context";
 import { useTheme } from "@/lib/theme-context";
 import { titrePage } from "@/lib/navigation";
 import { ClubBadge } from "@/components/ClubBadge";
+import { RechercheGlobale } from "@/components/RechercheGlobale";
 import { SettingsDrawer } from "@/components/SettingsDrawer";
 import { getCachedUser } from "@/lib/auth";
 import type { Club } from "@/lib/types";
 
 interface Props {
   onOuvrirMenu: () => void;
-  onOuvrirPalette: () => void;
 }
 
-export function TopBar({ onOuvrirMenu, onOuvrirPalette }: Props) {
+export function TopBar({ onOuvrirMenu }: Props) {
   const pathname = usePathname();
   const ownClubId = useOwnClubId();
   const { theme, toggle } = useTheme();
@@ -70,17 +70,8 @@ export function TopBar({ onOuvrirMenu, onOuvrirPalette }: Props) {
 
           <h2 className="font-display text-[17px] font-bold text-ink truncate min-w-0">{titrePage(pathname)}</h2>
 
-          {/* Recherche : ouvre la palette de commandes. */}
-          <button
-            type="button" onClick={onOuvrirPalette}
-            className="group ml-auto flex h-10 w-full max-w-md items-center gap-3 rounded-xl border border-line bg-panel2/70 px-3.5 text-left text-sm text-faint
-              transition hover:border-accent/50 hover:bg-panel2 sm:ml-auto max-sm:w-10 max-sm:justify-center max-sm:px-0"
-            aria-label="Rechercher (Ctrl K)"
-          >
-            <Search size={16} className="shrink-0 text-muted transition-colors group-hover:text-accent" />
-            <span className="flex-1 truncate max-sm:hidden">Rechercher joueur, club, page...</span>
-            <span className="hidden items-center gap-1 sm:flex"><kbd className="kbd">Ctrl</kbd><kbd className="kbd">K</kbd></span>
-          </button>
+          {/* Recherche de fiches (joueurs, entraineurs, clubs, arbitres) ; la navigation est dans la barre laterale. */}
+          <RechercheGlobale />
 
           <button type="button" onClick={toggle} className="btn btn-ghost !p-2.5"
             title={theme === "dark" ? "Passer en mode jour" : "Passer en mode nuit"}

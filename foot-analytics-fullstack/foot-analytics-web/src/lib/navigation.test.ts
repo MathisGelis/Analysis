@@ -10,6 +10,13 @@ describe("construireNavigation", () => {
     const liens = construireNavigation(null).flatMap((s) => s.items);
     expect(liens.find((l) => l.label === "Mon club")?.href).toBe("/");
   });
+  it("toutes les pages de gestion restent accessibles depuis la barre laterale (la recherche ne propose plus de pages)", () => {
+    const hrefs = construireNavigation("c").flatMap((s) => s.items.map((l) => l.href));
+    for (const page of ["/", "/classement", "/calendrier", "/effectif", "/entrainements", "/medical", "/matchs", "/tactique",
+      "/arbitres", "/scouting", "/ia", "/rapports", "/import", "/saisons"]) {
+      expect(hrefs).toContain(page);
+    }
+  });
   it("aucun lien en double", () => {
     const hrefs = construireNavigation("c").flatMap((s) => s.items.map((l) => l.href));
     expect(new Set(hrefs).size).toBe(hrefs.length);

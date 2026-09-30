@@ -1,6 +1,6 @@
 // src/lib/recherche.ts
 //
-// Recherche tolerante pour la palette de commandes : insensible aux accents, a
+// Recherche tolerante pour la barre de recherche : insensible aux accents, a
 // la casse et a l'ordre des mots. Fonctions pures.
 
 export function normaliser(s: string | null | undefined): string {

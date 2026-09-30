@@ -10,7 +10,7 @@ import {
 } from "@nestjs/common";
 import { IsIn, IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { Coach, Saison, StaffMatch } from "@/entities";
 import { FicheCoach, ficheCoach } from "@/common/fiche-coach";
 
@@ -44,10 +44,32 @@ export class CoachsService {
     let qb = this.repo.createQueryBuilder("c");
     if (clubId) qb = qb.where("c.club_id = :id", { id: clubId });
     if (q) {
-      qb = qb.andWhere("LOWER(c.nom) LIKE :q OR LOWER(c.prenom) LIKE :q",
+      qb = qb.andWhere("(LOWER(c.nom) LIKE :q OR LOWER(c.prenom) LIKE :q)",
         { q: `%${q.toLowerCase()}%` });
     }
     return qb.getMany();
+  }
+  /**
+   * Recherche par nom pour la barre de recherche : chaque mot saisi doit se retrouver dans le nom ou le prenom
+   * (dans n'importe quel ordre). Le club renvoye est le plus recent d'apres les feuilles de match, pas celui de
+   * la premiere apparition.
+   */
+  async rechercher(q: string, limite = 8) {
+    const mots = (q ?? "").toLowerCase().split(/\s+/).filter(Boolean);
+    if (mots.length === 0) return [];
+    let qb = this.repo.createQueryBuilder("c");
+    mots.forEach((m, i) => {
+      qb = qb.andWhere(`(LOWER(c.nom) LIKE :m${i} OR LOWER(COALESCE(c.prenom, '')) LIKE :m${i})`, { [`m${i}`]: `%${m}%` });
+    });
+    const ids = (await qb.orderBy("c.nom").take(limite).getMany()).map((c) => c.id);
+    if (ids.length === 0) return [];
+    const coachs = await this.repo.find({ where: { id: In(ids) }, relations: ["participations", "participations.match"] });
+    const saisons = new Map((await this.repo.manager.getRepository(Saison).find())
+      .map((s) => [s.id, { id: s.id, nom: s.nom, anneeDebut: s.anneeDebut }]));
+    return ids.map((id) => coachs.find((c) => c.id === id)!).map((c) => ({
+      id: c.id, nom: c.nom, prenom: c.prenom,
+      clubId: ficheCoach(c.participations ?? [], saisons, null).clubActuelId ?? c.clubId,
+    }));
   }
   async findOne(id: string) {
     const c = await this.repo.findOne({
@@ -139,6 +161,7 @@ class CoachsController {
   @Get() find(@Query("clubId") clubId?: string, @Query("q") q?: string) {
     return this.svc.findAll(clubId, q);
   }
+  @Get("recherche") recherche(@Query("q") q?: string) { return this.svc.rechercher(q ?? ""); }
   @Get(":id") one(@Param("id") id: string) { return this.svc.findOne(id); }
   // GET /coachs/:id/fiche[?saisonId=...] : bilans, parcours et matchs du coach.
   @Get(":id/fiche") fiche(@Param("id") id: string, @Query("saisonId") saisonId?: string) {
