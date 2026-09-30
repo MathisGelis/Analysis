@@ -12,6 +12,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { Modal } from "@/components/Modal";
+import { useClub } from "@/lib/clubs-context";
+import { saisonPassee, type DerniereSaison } from "@/lib/parcours-joueur";
 import {
   Plus, Save, Search, User, UserPlus, X,
 } from "lucide-react";
@@ -28,6 +30,7 @@ interface JoueurExistant {
   poste?: string | null;
   clubId?: string | null;
   equipesAttachees?: string[] | null;
+  derniereSaison?: DerniereSaison | null;
 }
 
 export function JoueurAddModal({
@@ -182,10 +185,16 @@ function ExistantPanel({
                     <User size={14}/>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-ink truncate">
-                      {j.prenom} {j.nom}
+                    <div className="flex items-center gap-2 font-semibold text-ink">
+                      <span className="truncate">{j.prenom} {j.nom}</span>
+                      {saisonPassee(j.derniereSaison) && (
+                        <span className="badge shrink-0 text-[10px]" title={`Derniere saison connue : ${j.derniereSaison?.nom}`}>
+                          {saisonPassee(j.derniereSaison)}
+                        </span>
+                      )}
                     </div>
                     <div className="text-[10px] text-faint">
+                      <ClubDuJoueur clubId={j.clubId} />
                       {j.licence ? `Licence ${j.licence}` : "Sans licence"}
                       {j.poste && ` · ${j.poste}`}
                     </div>
@@ -362,4 +371,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <div className="mt-1">{children}</div>
     </label>
   );
+}
+
+/** Club le plus recent du joueur, devant sa licence ("Mions · Licence 25..."). */
+function ClubDuJoueur({ clubId }: { clubId?: string | null }) {
+  const club = useClub(clubId);
+  return club ? <><span className="font-semibold text-muted">{club.nom}</span> · </> : null;
 }

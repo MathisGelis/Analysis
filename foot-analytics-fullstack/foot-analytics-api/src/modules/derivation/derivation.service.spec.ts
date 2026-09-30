@@ -140,6 +140,80 @@ describe("DerivationService - cartons et arbitres", () => {
     });
   });
 
+  describe("club actuel et mutation", () => {
+    /** Deux saisons, trois clubs ; un match de la saison `s` ou `joueur` joue pour `club` contre `adv`. */
+    async function contexte() {
+      const s25 = await f.saison("2025-2026", 2025);
+      const s26 = await f.saison("2026-2027", 2026, { actif: true });
+      const mions = await f.club("Mions");
+      const ol = await f.club("OL Sud");
+      const adv = await f.club("Adverse");
+      const jouer = async (club: Club, saison: Saison, date: string, joueur: { nom: string; prenom: string; licence?: string }) => {
+        const m = await f.match({ clubDom: club.id, clubExt: adv.id, saisonId: saison.id, date, scoreDom: 1, scoreExt: 0, statut: "joue" });
+        await f.compo({ matchId: m.id, cote: "dom", ...joueur });
+        return m;
+      };
+      return { s25, s26, mions, ol, adv, jouer };
+    }
+    const fiche = (nom: string) => ds.getRepository(Joueur).findOneByOrFail({ nom });
+
+    it.each([["chronologique (le cas reel : l'ancien club est lu en premier)", false], ["inverse", true]])(
+      "un joueur qui change de club est rattache au club de son match le plus RECENT, insertion %s",
+      async (_ordre, inverse) => {
+        const c = await contexte();
+        const guedes = { nom: "GUEDES", prenom: "Matteo", licence: "2544602641" };
+        const anciens = () => Promise.all([
+          c.jouer(c.mions, c.s25, "07/12/2025", guedes), c.jouer(c.mions, c.s25, "22/11/2025", guedes),
+        ]);
+        if (inverse) { await c.jouer(c.ol, c.s26, "06/09/2026", guedes); await anciens(); }
+        else { await anciens(); await c.jouer(c.ol, c.s26, "06/09/2026", guedes); }
+
+        await svc.recomputeJoueurs();
+
+        expect((await fiche("GUEDES")).clubId).toBe(c.ol.id);
+      },
+    );
+
+    it("la fiche creee sur l'ancien club est reparee au recalcul suivant", async () => {
+      const c = await contexte();
+      const guedes = { nom: "GUEDES", prenom: "Matteo", licence: "2544602641" };
+      await f.joueur({ ...guedes, clubId: c.mions.id, statutMutation: "Non connu" });
+      await c.jouer(c.mions, c.s25, "07/12/2025", guedes);
+      await c.jouer(c.ol, c.s26, "06/09/2026", guedes);
+
+      await svc.recomputeJoueurs();
+
+      const j = await fiche("GUEDES");
+      expect(j.clubId).toBe(c.ol.id);
+      expect(await ds.getRepository(Joueur).count({ where: { nom: "GUEDES" } })).toBe(1);
+      // Club different : on n'invente ni "Mutation" ni "Pas mutation", la valeur saisie reste.
+      expect(j.statutMutation).toBe("Non connu");
+    });
+
+    it("meme club cette saison et la precedente : Pas mutation, meme si une autre valeur etait saisie", async () => {
+      const c = await contexte();
+      const fidele = { nom: "FIDELE", prenom: "Paul", licence: "111" };
+      await f.joueur({ ...fidele, clubId: c.ol.id, statutMutation: "Mutation hors delai" });
+      await c.jouer(c.ol, c.s25, "07/12/2025", fidele);
+      await c.jouer(c.ol, c.s26, "06/09/2026", fidele);
+
+      await svc.recomputeJoueurs();
+
+      expect((await fiche("FIDELE")).statutMutation).toBe("Pas mutation");
+    });
+
+    it("une seule saison connue ou une saison manquante entre les deux : la valeur saisie est conservee", async () => {
+      const c = await contexte();
+      const recent = { nom: "RECENT", prenom: "Rio", licence: "222" };
+      await f.joueur({ ...recent, clubId: c.ol.id, statutMutation: "Mutation" });
+      await c.jouer(c.ol, c.s26, "06/09/2026", recent);
+
+      await svc.recomputeJoueurs();
+
+      expect((await fiche("RECENT")).statutMutation).toBe("Mutation");
+    });
+  });
+
   describe("fatigue des joueurs", () => {
     const jour = (j: number) => {
       const d = new Date(2026, 9, 14 - j);

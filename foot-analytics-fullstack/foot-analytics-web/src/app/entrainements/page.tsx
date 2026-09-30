@@ -84,7 +84,9 @@ export default function Entrainements() {
           api.effectifEquipe(eq.id),
           api.entrainements(eq.id),
         ]);
-        setEffectif(eff);
+        // Une presence s'enregistre par identifiant de fiche : un joueur sans fiche ne peut pas etre
+        // coche (et, sans identifiant, il partagerait sa case avec tous les autres joueurs sans fiche).
+        setEffectif(eff.filter((j: any) => !!j.id));
         setSeances(seancesData);
       } else {
         setEffectif([]); setSeances([]);

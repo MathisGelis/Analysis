@@ -4,20 +4,26 @@ import {
   Patch, Post, Put, Query, Module,
 } from "@nestjs/common";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import {
   Composition, Equipe, EvenementMatch, Joueur, Match, Saison, StatJoueurEquipe,
 } from "@/entities";
 import { CreateJoueurDto, StatEquipeDto, UpdateJoueurDto } from "./joueur.dto";
 import { equipeDuCote, isEquipeSurCote } from "@/common/matching-cote";
-import { scoreRecherche } from "@/common/fuzzy";
+import { normaliser, scoreRecherche } from "@/common/fuzzy";
 import { minutesJouees } from "@/common/minutes";
 import { cumuler, statsDuMatch, STATS_MATCH_VIDES, StatsMatch } from "@/common/stats-match";
 import { noteIndicative } from "@/common/indicateurs";
 import { parseDateFlexible } from "@/common/periode";
+import { Apparition, derniereApparition, derniereSaison, saisonCourte, SaisonRef } from "@/common/parcours-joueur";
 
 /** Score minimal (0-1) pour qu'un joueur apparaisse dans la recherche. */
 const SEUIL_RECHERCHE = 0.6;
+
+/** Resultat de recherche : la fiche, avec son club le plus recent et sa derniere saison connue. */
+export type JoueurRecherche = Omit<Joueur, "rafraichirFatigue"> & {
+  derniereSaison: { id: string; nom: string; court: string; enCours: boolean } | null;
+};
 
 @Injectable()
 export class JoueursService {
@@ -88,15 +94,22 @@ export class JoueursService {
       return !!m && isEquipeSurCote(m, equipe, c.cote);
     });
 
-    // Tous les joueurs en base du club (referentiel pour recuperer
-    // poste, fatigue, statut...).
-    const joueursClub = await this.repo.find({ where: { clubId: equipe.clubId } });
+    // Fiches joueur (referentiel pour recuperer poste, fatigue, statut...) : celles du club, PLUS toute
+    // fiche portant la licence d'un joueur de la feuille. Une fiche suit le joueur : s'il vient de
+    // changer de club, elle peut encore porter l'ancien et ne serait pas retrouvee par le club seul
+    // (id nul : le joueur ne pouvait plus etre selectionne dans les seances).
+    const licences = [...new Set(composPourEquipe.map((c) => c.licence).filter((l): l is string => !!l))];
+    const [joueursClub, joueursParLicence] = await Promise.all([
+      this.repo.find({ where: { clubId: equipe.clubId } }),
+      licences.length ? this.repo.find({ where: { licence: In(licences) } }) : Promise.resolve([] as Joueur[]),
+    ]);
     const joueursParNomCle = new Map<string, Joueur>();
     const cleNom = (nom: string, prenom?: string | null) =>
       `${(nom ?? "").toLowerCase().trim()}|${(prenom ?? "").toLowerCase().trim()}`;
     for (const j of joueursClub) {
       joueursParNomCle.set(cleNom(j.nom, j.prenom), j);
     }
+    const ficheParLicence = new Map(joueursParLicence.map((j) => [j.licence, j]));
 
     // Evenements des matchs : minutes (remplacements), buts, passes, cartons.
     const evtsAll = matchIds.length > 0
@@ -126,7 +139,7 @@ export class JoueursService {
       let a = acc.get(key);
       if (!a) {
         a = {
-          joueur: joueursParNomCle.get(key) ?? null,
+          joueur: (c.licence ? ficheParLicence.get(c.licence) : undefined) ?? joueursParNomCle.get(key) ?? null,
           nom: c.nom, prenom: c.prenom ?? undefined,
           licence: c.licence ?? undefined,
           matchs: 0, titularisations: 0, minutes: 0,
@@ -325,9 +338,13 @@ export class JoueursService {
     // club des joueurs du championnat, pas toute la base.
     const norm = (s: string | null | undefined) => (s ?? "").toLowerCase().trim();
     const clubIds = [...new Set([...accByKey.values()].map((a) => a.clubId))];
+    // ... et les fiches portant la licence d'un joueur du championnat, meme rattachees a un autre club
+    // aujourd'hui (joueur arrive depuis : il jouait ici la saison consideree).
+    const licencesChamp = [...new Set([...accByKey.values()].map((a) => a.licence).filter((l): l is string => !!l))];
     const joueursTous = clubIds.length === 0 ? [] : await this.repo
       .createQueryBuilder("j")
       .where("j.clubId IN (:...ids)", { ids: clubIds })
+      .orWhere(licencesChamp.length ? "j.licence IN (:...lics)" : "1 = 0", { lics: licencesChamp })
       .getMany();
     const byLicence = new Map(joueursTous.filter((j) => j.licence).map((j) => [j.licence, j]));
     // Index club + nom (ordre de la base conserve) : un balayage complet de la liste pour chacun des
@@ -414,13 +431,13 @@ export class JoueursService {
    * Le scoring se fait en memoire : quelques milliers de joueurs au plus, et
    * un pre-filtre SQL LIKE ferait justement disparaitre les fautes de frappe.
    */
-  async search(q: string, limit = 20): Promise<Joueur[]> {
+  async search(q: string, limit = 20): Promise<JoueurRecherche[]> {
     const needle = (q ?? "").trim();
     if (needle.length < 2) return [];
     const parLicence = /^\d{3,}$/.test(needle);
 
     const tous = await this.repo.find();
-    return tous
+    const trouves = tous
       .map((j) => ({
         j,
         score: parLicence
@@ -431,6 +448,65 @@ export class JoueursService {
       .sort((a, b) => b.score - a.score || (a.j.nom ?? "").localeCompare(b.j.nom ?? ""))
       .slice(0, limit)
       .map((x) => x.j);
+    return this.avecParcours(trouves);
+  }
+
+  /**
+   * Ajoute a chaque joueur son club LE PLUS RECENT et sa derniere saison connue, lus sur ses feuilles
+   * de match (et ses rattachements a une equipe). La fiche ne porte qu'un club, parfois l'ancien :
+   * pour un joueur arrive cette saison, c'est le club actuel qu'on veut voir, pas celui d'avant.
+   * `derniereSaison.enCours` : c'est la saison en cours (l'active, sinon la plus recente de la base).
+   */
+  private async avecParcours(joueurs: Joueur[]): Promise<JoueurRecherche[]> {
+    if (joueurs.length === 0) return [];
+    const saisonsBase = await this.saisonsRepo.find();
+    const saisons = new Map<string, SaisonRef>(saisonsBase.map((s) => [s.id, { id: s.id, nom: s.nom, anneeDebut: s.anneeDebut }]));
+    const courante = saisonsBase.find((s) => s.actif)
+      ?? [...saisonsBase].sort((a, b) => b.anneeDebut - a.anneeDebut)[0] ?? null;
+
+    // Apparitions sur feuille : par licence, sinon par nom et club de la fiche.
+    const licences = [...new Set(joueurs.map((j) => j.licence).filter((l): l is string => !!l))];
+    const sansLicence = joueurs.filter((j) => !j.licence);
+    const qb = this.compos.createQueryBuilder("c")
+      .innerJoin(Match, "m", "m.id = c.match_id")
+      .select(["c.licence AS licence", "c.nom AS nom", "c.prenom AS prenom", "c.cote AS cote",
+        "m.date AS date", "m.saison_id AS saisonId", "m.club_dom AS clubDom", "m.club_ext AS clubExt"]);
+    if (licences.length) qb.where("c.licence IN (:...licences)", { licences });
+    if (sansLicence.length) {
+      qb.orWhere("c.nom IN (:...noms)", { noms: [...new Set(sansLicence.map((j) => j.nom))] });
+    }
+    const lignes: { licence: string | null; nom: string; prenom: string | null; cote: string; date: string | null;
+      saisonId: string | null; clubDom: string; clubExt: string }[] = licences.length || sansLicence.length ? await qb.getRawMany() : [];
+
+    // Rattachements manuels a une equipe : leur saison compte, leur club aussi.
+    const equipeIds = [...new Set(joueurs.flatMap((j) => j.equipesAttachees ?? []))];
+    const equipes = equipeIds.length ? await this.equipesRepo.find({ where: { id: In(equipeIds) } }) : [];
+    const equipeParId = new Map(equipes.map((e) => [e.id, e]));
+
+    return joueurs.map((j) => {
+      const cle = `${normaliser(j.nom)}|${normaliser(j.prenom)}`;
+      const apps: Apparition[] = [];
+      for (const l of lignes) {
+        const club = l.cote === "dom" ? l.clubDom : l.clubExt;
+        const estLui = j.licence
+          ? l.licence === j.licence
+          : !l.licence && club === j.clubId && `${normaliser(l.nom)}|${normaliser(l.prenom)}` === cle;
+        if (estLui) apps.push({ clubId: club, saisonId: l.saisonId, date: l.date });
+      }
+      for (const id of j.equipesAttachees ?? []) {
+        const e = equipeParId.get(id);
+        if (e) apps.push({ clubId: e.clubId, saisonId: e.saisonId ?? null, date: null });
+      }
+      const derniere = derniereApparition(apps, saisons);
+      const saison = derniereSaison(apps, saisons);
+      return {
+        ...j,
+        clubId: derniere?.clubId ?? j.clubId,
+        derniereSaison: saison
+          ? { id: saison.id, nom: saison.nom, court: saisonCourte(saison.nom), enCours: saison.id === courante?.id }
+          : null,
+      };
+    });
   }
 
   /** Attache un joueur existant a une equipe. */

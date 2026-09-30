@@ -13,6 +13,7 @@ import { Controller, Injectable, Module, Post, Query, UseGuards } from "@nestjs/
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { chargerDetailsMatchs } from "@/common/details-matchs";
+import { Apparition, changementDeClub, derniereApparition, SaisonRef } from "@/common/parcours-joueur";
 import {
   Arbitre, ArbitreMatch, Blessure, Club, Coach, Composition, Entrainement,
   Equipe, EvenementMatch, Joueur, LigneClassement, Match, Saison, StaffMatch,
@@ -130,6 +131,8 @@ export class DerivationService {
       subIns: number;
       // Minutes jouees a chaque match date : entree de la charge en match (fatigue).
       efforts: { date: Date; minutes: number }[];
+      // Ou et quand il a joue : donne son club le plus recent et ses changements de club.
+      apps: Apparition[];
     };
     const agg = new Map<string, Agg>();
     const nameKey = (nom: string, prenom: string, clubId: string) =>
@@ -182,10 +185,11 @@ export class DerivationService {
           a = {
             clubId, nom: c.nom, prenom: c.prenom ?? "", licence: c.licence || undefined,
             matchs: 0, titularisations: 0, minutes: 0, cj: 0, cr: 0,
-            numeroCounts: {}, lastMatchDate: null, subIns: 0, efforts: [],
+            numeroCounts: {}, lastMatchDate: null, subIns: 0, efforts: [], apps: [],
           };
           agg.set(k, a);
         }
+        a.apps.push({ clubId, saisonId: m.saisonId ?? null, date: m.date ?? null });
         a.matchs++;
         if (c.titulaire) a.titularisations++;
         const minutesMatch = estimateMinutes(c, evts);
@@ -221,6 +225,18 @@ export class DerivationService {
           else a.cj++;
         }
       }
+    }
+
+    // ---- Club actuel ----
+    // Un joueur identifie par sa licence est UNE fiche, quel que soit le club : son club est celui de sa
+    // derniere apparition, pas celui du premier match rencontre (l'ordre de lecture n'est pas chronologique).
+    // Sans cela, un joueur arrive cette saison restait rattache a son ancien club.
+    const saisonsRef = new Map<string, SaisonRef>(
+      (await this.saisonsRepo.find()).map((s) => [s.id, { id: s.id, nom: s.nom, anneeDebut: s.anneeDebut }]),
+    );
+    for (const a of agg.values()) {
+      const recente = derniereApparition(a.apps, saisonsRef);
+      if (recente) a.clubId = recente.clubId;
     }
 
     // ---- Donnees additionnelles pour le calcul de la fatigue ----
@@ -506,11 +522,12 @@ export class DerivationService {
       const typeDiscipline = typeDisciplineFor(discKey);
       const scoreDiscipline = scoreDisciplineFor(discKey);
 
-      // Statut mutation : si on n'a rien de saisi, mon club passe en
-      // "Pas mutation" par defaut, les adversaires en "Non connu".
-      const statutMutation =
-        (found as any)?.statutMutation
-        ?? (isMine ? "Pas mutation" : "Non connu");
+      // Statut mutation. Meme club cette saison et la precedente : jamais une mutation, quoi qu'on ait
+      // saisi. Sinon la valeur saisie prime ; a defaut mon club passe en "Pas mutation", les
+      // adversaires en "Non connu".
+      const statutMutation = changementDeClub(a.apps, saisonsRef) === "meme_club"
+        ? "Pas mutation"
+        : (found as any)?.statutMutation ?? (isMine ? "Pas mutation" : "Non connu");
 
       toSave.push({
         ...(found ?? {}),

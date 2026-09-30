@@ -171,6 +171,9 @@ export interface TactiquePlan {
   modifieLe: string;
 }
 
+/** Champ ajoute par GET /joueurs/search : derniere saison connue du joueur. */
+export type { DerniereSaison } from "@/lib/parcours-joueur";
+
 export interface EvenementMatch {
   type: "carton" | "carton_vert" | "but" | "remplacement" | "blessure";
   sousType?: string;         // jaune|rouge / type but / localisation

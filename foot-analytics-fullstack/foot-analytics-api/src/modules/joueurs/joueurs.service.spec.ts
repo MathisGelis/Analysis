@@ -371,6 +371,55 @@ describe("JoueursService", () => {
     });
   });
 
+  describe("joueur arrive d'un autre club", () => {
+    /** Matteo a joue a Mions en 25-26 puis au club actuel ; sa fiche porte encore Mions. */
+    async function arrive() {
+      const c = await contexte();
+      const mions = await f.club("Mions");
+      const s26 = await f.saison("2026-2027", 2026);
+      const equipeMions = await f.equipe({ clubId: mions.id, nom: "Seniors", categorie: "Seniors", saisonId: c.saison.id });
+      const seniors26 = await f.equipe({ clubId: c.moi.id, nom: "Seniors", categorie: "Seniors", saisonId: s26.id });
+      const fiche = await f.joueur({ nom: "GUEDES", prenom: "Matteo", licence: "2544602641", clubId: mions.id, poste: "DC" });
+      const m25 = await f.match({ clubDom: mions.id, clubExt: c.adv.id, equipeDomId: equipeMions.id, equipeExtId: c.advEq.id, saisonId: c.saison.id, date: "07/12/2025" });
+      await f.compo({ matchId: m25.id, cote: "dom", nom: "GUEDES", prenom: "Matteo", licence: "2544602641" });
+      const m26 = await f.match({ clubDom: c.moi.id, clubExt: c.adv.id, equipeDomId: seniors26.id, equipeExtId: c.advEq.id, saisonId: s26.id, date: "06/09/2026" });
+      await f.compo({ matchId: m26.id, cote: "dom", nom: "GUEDES", prenom: "Matteo", licence: "2544602641" });
+      return { c, fiche, seniors26, equipeMions };
+    }
+
+    it("effectif : retrouve sa fiche par la licence, donc jamais d'id nul (cases de presence liees)", async () => {
+      const { fiche, seniors26 } = await arrive();
+      const islem = await f.joueur({ nom: "ZERGA", prenom: "Islem", licence: "9604978669", clubId: (await f.club("Venissieux")).id });
+      const m = (await ds.getRepository(Match).find({ where: { equipeDomId: seniors26.id } }))[0];
+      await f.compo({ matchId: m.id, cote: "dom", nom: "ZERGA", prenom: "Islem", licence: "9604978669" });
+
+      const rows = await svc.effectif(seniors26.id);
+
+      expect(rows.map((r) => r.id).sort()).toEqual([fiche.id, islem.id].sort());
+      expect(new Set(rows.map((r) => r.id)).size).toBe(rows.length);
+    });
+
+    it("effectif : le joueur attache a la main ET present sur une feuille n'apparait qu'une fois", async () => {
+      const { fiche, seniors26 } = await arrive();
+      await svc.attachEquipe(fiche.id, seniors26.id);
+
+      const rows = await svc.effectif(seniors26.id);
+
+      expect(rows.filter((r) => r.nom === "GUEDES")).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ id: fiche.id, matchs: 1 });
+    });
+
+    it("championnat de sa saison passee : retrouve sa fiche meme rattachee a un autre club aujourd'hui", async () => {
+      const { c, fiche, equipeMions } = await arrive();
+      // Etat apres la derivation : la fiche suit le joueur dans son club actuel.
+      await ds.getRepository(Joueur).update(fiche.id, { clubId: c.moi.id });
+
+      const lignes = await svc.championnat(equipeMions.id);
+
+      expect(lignes.find((l) => l.nom === "GUEDES")).toMatchObject({ id: fiche.id, poste: "DC" });
+    });
+  });
+
   describe("championnat : rapprochement avec la fiche en base", () => {
     it("sans licence : club + nom + initiale du prenom, donc deux homonymes de nom ne se confondent pas", async () => {
       const c = await contexte();
@@ -406,7 +455,7 @@ describe("JoueursService", () => {
       await f.joueur({ nom: "OLAGNIER", prenom: "Paul", licence: "9604000002" });
       await f.joueur({ nom: "DUPONT", prenom: "Jean" });
     });
-    const noms = (r: Joueur[]) => r.map((j) => j.nom);
+    const noms = (r: { nom: string }[]) => r.map((j) => j.nom);
 
     it("moins de 2 caracteres : aucun resultat", async () => {
       expect(await svc.search("d")).toEqual([]);
@@ -434,6 +483,94 @@ describe("JoueursService", () => {
 
     it("ne renvoie rien pour un nom inconnu", async () => {
       expect(await svc.search("zidane")).toEqual([]);
+    });
+
+    describe("club le plus recent et derniere saison connue", () => {
+      async function parcours() {
+        const s24 = await f.saison("2024-2025", 2024);
+        const s25 = await f.saison("2025-2026", 2025, { actif: true });
+        const mions = await f.club("Mions");
+        const ol = await f.club("OL Sud");
+        const adv = await f.club("Adverse");
+        const jouer = async (club: { id: string }, saison: { id: string }, date: string, compo: { nom: string; prenom?: string; licence?: string }) => {
+          const m = await f.match({ clubDom: club.id, clubExt: adv.id, saisonId: saison.id, date });
+          await f.compo({ matchId: m.id, cote: "dom", ...compo });
+        };
+        return { s24, s25, mions, ol, adv, jouer };
+      }
+
+      it("un joueur arrive d'un autre club : son club est le plus recent, meme si sa fiche porte l'ancien", async () => {
+        const c = await parcours();
+        const guedes = { nom: "GUEDES", prenom: "Matteo", licence: "2544602641" };
+        await f.joueur({ ...guedes, clubId: c.mions.id });
+        await c.jouer(c.mions, c.s24, "07/12/2024", guedes);
+        await c.jouer(c.ol, c.s25, "06/09/2025", guedes);
+
+        const [r] = await svc.search("guedes");
+
+        expect(r.clubId).toBe(c.ol.id);
+        expect(r.derniereSaison).toEqual({ id: c.s25.id, nom: "2025-2026", court: "25-26", enCours: true });
+      });
+
+      it("derniere saison connue passee : indiquee comme telle (24-25), pas en cours", async () => {
+        const c = await parcours();
+        const parti = { nom: "PARTI", prenom: "Luc", licence: "777" };
+        await f.joueur({ ...parti, clubId: c.mions.id });
+        await c.jouer(c.mions, c.s24, "07/12/2024", parti);
+
+        const [r] = await svc.search("parti");
+
+        expect(r.clubId).toBe(c.mions.id);
+        expect(r.derniereSaison).toMatchObject({ nom: "2024-2025", court: "24-25", enCours: false });
+      });
+
+      it("un rattachement a une equipe compte comme saison connue et comme club", async () => {
+        const c = await parcours();
+        const equipe = await f.equipe({ clubId: c.ol.id, nom: "Seniors", categorie: "Seniors", saisonId: c.s25.id });
+        const nouveau = await f.joueur({ nom: "NOUVEAU", prenom: "Zed", clubId: c.mions.id, equipesAttachees: [equipe.id] });
+
+        const [r] = await svc.search("nouveau");
+
+        expect(r.id).toBe(nouveau.id);
+        expect(r.clubId).toBe(c.ol.id);
+        expect(r.derniereSaison).toMatchObject({ court: "25-26", enCours: true });
+      });
+
+      it("joueur jamais vu sur une feuille ni rattache : son club de fiche, pas de saison", async () => {
+        const c = await parcours();
+        await f.joueur({ nom: "FANTOME", prenom: "Ann", clubId: c.ol.id });
+
+        const [r] = await svc.search("fantome");
+
+        expect(r).toMatchObject({ clubId: c.ol.id, derniereSaison: null });
+      });
+
+      it("sans licence : rapproche ses feuilles par nom et club de la fiche, sans confondre un homonyme d'un autre club", async () => {
+        const c = await parcours();
+        await f.joueur({ nom: "MARTIN", prenom: "Luc", clubId: c.ol.id });
+        await c.jouer(c.ol, c.s25, "06/09/2025", { nom: "MARTIN", prenom: "Luc" });
+        await c.jouer(c.mions, c.s24, "07/12/2024", { nom: "MARTIN", prenom: "Luc" });   // homonyme d'un autre club
+
+        const [r] = await svc.search("martin");
+
+        expect(r.derniereSaison).toMatchObject({ court: "25-26" });
+        expect(r.clubId).toBe(c.ol.id);
+      });
+
+      it("sans saison active : la plus recente de la base tient lieu de saison en cours", async () => {
+        const s24 = await f.saison("2024-2025", 2024);
+        const s25 = await f.saison("2025-2026", 2025);
+        const club = await f.club("OL");
+        const adv = await f.club("Adverse");
+        const m = await f.match({ clubDom: club.id, clubExt: adv.id, saisonId: s24.id, date: "07/12/2024" });
+        await f.compo({ matchId: m.id, cote: "dom", nom: "ANCIEN", prenom: "Bob", licence: "5" });
+        await f.joueur({ nom: "ANCIEN", prenom: "Bob", licence: "5", clubId: club.id });
+
+        const [r] = await svc.search("ancien");
+
+        expect(s25.id).toBeTruthy();
+        expect(r.derniereSaison).toMatchObject({ court: "24-25", enCours: false });
+      });
     });
   });
 });

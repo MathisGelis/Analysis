@@ -18,6 +18,7 @@ import { construireNavigation } from "@/lib/navigation";
 import { scoreRecherche } from "@/lib/recherche";
 import { ClubBadge } from "@/components/ClubBadge";
 import type { Club, Joueur } from "@/lib/types";
+import { saisonPassee, type DerniereSaison } from "@/lib/parcours-joueur";
 
 interface Resultat {
   id: string;
@@ -57,14 +58,14 @@ export function CommandPalette({ ouverte, onFermer }: { ouverte: boolean; onFerm
 
   // Joueurs : recherche floue du serveur, apres une courte pause de frappe. Un numero de
   // requete evite qu'une reponse tardive ecrase une plus recente.
-  const [joueurs, setJoueurs] = useState<Joueur[]>([]);
+  const [joueurs, setJoueurs] = useState<(Joueur & { derniereSaison?: DerniereSaison | null })[]>([]);
   const requete = useRef(0);
   useEffect(() => {
     const terme = q.trim();
     if (!ouverte || terme.length < 2) { setJoueurs([]); return; }
     const n = ++requete.current;
     const minuteur = setTimeout(() => {
-      api.searchJoueurs(terme).then((r) => { if (n === requete.current) setJoueurs(r as Joueur[]); }).catch(() => {});
+      api.searchJoueurs(terme).then((r) => { if (n === requete.current) setJoueurs(r as (Joueur & { derniereSaison?: DerniereSaison | null })[]); }).catch(() => {});
     }, 150);
     return () => clearTimeout(minuteur);
   }, [q, ouverte]);
@@ -108,9 +109,10 @@ export function CommandPalette({ ouverte, onFermer }: { ouverte: boolean; onFerm
       }
       // L'ordre du serveur (pertinence) est conserve : score decroissant.
       joueurs.forEach((j, i) => {
+        // Club le plus recent (le serveur le calcule sur les feuilles) et, hors saison en cours, la derniere saison connue.
         const clubNom = donnees.clubs.find((c) => c.id === j.clubId)?.nom;
         ajouter({ id: `joueur:${j.id}`, groupe: "Joueurs", label: `${j.prenom ?? ""} ${j.nom}`.trim(),
-          sous: [clubNom, j.poste].filter(Boolean).join(" · "), icone: Users, action: aller(`/joueur/${j.id}`) },
+          sous: [clubNom, j.poste, saisonPassee(j.derniereSaison)].filter(Boolean).join(" · "), icone: Users, action: aller(`/joueur/${j.id}`) },
           1000 - i);
       });
       for (const a of donnees.arbitres) {
