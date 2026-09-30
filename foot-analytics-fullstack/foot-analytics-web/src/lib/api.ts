@@ -366,6 +366,13 @@ export const api = {
   joueursChampionnat: (equipeId: string) =>
     req<any[]>(`/joueurs/championnat?equipeId=${equipeId}`, { fallback: [] }),
 
+  /** Admin : clones provisoires de la saison precedente devenus doublons de la vraie
+   *  equipe. Simulation par defaut (`appliquer` = true pour fusionner). null si non admin. */
+  reconcilierEquipes: (appliquer = false) =>
+    req<any>(`/equipes/maintenance/reconcilier${appliquer ? "?appliquer=true" : ""}`, {
+      method: "POST", fallback: null,
+    }),
+
   /* ---- Equipes : clone saison ---- */
   /** Clone toutes les equipes d'un club d'une saison vers une autre. */
   cloneEquipesSaison: (body: { clubId: string; fromSaisonId: string; toSaisonId: string }) =>

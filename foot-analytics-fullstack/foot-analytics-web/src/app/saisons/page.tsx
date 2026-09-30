@@ -10,8 +10,8 @@ import { SaisonsManager } from "@/components/SaisonsManager";
 export const metadata = { title: "Saisons · Foot Analytics" };
 
 export default async function SaisonsPage() {
-  const [saisons, equipes, clubs] = await Promise.all([
-    api.saisons(), api.equipes(), api.clubs(),
+  const [saisons, equipes, clubs, reconciliation] = await Promise.all([
+    api.saisons(), api.equipes(), api.clubs(), api.reconcilierEquipes(false),
   ]);
   return (
     <div className="space-y-6 fade-up">
@@ -24,7 +24,8 @@ export default async function SaisonsPage() {
         </p>
       </header>
 
-      <SaisonsManager saisons={saisons} equipes={equipes} clubs={clubs} />
+      <SaisonsManager saisons={saisons} equipes={equipes} clubs={clubs}
+        fusionsEnAttente={reconciliation?.fusions ?? []} />
     </div>
   );
 }

@@ -8,12 +8,40 @@
 
 import {
   Body, Controller, Delete, Get, Injectable, Logger, Module, NotFoundException,
-  Param, Patch, Post, Query,
+  Param, Patch, Post, Query, UseGuards,
 } from "@nestjs/common";
 import { IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { Equipe, Match } from "@/entities";
+import { Club, Entrainement, Equipe, Joueur, LigneClassement, Match } from "@/entities";
+import { AdminGuard, AuthModule } from "../auth/auth.module";
+
+const minuscule = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
+
+/** Meme "niveau" dans un club : categorie ET division connues et identiques (poule ignoree). */
+export function memeNiveau(
+  a: Pick<Equipe, "categorie" | "division">,
+  b: Pick<Equipe, "categorie" | "division">,
+): boolean {
+  return !!minuscule(a.categorie) && !!minuscule(a.division)
+    && minuscule(a.categorie) === minuscule(b.categorie)
+    && minuscule(a.division) === minuscule(b.division);
+}
+
+export interface RapportFusion {
+  club: string;
+  saison: string;
+  source: { id: string; nom: string; poule: string | null };
+  cible: { id: string; nom: string; poule: string | null };
+  joueursDeplaces: number;
+  seancesDeplacees: number;
+}
+export interface RapportReconciliation {
+  appliquer: boolean;
+  fusions: RapportFusion[];
+  /** Cas que l'on ne tranche pas : plusieurs equipes deja jouees au meme niveau, ou plusieurs clones sans equipe reelle. */
+  ambigus: { club: string; saison: string; niveau: string; equipes: string[] }[];
+}
 
 class UpsertEquipeDto {
   @IsString() clubId: string;
@@ -90,6 +118,11 @@ export class EquipesService {
     for (const src of sources) {
       const cle = `${src.competitionLibelle ?? ""}|${src.poule ?? ""}|${src.categorie ?? ""}`;
       if (existanteParCle.has(cle)) { existaient++; continue; }
+      // Une equipe du MEME NIVEAU (categorie + division) existe deja sur la
+      // saison cible : la poule a change entre les deux saisons (Seniors D2
+      // poule C puis poule A), l'equipe reelle est deja la. Recreer le clone
+      // de l'an passe ferait un doublon provisoire que rien n'absorberait.
+      if (cibles.some((c) => memeNiveau(c, src))) { existaient++; continue; }
       const nouvelle = this.repo.create({
         clubId: src.clubId,
         nom: src.nom,
@@ -179,7 +212,7 @@ export class EquipesService {
     if (args.saisonId) qb.andWhere("e.saison_id = :sid", { sid: args.saisonId });
     else qb.andWhere("e.saison_id IS NULL");
     const existing = await qb.getOne();
-    if (existing) return existing;
+    if (existing) return this.absorberDoublons(existing);
 
     // Deduit la categorie / division depuis le libelle FMI.
     // Ex. : "Seniors D2 / Phase Unique", "U20 Regional 2 / Unique / Poule B".
@@ -216,30 +249,155 @@ export class EquipesService {
         .having("COUNT(m.id) = 0")
         .getMany();
 
-      // Cas simple : UNE seule equipe orpheline de cette categorie ->
-      // on la met a jour. Ambigu si plusieurs (Seniors 1, Seniors 2) :
-      // on ne touche a rien et on cree une nouvelle equipe pour ne pas
-      // faire de choix arbitraire.
-      if (memeCategorie.length === 1) {
-        const orph = memeCategorie[0] as any;
+      // 2a. Meme NIVEAU (categorie + division) : la poule a change d'une
+      //     saison a l'autre (Seniors D2 poule C -> poule A) mais c'est la meme
+      //     equipe. C'est le cas courant, et il reste non ambigu meme quand le
+      //     club aligne plusieurs equipes de la categorie (Seniors D2 et R2).
+      // 2b. Sinon, UNE seule orpheline de la categorie : montee / descente
+      //     (D2 -> D1), on l'adapte. Plusieurs : on ne choisit pas au hasard.
+      const memeNiveauOrph = division
+        ? memeCategorie.filter((e) => minuscule(e.division) === minuscule(division))
+        : [];
+      const choisie: any =
+        memeNiveauOrph.length === 1 ? memeNiveauOrph[0]
+        : memeNiveauOrph.length === 0 && memeCategorie.length === 1 ? memeCategorie[0]
+        : null;
+      if (choisie) {
         // Mise a jour : la FMI est plus fiable que le clone. On
         // n'ecrase que si on a une valeur — inutile de mettre a
         // undefined si la FMI ne fournit rien.
-        if (competitionLibelle) orph.competitionLibelle = competitionLibelle;
-        if (poule) orph.poule = poule;
-        if (division) orph.division = division;
-        orph.nom = nom;
-        return this.repo.save(orph);
+        if (competitionLibelle) choisie.competitionLibelle = competitionLibelle;
+        if (poule) choisie.poule = poule;
+        if (division) choisie.division = division;
+        choisie.nom = nom;
+        return this.absorberDoublons(await this.repo.save(choisie));
       }
     }
 
     // -------- Etape 3 : creation --------
-    return this.repo.save(this.repo.create({
+    return this.absorberDoublons(await this.repo.save(this.repo.create({
       clubId: args.clubId, nom,
       categorie: categorie ?? undefined, division: division ?? undefined,
       poule: poule ?? undefined, competitionLibelle: competitionLibelle ?? undefined,
       saisonId: args.saisonId ?? undefined,
-    }));
+    })));
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  Doublons provisoires (clones de la saison precedente)               */
+  /* ------------------------------------------------------------------ */
+
+  private async nbMatchs(equipeId: string): Promise<number> {
+    return this.repo.manager.getRepository(Match).count({
+      where: [{ equipeDomId: equipeId }, { equipeExtId: equipeId }],
+    });
+  }
+
+  /**
+   * Fusionne `sourceId` dans `cibleId` puis supprime la source : joueurs
+   * attaches, seances d'entrainement et matchs sont rattaches a la cible.
+   */
+  async fusionner(sourceId: string, cibleId: string): Promise<{ joueursDeplaces: number; seancesDeplacees: number }> {
+    if (sourceId === cibleId) return { joueursDeplaces: 0, seancesDeplacees: 0 };
+    const m = this.repo.manager;
+
+    // Joueurs attaches (colonne CSV) : remplace la source par la cible, sans doublon.
+    const joueurs = await m.getRepository(Joueur).createQueryBuilder("j")
+      .where("j.equipesAttachees LIKE :p", { p: `%${sourceId}%` })
+      .getMany();
+    let joueursDeplaces = 0;
+    for (const j of joueurs) {
+      const avant = j.equipesAttachees ?? [];
+      if (!avant.includes(sourceId)) continue; // LIKE peut matcher une sous-chaine
+      j.equipesAttachees = [...new Set(avant.map((id) => (id === sourceId ? cibleId : id)))];
+      await m.getRepository(Joueur).save(j);
+      joueursDeplaces++;
+    }
+
+    const seances = await m.getRepository(Entrainement).update({ equipeId: sourceId }, { equipeId: cibleId });
+    await m.getRepository(Match).update({ equipeDomId: sourceId }, { equipeDomId: cibleId });
+    await m.getRepository(Match).update({ equipeExtId: sourceId }, { equipeExtId: cibleId });
+    // Lignes de classement de la source : recalculees par la derivation, on ne les deplace pas.
+    await m.getRepository(LigneClassement).delete({ equipeId: sourceId });
+    await this.repo.delete(sourceId);
+
+    this.log.log(`[fusion] equipe ${sourceId} -> ${cibleId} : ${joueursDeplaces} joueur(s), ${seances.affected ?? 0} seance(s)`);
+    return { joueursDeplaces, seancesDeplacees: seances.affected ?? 0 };
+  }
+
+  /**
+   * Absorbe dans `equipe` les equipes SANS MATCH du meme club, de la meme
+   * saison et du meme niveau (categorie + division) : ce sont les clones
+   * provisoires de la saison precedente, devenus des doublons des que la vraie
+   * equipe (autre poule) existe. Un club ne peut pas avoir deux equipes au meme
+   * niveau, donc la fusion est sure. Ne touche jamais une equipe deja jouee.
+   */
+  async absorberDoublons(equipe: Equipe): Promise<Equipe> {
+    if (!equipe.saisonId || !equipe.categorie || !equipe.division) return equipe;
+    const memeClub = await this.repo.find({ where: { clubId: equipe.clubId, saisonId: equipe.saisonId } });
+    for (const autre of memeClub) {
+      if (autre.id === equipe.id || !memeNiveau(autre, equipe)) continue;
+      if ((await this.nbMatchs(autre.id)) > 0) continue;
+      await this.fusionner(autre.id, equipe.id);
+    }
+    return equipe;
+  }
+
+  /**
+   * Reconciliation des donnees EXISTANTES : pour chaque (club, saison, niveau)
+   * qui a une equipe jouee et une ou plusieurs equipes sans match, fusionne les
+   * secondes dans la premiere. Les cas ambigus sont listes, jamais fusionnes.
+   * Simulation par defaut.
+   */
+  async reconcilier(appliquer = false, saisonId?: string): Promise<RapportReconciliation> {
+    const equipes = await this.repo.find({ where: saisonId ? { saisonId } : {} });
+    const manager = this.repo.manager;
+    const clubs = new Map((await manager.getRepository(Club).find()).map((c) => [c.id, c.nom]));
+    const saisons = new Map(
+      (await manager.getRepository("Saison").find() as any[]).map((s) => [s.id, s.nom as string]),
+    );
+
+    const groupes = new Map<string, Equipe[]>();
+    for (const e of equipes) {
+      if (!e.saisonId || !minuscule(e.categorie) || !minuscule(e.division)) continue;
+      const cle = `${e.clubId}|${e.saisonId}|${minuscule(e.categorie)}|${minuscule(e.division)}`;
+      groupes.set(cle, [...(groupes.get(cle) ?? []), e]);
+    }
+
+    const rapport: RapportReconciliation = { appliquer, fusions: [], ambigus: [] };
+    for (const groupe of groupes.values()) {
+      if (groupe.length < 2) continue;
+      const avecMatchs: Equipe[] = [];
+      const orphelines: Equipe[] = [];
+      for (const e of groupe) ((await this.nbMatchs(e.id)) > 0 ? avecMatchs : orphelines).push(e);
+
+      const ref = groupe[0];
+      const club = clubs.get(ref.clubId) ?? ref.clubId;
+      const saison = saisons.get(ref.saisonId) ?? ref.saisonId;
+      if (avecMatchs.length !== 1) {
+        rapport.ambigus.push({
+          club, saison, niveau: `${ref.categorie} ${ref.division}`,
+          equipes: groupe.map((e) => e.nom),
+        });
+        continue;
+      }
+      const cible = avecMatchs[0];
+      for (const source of orphelines) {
+        const joueursAttaches = (await manager.getRepository(Joueur).createQueryBuilder("j")
+          .where("j.equipesAttachees LIKE :p", { p: `%${source.id}%` }).getMany())
+          .filter((j) => (j.equipesAttachees ?? []).includes(source.id)).length;
+        const seances = await manager.getRepository(Entrainement).count({ where: { equipeId: source.id } });
+        const fusion: RapportFusion = {
+          club, saison,
+          source: { id: source.id, nom: source.nom, poule: source.poule ?? null },
+          cible: { id: cible.id, nom: cible.nom, poule: cible.poule ?? null },
+          joueursDeplaces: joueursAttaches, seancesDeplacees: seances,
+        };
+        if (appliquer) await this.fusionner(source.id, cible.id);
+        rapport.fusions.push(fusion);
+      }
+    }
+    return rapport;
   }
 }
 
@@ -256,6 +414,14 @@ class EquipesController {
   }
   @Delete(":id") remove(@Param("id") id: string) { return this.svc.remove(id); }
 
+  // Maintenance (admin) : fusionne les clones provisoires de la saison
+  // precedente devenus doublons de la vraie equipe (autre poule). Simulation par
+  // defaut ; ?appliquer=true pour fusionner ; ?saisonId= pour limiter a une saison.
+  @Post("maintenance/reconcilier") @UseGuards(AdminGuard)
+  reconcilier(@Query("appliquer") appliquer?: string, @Query("saisonId") saisonId?: string) {
+    return this.svc.reconcilier(appliquer === "true", saisonId);
+  }
+
   // Clone toutes les equipes d'un club d'une saison vers une autre.
   // Usage : preparer la saison 2026-2027 en clonant les equipes engagees
   // en 2025-2026 (effectif vide a remplir manuellement).
@@ -266,7 +432,7 @@ class EquipesController {
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Equipe])],
+  imports: [TypeOrmModule.forFeature([Equipe]), AuthModule],
   controllers: [EquipesController],
   providers: [EquipesService],
   exports: [EquipesService],

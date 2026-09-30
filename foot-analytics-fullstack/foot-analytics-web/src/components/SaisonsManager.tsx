@@ -16,13 +16,20 @@ interface Props {
   saisons: any[];
   equipes: any[];
   clubs: Club[];
+  /** Clones provisoires devenus doublons de la vraie equipe (simulation de la reconciliation). */
+  fusionsEnAttente?: {
+    club: string; saison: string;
+    source: { nom: string; poule: string | null };
+    cible: { nom: string; poule: string | null };
+    joueursDeplaces: number;
+  }[];
 }
 
 const LIBELLE_STATUT: Record<string, string> = {
   en_cours: "En cours", terminee: "Terminee", a_venir: "A venir",
 };
 
-export function SaisonsManager({ saisons, equipes, clubs }: Props) {
+export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] }: Props) {
   const nomClub = (id: string) => clubs.find((c) => c.id === id)?.nom ?? id;
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -35,6 +42,11 @@ export function SaisonsManager({ saisons, equipes, clubs }: Props) {
   const equipesParSaison = (saisonId: string) =>
     equipes.filter((e) => e.saisonId === saisonId);
 
+  const onFusionner = async () => {
+    setBusy(true);
+    try { await api.reconcilierEquipes(true); router.refresh(); }
+    finally { setBusy(false); }
+  };
   const onActiver = async (id: string) => {
     setBusy(true);
     try { await api.activerSaison(id); router.refresh(); }
@@ -54,6 +66,34 @@ export function SaisonsManager({ saisons, equipes, clubs }: Props) {
 
   return (
     <section className="space-y-4">
+      {fusionsEnAttente.length > 0 && (
+        <div className="panel-inset p-4 border-l-2 border-amber space-y-2" role="status">
+          <div className="text-sm font-semibold text-ink">
+            {fusionsEnAttente.length} equipe{fusionsEnAttente.length > 1 ? "s" : ""} provisoire
+            {fusionsEnAttente.length > 1 ? "s" : ""} en doublon
+          </div>
+          <p className="text-xs text-muted">
+            La saison a ete reconstruite avec les poules de l'an passe ; la vraie
+            poule est connue depuis l'import des feuilles. Les equipes provisoires
+            (sans match) sont fusionnees dans la vraie, joueurs et seances compris.
+          </p>
+          <ul className="text-xs space-y-0.5">
+            {fusionsEnAttente.map((f, i) => (
+              <li key={i}>
+                <strong className="text-ink">{f.club}</strong> · {f.saison} :{" "}
+                {f.source.nom} <span className="text-faint">→</span> {f.cible.nom}
+                {f.joueursDeplaces > 0 && (
+                  <span className="text-faint"> ({f.joueursDeplaces} joueur{f.joueursDeplaces > 1 ? "s" : ""} rattache{f.joueursDeplaces > 1 ? "s" : ""})</span>
+                )}
+              </li>
+            ))}
+          </ul>
+          <button className="btn btn-turf text-xs" onClick={onFusionner} disabled={busy}>
+            Fusionner maintenant
+          </button>
+        </div>
+      )}
+
       <div className="panel p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="h-section flex items-center gap-2">
