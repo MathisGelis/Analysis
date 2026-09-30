@@ -159,14 +159,37 @@ describe("AnalyseService.rapportClub", () => {
     });
   });
 
+  describe("faiblesses", () => {
+    it("les numeros sans titulaire fixe sont regroupes en une seule ligne, apres les alertes", async () => {
+      const moi = await f.club("OL Sud");
+      const adv = await f.club("Adverse");
+      const saison = await f.saison("2025-2026", 2025, { actif: true });
+      const eq = await f.equipe({ clubId: moi.id, nom: "Seniors", categorie: "Seniors", saisonId: saison.id });
+      const advEq = await f.equipe({ clubId: adv.id, nom: "Adverse", categorie: "Seniors", saisonId: saison.id });
+      // 8 matchs, 3 dossards (2, 3, 4) portes chaque fois par un joueur different.
+      for (let i = 0; i < 8; i++) {
+        const m = await f.match({ clubDom: moi.id, clubExt: adv.id, equipeDomId: eq.id, equipeExtId: advEq.id, saisonId: saison.id, scoreDom: 1, scoreExt: 1 });
+        for (const numero of [2, 3, 4]) await f.compo({ matchId: m.id, cote: "dom", nom: `J${numero}-${i}`, numero });
+      }
+      const { faiblesses } = await svc.rapportClub(moi.id, { equipeId: eq.id });
+      const dossards = faiblesses.filter((x) => x.titre.includes("sans titulaire fixe") || x.titre.includes("pas de titulaire fixe"));
+      expect(dossards).toHaveLength(1);
+      expect(dossards[0].titre).toBe("3 numeros sans titulaire fixe");
+      expect(dossards[0].detail).toContain("2 (8 joueurs)");
+      // Les niveaux les plus graves d'abord.
+      const rang = { critique: 0, alerte: 1, info: 2 };
+      expect(faiblesses.map((x) => rang[x.niveau])).toEqual([...faiblesses.map((x) => rang[x.niveau])].sort());
+    });
+  });
+
   describe("dynamiquePoule", () => {
     it("une ligne par equipe de la poule : classement, forme recente, sens, serie", async () => {
       const moi = await f.club("OL Sud");
       const saison = await f.saison("2025-2026", 2025, { actif: true });
       const poule = { categorie: "Seniors", division: "D2", competitionLibelle: "Seniors D2", poule: "C", saisonId: saison.id };
-      const a = await f.equipe({ clubId: moi.id, nom: "OL Sud", ...poule });
+      const a = await f.equipe({ clubId: moi.id, nom: "Seniors D2 Poule C", ...poule });
       const clubB = await f.club("Bravo");
-      const b = await f.equipe({ clubId: clubB.id, nom: "Bravo", ...poule });
+      const b = await f.equipe({ clubId: clubB.id, nom: "Seniors D2 Poule C", ...poule });
       const autrePoule = await f.equipe({ clubId: clubB.id, nom: "Bravo B", ...poule, poule: "A" });
       await ds.getRepository(LigneClassement).save([
         { clubId: moi.id, equipeId: a.id, saisonId: saison.id, rang: 2, joues: 8, v: 4, n: 0, d: 4, bp: 9, bc: 8, pts: 12 },
@@ -181,7 +204,7 @@ describe("AnalyseService.rapportClub", () => {
 
       const r = await svc.dynamiquePoule(a.id);
 
-      expect(r.equipes.map((e) => e.nom)).toEqual(["Bravo", "OL Sud"]);          // par rang
+      expect(r.equipes.map((e) => e.nom)).toEqual(["Bravo", "OL Sud"]);          // par rang, sous le nom du club (pas celui de l'equipe)
       expect(r.equipes.find((e) => e.equipeId === autrePoule.id)).toBeUndefined();  // autre poule exclue
       const ol = r.equipes.find((e) => e.nom === "OL Sud")!;
       expect(ol).toMatchObject({ rang: 2, joues: 8, sens: "baisse" });

@@ -199,7 +199,7 @@ const CONDITIONS: Record<TypeSerie, (m: MatchTendance) => boolean> = {
 export interface Serie { type: TypeSerie; longueur: number }
 
 export interface Series {
-  /** Series encore ouvertes au dernier match (au moins 2 matchs), les plus longues d'abord. */
+  /** Series encore ouvertes au dernier match (au moins 2 matchs), les plus longues d'abord ; "marque" en dernier. */
   enCours: Serie[];
   /** Record de la saison pour chaque type de serie. */
   records: Serie[];
@@ -224,7 +224,9 @@ export function series(matchs: MatchTendance[]): Series {
     (s.type === "invaincu" && enCours.some((x) => x.type === "victoires" && x.longueur === s.longueur))
     || (s.type === "sans_victoire" && enCours.some((x) => x.type === "defaites" && x.longueur === s.longueur))
   ));
-  return { enCours: filtrees.sort((a, b) => b.longueur - a.longueur), records };
+  // Les plus longues d'abord ; marquer a chaque match est banal, cette serie passe apres les autres.
+  const banale = (s: Serie) => (s.type === "marque" ? 1 : 0);
+  return { enCours: filtrees.sort((a, b) => banale(a) - banale(b) || b.longueur - a.longueur), records };
 }
 
 /* ------------------------------- Lieux et profil ---------------------------- */
@@ -473,6 +475,8 @@ export interface Insight {
 
 const fr = (x: number, d = 1) => x.toFixed(d).replace(".", ",");
 const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? "s" : ""}`;
+/** Quantite decimale accordee : "1,8 but marque", "2,0 buts marques" (le pluriel commence a 2). */
+const quant = (x: number, singulier: string, plur: string) => `${fr(x)} ${x >= 2 ? plur : singulier}`;
 
 const LIBELLE_SERIE: Record<TypeSerie, (n: number) => string> = {
   victoires: (n) => `${n} victoires de suite`,
@@ -507,17 +511,17 @@ export function genererInsights(t: Omit<Tendances, "insights">): Insight[] {
     }
     if (forme.attaque === "hausse") {
       add({ id: "attaque-hausse", ton: "positif", categorie: "attaque", importance: 2,
-        titre: "L'attaque se libere", detail: `${fr(r.bpm)} but(s) marque(s) par match recemment, contre ${fr(a.bpm)} avant.` });
+        titre: "L'attaque se libere", detail: `${quant(r.bpm, "but marque", "buts marques")} par match recemment, contre ${fr(a.bpm)} avant.` });
     } else if (forme.attaque === "baisse") {
       add({ id: "attaque-baisse", ton: "negatif", categorie: "attaque", importance: 2,
-        titre: "L'attaque s'essouffle", detail: `${fr(r.bpm)} but(s) marque(s) par match recemment, contre ${fr(a.bpm)} avant.` });
+        titre: "L'attaque s'essouffle", detail: `${quant(r.bpm, "but marque", "buts marques")} par match recemment, contre ${fr(a.bpm)} avant.` });
     }
     if (forme.defense === "hausse") {
       add({ id: "defense-hausse", ton: "positif", categorie: "defense", importance: 2,
-        titre: "La defense se resserre", detail: `${fr(r.bcm)} but(s) encaisse(s) par match recemment, contre ${fr(a.bcm)} avant.` });
+        titre: "La defense se resserre", detail: `${quant(r.bcm, "but encaisse", "buts encaisses")} par match recemment, contre ${fr(a.bcm)} avant.` });
     } else if (forme.defense === "baisse") {
       add({ id: "defense-baisse", ton: "negatif", categorie: "defense", importance: 2,
-        titre: "La defense se fragilise", detail: `${fr(r.bcm)} but(s) encaisse(s) par match recemment, contre ${fr(a.bcm)} avant.` });
+        titre: "La defense se fragilise", detail: `${quant(r.bcm, "but encaisse", "buts encaisses")} par match recemment, contre ${fr(a.bcm)} avant.` });
     }
   }
 
@@ -598,7 +602,7 @@ export function genererInsights(t: Omit<Tendances, "insights">): Insight[] {
   }
   if (t.forme.sens !== "insuffisant" && d.ecartJaunes >= 0.7) {
     add({ id: "discipline-hausse", ton: "negatif", categorie: "discipline", importance: 2,
-      titre: "Les cartons s'accumulent", detail: `${fr(d.recentJaunesParMatch)} jaune(s) par match recemment, contre ${fr(d.avantJaunesParMatch)} avant.` });
+      titre: "Les cartons s'accumulent", detail: `${quant(d.recentJaunesParMatch, "jaune", "jaunes")} par match recemment, contre ${fr(d.avantJaunesParMatch)} avant.` });
   }
   if (d.partFinDeMatch !== null && d.cartonsAvecMinute >= 6 && d.partFinDeMatch >= 0.4) {
     add({ id: "discipline-fin", ton: "negatif", categorie: "discipline", importance: 1,
@@ -623,10 +627,10 @@ export function genererInsights(t: Omit<Tendances, "insights">): Insight[] {
   /* Rotation */
   if (t.rotation.sens === "hausse") {
     add({ id: "rotation-hausse", ton: "negatif", categorie: "effectif", importance: 2,
-      titre: "Le onze bouge de plus en plus", detail: `${fr(t.rotation.recente)} titulaire(s) different(s) d'un match a l'autre recemment, contre ${fr(t.rotation.avant)} avant.` });
+      titre: "Le onze bouge de plus en plus", detail: `${quant(t.rotation.recente, "titulaire different", "titulaires differents")} d'un match a l'autre recemment, contre ${fr(t.rotation.avant)} avant.` });
   } else if (t.rotation.sens === "baisse") {
     add({ id: "rotation-baisse", ton: "positif", categorie: "effectif", importance: 1,
-      titre: "Le onze se stabilise", detail: `${fr(t.rotation.recente)} changement(s) par match recemment, contre ${fr(t.rotation.avant)} avant.` });
+      titre: "Le onze se stabilise", detail: `${quant(t.rotation.recente, "changement", "changements")} par match recemment, contre ${fr(t.rotation.avant)} avant.` });
   }
 
   return out.sort((a, b2) => b2.importance - a.importance);

@@ -419,19 +419,27 @@ export class AnalyseService {
         dossardOccup[c.numero].add(norm(c.nom));
       }
     }
-    for (const [num, set] of Object.entries(dossardOccup)) {
-      // On flag uniquement si l'instabilite est forte : un nouveau joueur
-      // tous les 4 matchs ou moins. Sur 4 matchs : >=2 differents. Sur 20
-      // matchs : >=5 differents. Au moins 4 matchs analyses pour activer.
-      const seuil = Math.max(2, Math.ceil(totalTitMatchs / 4));
-      if (set.size >= seuil && totalTitMatchs >= 4) {
-        faiblesses.push({
-          niveau: "info",
-          titre: `Numero ${num} : pas de titulaire fixe`,
-          detail: `${set.size} joueurs differents ont porte ce numero comme titulaire sur ${totalTitMatchs} matchs — peut-etre une zone d'incertitude.`,
-        });
-      }
+    const seuilDossard = Math.max(2, Math.ceil(totalTitMatchs / 4));
+    const dossardsInstables = totalTitMatchs >= 4
+      ? Object.entries(dossardOccup)
+          .map(([num, set]) => ({ num: Number(num), joueurs: set.size }))
+          .filter((d) => d.joueurs >= seuilDossard)
+          .sort((a, b) => b.joueurs - a.joueurs || a.num - b.num)
+      : [];
+    // Une seule ligne pour tous les numeros concernes : une ligne par numero noyait le rapport.
+    if (dossardsInstables.length > 0) {
+      const liste = dossardsInstables.slice(0, 6).map((d) => `${d.num} (${d.joueurs} joueurs)`).join(", ");
+      const reste = dossardsInstables.length - 6;
+      faiblesses.push({
+        niveau: "info",
+        titre: dossardsInstables.length === 1
+          ? `Numero ${dossardsInstables[0].num} : pas de titulaire fixe`
+          : `${dossardsInstables.length} numeros sans titulaire fixe`,
+        detail: `Numeros portes par plusieurs titulaires sur ${totalTitMatchs} matchs : ${liste}${reste > 0 ? ` et ${reste} autre${reste > 1 ? "s" : ""}` : ""} — peut-etre des zones d'incertitude.`,
+      });
     }
+    const rangNiveau: Record<Faiblesse["niveau"], number> = { critique: 0, alerte: 1, info: 2 };
+    faiblesses.sort((a, b) => rangNiveau[a.niveau] - rangNiveau[b.niveau]);
 
     /* ============ Compo probable ============ */
     // Pour chaque poste theorique, prendre le joueur qui y a ete le plus
@@ -778,11 +786,14 @@ export class AnalyseService {
     if (!ref) throw new NotFoundException(`Equipe ${equipeId} introuvable`);
     const equipes = await this.equipesDuChampionnat(ref);
     const ids = equipes.map((e) => e.id);
-    const [matchs, lignes] = await Promise.all([
+    const [matchs, lignes, clubsDeLaPoule] = await Promise.all([
       this.matchs.find({ where: [{ equipeDomId: In(ids) }, { equipeExtId: In(ids) }] }),
       this.classementRepo.find({ where: { equipeId: In(ids) } }),
+      this.clubs.find({ where: { id: In(equipes.map((e) => e.clubId)) } }),
     ]);
     const ligneDe = new Map(lignes.map((l) => [l.equipeId, l]));
+    // Le nom affiche est celui du club : toutes les equipes d'une poule s'appellent "Seniors D2 Poule C".
+    const nomClub = new Map(clubsDeLaPoule.map((c) => [c.id, c.nom]));
 
     const lignesSortie: DynamiqueEquipe[] = [];
     for (const eq of equipes) {
@@ -801,10 +812,11 @@ export class AnalyseService {
       if (siens.length === 0) continue;
       const ordonnes = trierChronologiquement(siens);
       const f = dynamiqueForme(ordonnes);
-      const s = seriesDe(ordonnes).enCours[0];
+      // Une serie de 2 matchs n'est pas une information : on ne signale qu'a partir de 3.
+      const s = seriesDe(ordonnes).enCours.find((x) => x.longueur >= 3);
       const l = ligneDe.get(eq.id);
       lignesSortie.push({
-        equipeId: eq.id, clubId: eq.clubId, nom: eq.nom,
+        equipeId: eq.id, clubId: eq.clubId, nom: nomClub.get(eq.clubId) ?? eq.nom,
         rang: l?.rang ?? null, pts: l?.pts ?? null, joues: ordonnes.length,
         formeRecente: ordonnes.slice(-5).map((m) => issueDe(m.bp, m.bc)),
         ppmSaison: f.saison.ppm, ppmRecent: f.sens === "insuffisant" ? f.saison.ppm : f.recente.ppm,

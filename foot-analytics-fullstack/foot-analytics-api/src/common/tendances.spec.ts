@@ -230,6 +230,25 @@ describe("genererInsights", () => {
     expect(ins.find((i) => i.id === "attaque-baisse")).toBeDefined();
   });
 
+  it("marquer a chaque match est une serie banale : elle passe apres les autres, meme plus longue", () => {
+    // Un but a chacun des 5 matchs, mais 4 matchs sans victoire et 2 sans defaite.
+    const s = series(scores("1-0", "1-2", "1-2", "1-1", "2-2"));
+    expect(s.enCours).toEqual([
+      { type: "sans_victoire", longueur: 4 },
+      { type: "invaincu", longueur: 2 },
+      { type: "marque", longueur: 5 },
+    ]);
+  });
+
+  it("libelles accordes : singulier sous 2, pluriel a partir de 2, jamais de (s)", () => {
+    const ins = calculerTendances(scores("2-0", "3-0", "2-1", "1-0", "2-0", "0-2", "0-1", "1-3", "0-2", "0-2")).insights;
+    const attaque = ins.find((i) => i.id === "attaque-baisse")!;
+    // 1 but marque sur les 5 derniers matchs : 0,2 par match, donc singulier.
+    expect(attaque.detail).toMatch(/^\d,\d buts? marques? par match recemment/);
+    expect(ins.every((i) => !/\(s\)/.test(i.detail))).toBe(true);
+    expect(attaque.detail).toContain("0,2 but marque par match");
+  });
+
   it("ecart domicile / exterieur", () => {
     const ms = [
       ...[1, 2, 3, 4].map(() => match(2, 0, { domicile: true })),
