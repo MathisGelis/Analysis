@@ -49,13 +49,18 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen">
+      {/* Lien d'evitement : le clavier saute la navigation et va droit au contenu. */}
+      <a href="#contenu"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[90] focus:rounded-xl focus:bg-accentstrong focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white">
+        Aller au contenu
+      </a>
       <Sidebar
         replie={replie} onBasculerReplie={basculerReplie}
         mobileOuvert={mobileOuvert} onFermerMobile={() => setMobileOuvert(false)}
       />
       <main className="relative z-10 min-w-0 flex-1">
         <TopBar onOuvrirMenu={() => setMobileOuvert(true)} onOuvrirPalette={() => setPaletteOuverte(true)} />
-        <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">{children}</div>
+        <div id="contenu" tabIndex={-1} className="mx-auto max-w-[1500px] px-4 py-6 outline-none sm:px-6 lg:px-8">{children}</div>
       </main>
       <CommandPalette ouverte={paletteOuverte} onFermer={() => setPaletteOuverte(false)} />
     </div>

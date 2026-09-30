@@ -9,7 +9,7 @@ import "@fontsource-variable/bricolage-grotesque";
 import "@fontsource-variable/instrument-sans";
 import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { AppShell } from "@/components/AppShell";
 import { NavProgress } from "@/components/NavProgress";
 import { FeedbackProvider } from "@/lib/feedback-context";
@@ -28,6 +28,15 @@ export const metadata: Metadata = {
   title: "Foot Analytics — Console d'entraineur",
   description:
     "Analyse et suivi de saison pour staff de football amateur.",
+};
+
+// Couleur de la barre du navigateur mobile : celle du fond, nuit ou jour (valeurs litterales
+// obligatoires ici : cette meta ne lit pas les variables CSS).
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#070A12" },
+    { media: "(prefers-color-scheme: light)", color: "#F4F6FB" },
+  ],
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
