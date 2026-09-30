@@ -17,6 +17,7 @@ import {
 import type { DynamiquePoule } from "@/lib/analyse-types";
 import type { RapportPrematch } from "@/lib/prematch-types";
 import type { PlanContreRealise } from "@/lib/plan-realise-types";
+import type { FicheCoach } from "@/lib/fiche-coach-types";
 import type {
   Club, HistoriqueSaison, Joueur, LigneClassement, Match, MatchJoue, RapportScouting, TactiquePlan,
 } from "@/lib/types";
@@ -317,6 +318,9 @@ export const api = {
   /* ---- Encadrement (coachs) d'un match ---- */
   coachsForMatch: (matchId: string) =>
     req<any[]>(`/coachs/match/${matchId}`, { fallback: [] }),
+  /** Fiche d'un entraineur : bilan (sur une saison, sinon toute la carriere), par saison, parcours, matchs. */
+  ficheCoach: (id: string, saisonId?: string | null) =>
+    req<FicheCoach | null>(`/coachs/${id}/fiche${saisonId ? `?saisonId=${saisonId}` : ""}`, { fallback: null }),
 
   /* ---- Analyse equipe ---- */
   /** Rapport d'analyse d'un club, restreint a une equipe (donc une saison) ou a une saison. */

@@ -509,7 +509,9 @@ export default async function RapportEquipe({
               {rapport.coachs.map((c: any) => (
                 <tr key={c.coachId}>
                   <td className="font-semibold">
-                    <span className="text-faint">{c.prenom} </span>{c.nom}
+                    <Link href={`/coachs/${c.coachId}`} className="hover:text-accent hover:underline">
+                      <span className="text-faint">{c.prenom} </span>{c.nom}
+                    </Link>
                   </td>
                   <td>
                     {c.fonctionPrincipale ? (

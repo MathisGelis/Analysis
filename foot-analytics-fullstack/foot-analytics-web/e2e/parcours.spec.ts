@@ -289,6 +289,33 @@ test("rapport pre-match : un clic depuis /rapports, rapport lisible, imprimable 
   await expect(page.getByText(/introuvable|n'existe pas|404/i).first()).toBeVisible();
 });
 
+test("entraineur : cliquable depuis la feuille de match, fiche avec bilan par saison et parcours", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : les entraineurs viennent de la FMI importee");
+
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const get = async (chemin: string) => (await fetch(`${API_URL}${chemin}`, { headers: { Authorization: `Bearer ${token}` } })).json();
+  const [match] = await get("/matchs");
+  const staff: { coach: { id: string; nom: string; prenom: string } }[] = (await get(`/coachs/match/${match.id}`))
+    .filter((l: any) => l.fonctions?.split("/").includes("E"));
+  expect(staff.length, "la feuille importee compte au moins un entraineur").toBeGreaterThan(0);
+  const { id, nom } = staff[0].coach;
+
+  await page.goto(`/matchs/${match.id}`);
+  await page.getByRole("link", { name: new RegExp(nom) }).first().click();
+
+  await expect(page).toHaveURL(new RegExp(`/coachs/${id}`));
+  await expect(page.getByRole("heading", { level: 1, name: new RegExp(nom) })).toBeVisible();
+  // Portee : la saison choisie par defaut, la carriere complete au clic.
+  await page.getByRole("navigation", { name: "Portee de la fiche" }).getByRole("link", { name: "Carriere complete" }).click();
+  await expect(page).toHaveURL(/portee=carriere/);
+  await expect(page.getByRole("heading", { name: "Saison par saison" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Parcours" })).toBeVisible();
+  await expect(page.getByText("1 match", { exact: false }).first()).toBeVisible();
+});
+
 test("accessibilite : aucune violation axe sur les pages principales, en theme nuit et jour", async () => {
   test.setTimeout(180_000);
   const axe = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");

@@ -50,6 +50,7 @@ export interface RapportPrematch {
     scoreChaos: number;
     fatigueMoy: number | null;
     entraineur: string | null;
+    entraineurId: string | null;
     insights: Insight[];
     compoProbable: { poste: string; numero?: number; nom: string; matchsJoues: number }[];
     joueursCles: { joueurId: string | null; nom: string; prenom?: string; poste?: string; delta: number; matchsAvec: number; titularisations: number }[];

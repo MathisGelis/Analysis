@@ -144,7 +144,9 @@ export default async function RapportPrematch({
       {a ? (
         <>
           <Section titre={`Ce qu'il faut savoir sur ${adv.clubNom}`} icone={<Crosshair size={11} className="text-accent" />}
-            aide={`${a.matchsAnalyses} match${a.matchsAnalyses > 1 ? "s" : ""} analyse${a.matchsAnalyses > 1 ? "s" : ""}${a.entraineur ? ` · entraineur : ${a.entraineur}` : ""}`}>
+            aide={<>{a.matchsAnalyses} match{a.matchsAnalyses > 1 ? "s" : ""} analyse{a.matchsAnalyses > 1 ? "s" : ""}
+              {a.entraineur && <> · entraineur : {a.entraineurId
+                ? <Link href={`/coachs/${a.entraineurId}`} className="text-accent underline underline-offset-2">{a.entraineur}</Link> : a.entraineur}</>}</>}>
             <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Chiffre label="Danger" valeur={decimal(a.scoreDanger, 0)} suffixe="/ 100" note="menace offensive" />
               <Chiffre label="Stabilite du onze" valeur={decimal(100 - a.scoreChaos, 0)} suffixe="/ 100" note={a.scoreChaos >= 50 ? "onze tres change" : "onze stable"} />
@@ -256,7 +258,7 @@ export default async function RapportPrematch({
 
 function Section({
   titre, icone, aide, children,
-}: { titre: string; icone: React.ReactNode; aide?: string; children: React.ReactNode }) {
+}: { titre: string; icone: React.ReactNode; aide?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="panel p-5">
       <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">

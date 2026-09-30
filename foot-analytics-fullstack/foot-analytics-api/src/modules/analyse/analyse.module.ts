@@ -34,6 +34,7 @@ import {
 /* ---------- helpers ---------- */
 // Reexporte : les tests et le service pre-match l'importent d'ici.
 import { estMatchJoue } from "@/common/match-joue";
+import { parseDateFlexible } from "@/common/periode";
 import { chargerDetailsMatchs } from "@/common/details-matchs";
 export { estMatchJoue };
 function norm(s?: string): string {
@@ -637,9 +638,11 @@ export class AnalyseService {
       if (bp > bc) cur.v++;
       else if (bp < bc) cur.d++;
       else cur.n++;
-      if (m.date) {
-        if (!cur.premierMatch || m.date < cur.premierMatch) cur.premierMatch = m.date;
-        if (!cur.dernierMatch || m.date > cur.dernierMatch) cur.dernierMatch = m.date;
+      // Comparaison de VRAIES dates : en chaines, "06/09/2026" serait avant "22/11/2025".
+      const t = parseDateFlexible(m.date);
+      if (m.date && t !== null) {
+        if (!cur.premierMatch || t < (parseDateFlexible(cur.premierMatch) ?? Infinity)) cur.premierMatch = m.date;
+        if (!cur.dernierMatch || t > (parseDateFlexible(cur.dernierMatch) ?? -Infinity)) cur.dernierMatch = m.date;
       }
       coachsAcc.set(sm.coachId, cur);
     }

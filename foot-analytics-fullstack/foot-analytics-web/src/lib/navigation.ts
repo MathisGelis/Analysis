@@ -75,7 +75,7 @@ const TITRES: [string, string][] = [
   ["/effectif", "Effectif"], ["/entrainements", "Entrainements"], ["/medical", "Medical & charge"],
   ["/matchs", "Matchs"], ["/tactique", "Tactique"], ["/arbitres", "Arbitres"],
   ["/scouting", "Scouting"], ["/rapports", "Rapports"], ["/import", "Import FMI"],
-  ["/saisons", "Saisons"], ["/joueur", "Fiche joueur"], ["/admin", "Administration"],
+  ["/saisons", "Saisons"], ["/joueur", "Fiche joueur"], ["/coachs", "Fiche entraineur"], ["/admin", "Administration"],
   ["/analytics", "Analytics"], ["/ia", "Predictions IA"],
 ];
 

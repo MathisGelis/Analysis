@@ -47,6 +47,8 @@ export interface RapportPrematch {
     scoreChaos: number;
     fatigueMoy: number | null;
     entraineur: string | null;
+    /** Fiche du coach (lien vers /coachs/:id). */
+    entraineurId: string | null;
     insights: unknown[];
     compoProbable: { poste: string; numero?: number; nom: string; matchsJoues: number }[];
     joueursCles: { joueurId: string | null; nom: string; prenom?: string; poste?: string; delta: number; matchsAvec: number; titularisations: number }[];
@@ -117,8 +119,10 @@ export class PrematchService {
     const analyse: RapportPrematch["analyse"] = rap.matchsAnalyses === 0 ? null : {
       matchsAnalyses: rap.matchsAnalyses,
       scoreDanger: rap.scoreDanger, scoreChaos: rap.scoreChaos, fatigueMoy: rap.fatigueMoy,
-      entraineur: rap.coachs.filter((c) => c.fonctionPrincipale === "Entraineur").sort((a, b) => b.matchsPresent - a.matchsPresent)
-        .map((c) => `${c.prenom ?? ""} ${c.nom}`.trim())[0] ?? null,
+      ...(() => {
+        const coach = rap.coachs.filter((c) => c.fonctionPrincipale === "Entraineur").sort((a, b) => b.matchsPresent - a.matchsPresent)[0];
+        return { entraineur: coach ? `${coach.prenom ?? ""} ${coach.nom}`.trim() : null, entraineurId: coach?.coachId ?? null };
+      })(),
       insights: rap.tendances.insights.slice(0, 6),
       compoProbable: rap.compoProbable,
       joueursCles: rap.joueursCles.slice(0, 4).map((j) => ({

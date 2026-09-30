@@ -11,7 +11,8 @@ import {
 import { IsIn, IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { Coach, StaffMatch } from "@/entities";
+import { Coach, Saison, StaffMatch } from "@/entities";
+import { FicheCoach, ficheCoach } from "@/common/fiche-coach";
 
 class CreateCoachDto {
   @IsString() nom: string;
@@ -55,6 +56,25 @@ export class CoachsService {
     });
     if (!c) throw new NotFoundException(`Coach ${id} introuvable`);
     return c;
+  }
+  /**
+   * Fiche du coach : bilan sur la portee demandee (`saisonId`, sinon toute la carriere), bilan par saison
+   * et par club, parcours de clubs, matchs. Les cumuls de la table `coachs` ne servent qu'aux cartons.
+   */
+  async fiche(id: string, saisonId?: string | null): Promise<FicheCoach & {
+    coach: Pick<Coach, "id" | "nom" | "prenom" | "licence" | "clubId" | "cartonsJaunes" | "cartonsRouges" | "motifsTop">;
+  }> {
+    const c = await this.findOne(id);
+    const saisons = new Map((await this.repo.manager.getRepository(Saison).find())
+      .map((s) => [s.id, { id: s.id, nom: s.nom, anneeDebut: s.anneeDebut }]));
+    const fiche = ficheCoach(c.participations ?? [], saisons, saisonId || null);
+    return {
+      coach: {
+        id: c.id, nom: c.nom, prenom: c.prenom, licence: c.licence, clubId: fiche.clubActuelId ?? c.clubId,
+        cartonsJaunes: c.cartonsJaunes, cartonsRouges: c.cartonsRouges, motifsTop: c.motifsTop,
+      },
+      ...fiche,
+    };
   }
   create(dto: CreateCoachDto) {
     return this.repo.save(this.repo.create(dto));
@@ -120,6 +140,10 @@ class CoachsController {
     return this.svc.findAll(clubId, q);
   }
   @Get(":id") one(@Param("id") id: string) { return this.svc.findOne(id); }
+  // GET /coachs/:id/fiche[?saisonId=...] : bilans, parcours et matchs du coach.
+  @Get(":id/fiche") fiche(@Param("id") id: string, @Query("saisonId") saisonId?: string) {
+    return this.svc.fiche(id, saisonId);
+  }
   @Post() create(@Body() dto: CreateCoachDto) { return this.svc.create(dto); }
   @Patch(":id") update(@Param("id") id: string, @Body() dto: UpdateCoachDto) {
     return this.svc.update(id, dto);

@@ -259,7 +259,9 @@ export default async function MatchDetailPage({ params }: { params: { id: string
                 <ul className="space-y-1 text-sm">
                   {(staffLiens as any[]).filter((l) => l.cote === cote).map((l) => (
                     <li key={l.id} className="flex items-center gap-2">
-                      <span className="text-ink">{l.coach?.prenom} {l.coach?.nom}</span>
+                      {l.coach?.id
+                      ? <Link href={`/coachs/${l.coach.id}`} className="text-ink hover:text-accent hover:underline">{l.coach.prenom} {l.coach.nom}</Link>
+                      : <span className="text-ink">{l.coach?.prenom} {l.coach?.nom}</span>}
                       <span className="badge">{l.fonctions}</span>
                     </li>
                   ))}
