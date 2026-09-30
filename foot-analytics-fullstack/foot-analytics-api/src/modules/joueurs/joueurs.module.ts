@@ -261,7 +261,7 @@ export class JoueursService {
         scoreForme: equipeDansSaisonActive ? j.scoreForme : null,
         noteMoyenne: null,
         matchs: 0, titularisations: 0, minutes: 0,
-        butsMarques: 0, passesDecisives: 0,
+        buts: 0, butsMarques: 0, passesDecisives: 0,
         cartonsJaunes: 0, cartonsRouges: 0,
         typeDiscipline: j.typeDiscipline ?? null,
         tailleCm: j.tailleCm, poidsKg: j.poidsKg, piedFort: j.piedFort,
@@ -587,11 +587,14 @@ export class JoueursService {
       qb.where("LOWER(TRIM(c.nom)) = LOWER(TRIM(:nom))", { nom: j.nom });
     }
     const composJoueur = await qb.getMany();
-    if (composJoueur.length === 0) return [];
+    // Un joueur jamais aligne mais attache a un effectif (recrue d'une saison
+    // en preparation) a quand meme un parcours : ses lignes a 0 (etape 6a).
+    const attachedEqIds: string[] = j.equipesAttachees ?? [];
+    if (composJoueur.length === 0 && attachedEqIds.length === 0) return [];
 
     // 2) Recupere UNIQUEMENT les matchs concernes en 1 seule query.
     const matchIds = [...new Set(composJoueur.map((c) => c.matchId))];
-    const matchs = await this.matchsRepo
+    const matchs = matchIds.length === 0 ? [] : await this.matchsRepo
       .createQueryBuilder("m")
       .whereInIds(matchIds)
       .getMany();
@@ -612,18 +615,16 @@ export class JoueursService {
       for (const e of equipes) equipeById.set(e.id, e);
     }
 
-    // 4) Saisons : que celles referencees. On utilise le repo Saison via
-    //    le manager pour eviter une injection supplementaire.
+    // 4) Saisons : que celles referencees.
     const saisonIds = new Set<string>();
     for (const m of matchs) if (m.saisonId) saisonIds.add(m.saisonId);
-    const saisonById = new Map<string, any>();
+    const saisonById = new Map<string, Saison>();
     if (saisonIds.size > 0) {
-      const saisonRepo = this.equipesRepo.manager.getRepository("Saison" as any);
-      const ss = await saisonRepo
+      const ss = await this.saisonsRepo
         .createQueryBuilder("s")
         .whereInIds([...saisonIds])
         .getMany();
-      for (const s of ss as any[]) saisonById.set(s.id, s);
+      for (const s of ss) saisonById.set(s.id, s);
     }
 
     // 5) Agregation memoire : par (saisonId, equipeId, clubId).
@@ -650,7 +651,6 @@ export class JoueursService {
     // On les inclut dans l'historique avec stats a 0 pour matcher le
     // comportement demande : "historique avec une nouvelle ligne si
     // dans un effectif".
-    const attachedEqIds: string[] = j.equipesAttachees ?? [];
     if (attachedEqIds.length > 0) {
       // Fetch les equipes attachees qui ne sont pas deja dans equipeById
       const missingIds = attachedEqIds.filter((id) => !equipeById.has(id));
@@ -665,12 +665,11 @@ export class JoueursService {
           .map((e) => e.saisonId)
           .filter((sid): sid is string => !!sid && !saisonById.has(sid));
         if (missingSaisonIds.length > 0) {
-          const saisonRepo = this.equipesRepo.manager.getRepository("Saison" as any);
-          const ss = await saisonRepo
+          const ss = await this.saisonsRepo
             .createQueryBuilder("s")
             .whereInIds(missingSaisonIds)
             .getMany();
-          for (const s of ss as any[]) saisonById.set(s.id, s);
+          for (const s of ss) saisonById.set(s.id, s);
         }
       }
       // Pour chaque equipe attachee, ajoute une ligne SI aucune compo
