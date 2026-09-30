@@ -8,6 +8,10 @@ import { Repository } from "typeorm";
 import { Composition, Equipe, EvenementMatch, Joueur, Match, Saison } from "@/entities";
 import { CreateJoueurDto, UpdateJoueurDto } from "./joueur.dto";
 import { equipeDuCote, isEquipeSurCote } from "@/common/matching-cote";
+import { scoreRecherche } from "@/common/fuzzy";
+
+/** Score minimal (0-1) pour qu'un joueur apparaisse dans la recherche. */
+const SEUIL_RECHERCHE = 0.6;
 
 @Injectable()
 export class JoueursService {
@@ -443,17 +447,31 @@ export class JoueursService {
       })
       .sort((a, b) => b.matchs - a.matchs);
   }
+  /**
+   * Recherche floue par nom/prenom (accents, casse, ordre, fautes de frappe)
+   * ou par debut de licence. Classement par pertinence puis par nom. Utilisee
+   * par JoueurAddModal (mode "joueur existant").
+   *
+   * Le scoring se fait en memoire : quelques milliers de joueurs au plus, et
+   * un pre-filtre SQL LIKE ferait justement disparaitre les fautes de frappe.
+   */
   async search(q: string, limit = 20): Promise<Joueur[]> {
     const needle = (q ?? "").trim();
     if (needle.length < 2) return [];
-    const lower = needle.toLowerCase();
-    return this.repo
-      .createQueryBuilder("j")
-      .where("LOWER(j.nom) LIKE :p", { p: `%${lower}%` })
-      .orWhere("LOWER(j.prenom) LIKE :p", { p: `%${lower}%` })
-      .orderBy("j.nom", "ASC")
-      .limit(limit)
-      .getMany();
+    const parLicence = /^\d{3,}$/.test(needle);
+
+    const tous = await this.repo.find();
+    return tous
+      .map((j) => ({
+        j,
+        score: parLicence
+          ? ((j.licence ?? "").startsWith(needle) ? 1 : 0)
+          : scoreRecherche(needle, [`${j.nom} ${j.prenom ?? ""}`, `${j.prenom ?? ""} ${j.nom}`]),
+      }))
+      .filter((x) => x.score >= SEUIL_RECHERCHE)
+      .sort((a, b) => b.score - a.score || (a.j.nom ?? "").localeCompare(b.j.nom ?? ""))
+      .slice(0, limit)
+      .map((x) => x.j);
   }
 
   /** Attache un joueur existant a une equipe. */

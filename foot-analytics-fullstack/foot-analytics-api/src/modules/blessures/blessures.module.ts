@@ -1,12 +1,13 @@
 // src/modules/blessures/blessures.module.ts
 import {
-  Body, Controller, Delete, Get, Injectable, NotFoundException, Param,
-  Patch, Post, Query, Module,
+  Body, ConflictException, Controller, Delete, Get, Injectable, NotFoundException,
+  Param, Patch, Post, Query, Module,
 } from "@nestjs/common";
-import { IsInt, IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsInt, IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Blessure } from "@/entities";
+import { seChevauchent } from "@/common/periode";
 
 class UpsertBlessureDto {
   @IsString() joueurId: string;
@@ -18,6 +19,8 @@ class UpsertBlessureDto {
   @IsOptional() @IsString() statut?: string;
   @IsOptional() @IsString() details?: string;
   @IsOptional() @IsInt() risqueRecidive?: number;
+  /** Confirme l'enregistrement malgre un chevauchement avec une blessure existante. */
+  @IsOptional() @IsBoolean() forcer?: boolean;
 }
 
 @Injectable()
@@ -31,10 +34,51 @@ export class BlessuresService {
     if (!b) throw new NotFoundException(`Blessure ${id} introuvable`);
     return b;
   }
-  create(dto: UpsertBlessureDto) { return this.repo.save(this.repo.create(dto)); }
+  /** Blessures du meme joueur dont la periode chevauche celle fournie. */
+  async chevauchements(
+    periode: Pick<Blessure, "joueurId" | "dateDebut" | "retourEstime" | "statut">,
+    exclureId?: string,
+  ): Promise<Blessure[]> {
+    const memeJoueur = await this.repo.find({ where: { joueurId: periode.joueurId } });
+    return memeJoueur.filter((b) => b.id !== exclureId && seChevauchent(periode, b));
+  }
+
+  /**
+   * Refuse (409) une blessure qui chevauche une autre du meme joueur, sauf
+   * `forcer: true`. Deux blessures simultanees sont possibles (cheville +
+   * epaule) mais le plus souvent c'est un doublon de saisie : on demande
+   * confirmation plutot que de trancher.
+   */
+  private async verifierChevauchement(
+    periode: Pick<Blessure, "joueurId" | "dateDebut" | "retourEstime" | "statut" | "localisation">,
+    forcer: boolean | undefined,
+    exclureId?: string,
+  ) {
+    if (forcer) return;
+    const conflits = await this.chevauchements(periode, exclureId);
+    if (conflits.length === 0) return;
+    throw new ConflictException({
+      code: "BLESSURE_CHEVAUCHANTE",
+      message: "Cette blessure chevauche une blessure existante du meme joueur.",
+      conflits: conflits.map((c) => ({
+        id: c.id, localisation: c.localisation, dateDebut: c.dateDebut,
+        retourEstime: c.retourEstime, statut: c.statut,
+        memeZone: !!periode.localisation
+          && (c.localisation ?? "").toLowerCase() === periode.localisation.toLowerCase(),
+      })),
+    });
+  }
+
+  async create(dto: UpsertBlessureDto) {
+    const { forcer, ...data } = dto;
+    await this.verifierChevauchement(data as any, forcer);
+    return this.repo.save(this.repo.create(data));
+  }
   async update(id: string, dto: Partial<UpsertBlessureDto>) {
     const b = await this.findOne(id);
-    Object.assign(b, dto);
+    const { forcer, ...data } = dto;
+    Object.assign(b, data);
+    await this.verifierChevauchement(b, forcer, id);
     return this.repo.save(b);
   }
   async remove(id: string) {

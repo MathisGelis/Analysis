@@ -27,7 +27,17 @@ interface UploadItem {
   resume?: { score: string; titulaires: number; evenements: number };
   reimport?: boolean;
   error?: string;
+  /** Raison de l'echec cote backend (parse_impossible | fmi_invalide | erreur_interne). */
+  code?: string;
+  /** Points d'attention : import reussi mais donnees partielles. */
+  avertissements?: string[];
 }
+
+const LIBELLE_ECHEC: Record<string, string> = {
+  parse_impossible: "PDF illisible",
+  fmi_invalide: "FMI invalide",
+  erreur_interne: "Erreur d'import",
+};
 
 export default function ImportPage() {
   const [items, setItems] = useState<UploadItem[]>([]);
@@ -62,7 +72,10 @@ export default function ImportPage() {
         setItems((cur) =>
           cur.map((c) =>
             c.name === file.name && c.status === "parsing"
-              ? { ...c, status: "ok", matchId: res.matchId, resume: res.resume, reimport: res.reimport }
+              ? {
+                  ...c, status: "ok", matchId: res.matchId, resume: res.resume,
+                  reimport: res.reimport, avertissements: res.avertissements,
+                }
               : c,
           ),
         );
@@ -107,12 +120,26 @@ export default function ImportPage() {
           const r = byName.get(c.name);
           if (!r) return c;
           return r.ok
-            ? { ...c, status: "ok", matchId: r.matchId, resume: r.resume, reimport: r.reimport }
-            : { ...c, status: "error", error: r.erreur };
+            ? {
+                ...c, status: "ok", matchId: r.matchId, resume: r.resume,
+                reimport: r.reimport, avertissements: r.avertissements,
+              }
+            : { ...c, status: "error", error: r.erreur, code: r.code, avertissements: r.avertissements };
         }),
       );
-      setDerive(`Dossier importe : ${res.importes}/${res.total} feuilles. ` +
-        `Effectifs (${res.derive.joueurs} joueurs) et classement (${res.derive.classement} equipes) reconstruits.`);
+      // Bilan du lot : nouveaux / mis a jour / echecs / avertissements.
+      const bilan = [
+        `${res.nouveaux} nouvelle(s)`,
+        `${res.mis_a_jour} mise(s) a jour`,
+        `${res.echecs} echec(s)`,
+        res.avec_avertissements ? `${res.avec_avertissements} avec avertissement(s)` : null,
+      ].filter(Boolean).join(" · ");
+      setDerive(
+        `Dossier traite : ${res.importes}/${res.total} feuilles (${bilan}). ` +
+        (res.derive?.erreur
+          ? `Reconstruction effectifs/classement ECHOUEE : ${res.derive.erreur}. Relance "Recalculer effectifs + classement".`
+          : `Effectifs (${res.derive?.joueurs} joueurs) et classement (${res.derive?.classement} equipes) reconstruits.`),
+      );
     } catch (err) {
       setItems((cur) =>
         cur.map((c) => (c.status === "parsing" ? { ...c, status: "error", error: (err as Error).message } : c)));
@@ -233,8 +260,17 @@ export default function ImportPage() {
                     {it.resume && (
                       <> · score {it.resume.score} · {it.resume.titulaires} titulaires · {it.resume.evenements} evts</>
                     )}
-                    {it.error && <span className="text-danger"> · {it.error}</span>}
+                    {it.error && (
+                      <span className="text-danger">
+                        {" · "}{it.code && LIBELLE_ECHEC[it.code] ? `${LIBELLE_ECHEC[it.code]} : ` : ""}{it.error}
+                      </span>
+                    )}
                   </div>
+                  {it.avertissements && it.avertissements.length > 0 && (
+                    <ul className="mt-1 text-[11px] text-amber list-disc pl-4">
+                      {it.avertissements.map((a, k) => <li key={k}>{a}</li>)}
+                    </ul>
+                  )}
                 </div>
                 {it.status === "parsing" && (
                   <span className="badge badge-sky">

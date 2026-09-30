@@ -13,7 +13,7 @@
 
 import { useState, useEffect } from "react";
 import { Modal } from "@/components/Modal";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { Save, X } from "lucide-react";
 
 // Regions du corps groupees pour le select. Aligne sur les zones
@@ -83,6 +83,8 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Blessures existantes qui chevauchent celle qu'on saisit (reponse 409).
+  const [conflits, setConflits] = useState<any[]>([]);
 
   // Reset si on rouvre la modale sur une nouvelle blessure.
   useEffect(() => {
@@ -96,6 +98,7 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
       details: blessure?.details ?? "",
     });
     setError(null);
+    setConflits([]);
   }, [open, blessure, lockedJoueurId, today]);
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
@@ -125,8 +128,9 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
     }));
   };
 
-  const save = async () => {
+  const save = async (forcer = false) => {
     setError(null);
+    setConflits([]);
     if (!form.joueurId) { setError("Selectionne un joueur."); return; }
     if (!form.localisation) { setError("Selectionne une region."); return; }
     if (!form.dateDebut) { setError("Date de debut requise."); return; }
@@ -140,6 +144,8 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
       retourEstime: form.retourEstime || undefined,
       statut: form.statut || undefined,
       details: form.details || undefined,
+      // Confirmation explicite d'un chevauchement deja signale.
+      ...(forcer ? { forcer: true } : {}),
     };
 
     setSaving(true);
@@ -149,7 +155,11 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e?.message ?? "Erreur a la sauvegarde");
+      if (e instanceof ApiError && e.statut === 409 && e.corps?.code === "BLESSURE_CHEVAUCHANTE") {
+        setConflits(e.corps.conflits ?? []);
+      } else {
+        setError(e?.message ?? "Erreur a la sauvegarde");
+      }
     } finally {
       setSaving(false);
     }
@@ -246,13 +256,36 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
           </div>
         )}
 
+        {conflits.length > 0 && (
+          <div className="text-xs text-amber bg-amber/10 border border-amber/30 rounded px-3 py-2 space-y-1">
+            <div className="font-semibold">
+              Cette periode chevauche {conflits.length > 1 ? "des blessures existantes" : "une blessure existante"} de ce joueur :
+            </div>
+            <ul className="list-disc pl-4 text-muted">
+              {conflits.map((c) => (
+                <li key={c.id}>
+                  {c.localisation ?? "Zone non precisee"}
+                  {" · "}{c.dateDebut ?? "?"} → {c.retourEstime ?? "en cours"}
+                  {c.memeZone && <span className="text-danger"> · meme zone (doublon probable)</span>}
+                </li>
+              ))}
+            </ul>
+            <div className="text-muted">
+              Deux blessures simultanees sont possibles (zones differentes). Verifie
+              qu'il ne s'agit pas d'un doublon avant de confirmer.
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="btn text-xs flex items-center gap-1">
             <X size={11}/> Annuler
           </button>
-          <button onClick={save} disabled={saving}
+          <button onClick={() => save(conflits.length > 0)} disabled={saving}
             className="btn btn-turf text-xs flex items-center gap-1">
-            <Save size={11}/> {saving ? "Sauvegarde..." : "Enregistrer"}
+            <Save size={11}/> {saving
+              ? "Sauvegarde..."
+              : conflits.length > 0 ? "Enregistrer quand meme" : "Enregistrer"}
           </button>
         </div>
       </div>

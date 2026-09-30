@@ -1,0 +1,172 @@
+import { BadRequestException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { DataSource } from "typeorm";
+import {
+  Arbitre, ArbitreMatch, Club, Coach, Composition, Equipe, EvenementMatch, Match, Saison, StaffMatch,
+} from "@/entities";
+import { creerBaseTest, fabriques } from "@/testing/test-db";
+import { ArbitresService } from "../arbitres/arbitres.module";
+import { ClubsService } from "../clubs/clubs.module";
+import { CoachsService } from "../coachs/coachs.module";
+import { EquipesService } from "../equipes/equipes.module";
+import { MatchsService } from "../matchs/matchs.module";
+import { SaisonsService } from "../saisons/saisons.module";
+import { FmiService } from "./fmi.module";
+// Sortie reelle du parser Python sur parser/FMI_Neuville1.pdf.
+import neuville from "@/testing/fixtures/fmi-neuville1.parsed.json";
+
+describe("FmiService - import de lot", () => {
+  let ds: DataSource;
+  let svc: FmiService;
+  let equipes: EquipesService;
+  let rebuildAll: jest.Mock;
+  let f: ReturnType<typeof fabriques>;
+
+  /** Copie profonde de la feuille de reference, avec surcharges. */
+  const fmi = (surcharge: Record<string, any> = {}) => ({
+    ...JSON.parse(JSON.stringify(neuville)), ...surcharge,
+  });
+  const lot = (...entrees: { originalname: string; parsed: any; error?: string }[]) =>
+    jest.spyOn(svc, "parseBuffersBatch").mockResolvedValue(entrees);
+  const fichiers = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ buffer: Buffer.from("x"), originalname: `f${i}.pdf` }));
+
+  beforeEach(async () => {
+    ds = await creerBaseTest();
+    f = fabriques(ds);
+    const repo = <T extends object>(e: new () => T) => ds.getRepository(e);
+    equipes = new EquipesService(repo(Equipe));
+    rebuildAll = jest.fn().mockResolvedValue({ joueurs: 12, classement: 3 });
+    svc = new FmiService(
+      new ConfigService(),
+      new MatchsService(repo(Match), repo(Composition), repo(EvenementMatch)),
+      new ClubsService(repo(Club)),
+      { rebuildAll } as any,
+      new ArbitresService(repo(Arbitre), repo(ArbitreMatch)),
+      new CoachsService(repo(Coach), repo(StaffMatch)),
+      equipes,
+      new SaisonsService(repo(Saison), equipes),
+    );
+  });
+  afterEach(() => { jest.restoreAllMocks(); return ds.destroy(); });
+
+  it("importe une feuille : match, equipes, saison, arbitres et encadrement", async () => {
+    lot({ originalname: "a.pdf", parsed: fmi() });
+
+    const r = await svc.importMany(fichiers(1));
+
+    expect(r).toMatchObject({ ok: true, importes: 1, nouveaux: 1, mis_a_jour: 0, echecs: 0, total: 1 });
+    expect(r.resultats[0]).toMatchObject({
+      fichier: "a.pdf", ok: true, statut: "importe", numeroFmi: "53415223",
+      resume: { score: "2-0", titulaires: 22 }, avertissements: [],
+    });
+    const match = await ds.getRepository(Match).findOneByOrFail({ numeroFmi: "53415223" });
+    // Regression : les equipes doivent etre rattachees au match (cette etape
+    // echouait en silence avant la correction de la requete d'orpheline).
+    expect(match.equipeDomId).toBeTruthy();
+    expect(match.equipeExtId).toBeTruthy();
+    expect(match.saisonId).toBeTruthy();
+    expect((await ds.getRepository(Saison).findOneByOrFail({ id: match.saisonId })).nom).toBe("2025-2026");
+    expect(await ds.getRepository(ArbitreMatch).count()).toBe(3);
+    expect(await ds.getRepository(StaffMatch).count()).toBe(4);
+    expect(rebuildAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("reimport de la meme feuille : mise a jour, jamais de doublon", async () => {
+    lot({ originalname: "a.pdf", parsed: fmi() });
+    await svc.importMany(fichiers(1));
+
+    const r = await svc.importMany(fichiers(1));
+
+    expect(r).toMatchObject({ importes: 1, nouveaux: 0, mis_a_jour: 1, echecs: 0 });
+    expect(r.resultats[0]).toMatchObject({ statut: "mis_a_jour", reimport: true });
+    expect(await ds.getRepository(Match).count()).toBe(1);
+    expect(await ds.getRepository(ArbitreMatch).count()).toBe(3);
+    expect(await ds.getRepository(StaffMatch).count()).toBe(4);
+  });
+
+  it("doublon DANS le lot : signale sur le second fichier", async () => {
+    lot({ originalname: "a.pdf", parsed: fmi() }, { originalname: "copie.pdf", parsed: fmi() });
+
+    const r = await svc.importMany(fichiers(2));
+
+    expect(r.resultats[0].avertissements).toEqual([]);
+    expect(r.resultats[1]).toMatchObject({ statut: "mis_a_jour" });
+    expect(r.resultats[1].avertissements[0]).toMatch(/doublon dans le lot.*a\.pdf|a\.pdf.*doublon dans le lot/);
+    expect(r.avec_avertissements).toBe(1);
+    expect(await ds.getRepository(Match).count()).toBe(1);
+  });
+
+  it("un fichier defaillant n'empeche pas les autres, et chaque echec a son code", async () => {
+    lot(
+      { originalname: "ok.pdf", parsed: fmi() },
+      { originalname: "illisible.pdf", parsed: null, error: "Parser n'a pas produit de JSON pour ce fichier" },
+      { originalname: "sans-score.pdf", parsed: fmi({ numero_match: "1", score_recevant: null }) },
+    );
+
+    const r = await svc.importMany(fichiers(3));
+
+    expect(r).toMatchObject({ ok: false, importes: 1, echecs: 2, total: 3 });
+    expect(r.resultats.map((x) => x.statut)).toEqual(["importe", "echec", "echec"]);
+    expect(r.resultats[1]).toMatchObject({ code: "parse_impossible", erreur: expect.stringMatching(/JSON/) });
+    expect(r.resultats[2]).toMatchObject({ code: "fmi_invalide", erreur: expect.stringMatching(/score manquant/) });
+    expect(await ds.getRepository(Match).count()).toBe(1);
+  });
+
+  it("l'echec de la reconstruction n'annule pas le rapport", async () => {
+    rebuildAll.mockRejectedValue(new Error("base verrouillee"));
+    lot({ originalname: "a.pdf", parsed: fmi() });
+
+    const r = await svc.importMany(fichiers(1));
+
+    expect(r.ok).toBe(false);
+    expect(r.derive).toEqual({ erreur: "base verrouillee" });
+    expect(r.importes).toBe(1);
+    expect(await ds.getRepository(Match).count()).toBe(1);
+  });
+
+  it("compositions incompletes : importe avec un avertissement", async () => {
+    lot({ originalname: "a.pdf", parsed: fmi({ compo_recevante: [], compo_visiteuse: [] }) });
+
+    const r = await svc.importMany(fichiers(1));
+
+    expect(r.resultats[0]).toMatchObject({ ok: true, statut: "importe" });
+    expect(r.resultats[0].avertissements[0]).toMatch(/compositions incompletes/);
+  });
+
+  it("equipe clonee orpheline de meme categorie : reutilisee, pas de doublon ni d'avertissement", async () => {
+    const club = await f.club("Neuville S/S", { numeroFff: "504275" });
+    const s25 = await f.saison("2025-2026", 2025);
+    await f.equipe({
+      clubId: club.id, nom: "Seniors D3 Poule A", categorie: "Seniors", division: "D3",
+      poule: "A", competitionLibelle: "Seniors D3 / Phase Unique", saisonId: s25.id,
+    });
+    lot({ originalname: "a.pdf", parsed: fmi() });
+
+    const r = await svc.importMany(fichiers(1));
+
+    expect(r.resultats[0].avertissements).toEqual([]);
+    const equipesClub = await equipes.findAll({ clubId: club.id });
+    expect(equipesClub).toHaveLength(1);
+    expect(equipesClub[0]).toMatchObject({ division: "D2", poule: "C", competitionLibelle: "Seniors D2 / Phase Unique" });
+    const match = await ds.getRepository(Match).findOneByOrFail({ numeroFmi: "53415223" });
+    expect(match.equipeDomId).toBe(equipesClub[0].id);
+  });
+
+  it("si le rattachement des equipes echoue, l'import continue et l'avertit explicitement", async () => {
+    jest.spyOn(equipes, "upsertForFmi").mockRejectedValue(new Error("no such column"));
+    lot({ originalname: "a.pdf", parsed: fmi() });
+
+    const r = await svc.importMany(fichiers(1));
+
+    expect(r.resultats[0]).toMatchObject({ ok: true, statut: "importe" });
+    expect(r.resultats[0].avertissements[0]).toMatch(/equipes non rattachees \(no such column\)/);
+    const match = await ds.getRepository(Match).findOneByOrFail({ numeroFmi: "53415223" });
+    expect(match.equipeDomId).toBeNull();
+  });
+
+  it("levee de BadRequestException depuis le parseur : erreur globale conservee", async () => {
+    jest.spyOn(svc, "parseBuffersBatch").mockRejectedValue(new BadRequestException("Python absent"));
+    await expect(svc.importMany(fichiers(1))).rejects.toBeInstanceOf(BadRequestException);
+  });
+});

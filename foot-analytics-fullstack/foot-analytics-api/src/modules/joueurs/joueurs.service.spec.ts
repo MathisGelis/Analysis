@@ -223,4 +223,42 @@ describe("JoueursService", () => {
       expect(await svc.historique(j.id)).toEqual([]);
     });
   });
+
+  describe("search (floue)", () => {
+    beforeEach(async () => {
+      await f.joueur({ nom: "DIAGOLA", prenom: "Seydou", licence: "9604756569" });
+      await f.joueur({ nom: "MARCON", prenom: "Léo", licence: "9604000001" });
+      await f.joueur({ nom: "OLAGNIER", prenom: "Paul", licence: "9604000002" });
+      await f.joueur({ nom: "DUPONT", prenom: "Jean" });
+    });
+    const noms = (r: Joueur[]) => r.map((j) => j.nom);
+
+    it("moins de 2 caracteres : aucun resultat", async () => {
+      expect(await svc.search("d")).toEqual([]);
+      expect(await svc.search("  ")).toEqual([]);
+    });
+
+    it("tolere une faute de frappe, les accents et l'ordre nom/prenom", async () => {
+      expect(noms(await svc.search("diagolla"))).toEqual(["DIAGOLA"]);
+      expect(noms(await svc.search("leo marcon"))).toEqual(["MARCON"]);
+      expect(noms(await svc.search("Seydou Diagola"))).toEqual(["DIAGOLA"]);
+      expect(noms(await svc.search("dupond"))).toEqual(["DUPONT"]);
+    });
+
+    it("classe le prefixe avant la sous-chaine", async () => {
+      expect(noms(await svc.search("ola"))).toEqual(["OLAGNIER", "DIAGOLA"]);
+    });
+
+    it("recherche par debut de licence", async () => {
+      expect(noms(await svc.search("96040000"))).toEqual(["MARCON", "OLAGNIER"]);
+    });
+
+    it("respecte la limite", async () => {
+      expect(await svc.search("ola", 1)).toHaveLength(1);
+    });
+
+    it("ne renvoie rien pour un nom inconnu", async () => {
+      expect(await svc.search("zidane")).toEqual([]);
+    });
+  });
 });

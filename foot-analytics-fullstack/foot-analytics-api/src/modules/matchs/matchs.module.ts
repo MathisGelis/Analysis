@@ -44,6 +44,11 @@ export class MatchsService {
     return qb.getMany();
   }
 
+  /** Match deja importe pour ce numero de feuille FMI (ou null). */
+  findByNumeroFmi(numeroFmi: string) {
+    return this.repo.findOne({ where: { numeroFmi } });
+  }
+
   async findOne(id: string) {
     const m = await this.repo.findOne({
       where: { id },

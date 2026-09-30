@@ -268,6 +268,7 @@ export class FmiService {
   async importParsed(
     parsed: any,
     cache?: { clubsByCleanedName: Map<string, string>; clubsByFff: Map<string, string>; clean: (s: string) => string },
+    rapport: { avertissements: string[] } = { avertissements: [] },
   ) {
     const erreurs: string[] = [];
     if (!parsed?.equipe_recevante?.trim()) erreurs.push("equipe recevante manquante");
@@ -284,11 +285,15 @@ export class FmiService {
         "Aucun match n'a ete cree.",
       );
     }
-    // Warning silencieux : compositions trop courtes. On accepte l'import
-    // mais le rapport d'analyse signalera la donnee manquante.
+    // Compositions trop courtes : on accepte l'import (le match compte pour
+    // le classement) mais on le signale dans le rapport de la feuille.
     const compoCount = (parsed?.compo_recevante?.length ?? 0)
       + (parsed?.compo_visiteuse?.length ?? 0);
-    const compoIncomplete = compoCount < 11;
+    if (compoCount < 11) {
+      rapport.avertissements.push(
+        `compositions incompletes (${compoCount} joueur(s) releves) : effectifs et statistiques partiels`,
+      );
+    }
 
     const clubDom = await this.resolveClub(parsed.equipe_recevante, cache, parsed.club_recevant_id ?? undefined);
     const clubExt = await this.resolveClub(parsed.equipe_visiteuse, cache, parsed.club_visiteur_id ?? undefined);
@@ -301,8 +306,11 @@ export class FmiService {
         ? await this.saisons.ensureForDate(parsed.date)
         : await this.saisons.findActive();
       saisonId = saison?.id ?? null;
-    } catch {
-      // saison non bloquante pour l'import
+    } catch (e: any) {
+      this.log.warn(`Saison non deduite (${parsed.date}) : ${e.message}`);
+    }
+    if (!saisonId) {
+      rapport.avertissements.push("saison non determinee : le match n'est rattache a aucune saison");
     }
 
     // Equipes precises : on cree/recupere une equipe par (club,
@@ -322,8 +330,14 @@ export class FmiService {
       });
       equipeDomId = eqDom.id;
       equipeExtId = eqExt.id;
-    } catch {
-      // equipes non bloquantes
+    } catch (e: any) {
+      // Non bloquant pour l'import, mais un match sans equipe n'apparait ni
+      // dans un effectif ni dans un championnat : on le dit explicitement
+      // (cette erreur etait auparavant avalee sans aucune trace).
+      this.log.error(`Rattachement des equipes impossible (FMI ${parsed.numero_match}) : ${e.message}`);
+      rapport.avertissements.push(
+        `equipes non rattachees (${e.message}) : le match n'apparaitra pas dans les effectifs ni le championnat`,
+      );
     }
 
     // Detection de cote pour les evenements : on compare le nom d'equipe
@@ -406,9 +420,7 @@ export class FmiService {
     // Upsert : si un match avec ce numero FMI existe deja, on le met a jour
     // (re-import d'une meme feuille) plutot que de violer la contrainte unique.
     if (payload.numeroFmi) {
-      const existing = await this.matchs
-        .findAll()
-        .then((all) => all.find((m) => m.numeroFmi === payload.numeroFmi));
+      const existing = await this.matchs.findByNumeroFmi(payload.numeroFmi);
       if (existing) {
         savedMatch = await this.matchs.update(existing.id, payload as any);
         (savedMatch as any).__reimport = true;
@@ -427,7 +439,9 @@ export class FmiService {
     for (const o of (parsed.officiels ?? [])) {
       const nom = (o.nom_complet ?? "").trim();
       if (!nom) continue;
-      const roleSrc = (o.role ?? "").toLowerCase();
+      // Libelle normalise (sans accents) : la FMI ecrit "Délégué principal",
+      // qu'un test sur "delegue" ne reconnaissait pas.
+      const roleSrc = norm(o.role);
       // On ignore les delegues / observateurs (pas des arbitres).
       if (/delegue|observateur/.test(roleSrc)) continue;
 
@@ -458,8 +472,9 @@ export class FmiService {
             matchId: savedMatch.id, arbitreId: arb.id, role,
           });
         }
-      } catch {
-        // ignore erreurs de parsing arbitre
+      } catch (e: any) {
+        this.log.warn(`Arbitre "${nom}" non enregistre (FMI ${parsed.numero_match}) : ${e.message}`);
+        rapport.avertissements.push(`arbitre "${nom}" non enregistre`);
       }
     }
 
@@ -485,8 +500,10 @@ export class FmiService {
             cote: coteCoach, fonctions,
           });
         }
-      } catch {
-        // ignore : un coach mal parse ne doit pas faire echouer l'import.
+      } catch (e: any) {
+        // Un coach mal parse ne doit pas faire echouer l'import.
+        this.log.warn(`Encadrant "${nomComplet}" non enregistre (FMI ${parsed.numero_match}) : ${e.message}`);
+        rapport.avertissements.push(`encadrant "${nomComplet}" non enregistre`);
       }
     }
 
@@ -504,7 +521,8 @@ export class FmiService {
   /** Import d'une seule feuille. recompute=true -> derive effectifs+classement. */
   async importPdf(buffer: Buffer, filename: string, recompute = true) {
     const parsed = await this.parseBuffer(buffer, filename);
-    const match = await this.importParsed(parsed);
+    const rapport = { avertissements: [] as string[] };
+    const match = await this.importParsed(parsed, undefined, rapport);
     if (recompute) await this.derivation.rebuildAll();
     return {
       ok: true,
@@ -512,12 +530,21 @@ export class FmiService {
       matchId: match.id,
       numeroFmi: match.numeroFmi,
       resume: this.resume(match),
+      avertissements: rapport.avertissements,
       match,
     };
   }
 
-  /** Import d'un lot de feuilles : on parse en batch (1 seul Python),
-   *  puis on importe tout en base, puis on recalcule UNE fois a la fin. */
+  /**
+   * Import d'un lot de feuilles : on parse en batch (1 seul Python), puis on
+   * importe tout en base, puis on recalcule UNE fois a la fin.
+   *
+   * Renvoie un RAPPORT PAR FICHIER, jamais une exception globale pour un
+   * fichier defaillant :
+   *   { fichier, ok, statut: "importe" | "mis_a_jour" | "echec",
+   *     code (si echec) : "parse_impossible" | "fmi_invalide" | "erreur_interne",
+   *     erreur (si echec), avertissements: string[], matchId, numeroFmi, resume }
+   */
   async importMany(files: { buffer: Buffer; originalname: string }[]) {
     // Phase 1 : parsing en batch. Un seul lancement Python pour tous les
     // fichiers -> on economise N * 230ms de startup pdfplumber.
@@ -527,31 +554,85 @@ export class FmiService {
     const cache = await this.buildClubCache();
 
     // Phase 3 : insertion sequentielle en base avec cache partage.
-    const results: any[] = [];
+    const results: RapportFichierFmi[] = [];
+    const vusDansLeLot = new Map<string, string>();   // numero FMI -> 1er fichier
     for (const pr of parsedResults) {
       if (!pr.parsed) {
-        results.push({ fichier: pr.originalname, ok: false, erreur: pr.error });
+        results.push({
+          fichier: pr.originalname, ok: false, statut: "echec",
+          code: "parse_impossible", erreur: pr.error ?? "Fichier illisible",
+          avertissements: [],
+        });
         continue;
       }
+      const rapport = { avertissements: [] as string[] };
+      const numero: string | undefined = pr.parsed.numero_match;
+      if (numero && vusDansLeLot.has(numero)) {
+        rapport.avertissements.push(
+          `meme numero FMI (${numero}) que ${vusDansLeLot.get(numero)} : doublon dans le lot, le match est mis a jour`,
+        );
+      } else if (numero) {
+        vusDansLeLot.set(numero, pr.originalname);
+      }
       try {
-        const match = await this.importParsed(pr.parsed, cache);
+        const match = await this.importParsed(pr.parsed, cache, rapport);
+        const reimport = (match as any).__reimport === true;
         results.push({
-          fichier: pr.originalname,
-          ok: true,
-          reimport: (match as any).__reimport === true,
-          matchId: match.id,
-          numeroFmi: match.numeroFmi,
-          resume: this.resume(match),
+          fichier: pr.originalname, ok: true,
+          statut: reimport ? "mis_a_jour" : "importe",
+          reimport, matchId: match.id, numeroFmi: match.numeroFmi,
+          resume: this.resume(match), avertissements: rapport.avertissements,
         });
       } catch (e: any) {
-        results.push({ fichier: pr.originalname, ok: false, erreur: e.message });
+        results.push({
+          fichier: pr.originalname, ok: false, statut: "echec",
+          code: e instanceof BadRequestException ? "fmi_invalide" : "erreur_interne",
+          erreur: e.message, avertissements: rapport.avertissements,
+        });
       }
     }
-    // Phase 4 : une seule reconstruction a la fin.
-    const derive = await this.derivation.rebuildAll();
-    const ok = results.filter((r) => r.ok).length;
-    return { ok: true, importes: ok, total: files.length, derive, resultats: results };
+
+    // Phase 4 : une seule reconstruction a la fin. Son echec ne doit pas
+    // masquer le rapport : les matchs sont deja en base.
+    let derive: { joueurs?: number; classement?: number; erreur?: string };
+    try {
+      derive = await this.derivation.rebuildAll();
+    } catch (e: any) {
+      this.log.error(`Reconstruction effectifs/classement echouee apres import : ${e.message}`);
+      derive = { erreur: e.message };
+    }
+
+    const importes = results.filter((r) => r.statut === "importe").length;
+    const misAJour = results.filter((r) => r.statut === "mis_a_jour").length;
+    const echecs = results.filter((r) => r.statut === "echec").length;
+    return {
+      ok: echecs === 0 && !derive.erreur,
+      // `importes` = feuilles traitees avec succes (nouvelles + mises a jour),
+      // nom historique lu par l'ecran d'import.
+      importes: importes + misAJour,
+      nouveaux: importes,
+      mis_a_jour: misAJour,
+      echecs,
+      avec_avertissements: results.filter((r) => r.avertissements.length > 0).length,
+      total: files.length,
+      derive,
+      resultats: results,
+    };
   }
+}
+
+/** Rapport d'import d'une feuille dans un lot. */
+export interface RapportFichierFmi {
+  fichier: string;
+  ok: boolean;
+  statut: "importe" | "mis_a_jour" | "echec";
+  code?: "parse_impossible" | "fmi_invalide" | "erreur_interne";
+  erreur?: string;
+  reimport?: boolean;
+  matchId?: string;
+  numeroFmi?: string;
+  resume?: { score: string; titulaires: number; evenements: number };
+  avertissements: string[];
 }
 
 @Controller("fmi")
