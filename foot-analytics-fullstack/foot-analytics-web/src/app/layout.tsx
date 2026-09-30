@@ -16,6 +16,8 @@ import { OwnClubProvider } from "@/lib/own-club-context";
 import { getOwnClubIdServer } from "@/lib/own-club";
 import { getOwnEquipeIdServer, getOwnSaisonIdServer } from "@/lib/own-equipe";
 import { getCurrentUserServer } from "@/lib/auth";
+import { ClubsProvider } from "@/lib/clubs-context";
+import { api } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "Foot Analytics — Console d'entraineur",
@@ -30,6 +32,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // connexion. Sur /login elle affichait "Non connecte" et declenchait des
   // appels API refuses.
   const connecte = (await getCurrentUserServer()) !== null;
+  // Clubs pour les ecussons (ClubBadge n'a que l'id du club).
+  const clubs = connecte ? await api.clubs() : [];
   // Lecture cookies serveur -> injectee dans les providers.
   // Ces valeurs se rafraichissent a chaque router.refresh(), donc quand
   // le switcher persist un nouveau choix + refresh, tout le Client tree
@@ -50,6 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               initialEquipeId={initialEquipeId}
               initialSaisonId={initialSaisonId}
             >
+              <ClubsProvider clubs={clubs}>
               {connecte ? (
                 <div className="flex min-h-screen">
                   <Sidebar />
@@ -61,6 +66,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               ) : (
                 <main className="relative z-10">{children}</main>
               )}
+              </ClubsProvider>
             </OwnEquipeProvider>
           </OwnClubProvider>
         </ThemeProvider>

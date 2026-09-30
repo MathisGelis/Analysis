@@ -45,9 +45,16 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg p-4">
       <form onSubmit={submit} className="panel p-8 w-full max-w-sm space-y-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-ink">Foot Analytics</h1>
-          <p className="text-sm text-muted">Connexion staff technique</p>
+        <div className="flex items-center gap-3">
+          {/* Meme logo que la barre laterale */}
+          <div className="w-11 h-11 rounded-xl bg-turf grid place-items-center shrink-0
+                          font-display font-black text-bg tracking-tight">
+            FA
+          </div>
+          <div>
+            <h1 className="font-display text-2xl font-bold text-ink leading-tight">Foot Analytics</h1>
+            <p className="text-sm text-muted">Connexion staff technique</p>
+          </div>
         </div>
 
         <label className="block">

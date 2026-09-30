@@ -39,6 +39,12 @@
   --amber:        229 162 74;     /* #E5A24A */
   --danger:       198 83 58;      /* #C6533A */
 
+  /* Teintes d'ecussons de clubs : distinctes des couleurs semantiques
+     (danger = alerte, turf = mon equipe) pour ne pas suggerer un etat. */
+  --crest-violet: 168 148 214;
+  --crest-teal:   104 184 184;
+  --crest-rose:   210 132 160;
+
   /* Issues match */
   --win:          122 178 138;
   --draw:         229 162 74;
@@ -79,6 +85,10 @@
   --sky:           62 124 184;    /* #3E7CB8 (etait 5B9BD5) */
   --amber:        184 117 32;     /* #B87520 */
   --danger:       162 56 36;      /* #A23824 */
+
+  --crest-violet: 112 86 170;
+  --crest-teal:    38 120 122;
+  --crest-rose:   166 72 104;
 
   --win:           54 116 74;
   --draw:         184 117 32;
