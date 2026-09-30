@@ -4,7 +4,7 @@
 // du haut (titre de la page) et la palette de commandes. Fonctions pures.
 
 import {
-  Award, Calendar, ClipboardList, Dumbbell, FileText, HeartPulse, Layout,
+  Award, Brain, Calendar, ClipboardList, Dumbbell, FileText, HeartPulse, Layout,
   LayoutDashboard, Search, Shield, Trophy, Upload, Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -52,6 +52,7 @@ export function construireNavigation(ownClubId: string | null): SectionNav[] {
       section: "Analyse",
       items: [
         { href: "/scouting", label: "Scouting", icon: Search, motsCles: "adversaires rapport observation" },
+        { href: "/ia", label: "Predictions", icon: Brain, motsCles: "prochain match resultat systeme dispositif onze probable projection" },
         { href: "/rapports", label: "Rapports", icon: FileText, motsCles: "analyse equipe pdf" },
       ],
     },
@@ -76,7 +77,7 @@ const TITRES: [string, string][] = [
   ["/matchs", "Matchs"], ["/tactique", "Tactique"], ["/arbitres", "Arbitres"],
   ["/scouting", "Scouting"], ["/rapports", "Rapports"], ["/import", "Import FMI"],
   ["/saisons", "Saisons"], ["/joueur", "Fiche joueur"], ["/coachs", "Fiche entraineur"], ["/admin", "Administration"],
-  ["/analytics", "Analytics"], ["/ia", "Predictions IA"],
+  ["/analytics", "Analytics"], ["/ia", "Predictions"],
 ];
 
 /** Titre affiche dans la barre du haut pour un chemin. */

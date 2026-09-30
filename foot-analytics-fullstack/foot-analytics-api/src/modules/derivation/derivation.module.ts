@@ -11,8 +11,9 @@
 
 import { Controller, Injectable, Module, Post, Query, UseGuards } from "@nestjs/common";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, IsNull, Not, Repository } from "typeorm";
 import { chargerDetailsMatchs } from "@/common/details-matchs";
+import { FORMATION_INVENTEE } from "@/common/systeme";
 import {
   Apparition, apparitionsDesEquipes, changementDeClub, derniereApparition, SaisonRef, statutMutationDeduit, statutSaisi,
 } from "@/common/parcours-joueur";
@@ -1290,6 +1291,26 @@ export class DerivationService {
     return { backfill: toUpdate.length };
   }
 
+  async effacerFormationsInventees(appliquer = false) {
+    // L'ancien import ecrivait "4-4-2" (recevant) et "4-2-3-1" (visiteur) sur CHAQUE feuille : la FMI ne contient
+    // aucun dispositif. Seules les feuilles importees portant exactement ce couple sont concernees.
+    const concernes = await this.matchs.find({
+      where: { formationDom: FORMATION_INVENTEE.dom, formationExt: FORMATION_INVENTEE.ext, numeroFmi: Not(IsNull()) },
+    });
+    const total = await this.matchs.count({ where: { numeroFmi: Not(IsNull()) } });
+    if (appliquer && concernes.length > 0) {
+      await this.matchs.update({ id: In(concernes.map((m) => m.id)) }, { formationDom: null as any, formationExt: null as any });
+    }
+    return {
+      appliquer,
+      feuillesImportees: total,
+      dispositifsInventes: concernes.length,
+      suite: appliquer
+        ? "Dispositifs effaces : la prediction de systeme ne repose plus que sur ce que le staff renseigne."
+        : "Simulation : rien n'a ete modifie. Relance avec ?appliquer=true pour effacer ces dispositifs inventes.",
+    };
+  }
+
   /**
    * Maintenance : les FMI importees AVANT la separation du tableau CARTON VERT (fair-play) ont range
    * ces cartons verts parmi les cartons JAUNES, sans motif. Ils gonflaient les jaunes des joueurs et des
@@ -1365,6 +1386,12 @@ class DerivationController {
   @Post("maintenance/cartons-verts") @UseGuards(AdminGuard)
   cartonsVerts(@Query("appliquer") appliquer?: string) {
     return this.svc.reclasserCartonsVerts(appliquer === "true");
+  }
+
+  // Maintenance (admin) : efface les dispositifs "4-4-2 / 4-2-3-1" inventes par l'ancien import. Simulation par defaut.
+  @Post("maintenance/formations-inventees") @UseGuards(AdminGuard)
+  formationsInventees(@Query("appliquer") appliquer?: string) {
+    return this.svc.effacerFormationsInventees(appliquer === "true");
   }
 }
 

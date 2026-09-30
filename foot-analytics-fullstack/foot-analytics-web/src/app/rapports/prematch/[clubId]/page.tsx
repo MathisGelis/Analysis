@@ -16,6 +16,7 @@ import { InsightsGrid } from "@/components/analyse/InsightsGrid";
 import { BoutonImprimer } from "@/components/prematch/BoutonImprimer";
 import { PistesMatch } from "@/components/prematch/PistesMatch";
 import { ComparatifEquipes } from "@/components/prematch/ComparatifEquipes";
+import { SystemeProbable } from "@/components/prematch/SystemeProbable";
 import { Activity, AlertTriangle, ArrowLeft, CalendarDays, Crosshair, Flag, History, Info, MapPin, RotateCcw, Shield, Sparkles, Users } from "lucide-react";
 
 export const metadata = { title: "Rapport pre-match · Foot Analytics" };
@@ -138,6 +139,12 @@ export default async function RapportPrematch({
             </ul>
           </div>
         )}
+      </Section>
+
+      {/* Systeme de jeu probable : d'apres ce que le staff a renseigne */}
+      <Section titre="Systeme de jeu probable" icone={<Crosshair size={11} className="text-accent" />}
+        aide="d'apres les dispositifs renseignes sur ses matchs : la feuille de match n'en contient pas">
+        <SystemeProbable donnees={r.systemeAdverse} adversaire={adv.clubNom} />
       </Section>
 
       {/* Adversaire */}

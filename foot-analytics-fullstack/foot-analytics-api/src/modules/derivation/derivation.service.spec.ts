@@ -269,6 +269,38 @@ describe("DerivationService - cartons et arbitres", () => {
     });
   });
 
+  describe("formations inventees par l'ancien import", () => {
+    async function matchs() {
+      const a = await f.club("A");
+      const b = await f.club("B");
+      const invente = await f.match({ clubDom: a.id, clubExt: b.id, numeroFmi: "1", formationDom: "4-4-2", formationExt: "4-2-3-1" });
+      const saisi = await f.match({ clubDom: a.id, clubExt: b.id, numeroFmi: "2", formationDom: "4-3-3", formationExt: "3-5-2" });
+      const manuel = await f.match({ clubDom: a.id, clubExt: b.id, formationDom: "4-4-2", formationExt: "4-2-3-1" });   // sans feuille FMI
+      return { invente, saisi, manuel };
+    }
+
+    it("simulation par defaut : compte les dispositifs inventes sans rien modifier", async () => {
+      const m = await matchs();
+
+      const r = await svc.effacerFormationsInventees();
+
+      expect(r).toMatchObject({ appliquer: false, feuillesImportees: 2, dispositifsInventes: 1 });
+      expect((await ds.getRepository(Match).findOneByOrFail({ id: m.invente.id })).formationDom).toBe("4-4-2");
+    });
+
+    it("application : efface les feuilles importees portant exactement le couple, pas les saisies ni les matchs sans FMI", async () => {
+      const m = await matchs();
+
+      await svc.effacerFormationsInventees(true);
+
+      const lire = (id: string) => ds.getRepository(Match).findOneByOrFail({ id });
+      expect(await lire(m.invente.id)).toMatchObject({ formationDom: null, formationExt: null });
+      expect(await lire(m.saisi.id)).toMatchObject({ formationDom: "4-3-3", formationExt: "3-5-2" });
+      expect(await lire(m.manuel.id)).toMatchObject({ formationDom: "4-4-2", formationExt: "4-2-3-1" });
+      expect((await svc.effacerFormationsInventees(true)).dispositifsInventes).toBe(0);     // idempotent
+    });
+  });
+
   describe("fatigue des joueurs", () => {
     const jour = (j: number) => {
       const d = new Date(2026, 9, 14 - j);

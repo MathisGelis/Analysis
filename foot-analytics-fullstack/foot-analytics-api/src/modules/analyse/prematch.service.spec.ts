@@ -140,4 +140,50 @@ describe("PrematchService.rapport", () => {
     expect(r.analyse!.avertis[0]).toMatchObject({ nom: expect.stringContaining("ATTAQUANT"), jaunes: 1, rouges: 0 });
     expect(r.analyse!.compoProbable.length).toBeGreaterThan(0);
   });
+
+  describe("systeme adverse et projection", () => {
+    it("systeme probable : d'apres les dispositifs RENSEIGNES de l'adversaire, vus de son cote", async () => {
+      const c = await contexte();
+      // Adverse a domicile (formationDom), puis a l'exterieur (formationExt), puis un match sans dispositif.
+      await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, "07/09/2025", 1, 0, { formationDom: "4-3-3" });
+      await c.jouer(c.tiers, c.adv, c.eTiers, c.eAdv, "14/09/2025", 2, 2, { formationExt: "4-3-3" });
+      await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, "21/09/2025", 0, 0);
+
+      const r = await svc.rapport(c.eMoi.id, c.adv.id);
+
+      expect(r.systemeAdverse).toMatchObject({ observes: 2, matchs: 3 });
+      expect(r.systemeAdverse.prediction).toMatchObject({ systeme: "4-3-3", observations: 2, fiabilite: "faible" });
+      expect(r.systemeAdverse.dernierMatchId).toBeTruthy();
+      expect(r.pistes.some((x) => x.titre === "Systeme probable : 4-3-3")).toBe(true);
+    });
+
+    it("le couple 4-4-2 / 4-2-3-1 ecrit en dur par l'ancien import n'est jamais une observation", async () => {
+      const c = await contexte();
+      for (const [i, date] of ["07/09/2025", "14/09/2025", "21/09/2025"].entries()) {
+        await c.jouer(i % 2 ? c.tiers : c.adv, i % 2 ? c.adv : c.tiers, i % 2 ? c.eTiers : c.eAdv, i % 2 ? c.eAdv : c.eTiers, date, 1, 1,
+          { formationDom: "4-4-2", formationExt: "4-2-3-1" });
+      }
+
+      const r = await svc.rapport(c.eMoi.id, c.adv.id);
+
+      expect(r.systemeAdverse).toMatchObject({ prediction: null, observes: 0, matchs: 3 });
+      expect(r.pistes.some((x) => x.titre.startsWith("Systeme probable"))).toBe(false);
+    });
+
+    it("projection de resultat : absente sous 5 matchs joues de chaque cote, puis de somme 100", async () => {
+      const c = await contexte();
+      await c.jouer(c.moi, c.tiers, c.eMoi, c.eTiers, "07/09/2025", 2, 0);
+      expect((await svc.rapport(c.eMoi.id, c.adv.id)).projection).toBeNull();
+
+      for (let i = 0; i < 5; i++) {
+        await c.jouer(c.moi, c.tiers, c.eMoi, c.eTiers, `0${i + 1}/10/2025`, 2, 1);
+        await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, `0${i + 1}/11/2025`, 1, 1);
+      }
+      const p = (await svc.rapport(c.eMoi.id, c.adv.id)).projection!;
+
+      expect(p.pV + p.pN + p.pD).toBe(100);
+      expect(p.matchs).toBe(5);
+      expect(p.pV).toBeGreaterThan(p.pD);       // je marque plus et encaisse moins que l'adversaire
+    });
+  });
 });

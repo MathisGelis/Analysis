@@ -1,184 +1,241 @@
 // src/app/ia/page.tsx
 //
-// Hub IA : predictions de compo adverse, risque blessure, projection de
-// resultat, suggestions tactiques. Les valeurs sont des estimations
-// heuristiques pour la demo ; brancher un vrai modele dans
-// supabase/functions/predict_*.ts en production.
+// Predictions pour le prochain match, calculees sur VOS feuilles de match importees (plus aucun jeu d'exemple) :
+//   - projection du resultat (modele de Poisson sur les moyennes de buts),
+//   - systeme de jeu probable de l'adversaire (d'apres les dispositifs que le staff a renseignes : la FMI n'en
+//     contient aucun),
+//   - onze probable (titulaires les plus utilises),
+//   - joueurs a surveiller chez nous (fatigue), et pistes du rapport pre-match.
+// Chaque bloc dit sur quoi il repose et se tait quand l'echantillon est trop petit.
+//
+// L'adversaire est celui du prochain match programme, ou celui choisi avec ?adversaire=<clubId>.
 
-import { JOUEURS, RAPPORT_NEUVILLE, CLASSEMENT_POULE_C, CLUBS } from "@/data/demo";
+import Link from "next/link";
+import { api } from "@/lib/api";
+import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
+import { resultatsDeLEquipe } from "@/lib/matchs-equipe";
+import { ligneDuPoste } from "@/lib/composition";
+import { plusFatigues, COULEUR_NIVEAU, LIBELLE_NIVEAU, niveauFatigue } from "@/lib/fatigue";
+import { decimal } from "@/lib/tendances-format";
 import { ClubBadge } from "@/components/ClubBadge";
-import { Pitch } from "@/components/Pitch";
-import { DonutStat } from "@/components/Charts";
-import { BandeauDemo } from "@/components/BandeauDemo";
-import { Brain, ChevronRight, Cpu, Sparkles, Zap } from "lucide-react";
+import { Pitch, type JoueurTerrain } from "@/components/Pitch";
+import { FatigueBar } from "@/components/FatigueBar";
+import { PistesMatch } from "@/components/prematch/PistesMatch";
+import { SystemeProbable } from "@/components/prematch/SystemeProbable";
+import { ArrowRight, Brain, CalendarClock, Sparkles, Target, Users } from "lucide-react";
 
-export const metadata = { title: "Predictions IA · Foot Analytics" };
+export const metadata = { title: "Predictions · Foot Analytics" };
 
-export default function IAPage() {
-  const compoAttendue = RAPPORT_NEUVILLE.dernier11.slice(0, 11);
+export default async function Predictions({ searchParams }: { searchParams?: { adversaire?: string } }) {
+  const [equipes, saisons, matchs, clubs] = await Promise.all([api.equipes(), api.saisons(), api.matchs(), api.clubs()]);
+  const { equipe: maEquipe, saison, equipesDuChampionnat } = await resolveEquipePropre({ equipes, saisons, matchs });
 
-  // Probabilites de resultat (modele basique : difference de classement)
-  const myRank = CLASSEMENT_POULE_C.find(l=>l.clubId==="chapo")!.rang;
-  const advRank = CLASSEMENT_POULE_C.find(l=>l.clubId==="neuv")!.rang;
-  // Plus le rang adverse est faible (1er), plus on perd
-  const diff = myRank - advRank; // positif = adv mieux place
-  const baseV = Math.max(8, 35 - diff*3);
-  const baseN = 28 + Math.abs(diff)*1.5;
-  const baseD = 100 - baseV - baseN;
+  if (!maEquipe) {
+    return <Vide titre="Choisissez d'abord votre equipe">Les predictions se lisent du point de vue de votre equipe : selectionnez-la dans la barre du haut.</Vide>;
+  }
 
-  // Joueurs a risque
-  const risque = JOUEURS
-    .filter(j=>j.clubId==="chapo")
-    .map(j => ({
-      ...j,
-      risque: Math.min(85, j.cartonsJaunes*5 + (j.minutes>1300?22:5) + (j.matchs>18?15:5)),
-    }))
-    .filter(j=>j.risque>40)
-    .sort((a,b)=>b.risque-a.risque)
-    .slice(0,5);
+  // Adversaire : le prochain match programme, sinon celui choisi dans la liste.
+  const prochain = resultatsDeLEquipe(matchs, maEquipe.id).aVenir[0];
+  const prochainAdvId = prochain ? (prochain.equipeDomId === maEquipe.id ? prochain.clubExt : prochain.clubDom) : null;
+  const adversaireId = searchParams?.adversaire ?? prochainAdvId;
+  const adversaires = clubs
+    .filter((c) => c.id !== maEquipe.clubId && equipes.some((e: any) => e.clubId === c.id && equipesDuChampionnat.has(e.id)))
+    .sort((a, b) => a.nom.localeCompare(b.nom));
+
+  const r = adversaireId && adversaireId !== maEquipe.clubId
+    ? await api.prematch(maEquipe.id, adversaireId, prochain && adversaireId === prochainAdvId ? prochain.id : null)
+    : null;
+  const effectif: any[] = saison?.actif ? await api.effectifEquipe(maEquipe.id) : [];
+  const surveilles = plusFatigues(effectif.filter((j) => j.id), 5);
 
   return (
     <div className="space-y-6 fade-up">
-      <header className="flex items-end justify-between flex-wrap gap-3">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="h-section flex items-center gap-1.5"><Cpu size={11}/> Modeles predictifs</div>
-          <h1 className="font-display text-2xl font-bold text-ink">Predictions IA</h1>
+          <div className="h-section flex items-center gap-1.5"><Brain size={11} /> Calcule sur vos feuilles de match</div>
+          <h1 className="font-display text-2xl font-bold text-ink">Predictions</h1>
         </div>
-        <span className="badge badge-sky"><Brain size={10}/> Modele v0.3 · heuristique</span>
+        {prochain && r && adversaireId === prochainAdvId && (
+          <span className="badge badge-accent"><CalendarClock size={11} aria-hidden /> Prochain match : {prochain.date ?? "date a confirmer"}</span>
+        )}
       </header>
 
-      <BandeauDemo>
-        Prochain match, composition adverse et joueurs a risque proviennent d'un
-        jeu d'exemple (Chaponnay - Neuville) et d'une heuristique simple, pas
-        d'un modele entraine sur vos donnees.
-      </BandeauDemo>
+      {/* Choix de l'adversaire */}
+      {adversaires.length > 0 && (
+        <nav aria-label="Adversaire" className="flex flex-wrap gap-1.5">
+          {adversaires.map((c) => (
+            <Link key={c.id} href={`/ia?adversaire=${c.id}`}
+              className={`badge ${c.id === adversaireId ? "badge-accent" : "hover:border-accent/40 hover:text-accent"}`}
+              aria-current={c.id === adversaireId ? "page" : undefined}>
+              <ClubBadge clubId={c.id} size={14} /> {c.nom}{c.id === prochainAdvId ? " · prochain" : ""}
+            </Link>
+          ))}
+        </nav>
+      )}
 
-      {/* Prediction match */}
-      <section className="grid grid-cols-12 gap-4">
-        <div className="col-span-12 lg:col-span-5 panel p-5">
-          <div className="h-section mb-3">Prochain match · J22</div>
-          <div className="flex items-center gap-3 mb-4">
-            <ClubBadge clubId="chapo" size={36}/>
-            <span className="font-display font-bold">Chaponnay</span>
-            <span className="text-faint">vs</span>
-            <span className="font-display font-bold">Neuville S/S 2</span>
-            <ClubBadge clubId="neuv" size={36}/>
-          </div>
-
-          <div className="space-y-3">
-            <ProbBar label="Victoire" value={Math.round(baseV)} color="rgb(var(--accent))"/>
-            <ProbBar label="Match nul" value={Math.round(baseN)} color="rgb(var(--amber))"/>
-            <ProbBar label="Defaite" value={Math.round(baseD)} color="rgb(var(--danger))"/>
-          </div>
-
-          <div className="mt-4 panel-inset p-3 border-l-2 border-sky">
-            <div className="text-[10px] uppercase tracking-wider text-sky flex items-center gap-1.5">
-              <Sparkles size={11}/> Score le plus probable
-            </div>
-            <div className="font-display text-3xl font-black text-ink mt-1">1 – 2</div>
-            <p className="text-[12px] text-muted mt-1">
-              Modele : forme recente Neuville (4V sur 5) + perf. domicile Chaponnay.
-            </p>
-          </div>
-        </div>
-
-        {/* Compo adverse predite */}
-        <div className="col-span-12 lg:col-span-7">
-          <div className="panel p-5">
-            <div className="h-section mb-3">Compo adverse predite · {RAPPORT_NEUVILLE.dispositifAttendu}</div>
-            <Pitch
-              formation={RAPPORT_NEUVILLE.dispositifAttendu}
-              joueurs={compoAttendue.map(c=>({
-                numero: c.numero, nom: c.nom,
-                capitaine: c.nom==="CHAFFURIN",
-              }))}
-              couleur="rgb(var(--sky))"
-            />
-            <p className="text-[11px] text-muted mt-3">
-              Issu de l'analyse de la derniere feuille de match Neuville et du
-              rapport scouting. Confiance estimee : <span className="text-accent font-semibold">78%</span>.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Risque blessure */}
-      <section className="grid grid-cols-12 gap-4">
-        <div className="col-span-12 lg:col-span-7 panel p-5">
-          <div className="h-section mb-3">Joueurs a risque blessure</div>
-          <table className="table-fm">
-            <thead>
-              <tr><th>Joueur</th><th>Mat.</th><th>Min.</th><th>Risque</th><th>Indicateur</th></tr>
-            </thead>
-            <tbody>
-              {risque.map(j=>(
-                <tr key={j.id}>
-                  <td className="font-semibold">{j.prenom} {j.nom}</td>
-                  <td className="tabular-nums">{j.matchs}</td>
-                  <td className="tabular-nums text-muted">{j.minutes}'</td>
-                  <td className={`font-display font-bold tabular-nums ${j.risque>=60?"text-danger":"text-amber"}`}>
-                    {j.risque}%
-                  </td>
-                  <td>
-                    <div className="w-32 h-1.5 bg-line rounded-full overflow-hidden">
-                      <div className={`h-full ${j.risque>=60?"bg-danger":"bg-amber"}`}
-                        style={{width:`${j.risque}%`}}/>
+      {!r ? (
+        <Vide titre={adversaires.length ? "Choisissez un adversaire" : "Aucun adversaire dans votre championnat"}>
+          {adversaires.length
+            ? "Aucun match n'est programme : choisissez un adversaire ci-dessus pour obtenir ses predictions."
+            : "Les predictions demandent des feuilles de match importees pour le championnat de votre equipe."}
+        </Vide>
+      ) : (
+        <>
+          {/* Projection et joueurs a surveiller (gauche) ; systeme et onze probable (droite) */}
+          <section className="grid grid-cols-12 items-start gap-4">
+            <div className="col-span-12 space-y-4 lg:col-span-5">
+            <div className="panel p-5">
+              <div className="h-section mb-3 flex items-center gap-1.5"><Target size={11} className="text-accent" /> Projection du resultat</div>
+              <div className="mb-4 flex items-center gap-3">
+                <ClubBadge clubId={r.monEquipe.clubId} size={36} />
+                <span className="font-display font-bold">{r.monEquipe.clubNom}</span>
+                <span className="text-faint">vs</span>
+                <span className="font-display font-bold">{r.adversaire.clubNom}</span>
+                <ClubBadge clubId={r.adversaire.clubId} size={36} />
+              </div>
+              {r.projection ? (
+                <>
+                  <div className="space-y-3">
+                    <Proba label="Victoire" valeur={r.projection.pV} couleur="rgb(var(--win))" />
+                    <Proba label="Match nul" valeur={r.projection.pN} couleur="rgb(var(--draw))" />
+                    <Proba label="Defaite" valeur={r.projection.pD} couleur="rgb(var(--loss))" />
+                  </div>
+                  <div className="panel-inset mt-4 border-l-2 border-accent p-3">
+                    <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-accent"><Sparkles size={11} aria-hidden /> Score le plus probable</div>
+                    <div className="mt-1 font-display text-3xl font-black tabular-nums text-ink">
+                      {r.projection.scoreProbable.moi} – {r.projection.scoreProbable.adv}
+                      <span className="ml-2 text-xs font-normal text-faint">{r.projection.scoreProbable.proba} % de chances</span>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    <p className="mt-1 text-[12px] text-muted">
+                      Buts attendus : {decimal(r.projection.buts.moi)} pour nous, {decimal(r.projection.buts.adv)} pour eux. Modele de Poisson sur les moyennes
+                      de buts (sur au moins {r.projection.matchs} matchs de chaque equipe){r.match ? `, ${r.match.domicile ? "a domicile" : "a l'exterieur"} compris` : ""}.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted">
+                  Pas assez de matchs joues pour projeter un resultat : il en faut au moins 5 de chaque cote ({r.monEquipe.matchs} pour nous, {r.adversaire.matchs} pour {r.adversaire.clubNom}).
+                </p>
+              )}
+            </div>
+            <div className="panel p-5">
+              <div className="h-section mb-3">Joueurs a surveiller chez nous</div>
+              {surveilles.length === 0 ? (
+                <p className="text-sm text-muted">
+                  {saison?.actif
+                    ? "Aucune charge recente connue : la fatigue se calcule sur les seances et les matchs des 28 derniers jours."
+                    : "La fatigue est une mesure du moment : elle n'est disponible que sur la saison en cours."}
+                </p>
+              ) : (
+                <ul className="divide-y divide-line">
+                  {surveilles.map((j: any) => {
+                    const niveau = niveauFatigue(j.scoreFatigue);
+                    return (
+                      <li key={j.id} className="flex items-center gap-3 py-2 text-sm">
+                        <Link href={`/joueur/${j.id}`} className="min-w-0 flex-1 truncate font-semibold text-ink hover:text-accent">{j.prenom} {j.nom}</Link>
+                        {niveau && <span className="text-[11px]" style={{ color: COULEUR_NIVEAU[niveau] }}>{LIBELLE_NIVEAU[niveau]}</span>}
+                        <FatigueBar score={j.scoreFatigue} detail={j.fatigueDetail} largeur="w-16" />
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+            </div>
 
-        <div className="col-span-12 lg:col-span-5 panel p-5">
-          <div className="h-section mb-3">Confiance globale du modele</div>
-          <div className="flex items-center justify-center py-4">
-            <DonutStat value={78} max={100} size={150} stroke={12} label="confiance"/>
-          </div>
-          <p className="text-[12px] text-muted leading-relaxed">
-            Le modele s'ameliore avec le volume de FMI importees. Apres 50 matchs
-            collectes, la confiance attendue depasse 92%.
-          </p>
-        </div>
-      </section>
+            <div className="col-span-12 space-y-4 lg:col-span-7">
+              <div className="panel p-5">
+                <div className="h-section mb-3 flex items-center gap-1.5"><Brain size={11} className="text-accent" /> Systeme de jeu probable de {r.adversaire.clubNom}</div>
+                <SystemeProbable donnees={r.systemeAdverse} adversaire={r.adversaire.clubNom} />
+              </div>
+              <div className="panel p-5">
+                <div className="h-section mb-3 flex items-center gap-1.5"><Users size={11} className="text-accent" /> Onze probable</div>
+                <OnzeProbable compo={r.analyse?.compoProbable ?? []} systeme={r.systemeAdverse.prediction?.systeme ?? null} matchsAnalyses={r.analyse?.matchsAnalyses ?? 0} />
+              </div>
+            </div>
+          </section>
 
-      {/* Suggestions tactiques */}
-      <section className="panel p-5">
-        <div className="h-section mb-3 flex items-center gap-1.5">
-          <Zap size={11} className="text-accent"/> Suggestions tactiques contextuelles
-        </div>
-        <ul className="space-y-3 text-sm">
-          <li className="flex gap-3 panel-inset p-3 border-l-2 border-accent">
-            <div className="text-accent">▸</div>
-            <span><strong>Pressing decale a droite</strong> · Neuville construit principalement
-              cote gauche (KHARKHACHE / GASPARD). Sur-orienter le bloc presse vers
-              cette zone reduit les sorties de balle.</span>
-          </li>
-          <li className="flex gap-3 panel-inset p-3 border-l-2 border-amber">
-            <div className="text-amber">▸</div>
-            <span><strong>Mobiliser PAGLIARELLA + BERNARD au milieu</strong> · profil le plus
-              en forme et capable d'enchainer les seances.</span>
-          </li>
-          <li className="flex gap-3 panel-inset p-3 border-l-2 border-sky">
-            <div className="text-sky">▸</div>
-            <span><strong>Coups de pied arretes</strong> · Neuville encaisse 1.18 but
-              par match a domicile, dont 35% sur set-pieces selon les FMI analysees.</span>
-          </li>
-        </ul>
-      </section>
+          {/* Pistes du rapport pre-match */}
+            <div className="panel p-5">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="h-section">Pistes pour le match</div>
+                <Link href={`/rapports/prematch/${r.adversaire.clubId}${r.match ? `?matchId=${r.match.id}` : ""}`} className="flex items-center gap-1 text-xs font-semibold text-accent hover:underline">
+                  Rapport pre-match complet <ArrowRight size={12} aria-hidden />
+                </Link>
+              </div>
+              {r.pistes.length > 0 ? <PistesMatch pistes={r.pistes.slice(0, 4)} /> : (
+                <p className="text-sm text-muted">Pas encore assez de matchs joues pour degager des pistes fiables.</p>
+              )}
+            </div>
+        </>
+      )}
     </div>
   );
 }
 
-function ProbBar({ label, value, color }: { label: string; value: number; color: string }) {
+function Proba({ label, valeur, couleur }: { label: string; valeur: number; couleur: string }) {
   return (
     <div className="flex items-center gap-3">
       <div className="w-20 text-xs text-muted">{label}</div>
-      <div className="flex-1 h-2 bg-line rounded-full overflow-hidden">
-        <div className="h-full" style={{ width: `${value}%`, background: color }}/>
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-line" role="img" aria-label={`${label} : ${valeur} %`}>
+        <div className="h-full" style={{ width: `${valeur}%`, background: couleur }} />
       </div>
-      <div className="w-10 text-right font-mono font-bold tabular-nums">{value}%</div>
+      <div className="w-10 text-right font-mono font-bold tabular-nums">{valeur}%</div>
     </div>
+  );
+}
+
+/**
+ * Le onze le plus utilise par l'adversaire. Sur le terrain quand son systeme est connu (joueurs ranges de la
+ * defense a l'attaque d'apres leur poste, selon les lignes du systeme) ; sinon en liste, sans inventer de dispositif.
+ */
+function OnzeProbable({ compo, systeme, matchsAnalyses }: {
+  compo: { poste: string; numero?: number; nom: string; matchsJoues: number }[]; systeme: string | null; matchsAnalyses: number;
+}) {
+  if (compo.length === 0) {
+    return <p className="text-sm text-muted">Aucune feuille de match de cet adversaire n'a ete analysee sur la saison : pas de onze probable.</p>;
+  }
+  const ordre = { GB: 0, DEF: 1, MIL: 2, ATT: 3 } as const;
+  const tries = [...compo].sort((a, b) => ordre[ligneDuPoste(a.poste) ?? "MIL"] - ordre[ligneDuPoste(b.poste) ?? "MIL"]);
+  const note = <p className="mt-3 text-[11px] text-muted">Titulaires les plus utilises sur {matchsAnalyses} match{matchsAnalyses > 1 ? "s" : ""} analyse{matchsAnalyses > 1 ? "s" : ""}.</p>;
+  if (!systeme) {
+    return (
+      <>
+        <ul className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+          {tries.map((j) => (
+            <li key={`${j.poste}-${j.nom}`} className="flex items-center gap-3 border-b border-line py-1.5 text-sm">
+              <span className="badge w-10 justify-center">{j.poste}</span>
+              <span className="min-w-0 flex-1 truncate font-medium text-ink">{j.nom}</span>
+              <span className="text-xs tabular-nums text-faint">{j.matchsJoues} titu.</span>
+            </li>
+          ))}
+        </ul>
+        {note}
+      </>
+    );
+  }
+  // Sur le terrain : le nom de famille (en majuscules sur la feuille) ; les numeros de maillot, seulement s'ils sont tous distincts.
+  const onze = tries.slice(0, 11);
+  const numerosDistincts = new Set(onze.map((j) => j.numero)).size === onze.length && onze.every((j) => typeof j.numero === "number");
+  const joueurs: JoueurTerrain[] = onze.map((j, i) => ({
+    numero: numerosDistincts ? (j.numero as number) : i + 1,
+    nom: j.nom.split(" ").filter((m) => m.length > 1 && m === m.toUpperCase()).join(" ") || j.nom,
+  }));
+  return (
+    <>
+      <div className="mx-auto max-w-[360px]">
+        <Pitch formation={systeme} joueurs={joueurs} couleur="rgb(var(--sky))" titre={`Onze probable · ${systeme}`} />
+      </div>
+      {note}
+    </>
+  );
+}
+
+function Vide({ titre, children }: { titre: string; children: React.ReactNode }) {
+  return (
+    <section className="panel space-y-2 p-8 text-center">
+      <div className="font-display text-lg font-bold text-ink">{titre}</div>
+      <p className="mx-auto max-w-xl text-sm text-muted">{children}</p>
+    </section>
   );
 }

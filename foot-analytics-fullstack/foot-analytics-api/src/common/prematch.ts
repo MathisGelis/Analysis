@@ -99,6 +99,8 @@ export interface EntreePistes {
   } | null;
   arbitre: { nom: string; profil: string | null; matchsPrincipal: number; cartonsParMatch: number } | null;
   faceAFace: { joues: number; v: number; n: number; d: number; derniere?: { bp: number; bc: number; domicile: boolean; issue: Issue } | null };
+  /** Systeme de jeu probable de l'adversaire (voir common/systeme.ts) ; null sans match renseigne. */
+  systeme?: { systeme: string; confiance: number; observations: number; fiabilite: "faible" | "moyenne" | "bonne" } | null;
 }
 
 const LIBELLE_SERIE: Record<TypeSerie, string> = {
@@ -127,6 +129,14 @@ export function pistesPrematch(e: EntreePistes): Piste[] {
     else if (adv.bcm <= 0.8) add("vigilance", 2, "Defense tres solide", `${adv.nom} n'encaisse que ${fr(adv.bcm)} but par match : patience et coups de pied arretes.`);
     if (adv.bpm >= 2.2) add("vigilance", 3, "Attaque prolifique", `${adv.nom} marque ${fr(adv.bpm)} buts par match : resserrer l'axe, limiter les espaces.`);
     else if (adv.bpm < 1.0) add("atout", 2, "Attaque en panne", `${adv.nom} ne marque que ${fr(adv.bpm)} but par match.`);
+  }
+
+  // -- Systeme de jeu probable : seulement ce que le staff a renseigne --
+  if (e.systeme) {
+    const { systeme, confiance, observations, fiabilite } = e.systeme;
+    add("info", 2, `Systeme probable : ${systeme}`, observations === 1
+      ? `Vu sur le seul match renseigne de ${adv.nom} : a confirmer.`
+      : `Retenu sur ${observations} matchs renseignes de ${adv.nom} (${confiance} % du poids)${fiabilite === "faible" ? ", echantillon mince" : ""}.`);
   }
 
   // -- Le lieu du match --

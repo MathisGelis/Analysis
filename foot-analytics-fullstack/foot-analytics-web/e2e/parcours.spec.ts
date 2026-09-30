@@ -316,6 +316,48 @@ test("entraineur : cliquable depuis la feuille de match, fiche avec bilan par sa
   await expect(page.getByText("1 match", { exact: false }).first()).toBeVisible();
 });
 
+test("systeme de jeu : saisi sur la fiche du match, repris par la prediction et la page Predictions", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : le match vient de la FMI importee");
+
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const get = async (chemin: string) => (await fetch(`${API_URL}${chemin}`, { headers: { Authorization: `Bearer ${token}` } })).json();
+  const [match] = await get("/matchs");
+
+  await page.goto(`/matchs/${match.id}`);
+  // Aucun systeme suppose : la feuille FMI n'en contient pas.
+  const domicile = page.getByLabel(/^Systeme de jeu de /).first();
+  await expect(domicile).toHaveValue("");
+  await domicile.selectOption("4-3-3");
+  await expect(page.getByText(/Systeme de .* : 4-3-3\./)).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel(/^Systeme de jeu de /).first()).toHaveValue("4-3-3");
+
+  // Un dispositif qui n'en est pas un est refuse par l'API (dix joueurs de champ).
+  const refus = await fetch(`${API_URL}/matchs/${match.id}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ formationDom: "4-4-3" }),
+  });
+  expect(refus.status).toBe(400);
+
+  // Prediction : mon equipe de la saison du match contre le club recevant.
+  const saisons: { id: string; nom: string }[] = await get("/saisons");
+  const equipes: { id: string; clubId: string; saisonId: string }[] = await get("/equipes");
+  const s2526 = saisons.find((x) => x.nom === "2025-2026")!;
+  const clubs: { id: string; nom: string }[] = await get("/clubs");
+  const moi = equipes.find((e) => e.saisonId === s2526.id && e.clubId === clubs.find((c) => c.nom === "OL Sud E2E")!.id)!;
+  const rapport = await get(`/analyse/prematch?equipeId=${moi.id}&adversaireId=${match.clubDom}`);
+  expect(rapport.systemeAdverse.prediction).toMatchObject({ systeme: "4-3-3", observations: 1, fiabilite: "faible" });
+  expect(rapport.systemeAdverse.matchs).toBe(1);
+
+  // Page Predictions : elle s'affiche, sans exemple fictif.
+  await page.goto("/ia");
+  await expect(page.getByRole("heading", { level: 1, name: "Predictions" })).toBeVisible();
+  await expect(page.getByText("Chaponnay")).toHaveCount(0);
+});
+
 test("accessibilite : aucune violation axe sur les pages principales, en theme nuit et jour", async () => {
   test.setTimeout(180_000);
   const axe = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
@@ -328,7 +370,7 @@ test("accessibilite : aucune violation axe sur les pages principales, en theme n
     headers: { Authorization: `Bearer ${token}` },
   })).json();
   const adversaire = clubs.find((c) => c.nom !== "OL Sud E2E");
-  const pages = ["/", "/rapports", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical",
+  const pages = ["/", "/rapports", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical", "/ia",
     ...(adversaire ? [`/rapports/prematch/${adversaire.id}`] : [])];
 
   const violations: string[] = [];

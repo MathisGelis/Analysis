@@ -13,6 +13,7 @@ import { PitchHeatmap } from "@/components/Charts";
 import { ArbitresMatchBlock } from "@/components/ArbitresMatchBlock";
 import { MatchActions } from "@/components/MatchActions";
 import { PlanRealise } from "@/components/tactique/PlanRealise";
+import { SystemeMatch } from "@/components/SystemeMatch";
 import {
   ArrowLeft, Calendar, Clock, ClipboardCheck, FileText, Goal, MapPin, Target, User, Users,
 } from "lucide-react";
@@ -191,6 +192,22 @@ export default async function MatchDetailPage({ params }: { params: { id: string
           />
         </div>
       </section>
+
+      {/* Systemes de jeu : saisie du staff (la FMI n'en contient pas), base de la prediction du systeme adverse */}
+      {statut === "joue" && (
+        <section className="panel p-4" aria-labelledby="systemes-match">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 id="systemes-match" className="h-section">Systemes de jeu</h2>
+            <span className="text-[11px] text-faint">
+              renseignes par le staff : la feuille de match n'en contient pas. Ils servent a predire le systeme du prochain adversaire.
+            </span>
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
+            <SystemeMatch matchId={m.id} cote="dom" valeur={m.formationDom ?? null} equipe={dom.nom} />
+            <SystemeMatch matchId={m.id} cote="ext" valeur={m.formationExt ?? null} equipe={ext.nom} />
+          </div>
+        </section>
+      )}
 
       {/* Plan de jeu prepare contre feuille de match */}
       {planRealise?.etat === "ok" && (

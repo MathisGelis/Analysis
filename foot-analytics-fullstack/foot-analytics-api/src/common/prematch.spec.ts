@@ -136,4 +136,19 @@ describe("pistesPrematch", () => {
     expect(ps.length).toBeLessThanOrEqual(10);
     for (let i = 1; i < ps.length; i++) expect(ps[i - 1].importance).toBeGreaterThanOrEqual(ps[i].importance);
   });
+
+  it("systeme probable : une piste d'information, sans chiffre invente", () => {
+    const e = { ...base(), systeme: { systeme: "4-3-3", confiance: 70, observations: 5, fiabilite: "bonne" as const } };
+    const piste = pistesPrematch(e).find((x) => x.titre === "Systeme probable : 4-3-3")!;
+    expect(piste).toMatchObject({ ton: "info", importance: 2 });
+    expect(piste.detail).toContain("5 matchs renseignes");
+    expect(piste.detail).toContain("70 %");
+  });
+
+  it("systeme : un seul match renseigne, a confirmer ; aucune donnee, aucune piste", () => {
+    const seul = pistesPrematch({ ...base(), systeme: { systeme: "4-4-2", confiance: 100, observations: 1, fiabilite: "faible" } });
+    expect(seul.find((x) => x.titre.startsWith("Systeme probable"))!.detail).toContain("a confirmer");
+    expect(pistesPrematch({ ...base(), systeme: null }).some((x) => x.titre.startsWith("Systeme probable"))).toBe(false);
+    expect(pistesPrematch(base()).some((x) => x.titre.startsWith("Systeme probable"))).toBe(false);
+  });
 });

@@ -63,5 +63,19 @@ export interface RapportPrematch {
     nom: string; profil: string | null; matchsPrincipal: number;
     cartonsJaunes: number; cartonsRouges: number; cartonsParMatch: number; motifsTop: string | null;
   };
+  /** Systeme probable de l'adversaire d'apres les dispositifs renseignes sur ses matchs. */
+  systemeAdverse: {
+    prediction: { systeme: string; confiance: number; observations: number; fiabilite: "faible" | "moyenne" | "bonne"; alternatives: { systeme: string; poids: number }[] } | null;
+    observes: number;
+    matchs: number;
+    dernierMatchId: string | null;
+  };
+  /** Projection de resultat (modele de Poisson) ; null si l'echantillon est trop petit. */
+  projection: {
+    pV: number; pN: number; pD: number;
+    buts: { moi: number; adv: number };
+    scoreProbable: { moi: number; adv: number; proba: number };
+    matchs: number;
+  } | null;
   pistes: Piste[];
 }

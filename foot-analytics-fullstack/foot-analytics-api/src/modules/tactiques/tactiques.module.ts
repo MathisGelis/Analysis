@@ -19,16 +19,13 @@ import { estMatchJoue } from "@/common/match-joue";
 import { designeLeJoueur, minutesJouees } from "@/common/minutes";
 import { parseDateFlexible } from "@/common/periode";
 import { comparerPlanRealise, ComparaisonPlanRealise } from "@/common/plan-realise";
+import { formationValide, systemesRenseignes } from "@/common/systeme";
 
 export const NB_TITULAIRES = 11;
 export const MAX_REMPLACANTS = 7;
 
-/** "4-2-3-1" : 2 a 5 lignes de 1 a 6 joueurs, dix joueurs de champ au total. */
-export function formationValide(formation: string): boolean {
-  const n = (formation ?? "").split("-").map((x) => Number(x.trim()));
-  return n.length >= 2 && n.length <= 5 && n.every((x) => Number.isInteger(x) && x >= 1 && x <= 6)
-    && n.reduce((s, x) => s + x, 0) === NB_TITULAIRES - 1;
-}
+// Re-exporte : la regle vit dans common/systeme.ts (elle sert aussi a la saisie du dispositif d'un match).
+export { formationValide };
 
 class EnregistrerTactiqueDto {
   @IsString() equipeId: string;
@@ -210,7 +207,8 @@ export class TactiquesService {
     const base = ids.length ? await this.joueurs.find({ where: { id: In(ids) } }) : [];
     const comparaison = comparerPlanRealise({
       plan, joueurs: base, feuille,
-      formationReelle: domicile ? match.formationDom : match.formationExt,
+      // Dispositif reellement renseigne : jamais les "4-4-2 / 4-2-3-1" ecrits en dur par l'ancien import.
+      formationReelle: systemesRenseignes(match)[domicile ? "dom" : "ext"],
     });
     return {
       etat: comparaison.etat === "feuille_vide" ? "feuille_vide" : "ok",

@@ -17,6 +17,8 @@ import { parseDateFlexible } from "@/common/periode";
 import {
   faceAFace, Piste, pistesPrematch, profilEquipe, ProfilEquipe, Rencontre,
 } from "@/common/prematch";
+import { predireSysteme, PredictionSysteme, systemesRenseignes } from "@/common/systeme";
+import { Projection, projectionResultat } from "@/common/projection";
 import { AnalyseService, estMatchJoue } from "./analyse.module";
 
 const norm = (s?: string | null) => (s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
@@ -58,6 +60,13 @@ export interface RapportPrematch {
     changementsMoyenne: number;
   };
   arbitre: null | { nom: string; profil: string | null; matchsPrincipal: number; cartonsJaunes: number; cartonsRouges: number; cartonsParMatch: number; motifsTop: string | null };
+  /**
+   * Systeme de jeu probable de l'adversaire d'apres les dispositifs RENSEIGNES sur ses matchs (la FMI n'en contient
+   * aucun). `observes` sur `matchs` joues : c'est la base de la prediction ; `dernierMatchId` : ou en saisir d'autres.
+   */
+  systemeAdverse: { prediction: PredictionSysteme | null; observes: number; matchs: number; dernierMatchId: string | null };
+  /** Projection de resultat (modele de Poisson sur les moyennes de buts) ; null si l'echantillon est trop petit. */
+  projection: Projection | null;
   pistes: Piste[];
 }
 
@@ -140,6 +149,20 @@ export class PrematchService {
     const arbitre = await this.arbitreDuMatch(match);
     const domicile = match ? match.equipeDomId === monEquipe.id || (!match.equipeDomId && match.clubDom === monClub.id) : null;
 
+    // Systeme de l'adversaire : ses matchs joues, vu de son cote, avec le dispositif quand le staff l'a renseigne.
+    const matchsAdv = advEquipe ? joues.filter((m) => m.equipeDomId === advEquipe.id || m.equipeExtId === advEquipe.id) : [];
+    const observations = matchsAdv.flatMap((m) => {
+      const s = systemesRenseignes(m);
+      const systeme = m.equipeDomId === advEquipe!.id ? s.dom : s.ext;
+      return systeme ? [{ date: m.date ?? null, systeme }] : [];
+    });
+    const dernierMatchAdv = [...matchsAdv].sort((a, b) => (parseDateFlexible(b.date ?? "") ?? 0) - (parseDateFlexible(a.date ?? "") ?? 0))[0];
+    const prediction = predireSysteme(observations);
+    const systemeAdverse = { prediction, observes: observations.length, matchs: matchsAdv.length, dernierMatchId: dernierMatchAdv?.id ?? null };
+    const projection = projectionResultat({
+      moi: { matchs: moi.matchs, bpm: moi.bpm, bcm: moi.bcm }, adv: { matchs: adv.matchs, bpm: adv.bpm, bcm: adv.bcm }, domicileMoi: domicile,
+    });
+
     const pistes = pistesPrematch({
       moi, adv,
       advJoue: domicile === null ? null : domicile ? "exterieur" : "domicile",
@@ -150,6 +173,7 @@ export class PrematchService {
         faiblesses: rap.faiblesses,
       } : null,
       arbitre: arbitre ? { nom: arbitre.nom, profil: arbitre.profil, matchsPrincipal: arbitre.matchsPrincipal, cartonsParMatch: arbitre.cartonsParMatch } : null,
+      systeme: prediction && { systeme: prediction.systeme, confiance: prediction.confiance, observations: prediction.observations, fiabilite: prediction.fiabilite },
       faceAFace: {
         joues: face.bilan.joues, v: face.bilan.v, n: face.bilan.n, d: face.bilan.d,
         derniere: face.rencontres[0] ? { bp: face.rencontres[0].bp, bc: face.rencontres[0].bc, domicile: face.rencontres[0].domicile, issue: face.rencontres[0].issue } : null,
@@ -164,7 +188,7 @@ export class PrematchService {
         id: match.id, date: match.date ?? null, heure: match.heure ?? null, journee: match.journee ?? null,
         terrain: match.terrain ?? null, domicile: !!domicile,
       } : null,
-      faceAFace: face, analyse, arbitre, pistes,
+      faceAFace: face, analyse, arbitre, systemeAdverse, projection, pistes,
     };
   }
 
