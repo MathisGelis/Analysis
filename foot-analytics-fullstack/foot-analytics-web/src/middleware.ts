@@ -77,13 +77,23 @@ export async function middleware(req: NextRequest) {
     }
 
     const choix = choisirEquipeParDefaut(equipes, saisons, saisonCookie);
-    if (!choix) return NextResponse.next();
+    // Rien a selectionner (club sans equipe, ou saison choisie encore vide) :
+    // on ne touche a aucun cookie.
+    if (!choix?.equipe) return NextResponse.next();
 
     const opts = { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" as const };
-    const res = NextResponse.next();
-    res.cookies.set("ownEquipeId", choix.equipe.id, opts);
-    if (choix.saisonId) res.cookies.set("ownSaisonId", choix.saisonId, opts);
-    if (clubId !== clubCookie) res.cookies.set("ownClubId", clubId, opts);
+    const aPoser: [string, string][] = [["ownEquipeId", choix.equipe.id]];
+    if (choix.saisonId) aPoser.push(["ownSaisonId", choix.saisonId]);
+    if (clubId !== clubCookie) aPoser.push(["ownClubId", clubId]);
+
+    // Un Set-Cookie sur la reponse n'est lu par le navigateur qu'a la
+    // requete SUIVANTE : sans autre precaution, le layout et les pages de
+    // CETTE requete verraient encore "aucune equipe" (premier ecran apres
+    // login vide). On reecrit donc aussi le cookie de la requete entrante,
+    // que les Server Components lisent via cookies().
+    for (const [nom, valeur] of aPoser) req.cookies.set(nom, valeur);
+    const res = NextResponse.next({ request: { headers: req.headers } });
+    for (const [nom, valeur] of aPoser) res.cookies.set(nom, valeur, opts);
     debug(`[middleware] auto-select equipe ${choix.equipe.nom} (${choix.equipe.id}) club=${clubId}`);
     return res;
   } catch (err) {

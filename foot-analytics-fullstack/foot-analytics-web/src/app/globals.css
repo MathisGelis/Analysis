@@ -286,6 +286,12 @@ body::before {
     transform: translateY(-1px);
   }
   .btn:active { transform: translateY(0); }
+  /* Bouton inactif (lecture seule, envoi en cours) : visible et sans survol anime. */
+  .btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+    transform: none;
+  }
 
   .btn-turf, .btn-primary {
     background-color: rgb(var(--turf));
