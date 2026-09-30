@@ -7,13 +7,15 @@
 // Appele depuis main.ts apres l'init Nest. Idempotent : peut etre
 // execute a chaque demarrage sans creer de doublon.
 
-import { Injectable, Module } from "@nestjs/common";
+import { Injectable, Logger, Module } from "@nestjs/common";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Saison } from "@/entities";
 
 @Injectable()
 export class BootstrapService {
+  private readonly log = new Logger(BootstrapService.name);
+
   constructor(
     @InjectRepository(Saison) private saisons: Repository<Saison>,
   ) {}
@@ -37,9 +39,8 @@ export class BootstrapService {
       statut: "a_venir",
     });
     await this.saisons.save(s);
-    // eslint-disable-next-line no-console
-    console.log(
-      `[bootstrap] Saison ${NOM} creee${aucuneActive ? " (active par defaut)" : ""}.`,
+    this.log.log(
+      `Saison ${NOM} creee${aucuneActive ? " (active par defaut)" : ""}.`,
     );
   }
 }

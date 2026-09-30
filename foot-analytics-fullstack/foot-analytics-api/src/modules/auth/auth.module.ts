@@ -12,7 +12,7 @@
 
 import {
   BadRequestException, Body, CanActivate, Controller, ExecutionContext,
-  Get, Injectable, Module, NotFoundException, Post, Req, SetMetadata,
+  Get, Injectable, Logger, Module, NotFoundException, Post, Req, SetMetadata,
   UnauthorizedException, UseGuards,
 } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
@@ -67,6 +67,8 @@ class ChangePasswordDto {
  */
 @Injectable()
 export class AuthService {
+  private readonly log = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(Utilisateur) private repo: Repository<Utilisateur>,
   ) {}
@@ -122,9 +124,8 @@ export class AuthService {
       role: "admin",
     });
     await this.repo.save(u);
-    // eslint-disable-next-line no-console
-    console.log(
-      `[auth] Compte admin par defaut cree : login="AADMIN" / mdp="${AuthService.defaultPassword()}" — A CHANGER A LA 1ere CONNEXION`,
+    this.log.log(
+      `Compte admin par defaut cree : login="AADMIN" / mdp="${AuthService.defaultPassword()}" — A CHANGER A LA 1ere CONNEXION`,
     );
   }
 }

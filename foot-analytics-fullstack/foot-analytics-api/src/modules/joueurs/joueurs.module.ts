@@ -1,6 +1,6 @@
 // src/modules/joueurs/joueurs.module.ts
 import {
-  Body, Controller, Delete, Get, Injectable, NotFoundException, Param,
+  Body, Controller, Delete, Get, Injectable, Logger, NotFoundException, Param,
   Patch, Post, Query, Module,
 } from "@nestjs/common";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
@@ -10,6 +10,8 @@ import { CreateJoueurDto, UpdateJoueurDto } from "./joueur.dto";
 
 @Injectable()
 export class JoueursService {
+  private readonly log = new Logger(JoueursService.name);
+
   constructor(
     @InjectRepository(Joueur) private repo: Repository<Joueur>,
     @InjectRepository(Composition) private compos: Repository<Composition>,
@@ -270,8 +272,7 @@ export class JoueursService {
         clubId: j.clubId ?? equipe!.clubId,
         equipeId, equipeNom: equipe!.nom,
       }));
-    // eslint-disable-next-line no-console
-    console.log(`[effectif] equipe=${equipe.nom} (${equipeId}) : ${rows.length} via matchs + ${rowsAttaches.length} attaches manuels = ${rows.length + rowsAttaches.length} total`);
+    this.log.debug(`[effectif] equipe=${equipe.nom} (${equipeId}) : ${rows.length} via matchs + ${rowsAttaches.length} attaches manuels = ${rows.length + rowsAttaches.length} total`);
     return [...rows, ...rowsAttaches];
   }
 
@@ -469,8 +470,7 @@ export class JoueursService {
     list.add(equipeId);
     j.equipesAttachees = [...list];
     const saved = await this.repo.save(j);
-    // eslint-disable-next-line no-console
-    console.log(`[attach] joueur=${j.prenom} ${j.nom} (${joueurId}) -> equipe=${eq.nom} (${equipeId}) | equipesAttachees=[${saved.equipesAttachees.join(",")}]`);
+    this.log.debug(`[attach] joueur=${j.prenom} ${j.nom} (${joueurId}) -> equipe=${eq.nom} (${equipeId}) | equipesAttachees=[${saved.equipesAttachees.join(",")}]`);
     return saved;
   }
 

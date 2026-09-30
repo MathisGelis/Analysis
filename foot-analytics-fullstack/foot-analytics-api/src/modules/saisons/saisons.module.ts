@@ -9,7 +9,7 @@
 
 import {
   Body, Controller, Delete, Get, Injectable, Module, NotFoundException,
-  Param, Patch, Post, Query, forwardRef, Inject,
+  Param, Patch, Post, Query, forwardRef, Inject, Logger,
 } from "@nestjs/common";
 import { IsBoolean, IsInt, IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
@@ -32,6 +32,8 @@ class UpdateSaisonDto {
 
 @Injectable()
 export class SaisonsService {
+  private readonly log = new Logger(SaisonsService.name);
+
   constructor(
     @InjectRepository(Saison) private repo: Repository<Saison>,
     @Inject(forwardRef(() => EquipesService))
@@ -122,8 +124,7 @@ export class SaisonsService {
       // pour CE club. Robuste au cas ou anneeDebut est mal typee.
       if (clubId) {
         const src = await this.findSaisonSourceAvecEquipes(nouvelle, clubId);
-        // eslint-disable-next-line no-console
-        console.log(`[autoClone] club=${clubId} nouvelle=${nouvelle.id} (${nouvelle.nom}) -> source trouvee: ${src?.id ?? "NULL"} (${src?.nom ?? "-"})`);
+        this.log.debug(`[autoClone] club=${clubId} nouvelle=${nouvelle.id} (${nouvelle.nom}) -> source trouvee: ${src?.id ?? "NULL"} (${src?.nom ?? "-"})`);
         if (!src) {
           return {
             clubs: 0, creees: 0, existaient: 0,
@@ -135,8 +136,7 @@ export class SaisonsService {
           fromSaisonId: src.id,
           toSaisonId: nouvelle.id,
         });
-        // eslint-disable-next-line no-console
-        console.log(`[autoClone] clone ${src.nom} -> ${nouvelle.nom} pour club ${clubId} : ${r.creees} creees, ${r.existaient} existaient`);
+        this.log.debug(`[autoClone] clone ${src.nom} -> ${nouvelle.nom} pour club ${clubId} : ${r.creees} creees, ${r.existaient} existaient`);
         return {
           clubs: r.creees > 0 || r.existaient > 0 ? 1 : 0,
           creees: r.creees,
@@ -161,8 +161,7 @@ export class SaisonsService {
       });
       return { ...r, fromSaisonId: prev.id, toSaisonId: nouvelle.id, fromSaisonNom: prev.nom };
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("[autoClone] echec :", err);
+      this.log.error(`[autoClone] echec : ${(err as Error).message}`, (err as Error).stack);
       return { error: (err as Error).message };
     }
   }

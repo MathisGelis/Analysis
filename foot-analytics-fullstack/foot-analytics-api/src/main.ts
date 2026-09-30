@@ -5,9 +5,10 @@ import { ValidationPipe, Logger } from "@nestjs/common";
 import { AppModule } from "./app.module";
 import { AuthService } from "@/modules/auth/auth.module";
 import { BootstrapService } from "@/modules/bootstrap/bootstrap.module";
+import { niveauxDeLog } from "@/common/log-level";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { logger: niveauxDeLog() });
 
   // Prefixe global : toutes les routes sous /api
   app.setGlobalPrefix("api");

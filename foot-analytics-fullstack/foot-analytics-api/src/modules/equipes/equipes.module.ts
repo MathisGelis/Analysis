@@ -7,7 +7,7 @@
 // par saison, pour garder l'historique des classements.
 
 import {
-  Body, Controller, Delete, Get, Injectable, Module, NotFoundException,
+  Body, Controller, Delete, Get, Injectable, Logger, Module, NotFoundException,
   Param, Patch, Post, Query,
 } from "@nestjs/common";
 import { IsOptional, IsString } from "class-validator";
@@ -29,6 +29,8 @@ class UpsertEquipeDto {
 
 @Injectable()
 export class EquipesService {
+  private readonly log = new Logger(EquipesService.name);
+
   constructor(@InjectRepository(Equipe) private repo: Repository<Equipe>) {}
 
   findAll(opts: { clubId?: string; saisonId?: string } = {}) {
@@ -75,8 +77,7 @@ export class EquipesService {
     const sources = await this.repo.find({
       where: { clubId: args.clubId, saisonId: args.fromSaisonId },
     });
-    // eslint-disable-next-line no-console
-    console.log(`[cloneSaison] club=${args.clubId} from=${args.fromSaisonId} to=${args.toSaisonId} : ${sources.length} equipes trouvees dans la source`);
+    this.log.debug(`[cloneSaison] club=${args.clubId} from=${args.fromSaisonId} to=${args.toSaisonId} : ${sources.length} equipes trouvees dans la source`);
     const cibles = await this.repo.find({
       where: { clubId: args.clubId, saisonId: args.toSaisonId },
     });
