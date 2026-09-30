@@ -1,11 +1,16 @@
 // src/app/scouting/page.tsx
 //
 // Liste de scouting : un acces direct par club a son onglet "Rapport scouting".
-// Affiche les clubs avec rapport finalise + ceux sans (a creer).
+// Affiche les clubs avec rapport finalise + ceux sans (a creer). Tout est lu sur
+// la saison choisie : clubs qui ont une equipe cette saison (ceux de ma poule en
+// premier) et rapports dates dans la saison.
 
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { getOwnClubIdServer } from "@/lib/own-club";
+import { getOwnSaisonIdServer } from "@/lib/own-equipe";
+import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
+import { clubsDeLaSaison, clubsDuChampionnat } from "@/lib/clubs-saison";
 import { ClubBadge } from "@/components/ClubBadge";
 import { FileText, Plus } from "lucide-react";
 
@@ -13,13 +18,22 @@ export const metadata = { title: "Scouting · Foot Analytics" };
 
 export default async function ScoutingList() {
   const CLUB_PROPRE_ID = getOwnClubIdServer();
-  const [clubs, rapports] = await Promise.all([
-    api.clubs(),
-    api.rapports(),
+  const [clubs, saisons, equipes, matchs] = await Promise.all([
+    api.clubs(), api.saisons(), api.equipes(), api.matchs(),
+  ]);
+  const saison = saisons.find((s: any) => s.id === getOwnSaisonIdServer())
+    ?? saisons.find((s: any) => s.actif) ?? null;
+  const [rapports, { equipe: maEquipe }] = await Promise.all([
+    api.rapports(undefined, saison?.id),
+    resolveEquipePropre({ equipes, saisons, matchs }),
   ]);
 
   const avecId = new Set(rapports.map((r) => r.clubId));
-  const adversaires = clubs.filter((c) => c.id !== CLUB_PROPRE_ID);
+  const dansMaPoule = clubsDuChampionnat(equipes, maEquipe);
+  // Ma poule d'abord (ce sont les adversaires a preparer), puis les autres clubs de la saison.
+  const adversaires = clubsDeLaSaison(clubs, equipes, saison?.id ?? null, CLUB_PROPRE_ID)
+    .sort((a, b) => Number(dansMaPoule.has(b.id)) - Number(dansMaPoule.has(a.id))
+      || a.nom.localeCompare(b.nom));
   const aveRapport = adversaires.filter((c) => avecId.has(c.id));
   const sansRapport = adversaires.filter((c) => !avecId.has(c.id));
 
@@ -28,7 +42,9 @@ export default async function ScoutingList() {
       <header className="flex items-end justify-between flex-wrap gap-3">
         <div>
           <div className="h-section">Rapports d'observation</div>
-          <h1 className="font-display text-2xl font-bold text-ink">Scouting adversaires</h1>
+          <h1 className="font-display text-2xl font-bold text-ink">
+            Scouting adversaires{saison && <span className="text-muted font-light"> · {saison.nom}</span>}
+          </h1>
         </div>
         <Link href="/import" className="btn btn-primary">
           <Plus size={14}/> Importer une FMI
@@ -40,8 +56,8 @@ export default async function ScoutingList() {
         <div className="h-section mb-3">Rapports disponibles ({aveRapport.length})</div>
         {aveRapport.length === 0 ? (
           <p className="text-sm text-muted py-4 text-center">
-            Aucun rapport finalise pour l'instant. Importez des feuilles de
-            match pour generer automatiquement les rapports adversaires.
+            Aucun rapport pour la saison {saison?.nom ?? "choisie"} pour l'instant. Importez des
+            feuilles de match pour generer automatiquement les rapports adversaires.
           </p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -62,6 +78,9 @@ export default async function ScoutingList() {
                     <div className="font-display text-sm font-bold text-ink mt-1 truncate">
                       {c.nom}
                     </div>
+                    {dansMaPoule.has(c.id) && (
+                      <div className="text-[10px] uppercase tracking-wider text-turf">Ma poule</div>
+                    )}
                     {r?.dispositifAttendu && (
                       <div className="text-[11px] text-muted mt-0.5">
                         Dispositif : <span className="text-turf font-semibold">{r.dispositifAttendu}</span>

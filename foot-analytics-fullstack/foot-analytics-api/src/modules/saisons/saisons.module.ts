@@ -15,6 +15,7 @@ import { IsBoolean, IsInt, IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Saison } from "@/entities";
+import { anneeDebutPourDate, nomSaison } from "@/common/saison-date";
 import { EquipesModule, EquipesService } from "@/modules/equipes/equipes.module";
 
 class CreateSaisonDto {
@@ -169,18 +170,9 @@ export class SaisonsService {
    *  Convention foot : N/N+1 = aout N -> juin N+1.
    *  Auto-clone declenche si nouvelle saison creee ici. */
   async ensureForDate(dateStr: string): Promise<Saison | null> {
-    if (!dateStr) return null;
-    let year: number | null = null;
-    let month: number | null = null;
-    let m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (m) { year = +m[1]; month = +m[2]; }
-    else {
-      m = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-      if (m) { year = +m[3]; month = +m[2]; }
-    }
-    if (year == null || month == null) return null;
-    const debut = month >= 7 ? year : year - 1;
-    const nom = `${debut}-${debut + 1}`;
+    const debut = anneeDebutPourDate(dateStr);
+    if (debut == null) return null;
+    const nom = nomSaison(debut);
     let s = await this.repo.findOne({ where: { nom } });
     if (s) return s;
     s = await this.repo.save(this.repo.create({

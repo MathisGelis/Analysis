@@ -1,7 +1,8 @@
 // src/app/rapports/equipe/[clubId]/page.tsx
 //
 // Rapport d'analyse d'equipe genere depuis le backend
-// (/api/analyse/club/:clubId).
+// (/api/analyse/club/:clubId?equipeId=&saisonId=), restreint a l'equipe du club
+// consultee sur la saison choisie dans le selecteur.
 // Affiche : scores danger / chaos / forme, joueurs cles, impact de chaque
 // joueur, stabilite par ligne, faiblesses identifiees, compo probable,
 // partnerships gagnants, minute moyenne des changements.
@@ -9,6 +10,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { getOwnSaisonIdServer } from "@/lib/own-equipe";
+import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
+import { equipeConsultee } from "@/lib/equipe-consultee";
 import { ClubBadge } from "@/components/ClubBadge";
 import { DonutStat } from "@/components/Charts";
 import {
@@ -25,7 +29,14 @@ const LIGNE_LABEL: Record<string, string> = {
 export default async function RapportEquipe({
   params,
 }: { params: { clubId: string } }) {
-  const rapport = await api.analyseClub(params.clubId);
+  // Saison et equipe : sans elles le rapport melangerait Seniors, U20 et toutes
+  // les saisons. La saison suit le selecteur, l'equipe le championnat de mon equipe.
+  const [saisons, equipes, matchs] = await Promise.all([api.saisons(), api.equipes(), api.matchs()]);
+  const saison = saisons.find((s: any) => s.id === getOwnSaisonIdServer())
+    ?? saisons.find((s: any) => s.actif) ?? null;
+  const { equipe: maEquipe } = await resolveEquipePropre({ equipes, saisons, matchs });
+  const equipe = equipeConsultee({ equipes, clubId: params.clubId, saisonId: saison?.id ?? null, maEquipe });
+  const rapport = await api.analyseClub(params.clubId, { equipeId: equipe?.id, saisonId: saison?.id });
   if (!rapport) notFound();
 
   return (
@@ -46,7 +57,9 @@ export default async function RapportEquipe({
               {rapport.clubNom}
             </h1>
             <p className="text-xs text-muted mt-1">
-              Genere a partir des feuilles FMI et donnees d'entrainement.
+              {equipe && <>{equipe.categorie} {equipe.division}{equipe.poule ? ` · Poule ${equipe.poule}` : ""} · </>}
+              {saison ? <>saison {saison.nom}</> : "toutes saisons"} · genere a partir des
+              feuilles FMI et donnees d'entrainement.
             </p>
           </div>
         </div>
@@ -60,6 +73,19 @@ export default async function RapportEquipe({
         </div>
       </header>
 
+      {rapport.matchsAnalyses === 0 && (
+        <section className="panel p-8 text-center space-y-2">
+          <div className="font-display text-lg font-bold text-ink">Pas encore de match analyse</div>
+          <p className="text-sm text-muted max-w-xl mx-auto">
+            Aucune feuille de match n'a ete importee pour {rapport.clubNom}
+            {saison ? <> sur la saison <strong className="text-ink">{saison.nom}</strong></> : null}.
+            Le rapport se construit tout seul des les premieres feuilles FMI.
+          </p>
+          <Link href="/import" className="btn btn-primary inline-flex">Importer une FMI</Link>
+        </section>
+      )}
+
+      {rapport.matchsAnalyses > 0 && <>
       {/* Faiblesses */}
       {rapport.faiblesses.length > 0 && (
         <section className="panel p-5">
@@ -488,6 +514,7 @@ export default async function RapportEquipe({
           </p>
         )}
       </section>
+      </>}
     </div>
   );
 }

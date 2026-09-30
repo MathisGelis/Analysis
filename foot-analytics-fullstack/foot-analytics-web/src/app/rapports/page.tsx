@@ -7,6 +7,8 @@
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { getOwnClubIdServer } from "@/lib/own-club";
+import { getOwnSaisonIdServer } from "@/lib/own-equipe";
+import { clubsDeLaSaison } from "@/lib/clubs-saison";
 import { ClubBadge } from "@/components/ClubBadge";
 import { BandeauDemo } from "@/components/BandeauDemo";
 import { Download, Eye, FileText, Mail, Printer, BarChart3 } from "lucide-react";
@@ -25,10 +27,12 @@ export default async function Rapports() {
   // Selecteur d'analyse equipe : mon club en premier, puis les autres
   // par ordre alphabetique.
   const ownClubId = getOwnClubIdServer();
-  const clubs = await api.clubs();
+  const [clubs, saisons, equipes] = await Promise.all([api.clubs(), api.saisons(), api.equipes()]);
+  const saison = saisons.find((s: any) => s.id === getOwnSaisonIdServer())
+    ?? saisons.find((s: any) => s.actif) ?? null;
   const monClub = clubs.find((c) => c.id === ownClubId);
-  const autres = clubs.filter((c) => c.id !== ownClubId)
-    .sort((a, b) => a.nom.localeCompare(b.nom));
+  // Uniquement les clubs qui ont une equipe sur la saison choisie.
+  const autres = clubsDeLaSaison(clubs, equipes, saison?.id ?? null, ownClubId);
 
   return (
     <div className="space-y-6 fade-up">
@@ -70,7 +74,7 @@ export default async function Rapports() {
         )}
 
         <div className="text-[11px] text-faint uppercase tracking-wider mb-2">
-          Autres equipes ({autres.length})
+          Autres equipes{saison ? ` · ${saison.nom}` : ""} ({autres.length})
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {autres.map((c) => (

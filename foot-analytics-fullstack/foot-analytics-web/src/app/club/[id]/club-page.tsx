@@ -15,6 +15,7 @@ import { getOwnSaisonIdServer } from "@/lib/own-equipe";
 import { ClubTabs } from "@/components/ClubTabs";
 import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
 import { memeChampionnat } from "@/lib/empreinte-equipe";
+import { equipeConsultee } from "@/lib/equipe-consultee";
 import { ligneDuClub } from "@/lib/classement";
 import { parseDateMatch } from "@/lib/matchs-equipe";
 
@@ -25,16 +26,21 @@ export async function ClubPageContent({
   const CLUB_PROPRE_ID = getOwnClubIdServer();
   const ownSaisonId = getOwnSaisonIdServer();
 
-  const [clubs, classement, equipesAll, joueursAll, matchsAll, rapport, bilanApi, saisons] =
+  // Saison effective : switcher > active > aucune. Elle cadre tout le reste.
+  const saisons = await api.saisons();
+  const saisonActive = saisons.find((s: any) => s.actif);
+  const saisonChoisieId = ownSaisonId ?? saisonActive?.id ?? null;
+  const saisonChoisie = saisons.find((s: any) => s.id === saisonChoisieId);
+
+  const [clubs, classement, equipesAll, joueursAll, matchsAll, rapport] =
     await Promise.all([
       api.clubs(),
       api.classement(),
       api.equipes(),
       api.joueurs(params.id),
       api.matchs(),
-      api.rapportClub(params.id),
-      api.bilan(params.id),
-      api.saisons(),
+      // Un rapport de scouting est date : on ne montre que celui de la saison.
+      api.rapportClub(params.id, saisonChoisieId),
     ]);
 
   // Repli demo : un rapport de scouting peut exister pour un club absent de la
@@ -45,12 +51,6 @@ export async function ClubPageContent({
     couleur: "#5ab8ff",
   } as any : null);
   if (!club) notFound();
-
-  // Saison effective : switcher > active > aucune. Si aucune saison
-  // resolue, pas de filtrage (degenere).
-  const saisonActive = saisons.find((s: any) => s.actif);
-  const saisonChoisieId = ownSaisonId ?? saisonActive?.id ?? null;
-  const saisonChoisie = saisons.find((s: any) => s.id === saisonChoisieId);
 
   // Filtrage par saison selectionnee :
   //  - matchs : on garde uniquement ceux de la saison choisie
@@ -68,20 +68,18 @@ export async function ClubPageContent({
   const { equipe: maEquipe } = await resolveEquipePropre({
     equipes: equipesAll, saisons, matchs: matchsAll,
   });
-  const equipes = equipesAll.filter((e: any) =>
-    e.clubId === club.id && (!saisonChoisieId || (e.saisonId ?? null) === saisonChoisieId));
-  const equipeConsultee =
-    (maEquipe ? equipes.find((e: any) => memeChampionnat(e, maEquipe)) : null)
-    ?? equipes[0] ?? null;
+  const equipeVue = equipeConsultee({
+    equipes: equipesAll, clubId: club.id, saisonId: saisonChoisieId, maEquipe,
+  });
 
-  const effectif = equipeConsultee ? await api.effectifEquipe(equipeConsultee.id) : [];
+  const effectif = equipeVue ? await api.effectifEquipe(equipeVue.id) : [];
 
   const matchsSaison = saisonChoisieId
     ? matchsAll.filter((m: any) => (m.saisonId ?? null) === saisonChoisieId)
     : matchsAll;
-  const matchs = equipeConsultee
+  const matchs = equipeVue
     ? matchsSaison.filter((m: any) =>
-        m.equipeDomId === equipeConsultee.id || m.equipeExtId === equipeConsultee.id)
+        m.equipeDomId === equipeVue.id || m.equipeExtId === equipeVue.id)
     : matchsSaison.filter((m: any) => m.clubDom === club.id || m.clubExt === club.id);
   const ligneSaison = ligneDuClub(classement, equipesAll, club.id, saisonChoisieId, maEquipe)
     ?? undefined;
@@ -114,8 +112,7 @@ export async function ClubPageContent({
     })
     .sort((a, b) => parseDateMatch(a.date) - parseDateMatch(b.date));
 
-  // Bilan : si saison choisie, recalcul local sur les matchs filtres.
-  // Sinon, garder bilanApi (global toutes saisons) si dispo.
+  // Bilan : recalcule sur les matchs de l'equipe consultee et de la saison choisie.
   const bilanLocal = {
     joues: resultats.length,
     v: resultats.filter((r) => r.butsMarques > r.butsEncaisses).length,
@@ -127,12 +124,12 @@ export async function ClubPageContent({
       r.butsMarques > r.butsEncaisses ? "V" : r.butsMarques === r.butsEncaisses ? "N" : "D",
     ),
   };
-  const bilan = saisonChoisieId ? bilanLocal : (bilanApi ?? bilanLocal);
+  const bilan = bilanLocal;
 
   return (
     <ClubTabs
       club={club}
-      equipe={equipeConsultee ?? undefined}
+      equipe={equipeVue ?? undefined}
       ligne={ligneSaison}
       totalClasses={totalClasses}
       bilan={bilan as any}

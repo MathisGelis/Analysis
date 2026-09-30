@@ -4,14 +4,19 @@
 // dependance, rotation, faiblesses, partnerships gagnants, minute moyenne
 // des changements, scores de danger et de chaos.
 //
-// On expose un seul endpoint :  GET /api/analyse/club/:clubId
+// On expose un seul endpoint :  GET /api/analyse/club/:clubId[?equipeId=&saisonId=]
 // La reponse est un objet self-contenu, consomme tel quel par le front.
+//
+// Perimetre : sans parametre, tous les matchs du club (toutes equipes, toutes
+// saisons melangees : a eviter). `equipeId` restreint a UNE equipe (donc une
+// saison), `saisonId` a une saison. Un rapport de "Seniors D2 2025-2026" ne doit
+// pas etre pollue par les U20 ou par la saison suivante.
 
 import {
-  Controller, Get, Injectable, Module, NotFoundException, Param,
+  Controller, Get, Injectable, Module, NotFoundException, Param, Query,
 } from "@nestjs/common";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import {
   Club, Coach, Composition, Entrainement, EvenementMatch, Joueur, Match,
   StaffMatch,
@@ -142,15 +147,22 @@ export class AnalyseService {
     @InjectRepository(StaffMatch) private staffMatchsRepo: Repository<StaffMatch>,
   ) {}
 
-  async rapportClub(clubId: string): Promise<RapportEquipe> {
+  async rapportClub(
+    clubId: string, portee: { equipeId?: string; saisonId?: string } = {},
+  ): Promise<RapportEquipe> {
     const club = await this.clubs.findOne({ where: { id: clubId } });
     if (!club) throw new NotFoundException(`Club ${clubId} introuvable`);
 
+    // Uniquement les matchs du club (et de la saison demandee), pas toute la base.
+    const filtreSaison = portee.saisonId ? { saisonId: portee.saisonId } : {};
     const matchs = await this.matchs.find({
+      where: [{ ...filtreSaison, clubDom: clubId }, { ...filtreSaison, clubExt: clubId }],
       relations: ["compositions", "evenements"],
     });
+    const dansPortee = (m: Match) => !portee.equipeId
+      || m.equipeDomId === portee.equipeId || m.equipeExtId === portee.equipeId;
     const matchsClub = matchs.filter(
-      (m) => (m.clubDom === clubId || m.clubExt === clubId) && (m as any).statut !== "annule" && (m as any).statut !== "reporte",
+      (m) => dansPortee(m) && (m as any).statut !== "annule" && (m as any).statut !== "reporte",
     );
     const joueurs = await this.joueurs.find({ where: { clubId } });
     const joueursById = new Map(joueurs.map((j) => [j.id, j]));
@@ -240,6 +252,8 @@ export class AnalyseService {
       .filter((i) => i.matchsAvec >= seuilCles && i.matchsSans >= 1 && i.impactPondere < 0)
       .sort((a, b) => a.impactPondere - b.impactPondere)
       .slice(0, 5);
+    // Les joueurs du club absents de tous les matchs du perimetre n'ont rien a faire dans le tableau.
+    impacts.splice(0, impacts.length, ...impacts.filter((i) => i.matchsAvec > 0));
     impacts.sort((a, b) => b.impactPondere - a.impactPondere);
 
     /* ============ Stabilite (rotations) ============ */
@@ -524,7 +538,9 @@ export class AnalyseService {
     // On charge les staff_matchs pour les matchs du club, et on agrege par
     // coach les V/N/D et fonctions.
     const matchIds = new Set(matchsClub.map((m) => m.id));
-    const allStaffMatchs = await this.staffMatchsRepo.find({ relations: ["coach"] });
+    const allStaffMatchs = matchIds.size === 0 ? [] : await this.staffMatchsRepo.find({
+      where: { matchId: In([...matchIds]) }, relations: ["coach"],
+    });
     type CoachAcc = {
       coachId: string; nom: string; prenom?: string; licence?: string;
       matchsPresent: number; v: number; n: number; d: number;
@@ -673,8 +689,12 @@ function labelLigne(l: string): string {
 class AnalyseController {
   constructor(private svc: AnalyseService) {}
   @Get("club/:clubId")
-  rapport(@Param("clubId") clubId: string) {
-    return this.svc.rapportClub(clubId);
+  rapport(
+    @Param("clubId") clubId: string,
+    @Query("equipeId") equipeId?: string,
+    @Query("saisonId") saisonId?: string,
+  ) {
+    return this.svc.rapportClub(clubId, { equipeId: equipeId || undefined, saisonId: saisonId || undefined });
   }
 }
 

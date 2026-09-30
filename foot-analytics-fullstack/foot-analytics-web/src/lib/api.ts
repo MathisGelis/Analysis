@@ -188,16 +188,24 @@ export const api = {
     }),
 
   // Scouting
-  rapports: (clubId?: string) =>
-    req<RapportScouting[]>(`/scouting${clubId ? `?clubId=${clubId}` : ""}`, {
-      fallback: [DEMO_RAPPORT],
-    }),
+  /** Rapports de scouting, restreints a une saison quand `saisonId` est donne
+   *  (un rapport est un document date : il appartient a la saison de sa date). */
+  rapports: (clubId?: string, saisonId?: string | null) => {
+    const qs = new URLSearchParams();
+    if (clubId) qs.set("clubId", clubId);
+    if (saisonId) qs.set("saisonId", saisonId);
+    const s = qs.toString();
+    return req<RapportScouting[]>(`/scouting${s ? `?${s}` : ""}`, {
+      fallback: saisonId ? [] : [DEMO_RAPPORT],
+    });
+  },
   // Un club sans rapport renvoie un 404 -> on traite ca comme "pas de
   // rapport" (null), surtout pas comme une erreur qui casse la page club.
-  rapportClub: (clubId: string) =>
-    req<RapportScouting | null>(`/scouting/club/${clubId}`, {
-      fallback: clubId === "neuv" ? (DEMO_RAPPORT as any) : (null as any),
-    }),
+  rapportClub: (clubId: string, saisonId?: string | null) =>
+    req<RapportScouting | null>(
+      `/scouting/club/${clubId}${saisonId ? `?saisonId=${saisonId}` : ""}`, {
+        fallback: clubId === "neuv" && !saisonId ? (DEMO_RAPPORT as any) : (null as any),
+      }),
 
   // Classement
   classement: () =>
@@ -216,10 +224,13 @@ export const api = {
     }),
 
   // Stats agregees
-  bilan: (clubId: string) =>
-    req<any>(`/stats/bilan/${clubId}`, { fallback: null }),
-  statsEffectif: (clubId: string) =>
-    req<any>(`/stats/effectif/${clubId}`, { fallback: null }),
+  bilan: (clubId: string, portee: { equipeId?: string | null; saisonId?: string | null } = {}) => {
+    const qs = new URLSearchParams();
+    if (portee.equipeId) qs.set("equipeId", portee.equipeId);
+    if (portee.saisonId) qs.set("saisonId", portee.saisonId);
+    const s = qs.toString();
+    return req<any>(`/stats/bilan/${clubId}${s ? `?${s}` : ""}`, { fallback: null });
+  },
 
   /* ----------------------------- MUTATIONS ------------------------------- */
   // (necessitent le backend ; pas de fallback)
@@ -305,8 +316,14 @@ export const api = {
     req<any[]>(`/coachs/match/${matchId}`, { fallback: [] }),
 
   /* ---- Analyse equipe ---- */
-  analyseClub: (clubId: string) =>
-    req<any>(`/analyse/club/${clubId}`, { fallback: null }),
+  /** Rapport d'analyse d'un club, restreint a une equipe (donc une saison) ou a une saison. */
+  analyseClub: (clubId: string, portee: { equipeId?: string | null; saisonId?: string | null } = {}) => {
+    const qs = new URLSearchParams();
+    if (portee.equipeId) qs.set("equipeId", portee.equipeId);
+    if (portee.saisonId) qs.set("saisonId", portee.saisonId);
+    const s = qs.toString();
+    return req<any>(`/analyse/club/${clubId}${s ? `?${s}` : ""}`, { fallback: null });
+  },
 
   /* ---- Saisons ---- */
   saisons: () => req<any[]>("/saisons", { fallback: [] }),

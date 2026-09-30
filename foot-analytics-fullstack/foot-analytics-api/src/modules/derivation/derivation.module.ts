@@ -17,6 +17,7 @@ import {
   Equipe, EvenementMatch, Joueur, LigneClassement, Match, Saison, StaffMatch,
 } from "@/entities";
 import { noteIndicative } from "@/common/indicateurs";
+import { anneeDebutPourDate, nomSaison } from "@/common/saison-date";
 
 const POSTE_BY_NUM: Record<number, string> = {
   1: "GB", 2: "DD", 3: "DG", 4: "DC", 5: "DC",
@@ -1300,18 +1301,9 @@ export class DerivationService {
     const saisons = await this.saisonsRepo.find();
     const saisonByNom = new Map(saisons.map((s) => [s.nom, s]));
     const ensureSaisonForDate = async (dateStr: string | null) => {
-      if (!dateStr) return null;
-      let year: number | null = null;
-      let month: number | null = null;
-      let m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (m) { year = +m[1]; month = +m[2]; }
-      else {
-        m = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-        if (m) { year = +m[3]; month = +m[2]; }
-      }
-      if (year == null || month == null) return null;
-      const debut = month >= 7 ? year : year - 1;
-      const nom = `${debut}-${debut + 1}`;
+      const debut = anneeDebutPourDate(dateStr);
+      if (debut == null) return null;
+      const nom = nomSaison(debut);
       let s = saisonByNom.get(nom);
       if (!s) {
         s = await this.saisonsRepo.save(this.saisonsRepo.create({
