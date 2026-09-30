@@ -24,6 +24,7 @@ import {
 import { ClubBadge } from "@/components/ClubBadge";
 import { CountUp } from "@/components/CountUp";
 import { Sparkline } from "@/components/Charts";
+import { plusFatigues } from "@/lib/fatigue";
 import {
   ArrowRight, ArrowUpRight, Calendar, Crosshair, Flag, Flame,
   MapPin, ShieldAlert, Target, Trophy, Upload,
@@ -73,13 +74,9 @@ export default async function Dashboard() {
   const tableauPoule = fenetreClassement(lignes, equipe?.id, 5);
   const diff = maLigne ? diffButs(maLigne) : bilan.bp - bilan.bc;
 
-  // Joueurs : tops. L'indice de forme est un instantane du moment present :
-  // il n'a de sens que sur la saison active (cf. effectif()).
-  const actifs = effectif.filter((j) => (j.matchs ?? 0) >= 3);
-  const topForme = estSaisonActive
-    ? [...actifs].filter((j) => j.scoreForme != null)
-        .sort((a, b) => (b.scoreForme ?? 0) - (a.scoreForme ?? 0)).slice(0, 5)
-    : [];
+  // Joueurs : tops. La fatigue est un instantane du moment present :
+  // elle n'a de sens que sur la saison active (cf. effectif()).
+  const topFatigue = estSaisonActive ? plusFatigues(effectif, 5) : [];
   const topButeurs = [...effectif]
     .filter((j) => (j.buts ?? 0) > 0)
     .sort((a, b) => (b.buts ?? 0) - (a.buts ?? 0))
@@ -282,17 +279,17 @@ export default async function Dashboard() {
       </section>
 
       {/* ============================================================
-          JOUEURS : tops forme / buteurs / discipline
+          JOUEURS : fatigue a surveiller / buteurs / discipline
           ============================================================ */}
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <TopList
-          title="Forme" icon={<Flame size={15} />} accent="accent"
+          title="Fatigue" icon={<Flame size={15} />} accent="amber"
           empty={estSaisonActive
-            ? "Pas encore assez de matchs joues."
-            : "L'indice de forme est un instantane : il n'existe que sur la saison active."}
-          items={topForme.map((j: any) => ({
+            ? "Pas de charge recente connue (matchs ou seances des 4 dernieres semaines)."
+            : "La fatigue est un instantane : elle n'existe que sur la saison active."}
+          items={topFatigue.map((j: any) => ({
             id: j.id, nom: `${j.prenom ?? ""} ${j.nom}`.trim(),
-            poste: j.poste, valeur: j.scoreForme ?? 0, valeurLabel: "/100",
+            poste: j.poste, valeur: j.scoreFatigue ?? 0, valeurLabel: "/100",
           }))}
           max={100}
         />
@@ -476,14 +473,14 @@ function TopList({
 }: {
   title: string;
   icon: React.ReactNode;
-  accent: "accent" | "sky" | "danger";
+  accent: "accent" | "sky" | "amber" | "danger";
   items: { id: string | null; nom: string; poste?: string | null; valeur: number; valeurLabel: string }[];
   empty: string;
   max: number;
 }) {
-  const texte = accent === "accent" ? "text-accent" : accent === "sky" ? "text-sky" : "text-danger";
-  const fond = accent === "accent" ? "bg-accent" : accent === "sky" ? "bg-sky" : "bg-danger";
-  const teinte = accent === "accent" ? "bg-accent/12" : accent === "sky" ? "bg-sky/12" : "bg-danger/12";
+  const texte = accent === "accent" ? "text-accent" : accent === "sky" ? "text-sky" : accent === "amber" ? "text-amber" : "text-danger";
+  const fond = accent === "accent" ? "bg-accent" : accent === "sky" ? "bg-sky" : accent === "amber" ? "bg-amber" : "bg-danger";
+  const teinte = accent === "accent" ? "bg-accent/12" : accent === "sky" ? "bg-sky/12" : accent === "amber" ? "bg-amber/12" : "bg-danger/12";
   return (
     <div className="panel flex flex-col p-5">
       <div className="mb-3 flex items-center gap-2.5">

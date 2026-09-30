@@ -1,13 +1,14 @@
 // src/modules/blessures/blessures.module.ts
 import {
   Body, ConflictException, Controller, Delete, Get, Injectable, NotFoundException,
-  Param, Patch, Post, Query, Module,
+  Optional, Param, Patch, Post, Query, Module,
 } from "@nestjs/common";
 import { IsBoolean, IsInt, IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Blessure } from "@/entities";
 import { seChevauchent } from "@/common/periode";
+import { DerivationModule, DerivationService } from "../derivation/derivation.module";
 
 class UpsertBlessureDto {
   @IsString() joueurId: string;
@@ -25,7 +26,19 @@ class UpsertBlessureDto {
 
 @Injectable()
 export class BlessuresService {
-  constructor(@InjectRepository(Blessure) private repo: Repository<Blessure>) {}
+  constructor(
+    @InjectRepository(Blessure) private repo: Repository<Blessure>,
+    @Optional() private derivation?: DerivationService,
+  ) {}
+
+  /**
+   * Une blessure (ou sa fin) change le statut du joueur : indisponible = pas de score de fatigue, reprise =
+   * vulnerabilite. On recalcule les joueurs sans jamais faire echouer la saisie de la blessure.
+   */
+  private async rafraichirFatigue() {
+    try { await this.derivation?.recomputeJoueurs(); }
+    catch { /* la blessure est deja enregistree */ }
+  }
   findAll(joueurId?: string) {
     return this.repo.find({ where: joueurId ? { joueurId } : {} });
   }
@@ -72,17 +85,22 @@ export class BlessuresService {
   async create(dto: UpsertBlessureDto) {
     const { forcer, ...data } = dto;
     await this.verifierChevauchement(data as any, forcer);
-    return this.repo.save(this.repo.create(data));
+    const cree = await this.repo.save(this.repo.create(data));
+    await this.rafraichirFatigue();
+    return cree;
   }
   async update(id: string, dto: Partial<UpsertBlessureDto>) {
     const b = await this.findOne(id);
     const { forcer, ...data } = dto;
     Object.assign(b, data);
     await this.verifierChevauchement(b, forcer, id);
-    return this.repo.save(b);
+    const maj = await this.repo.save(b);
+    await this.rafraichirFatigue();
+    return maj;
   }
   async remove(id: string) {
     await this.repo.remove(await this.findOne(id));
+    await this.rafraichirFatigue();
     return { ok: true, id };
   }
 }
@@ -100,7 +118,7 @@ class BlessuresController {
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Blessure])],
+  imports: [TypeOrmModule.forFeature([Blessure]), DerivationModule],
   controllers: [BlessuresController],
   providers: [BlessuresService],
 })

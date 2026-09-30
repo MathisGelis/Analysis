@@ -11,6 +11,7 @@ import { useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { ClubBadge } from "@/components/ClubBadge";
 import { FormeStrip } from "@/components/Charts";
+import { FatigueBar } from "@/components/FatigueBar";
 import type {
   Club, Joueur, LigneClassement, Match, Issue,
 } from "@/lib/types";
@@ -315,7 +316,7 @@ function KpiCard({ label, club, val }: { label: string; club: TeamRow; val: stri
 /* ============================================================ */
 type PlayerRow = Joueur & { clubNom: string };
 type PlayerKey = "clubNom"|"prenom"|"nom"|"matchs"|"titularisations"|"minutes"
-  |"buts"|"passesDecisives"|"cartonsJaunes"|"cartonsRouges"|"noteMoyenne"|"scoreForme";
+  |"buts"|"passesDecisives"|"cartonsJaunes"|"cartonsRouges"|"noteMoyenne"|"scoreFatigue";
 
 const PLAYER_COLS: { key: PlayerKey; label: string; align?: string }[] = [
   { key: "nom",             label: "Joueur" },
@@ -328,7 +329,7 @@ const PLAYER_COLS: { key: PlayerKey; label: string; align?: string }[] = [
   { key: "cartonsJaunes",   label: "CJ",   align: "text-center" },
   { key: "cartonsRouges",   label: "CR",   align: "text-center" },
   { key: "noteMoyenne",     label: "Note", align: "text-right" },
-  { key: "scoreForme",      label: "Forme",align: "text-right" },
+  { key: "scoreFatigue",    label: "Fatigue", align: "text-right" },
 ];
 
 function PlayerStats({ joueurs, clubs, ownClubId }:
@@ -418,11 +419,8 @@ function PlayerStats({ joueurs, clubs, ownClubId }:
                 {j.noteMoyenne != null ? j.noteMoyenne.toFixed(1) : "—"}
               </td>
               <td className="text-right">
-                <div className="inline-flex items-center gap-1.5">
-                  <div className="w-12 h-1.5 bg-line rounded-full overflow-hidden">
-                    <div className="h-full bg-accent" style={{width:`${j.scoreForme ?? 0}%`}}/>
-                  </div>
-                  <span className="text-xs tabular-nums w-6 text-right">{j.scoreForme ?? 0}</span>
+                <div className="inline-flex justify-end">
+                  <FatigueBar score={j.scoreFatigue} detail={j.fatigueDetail} largeur="w-12" />
                 </div>
               </td>
             </tr>);

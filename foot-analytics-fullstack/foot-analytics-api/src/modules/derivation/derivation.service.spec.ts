@@ -139,4 +139,116 @@ describe("DerivationService - cartons et arbitres", () => {
       expect((await svc.reclasserCartonsVerts(true)).cartonsVertsDetectes).toBe(0);
     });
   });
+
+  describe("fatigue des joueurs", () => {
+    const jour = (j: number) => {
+      const d = new Date(2026, 9, 14 - j);
+      return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+    };
+    const figerLHorloge = (date: Date) =>
+      jest.useFakeTimers({
+        now: date,
+        // Seule la date est simulee : la base en memoire a besoin des timers reels.
+        doNotFake: ["hrtime", "nextTick", "performance", "queueMicrotask", "setImmediate", "clearImmediate",
+          "setInterval", "clearInterval", "setTimeout", "clearTimeout"],
+      });
+    afterEach(() => jest.useRealTimers());
+
+    async function equipeAvecCharge() {
+      const s = await f.saison("2026-2027", 2026, { actif: true });
+      const moi = await f.club("OL Sud");
+      const adv = await f.club("Adverse");
+      const eqMoi = await f.equipe({ clubId: moi.id, nom: "Seniors", categorie: "Seniors", saisonId: s.id });
+      const eqAdv = await f.equipe({ clubId: adv.id, nom: "Adverse", categorie: "Seniors", saisonId: s.id });
+      const ali = await f.joueur({ nom: "ALI", prenom: "Ben", clubId: moi.id, licence: "1111111111" });
+      // 4 semaines : 2 seances + 1 match par semaine (jeudi / samedi / dimanche), Ali present partout.
+      for (let sem = 0; sem < 4; sem++) {
+        for (const j of [sem * 7 + 2, sem * 7 + 4]) {
+          await ds.getRepository(Entrainement).save({
+            equipeId: eqMoi.id, date: jour(j), dureeMin: 90, intensite: 6, charge: 513, joueursPresents: [ali.id], presents: 1, total: 1,
+          });
+        }
+        const m = await f.match({
+          clubDom: moi.id, clubExt: adv.id, equipeDomId: eqMoi.id, equipeExtId: eqAdv.id, saisonId: s.id,
+          date: jour(sem * 7 + 6), scoreDom: 1, scoreExt: 0, statut: "joue",
+        });
+        await f.compo({ matchId: m.id, cote: "dom", nom: "ALI", prenom: "Ben", licence: "1111111111" });
+        await f.compo({ matchId: m.id, cote: "ext", nom: "ZED", prenom: "Ali", licence: "2222222222", numero: 9 });
+      }
+      return { ali, moi, adv };
+    }
+
+    it("calcule la fatigue d'un joueur de mon effectif depuis ses seances ET ses matchs", async () => {
+      figerLHorloge(new Date(2026, 9, 14, 12));
+      const { ali } = await equipeAvecCharge();
+
+      await svc.recomputeJoueurs();
+
+      const j = await ds.getRepository(Joueur).findOneByOrFail({ id: ali.id });
+      expect(j.scoreFatigue).not.toBeNull();
+      expect(j.acwr).toBeGreaterThan(0.85);
+      expect(j.acwr).toBeLessThan(1.2);
+      expect(j.chargeAcute7j).toBeGreaterThan(0);
+      const detail = JSON.parse(j.fatigueDetail);
+      expect(detail.facteurs.map((x: { cle: string }) => x.cle)).toEqual(["acwr", "residuelle", "congestion", "vulnerabilite"]);
+      expect(detail.fiabilite).toBe("solide");                 // seances connues + plus de 2 semaines d'historique
+      expect(detail.matchs14j).toBe(2);
+    });
+
+    it("sans les seances la fatigue serait plus basse : l'entrainement compte vraiment", async () => {
+      figerLHorloge(new Date(2026, 9, 14, 12));
+      const { ali } = await equipeAvecCharge();
+      await svc.recomputeJoueurs();
+      const avec = (await ds.getRepository(Joueur).findOneByOrFail({ id: ali.id })).chargeAcute7j;
+
+      await ds.getRepository(Entrainement).clear();
+      await svc.recomputeJoueurs();
+      const sans = (await ds.getRepository(Joueur).findOneByOrFail({ id: ali.id })).chargeAcute7j;
+
+      expect(avec).toBeGreaterThan(sans);
+    });
+
+    it("un adversaire n'a pas de seances connues : estimation sur ses matchs, fiabilite partielle", async () => {
+      figerLHorloge(new Date(2026, 9, 14, 12));
+      await equipeAvecCharge();
+
+      await svc.recomputeJoueurs();
+
+      const zed = await ds.getRepository(Joueur).findOneOrFail({ where: { nom: "ZED" } });
+      expect(zed.scoreFatigue).not.toBeNull();
+      expect(JSON.parse(zed.fatigueDetail).fiabilite).toBe("partielle");
+    });
+
+    it("la fatigue se lit au jour J : dix jours de repos plus tard, sans nouvel import, le joueur est plus frais", async () => {
+      figerLHorloge(new Date(2026, 9, 14, 12));
+      const { ali } = await equipeAvecCharge();
+      await svc.recomputeJoueurs();
+      const aujourdhui = await ds.getRepository(Joueur).findOneByOrFail({ id: ali.id });
+
+      figerLHorloge(new Date(2026, 9, 24, 12));
+      const dixJoursPlusTard = await ds.getRepository(Joueur).findOneByOrFail({ id: ali.id });
+
+      expect(dixJoursPlusTard.scoreFatigue!).toBeLessThan(aujourdhui.scoreFatigue!);
+      expect(JSON.parse(dixJoursPlusTard.fatigueDetail).calculeLe).toContain("2026-10-24");
+    });
+
+    it("joueur indisponible : pas de score de fatigue", async () => {
+      figerLHorloge(new Date(2026, 9, 14, 12));
+      const { ali } = await equipeAvecCharge();
+      await ds.getRepository(Blessure).save({ joueurId: ali.id, joueurNom: "ALI Ben", statut: "Indisponible", dateDebut: jour(1) });
+
+      await svc.recomputeJoueurs();
+
+      const j = await ds.getRepository(Joueur).findOneByOrFail({ id: ali.id });
+      expect(j.scoreFatigue).toBeNull();
+      expect(JSON.parse(j.fatigueDetail).raison).toBe("indisponible");
+    });
+
+    it("aucun effort sur 28 jours : pas de score", async () => {
+      figerLHorloge(new Date(2026, 11, 20, 12));                 // deux mois apres les dernieres donnees
+      const { ali } = await equipeAvecCharge();
+      await svc.recomputeJoueurs();
+      expect((await ds.getRepository(Joueur).findOneByOrFail({ id: ali.id })).scoreFatigue).toBeNull();
+    });
+  });
 });

@@ -49,18 +49,18 @@ export class JoueursService {
    * (donc Marcon avec 1 match en U20 et 3 en Seniors apparait dans les
    * deux effectifs avec respectivement 1 et 3 matchs).
    *
-   * Le `scoreForme` reste celui calcule globalement (toutes equipes
-   * confondues) car la forme se mesure sur la presence physique recente
-   * du joueur, peu importe la categorie.
+   * Le `scoreFatigue` reste celui calcule globalement (toutes equipes
+   * confondues) car la fatigue se mesure sur la charge physique recente
+   * du joueur (entrainements + matchs), peu importe la categorie.
    */
   async effectif(equipeId: string): Promise<any[]> {
     const equipe = await this.equipesRepo.findOne({ where: { id: equipeId } });
     if (!equipe) throw new NotFoundException(`Equipe ${equipeId} introuvable`);
 
     // Determine si l'equipe appartient a la saison active.
-    // - Si OUI : on affiche le scoreForme global du joueur (il evolue en
-    //   temps reel des qu'il joue ailleurs).
-    // - Si NON (saison passee ou future) : on n'affiche PAS la forme,
+    // - Si OUI : on affiche la fatigue globale du joueur (elle evolue en
+    //   temps reel des qu'il joue ou s'entraine ailleurs).
+    // - Si NON (saison passee ou future) : on n'affiche PAS la fatigue,
     //   car elle est par definition une mesure du moment present.
     const saisonActive = await this.saisonsRepo.findOne({ where: { actif: true } });
     const equipeDansSaisonActive = !!saisonActive
@@ -89,7 +89,7 @@ export class JoueursService {
     });
 
     // Tous les joueurs en base du club (referentiel pour recuperer
-    // poste, scoreForme, statut...).
+    // poste, fatigue, statut...).
     const joueursClub = await this.repo.find({ where: { clubId: equipe.clubId } });
     const joueursParNomCle = new Map<string, Joueur>();
     const cleNom = (nom: string, prenom?: string | null) =>
@@ -166,7 +166,11 @@ export class JoueursService {
         numeroFavori: numeros.length ? +numeros[0][0] : (a.joueur?.numeroFavori ?? null),
         statut: a.joueur?.statutMutation ?? null,
         statutMutation: a.joueur?.statutMutation ?? null,
-        scoreForme: equipeDansSaisonActive ? (a.joueur?.scoreForme ?? null) : null,
+        scoreFatigue: equipeDansSaisonActive ? (a.joueur?.scoreFatigue ?? null) : null,
+        fatigueDetail: equipeDansSaisonActive ? (a.joueur?.fatigueDetail ?? null) : null,
+        acwr: equipeDansSaisonActive ? (a.joueur?.acwr ?? null) : null,
+        chargeAcute7j: equipeDansSaisonActive ? (a.joueur?.chargeAcute7j ?? null) : null,
+        chargeChronic28j: equipeDansSaisonActive ? (a.joueur?.chargeChronic28j ?? null) : null,
         // Stats specifiques a CETTE equipe :
         matchs: a.matchs,
         titularisations: a.titularisations,
@@ -207,7 +211,11 @@ export class JoueursService {
         licence: j.licence, dateNaissance: j.dateNaissance,
         poste: j.poste, postes: j.poste ? `${j.poste} (0)` : null,
         numeroFavori: j.numeroFavori, statutMutation: j.statutMutation,
-        scoreForme: equipeDansSaisonActive ? j.scoreForme : null,
+        scoreFatigue: equipeDansSaisonActive ? j.scoreFatigue : null,
+        fatigueDetail: equipeDansSaisonActive ? j.fatigueDetail : null,
+        acwr: equipeDansSaisonActive ? j.acwr : null,
+        chargeAcute7j: equipeDansSaisonActive ? j.chargeAcute7j : null,
+        chargeChronic28j: equipeDansSaisonActive ? j.chargeChronic28j : null,
         noteMoyenne: null,
         matchs: 0, titularisations: 0, minutes: 0,
         buts: saisies.get(j.id)?.buts ?? 0, passesDecisives: saisies.get(j.id)?.passesDecisives ?? 0,
@@ -353,7 +361,8 @@ export class JoueursService {
           // Profil persistant (poste, numero) ; pas de compteur global.
           poste: j?.poste ?? null,
           numeroFavori: j?.numeroFavori ?? null,
-          scoreForme: null,
+          scoreFatigue: null,
+          fatigueDetail: null,
           noteMoyenne: noteIndicative(a.matchs, a.stats.cartonsRouges),
         };
       })
@@ -814,7 +823,7 @@ class JoueursController {
 
   /** GET /joueurs/effectif?equipeId=... : effectif d'une equipe avec
    *  stats filtrees sur ses propres matchs (matchs, buts, cartons...)
-   *  et scoreForme global. */
+   *  et fatigue globale. */
   @Get("effectif")
   effectif(@Query("equipeId") equipeId: string) {
     return this.svc.effectif(equipeId);

@@ -357,7 +357,7 @@ export const api = {
   },
 
   /** Effectif d'une equipe avec stats filtrees sur ses propres matchs
-   *  (matchs, buts, cartons...) et scoreForme global (toutes equipes). */
+   *  (matchs, buts, cartons...) et fatigue globale (toutes equipes). */
   effectifEquipe: (equipeId: string) =>
     req<any[]>(`/joueurs/effectif?equipeId=${equipeId}`, { fallback: [] }),
 

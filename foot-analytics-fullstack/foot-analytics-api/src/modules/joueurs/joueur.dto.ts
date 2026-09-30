@@ -29,7 +29,6 @@ export class CreateJoueurDto {
   @IsOptional() @IsInt() @Min(0) buts?: number;
   @IsOptional() @IsInt() @Min(0) passesDecisives?: number;
   @IsOptional() @IsNumber() noteMoyenne?: number;
-  @IsOptional() @IsInt() @Min(0) @Max(100) scoreForme?: number;
   @IsOptional() @IsString() postes?: string;
   @IsOptional() @IsString() typeDiscipline?: string;
 }
@@ -56,7 +55,6 @@ export class UpdateJoueurDto {
   @IsOptional() @IsInt() @Min(0) buts?: number;
   @IsOptional() @IsInt() @Min(0) passesDecisives?: number;
   @IsOptional() @IsNumber() noteMoyenne?: number;
-  @IsOptional() @IsInt() @Min(0) @Max(100) scoreForme?: number;
   @IsOptional() @IsString() postes?: string;
   @IsOptional() @IsString() typeDiscipline?: string;
 }

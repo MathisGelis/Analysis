@@ -133,14 +133,15 @@ describe("JoueursService", () => {
       expect(rows[0].matchs).toBe(1);
     });
 
-    it("scoreForme : renvoye sur la saison active, masque sur une autre", async () => {
+    it("fatigue : renvoyee sur la saison active, masquee sur une autre", async () => {
       const c = await contexte();
       const s24 = await f.saison("2024-2025", 2024);
       const eqPassee = await f.equipe({ clubId: c.moi.id, nom: "Seniors", categorie: "Seniors", saisonId: s24.id });
-      await f.joueur({ nom: "FORME", prenom: "Fab", clubId: c.moi.id, scoreForme: 80, equipesAttachees: [c.seniors.id, eqPassee.id] });
+      await f.joueur({ nom: "FATIGUE", prenom: "Fab", clubId: c.moi.id, scoreFatigue: 80, equipesAttachees: [c.seniors.id, eqPassee.id] });
 
-      expect((await svc.effectif(c.seniors.id))[0].scoreForme).toBe(80);
-      expect((await svc.effectif(eqPassee.id))[0].scoreForme).toBeNull();
+      expect((await svc.effectif(c.seniors.id))[0].scoreFatigue).toBe(80);
+      expect((await svc.effectif(eqPassee.id))[0].scoreFatigue).toBeNull();
+      expect((await svc.effectif(eqPassee.id))[0].fatigueDetail).toBeNull();
     });
   });
 

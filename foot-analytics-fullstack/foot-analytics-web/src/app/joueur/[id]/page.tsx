@@ -1,6 +1,6 @@
 // src/app/joueur/[id]/page.tsx
-// Fiche joueur 100% dynamique : donnees, evolution forme, charge entrainement
-// et historique de matchs viennent tous de l'API.
+// Fiche joueur 100% dynamique : donnees, fatigue (charge d'entrainement +
+// charge en match), charge des seances et historique de matchs viennent tous de l'API.
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -9,6 +9,8 @@ import { getOwnSaisonIdServer } from "@/lib/own-equipe";
 import { choisirSaisonFiche, indiceDiscipline, numeroPrincipal } from "@/lib/fiche-joueur";
 import { JoueurEditButton } from "@/components/JoueurEditButton";
 import { DonutStat, Sparkline } from "@/components/Charts";
+import { FatiguePanel, FatigueLegende } from "@/components/FatiguePanel";
+import { COULEUR_NIVEAU, LIBELLE_NIVEAU, lireDetailFatigue, niveauFatigue } from "@/lib/fatigue";
 import { ClubBadge } from "@/components/ClubBadge";
 import { TerrainPostes } from "@/components/TerrainPostes";
 import { HistoriqueClub } from "@/components/HistoriqueClub";
@@ -57,10 +59,10 @@ export default async function JoueurPage({
     .filter((s: any) => s.id === saison?.id || historique.some((h) => h.saisonId === s.id))
     .sort((x: any, y: any) => y.anneeDebut - x.anneeDebut);
 
-  // Forme, fatigue, charge : mesures du MOMENT, sans sens sur une saison
-  // passee ou a venir.
-  const formeBase = j.scoreForme ?? 50;
-  const evolutionForme = [-12, -8, -4, -2, 0].map((d) => Math.max(0, formeBase + d));
+  // Fatigue, charge : mesures du MOMENT, sans sens sur une saison passee ou a venir.
+  const fatigue = saisonActive ? j.scoreFatigue ?? null : null;
+  const niveau = niveauFatigue(fatigue);
+  const detailFatigue = saisonActive ? lireDetailFatigue(j.fatigueDetail) : null;
   const chargesRecentes = entrainements
     .filter((e: any) => e.joueursPresents?.includes(j.id))
     .slice(-8)
@@ -135,13 +137,19 @@ export default async function JoueurPage({
         </div>
 
         <div className="relative col-span-12 grid grid-cols-3 gap-3 md:col-span-6">
-          <Card label="Score forme" big={
-            saisonActive && j.scoreForme != null ? (
-              <DonutStat value={j.scoreForme} size={96} stroke={9}
-                color={j.scoreForme>70?"rgb(var(--accent))":j.scoreForme>50?"rgb(var(--amber))":"rgb(var(--danger))"}
-                label="/ 100" />
+          <Card label="Fatigue" big={
+            fatigue != null && niveau ? (
+              <div className="flex flex-col items-center gap-1">
+                <DonutStat value={fatigue} size={96} stroke={9} color={COULEUR_NIVEAU[niveau]} label="/ 100" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: COULEUR_NIVEAU[niveau] }}>
+                  {LIBELLE_NIVEAU[niveau]}
+                </span>
+              </div>
             ) : (
-              <Indisponible pourquoi={saisonActive ? "Pas encore calcule" : "Mesure de la saison en cours"} />
+              <Indisponible pourquoi={
+                !saisonActive ? "Mesure de la saison en cours"
+                : detailFatigue?.raison === "indisponible" ? "Joueur indisponible"
+                : "Pas de charge recente"} />
             )
           } />
           <Card label="Note moyenne" big={
@@ -153,19 +161,12 @@ export default async function JoueurPage({
               <Indisponible pourquoi="Aucun match cette saison" />
             )
           } />
-          <Card label="Fatigue" big={
-            saisonActive && j.scoreFatigue != null ? (
+          <Card label="Charge 7 jours" big={
+            saisonActive && j.chargeAcute7j != null ? (
               <div className="flex flex-col items-center">
-                <div className={`font-display text-3xl font-black ${
-                  j.scoreFatigue >= 80 ? "text-danger"
-                  : j.scoreFatigue >= 60 ? "text-amber"
-                  : j.scoreFatigue >= 40 ? "text-accent"
-                  : "text-faint"
-                }`}>
-                  {j.scoreFatigue}
-                </div>
-                <div className="text-[10px] uppercase tracking-wider text-faint mt-1">
-                  {j.acwr != null ? `ACWR ${j.acwr.toFixed(2)}` : "Derive"}
+                <div className="font-display text-4xl font-black tabular-nums text-ink">{Math.round(j.chargeAcute7j)}</div>
+                <div className="mt-1 text-[10px] uppercase tracking-wider text-faint">
+                  UA{j.acwr != null ? ` · ACWR ${j.acwr.toFixed(2)}` : ""}
                 </div>
               </div>
             ) : (
@@ -298,24 +299,21 @@ export default async function JoueurPage({
         }
         medicalContent={
           <section className="space-y-5">
-            {/* SCORE FORME + RISQUE */}
+            {/* FATIGUE + CHARGE */}
             <div className="grid grid-cols-12 gap-4">
-              <div className="col-span-12 md:col-span-4 panel p-5">
-                <div className="h-section mb-3">Evolution du score de forme</div>
+              <div className="col-span-12 md:col-span-5 panel p-5">
+                <div className="h-section mb-3">Fatigue</div>
                 {saisonActive ? (
-                  <>
-                    <Sparkline values={evolutionForme} width={500} height={120} color="rgb(var(--accent))"/>
-                    <div className="text-[11px] text-faint mt-2">
-                      Estimee depuis les dernieres seances et matchs.
-                    </div>
-                  </>
+                  <FatiguePanel score={fatigue} detail={detailFatigue} acwr={j.acwr} chargeAigue={j.chargeAcute7j} />
                 ) : (
                   <p className="text-sm text-muted py-4">
-                    La forme est une mesure du moment : elle n'est suivie que sur la saison en cours.
+                    La fatigue est une mesure du moment : elle n'est suivie que sur la saison en cours.
                   </p>
                 )}
+                <div className="mt-4 border-t border-line pt-3"><FatigueLegende /></div>
               </div>
-              <div className="col-span-12 md:col-span-4 panel p-5">
+              <div className="col-span-12 space-y-4 md:col-span-7">
+              <div className="panel p-5">
                 <div className="h-section mb-3">Charge des seances · {saison?.nom ?? "—"}</div>
                 {chargesRecentes.length === 0 ? (
                   <p className="text-sm text-muted py-4">
@@ -325,14 +323,14 @@ export default async function JoueurPage({
                   <Sparkline values={chargesRecentes} width={500} height={120} color="rgb(var(--amber))"/>
                 )}
               </div>
-              <div className="col-span-12 md:col-span-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <Mini icon={<Activity size={14}/>} label="Score forme"
-                    value={saisonActive && j.scoreForme != null ? `${j.scoreForme}/100` : "—"}/>
-                  <Mini icon={<AlertTriangle size={14}/>} label={saisonActive && j.acwr != null ? `Fatigue (ACWR ${j.acwr.toFixed(2)})` : "Fatigue"}
-                    value={saisonActive && j.scoreFatigue != null ? `${j.scoreFatigue}/100` : "—"}/>
-                  <Mini icon={<Activity size={14}/>} label="Charge 7j (UA-RPE)"
-                    value={saisonActive && j.chargeAcute7j != null ? Math.round(j.chargeAcute7j) : "—"}/>
+              <div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <Mini icon={<Activity size={14}/>} label="Fatigue"
+                    value={fatigue != null ? `${fatigue}/100` : "—"}/>
+                  <Mini icon={<Activity size={14}/>} label="Minutes jouees 7j"
+                    value={saisonActive && detailFatigue ? detailFatigue.minutes7j : "—"}/>
+                  <Mini icon={<Activity size={14}/>} label="Charge 28j (UA / sem.)"
+                    value={saisonActive && j.chargeChronic28j != null ? Math.round(j.chargeChronic28j) : "—"}/>
                   <Mini icon={<AlertTriangle size={14}/>} label="Blessures (toutes saisons)"
                     value={j.blessuresAnt ?? 0}/>
                   <Mini icon={<Dumbbell size={14}/>} label="Blessures actives"
@@ -341,6 +339,7 @@ export default async function JoueurPage({
                       return !s.includes("retabli") && !s.includes("guerie") && !s.includes("termine");
                     }).length}/>
                 </div>
+              </div>
               </div>
             </div>
 

@@ -16,6 +16,7 @@ import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
 import { equipeConsultee } from "@/lib/equipe-consultee";
 import type { PerimetreRapport, StabiliteRapport, Tendances } from "@/lib/analyse-types";
 import { LIBELLE_SENS, libelleSerie, serieFavorable } from "@/lib/tendances-format";
+import { COULEUR_NIVEAU, LIBELLE_NIVEAU, niveauFatigue } from "@/lib/fatigue";
 import { ClubBadge } from "@/components/ClubBadge";
 import { DonutStat } from "@/components/Charts";
 import { CourbeGlissante } from "@/components/analyse/CourbeGlissante";
@@ -29,7 +30,7 @@ import { DisciplineCard } from "@/components/analyse/DisciplineCard";
 import { RotationCard } from "@/components/analyse/RotationCard";
 import { PastilleSens } from "@/components/analyse/PastilleSens";
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, Award, BarChart3, Clock, Crosshair, Flame, Info,
+  Activity, AlertTriangle, ArrowLeft, ArrowRight, Award, BarChart3, Clock, Crosshair, Flame, Info,
   MapPin, RotateCcw, Sparkles, TrendingDown, TrendingUp, Users, Zap,
 } from "lucide-react";
 
@@ -53,6 +54,7 @@ export default async function RapportEquipe({
   const stabilite: StabiliteRapport = rapport.stabilite;
   const noms: Record<string, string> = Object.fromEntries(clubs.map((c) => [c.id, c.nom]));
   const jugeable = t.forme.sens !== "insuffisant";
+  const niveauFatigueEquipe = niveauFatigue(rapport.fatigueMoy);
   const courbeOk = jugeable && t.courbe.length >= 3;
   const yButs = Math.max(2, Math.ceil(Math.max(...t.courbe.flatMap((p) => [p.bpGlissant, p.bcGlissant]), 0) / 2) * 2);
   const recordsNotables = t.series.records.filter((r) => r.longueur >= 3);
@@ -109,9 +111,9 @@ export default async function RapportEquipe({
             icon={<Flame size={14}/>} color="rgb(var(--danger))" />
           <ScoreCard label="Chaos" note="instabilite du onze" value={rapport.scoreChaos}
             icon={<RotateCcw size={14}/>} color="rgb(var(--amber))" />
-          <ScoreCard label="Forme" note="titulaires types" value={rapport.formeMoy}
-            absent="Mesure du moment : disponible sur la saison en cours."
-            icon={<TrendingUp size={14}/>} color="rgb(var(--accent))" />
+          <ScoreCard label="Fatigue" note={niveauFatigueEquipe ? `${LIBELLE_NIVEAU[niveauFatigueEquipe]} · titulaires` : "titulaires types"} value={rapport.fatigueMoy}
+            absent="Mesure du moment : disponible sur la saison en cours, avec des seances ou des matchs recents."
+            icon={<Activity size={14}/>} color={niveauFatigueEquipe ? COULEUR_NIVEAU[niveauFatigueEquipe] : "rgb(var(--accent))"} />
           <ScoreCard label="Dynamique" note={jugeable ? t.forme.libelle : "trop tot"} value={t.forme.score}
             absent="Il faut au moins 6 matchs pour juger une dynamique."
             icon={<Zap size={14}/>} color="rgb(var(--chart-3))" />

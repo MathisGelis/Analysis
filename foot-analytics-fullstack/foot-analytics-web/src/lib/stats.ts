@@ -80,11 +80,12 @@ export function topMinutes(clubId: string, limit = 10) {
     .slice(0, limit);
 }
 
-export function topForme(clubId: string, limit = 6) {
+/** Joueurs les plus fatigues du club (donnees de demo). */
+export function topFatigue(clubId: string, limit = 6) {
   return JOUEURS
     .filter((j) => j.clubId === clubId)
     .filter((j) => j.matchs >= 5)
-    .sort((a, b) => (b.scoreForme ?? 0) - (a.scoreForme ?? 0))
+    .sort((a, b) => (b.scoreFatigue ?? 0) - (a.scoreFatigue ?? 0))
     .slice(0, limit);
 }
 
@@ -95,8 +96,9 @@ export function onzeProbable(clubId: string) {
     const p = j.poste ?? "MIL";
     (grid[p] ||= []).push(j);
   }
+  // A poste egal, le plus frais d'abord (a temps de jeu comparable, la fatigue departage).
   Object.values(grid).forEach((arr) =>
-    arr.sort((a, b) => (b.scoreForme ?? 0) - (a.scoreForme ?? 0)),
+    arr.sort((a, b) => b.minutes - a.minutes || (a.scoreFatigue ?? 50) - (b.scoreFatigue ?? 50)),
   );
   const pick = (poste: string, n = 1) => (grid[poste] ?? []).slice(0, n);
   return [

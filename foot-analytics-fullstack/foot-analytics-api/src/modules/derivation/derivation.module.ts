@@ -17,6 +17,7 @@ import {
   Equipe, EvenementMatch, Joueur, LigneClassement, Match, Saison, StaffMatch,
 } from "@/entities";
 import { noteIndicative } from "@/common/indicateurs";
+import { champsFatigue, Effort, RPE_MATCH } from "@/common/fatigue";
 import { compterMotifs, resumeMotifs } from "@/common/motifs";
 import { anneeDebutPourDate, nomSaison } from "@/common/saison-date";
 import { AdminGuard, AuthModule } from "../auth/auth.module";
@@ -127,6 +128,8 @@ export class DerivationService {
       lastMatchDate: Date | null;
       // Nombre de remplacements entrants (entre en cours de match).
       subIns: number;
+      // Minutes jouees a chaque match date : entree de la charge en match (fatigue).
+      efforts: { date: Date; minutes: number }[];
     };
     const agg = new Map<string, Agg>();
     const nameKey = (nom: string, prenom: string, clubId: string) =>
@@ -179,13 +182,15 @@ export class DerivationService {
           a = {
             clubId, nom: c.nom, prenom: c.prenom ?? "", licence: c.licence || undefined,
             matchs: 0, titularisations: 0, minutes: 0, cj: 0, cr: 0,
-            numeroCounts: {}, lastMatchDate: null, subIns: 0,
+            numeroCounts: {}, lastMatchDate: null, subIns: 0, efforts: [],
           };
           agg.set(k, a);
         }
         a.matchs++;
         if (c.titulaire) a.titularisations++;
-        a.minutes += estimateMinutes(c, evts);
+        const minutesMatch = estimateMinutes(c, evts);
+        a.minutes += minutesMatch;
+        if (matchDate && minutesMatch > 0) a.efforts.push({ date: matchDate, minutes: minutesMatch });
         if (c.numero != null) a.numeroCounts[c.numero] = (a.numeroCounts[c.numero] ?? 0) + 1;
         if (matchDate && (!a.lastMatchDate || matchDate > a.lastMatchDate)) {
           a.lastMatchDate = matchDate;
@@ -218,7 +223,7 @@ export class DerivationService {
       }
     }
 
-    // ---- Donnees additionnelles pour le calcul du score de forme ----
+    // ---- Donnees additionnelles pour le calcul de la fatigue ----
     const [trainings, blessuresAll] = await Promise.all([
       this.entrainements.find(),
       this.blessures.find(),
@@ -249,167 +254,66 @@ export class DerivationService {
       existing.map((j) => [nameKey(j.nom, j.prenom ?? "", j.clubId), j]),
     );
 
-    // Pour le calcul ACWR (Acute:Chronic Workload Ratio) :
-    //   - Acute  = somme des charges des 7 derniers jours
-    //   - Chronic = somme des charges sur 28 jours / 4 (moyenne hebdo)
-    // On inclut entrainements (charge calculee) ET matchs (charge
-    // estimee par minutes_jouees x RPE_match avec RPE_match = 7.5 par
-    // defaut, valeur litteraire).
-    //
-    // References :
-    //   - Gabbett T.J. (2016), Br J Sports Med — sweet spot ACWR 0.8-1.3
-    //   - Hulin B.T. et al. (2016), Br J Sports Med — danger > 1.5
-    //   - Catapult / Buchheit M. (2017) — fenetres 7j / 28j
+    // ---- Fatigue : charge d'entrainement + charge en match (voir common/fatigue.ts) ----
+    // Chaque joueur recoit ses EFFORTS des 28 derniers jours : ses seances (charge UA-RPE calculee a la
+    // saisie de la seance, pour les seances ou il etait present) et ses matchs (minutes jouees x RPE de
+    // match). On stocke les entrees, pas seulement le score : la fatigue est recalculee a la lecture.
     const now = new Date();
-    const FENETRE_AIGUE = 7;       // jours
-    const FENETRE_CHRONIQUE = 28;  // jours
-    const RPE_MATCH_DEFAUT = 7.5;  // ressenti match officiel moyen (Foster scale)
-
-    const chargeAcuteParJoueur = new Map<string, number>();
-    const chargeChroniqueParJoueur = new Map<string, number>();
-    const dernierTrainingParJoueur = new Map<string, Date>();
-
-    // Entrainements : utilise t.charge deja calcule par EntrainementsService.
+    const seancesParJoueur = new Map<string, Effort[]>();
     for (const t of trainings) {
       const d = parseDateAny(t.date);
-      if (!d) continue;
-      const age = daysBetween(now, d);
-      if (age > FENETRE_CHRONIQUE) continue;
+      if (!d || !(t.charge > 0)) continue;
       for (const pid of (t.joueursPresents ?? [])) {
-        if (age <= FENETRE_AIGUE) {
-          chargeAcuteParJoueur.set(pid,
-            (chargeAcuteParJoueur.get(pid) ?? 0) + (t.charge ?? 0));
-        }
-        chargeChroniqueParJoueur.set(pid,
-          (chargeChroniqueParJoueur.get(pid) ?? 0) + (t.charge ?? 0));
-        const prev = dernierTrainingParJoueur.get(pid);
-        if (!prev || d > prev) dernierTrainingParJoueur.set(pid, d);
+        const arr = seancesParJoueur.get(pid) ?? [];
+        arr.push({ date: d, ua: t.charge, source: "entrainement" });
+        seancesParJoueur.set(pid, arr);
       }
     }
 
-    // Matchs : charge approchee par minutes x RPE_MATCH_DEFAUT pour
-    // chaque joueur ayant une composition dans le match. Cette charge
-    // est cruciale : un joueur qui joue 90' apporte ~675 UA-RPE (= au
-    // moins un gros entrainement), donc l'ignorer fausserait l'ACWR.
-    const matchsForCharge = await this.matchs.find({ relations: ["compositions"] });
-    for (const m of matchsForCharge) {
-      const d = parseDateAny(m.date);
-      if (!d) continue;
-      const age = daysBetween(now, d);
-      if (age > FENETRE_CHRONIQUE) continue;
-      for (const c of m.compositions ?? []) {
-        if (!c.licence) continue;
-        // Match par licence via l'index deja construit.
-        const j = idxLic.get(`lic:${c.licence}`);
-        if (!j) continue;
-        const minutes = c.minutes ?? 0;
-        if (minutes <= 0) continue;
-        const chargeMatch = minutes * RPE_MATCH_DEFAUT;
-        if (age <= FENETRE_AIGUE) {
-          chargeAcuteParJoueur.set(j.id,
-            (chargeAcuteParJoueur.get(j.id) ?? 0) + chargeMatch);
-        }
-        chargeChroniqueParJoueur.set(j.id,
-          (chargeChroniqueParJoueur.get(j.id) ?? 0) + chargeMatch);
-      }
-    }
-
-    // Helpers ACWR.
-    //   acute = somme 7j
-    //   chronic = (somme 28j) / 4  (moyenne hebdomadaire)
-    //   acwr = acute / chronic. Garde-fou : si chronic == 0 mais acute > 0,
-    //   c'est un debut de saison -> acwr arbitraire haute (1.5).
-    const acwrParJoueur = (pid: string): {
-      acute: number; chronic: number; acwr: number | null;
-    } => {
-      const acute = chargeAcuteParJoueur.get(pid) ?? 0;
-      const chronique28 = chargeChroniqueParJoueur.get(pid) ?? 0;
-      const chronic = chronique28 / 4;
-      let acwr: number | null;
-      if (chronic <= 0) acwr = acute > 0 ? 1.5 : null;
-      else acwr = +(acute / chronic).toFixed(2);
-      return { acute, chronic, acwr };
-    };
-
-    // Score de fatigue 0-100 derive de l'ACWR. Courbe en S inversee :
-    //   acwr < 0.5  -> 10-25  (sous-entraine, fatigue artificiellement basse)
-    //   acwr 0.5-0.8-> 25-45  (sous-charge)
-    //   acwr 0.8-1.3-> 45-65  (sweet spot, fatigue normale)
-    //   acwr 1.3-1.5-> 65-80  (vigilance)
-    //   acwr > 1.5  -> 80-95  (surcharge / risque blessure)
-    const scoreFatigueFromAcwr = (acwr: number | null): number | null => {
-      if (acwr == null) return null;
-      if (acwr < 0.5) return Math.round(10 + (acwr / 0.5) * 15);
-      if (acwr < 0.8) return Math.round(25 + ((acwr - 0.5) / 0.3) * 20);
-      if (acwr < 1.3) return Math.round(45 + ((acwr - 0.8) / 0.5) * 20);
-      if (acwr < 1.5) return Math.round(65 + ((acwr - 1.3) / 0.2) * 15);
-      return Math.min(95, Math.round(80 + Math.min(15, (acwr - 1.5) * 30)));
-    };
-
-    // Blessures actuelles et historiques par joueur (id et nom).
-    const blesseActif = new Set<string>(); // joueur id
+    // Blessures par joueur (id, sinon nom) : antecedents, statut du moment, retour recent.
     const blessuresParJoueur = new Map<string, number>();
     const blessuresParNom = new Map<string, number>();
+    const indisponibles = new Set<string>();
+    const enReprise = new Set<string>();
+    const finBlessure = new Map<string, Date>();
     for (const b of blessuresAll) {
       blessuresParJoueur.set(b.joueurId, (blessuresParJoueur.get(b.joueurId) ?? 0) + 1);
       if (b.joueurNom) {
         const k = norm(b.joueurNom);
         blessuresParNom.set(k, (blessuresParNom.get(k) ?? 0) + 1);
       }
-      const enCours = b.statut && /indisp|reprise|suspendu/i.test(b.statut);
-      if (enCours) blesseActif.add(b.joueurId);
-    }
-
-    // Calcul score "mon effectif"
-    // NOTE : on n'inclut PAS les cartons jaunes — c'est un score de forme
-    // physique, pas de discipline. Seuls les rouges (suspension = inactivite
-    // forcee) impactent. L'ecart titu / remplacant est marque.
-    const scoreMine = (
-      a: Agg,
-      found: Joueur | null,
-    ): number => {
-      const pid = found?.id;
-      const { acute, chronic, acwr } = pid ? acwrParJoueur(pid) : { acute: 0, chronic: 0, acwr: null };
-      const dernAct: Date | null =
-        (pid ? dernierTrainingParJoueur.get(pid) ?? null : null) ??
-        a.lastMatchDate;
-      const joursSansAct = dernAct ? daysBetween(now, dernAct) : 30;
-      const blessuresAnt = pid ? blessuresParJoueur.get(pid) ?? 0
-        : blessuresParNom.get(norm(a.nom)) ?? 0;
-      const blessureEnCours = pid ? blesseActif.has(pid) : false;
-
-      // Bonus charge : on prefere un joueur qui a un ACWR dans le sweet
-      // spot (0.8-1.3). Bonus max +25 a acwr = 1.0, decroit symetriquement.
-      let bonusCharge = 0;
-      if (acwr != null) {
-        const optimum = 1.0;
-        const ecart = Math.abs(acwr - optimum) / optimum;
-        bonusCharge = Math.max(0, 25 * (1 - ecart * ecart));
+      if (b.statut && /indisp/i.test(b.statut)) indisponibles.add(b.joueurId);
+      if (b.statut && /reprise/i.test(b.statut)) enReprise.add(b.joueurId);
+      const fin = parseDateAny(b.retourEstime);
+      if (fin && fin <= now && (!finBlessure.get(b.joueurId) || fin > finBlessure.get(b.joueurId)!)) {
+        finBlessure.set(b.joueurId, fin);
       }
-
-      const score =
-        45
-        + bonusCharge                 // courbe en cloche autour de ACWR = 1.0
-        + a.minutes * 0.03            // volume de jeu total
-        + a.titularisations * 1.8     // ecart titu / remplacant explicite
-        - Math.max(0, a.matchs - a.titularisations) * 0.6
-        - joursSansAct * 1.4
-        - (blessureEnCours ? 30 : 0)
-        - blessuresAnt * 4
-        - a.cr * 5;                   // rouge = suspension
-      return Math.round(clamp(score, 0, 100));
+    }
+    const ageDe = (naissance?: string | null): number | null => {
+      const d = parseDateAny(naissance);
+      return d ? Math.floor(daysBetween(now, d) / 365.25) : null;
     };
 
-    // Calcul score "adversaire" (scouting) :
-    // ecart titu/remplacant fortement marque ; jaunes ignores.
-    const scoreOpponent = (a: Agg): number => {
-      const score =
-        30
-        + a.titularisations * 5       // titu fortement valorise
-        + a.subIns * 1.2
-        - a.cr * 12;
-      return Math.round(clamp(score, 0, 100));
+    /** Champs de fatigue d'un joueur agrege : seances (mon effectif) + matchs. */
+    const fatigueDe = (a: Agg, found: Joueur | null, isMine: boolean) => {
+      const pid = found?.id;
+      const efforts: Effort[] = [
+        ...a.efforts.map((e): Effort => ({ date: e.date, ua: e.minutes * RPE_MATCH, source: "match", minutes: e.minutes })),
+        ...(isMine && pid ? seancesParJoueur.get(pid) ?? [] : []),
+      ];
+      return champsFatigue({
+        aujourdhui: now,
+        efforts,
+        indisponible: pid ? indisponibles.has(pid) : false,
+        enReprise: pid ? enReprise.has(pid) : false,
+        blessuresAnt: pid ? blessuresParJoueur.get(pid) ?? 0 : blessuresParNom.get(norm(a.nom)) ?? 0,
+        finDerniereBlessure: pid ? finBlessure.get(pid) ?? null : null,
+        age: ageDe(found?.dateNaissance),
+        // Les seances ne sont connues que pour mon effectif : ailleurs la fatigue est une estimation sur les matchs.
+        sources: isMine ? "complet" : "matchs",
+      });
     };
+
 
     // -- Profil de discipline derive des motifs de cartons --
     // On agrege les motifs par joueur en parcourant les evenements bruts.
@@ -596,11 +500,7 @@ export class DerivationService {
         idxName.get(nameKey(a.nom, a.prenom, a.clubId));
 
       const isMine = ownClubIds.has(a.clubId);
-      const scoreForme = isMine ? scoreMine(a, found ?? null) : scoreOpponent(a);
-      // ACWR + score fatigue : calcules seulement pour les joueurs "miens"
-      // (on n'a pas la charge entrainement des adversaires).
-      const acwrData = (isMine && found?.id) ? acwrParJoueur(found.id) : null;
-      const scoreFatigue = acwrData ? scoreFatigueFromAcwr(acwrData.acwr) : null;
+      const fatigue = fatigueDe(a, found ?? null, isMine);
 
       const discKey = keyOf(a.licence, a.nom, a.prenom, a.clubId);
       const typeDiscipline = typeDisciplineFor(discKey);
@@ -629,16 +529,9 @@ export class DerivationService {
         // buts / passes : on conserve les valeurs saisies manuellement.
         buts: (found as any)?.buts ?? 0,
         passesDecisives: (found as any)?.passesDecisives ?? 0,
-        blessuresAnt: (() => {
-          if (found?.id) return blessuresParJoueur.get(found.id) ?? 0;
-          return blessuresParNom.get(norm(a.nom)) ?? 0;
-        })(),
+        blessuresAnt: found?.id ? blessuresParJoueur.get(found.id) ?? 0 : blessuresParNom.get(norm(a.nom)) ?? 0,
         noteMoyenne,
-        scoreForme,
-        scoreFatigue,
-        acwr: acwrData?.acwr ?? null,
-        chargeAcute7j: acwrData ? +acwrData.acute.toFixed(1) : null,
-        chargeChronic28j: acwrData ? +acwrData.chronic.toFixed(1) : null,
+        ...fatigue,
         postes,
         typeDiscipline,
         scoreDiscipline,

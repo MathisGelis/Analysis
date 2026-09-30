@@ -1,14 +1,17 @@
 // src/app/medical/page.tsx
 //
-// Suivi medical et charge d'entrainement.
-// SAISON-SENSITIVE : les stats de charge (7j/28j) sont par nature
-// liees a la saison en cours. Sur une saison future ou passee, elles
-// s'affichent a 0. Les blessures sont filtrees par periode saisonniere
-// (aout <anneeDebut> -> juillet <anneeDebut+1>).
+// Suivi medical et fatigue (charge d'entrainement + charge en match).
+// SAISON-SENSITIVE : la fatigue et les charges 7j/28j sont par nature
+// liees a la saison en cours : sur une saison future ou passee la page
+// l'explique au lieu d'afficher des zeros. Les blessures sont filtrees par
+// periode saisonniere (aout <anneeDebut> -> juillet <anneeDebut+1>).
 
 import { api } from "@/lib/api";
 import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
 import { BlessuresEditeur } from "@/components/BlessuresEditeur";
+import { FatigueBar } from "@/components/FatigueBar";
+import { FatigueLegende } from "@/components/FatiguePanel";
+import { estEstimation, facteursPrincipaux, lireDetailFatigue, niveauFatigue } from "@/lib/fatigue";
 import { Activity, AlertTriangle, Heart, HeartPulse } from "lucide-react";
 
 export const metadata = { title: "Medical & charge · Foot Analytics" };
@@ -66,32 +69,19 @@ export default async function Medical() {
       return d >= debutSaison && d <= finSaison;
     });
 
-  // Stats de charge : uniquement si saison active. Sinon on remet tout
-  // a 0 (les valeurs stockees sont des snapshots temps reel qui ne
-  // s'appliquent qu'a la saison en cours).
-  const effectifPourStats = effectif.map((j: any) => estSaisonActive ? j : ({
-    ...j,
-    chargeAcute7j: 0,
-    chargeChronic28j: 0,
-    scoreFatigue: 0,
-    scoreForme: 0,
-    // Cartons/minutes/matchs restent visibles seulement si actif.
-    minutes: 0, matchs: 0,
-    cartonsJaunes: 0, cartonsRouges: 0,
-  }));
+  // Fatigue : uniquement sur la saison active (l'API ne la renvoie pas ailleurs). Un joueur sans score
+  // (blesse, ou aucune seance ni match sur 28 jours) n'apparait pas : jamais de valeur inventee.
+  const suivis = estSaisonActive
+    ? effectif
+        .filter((j: any) => typeof j.scoreFatigue === "number")
+        .map((j: any) => ({ ...j, detail: lireDetailFatigue(j.fatigueDetail) }))
+        .sort((a: any, b: any) => b.scoreFatigue - a.scoreFatigue)
+    : [];
+  const sansScore = estSaisonActive
+    ? effectif.filter((j: any) => typeof j.scoreFatigue !== "number")
+    : [];
 
-  const joueursActifs = effectifPourStats.filter((j: any) =>
-    (j.chargeAcute7j ?? 0) > 0 || (j.chargeChronic28j ?? 0) > 0 || (j.matchs ?? 0) >= 5,
-  );
-  const fatigue = joueursActifs
-    .map((j: any) => ({
-      ...j,
-      fatigue: j.scoreFatigue ?? Math.min(95, Math.round((j.minutes ?? 0) / 18)),
-      risque: Math.min(90, (j.cartonsJaunes ?? 0) * 5 + ((j.minutes ?? 0) > 1200 ? 25 : 5)),
-    }))
-    .sort((a: any, b: any) => b.fatigue - a.fatigue);
-
-  const chargeTotaleAcute = joueursActifs.reduce(
+  const chargeTotaleAcute = suivis.reduce(
     (s: number, j: any) => s + (j.chargeAcute7j ?? 0), 0,
   );
 
@@ -100,7 +90,8 @@ export default async function Medical() {
     return !s.includes("retabli") && !s.includes("guerie") && !s.includes("termine");
   });
 
-  const fatigueElevee = fatigue.filter((j: any) => j.fatigue >= 70).length;
+  // "Fatigue elevee" : niveaux charge et surcharge (score de 55 et plus).
+  const fatigueElevee = suivis.filter((j: any) => ["charge", "surcharge"].includes(niveauFatigue(j.scoreFatigue) ?? "")).length;
   const rienImporte = effectif.length === 0;
 
   const headerLibelle = equipe
@@ -140,10 +131,10 @@ export default async function Medical() {
             Charge et fatigue : indisponibles hors saison active.
           </div>
           <p className="text-xs text-faint max-w-md mx-auto">
-            Les mesures de charge (ACWR 7j/28j, fatigue) sont des
-            snapshots temps reel qui ne s'appliquent qu'a la saison
-            active en cours. Bascule sur la saison active dans le
-            switcher pour voir les stats a jour.
+            La fatigue se mesure sur les 4 dernieres semaines
+            d'entrainements et de matchs : elle n'a de sens que sur la
+            saison active en cours. Bascule sur la saison active dans le
+            switcher pour la voir.
           </p>
         </section>
       ) : (
@@ -158,41 +149,61 @@ export default async function Medical() {
               suffix="UA" icon={<Activity size={14}/>}/>
           </section>
 
-          {fatigue.length > 0 && (
-            <section className="panel p-5">
-              <h2 className="h-section mb-3">Charge & risque (top 10)</h2>
-              <table className="table-fm">
+          <section className="panel p-5">
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="h-section">Fatigue de l'effectif</h2>
+              <span className="text-[11px] text-faint">charge d'entrainement + charge en match, 28 derniers jours</span>
+            </div>
+            {suivis.length === 0 ? (
+              <p className="py-4 text-sm text-muted">
+                Aucune charge recente connue : ni match ni seance avec presences sur les 4 dernieres semaines.
+                Saisis les presences aux entrainements pour suivre la fatigue de l'effectif.
+              </p>
+            ) : (
+              <table className="table-fm table-dense">
                 <thead>
                   <tr>
-                    <th>Joueur</th><th>Poste</th>
-                    <th className="text-right">Minutes</th>
-                    <th className="text-right">Charge 7j</th>
-                    <th className="text-right">ACWR</th>
-                    <th className="text-right">Fatigue</th>
+                    <th>Joueur</th>
+                    <th className="hidden sm:table-cell">Poste</th>
+                    <th className="text-right">Min. 7j</th>
+                    <th className="hidden text-right md:table-cell">Charge 7j</th>
+                    <th className="hidden text-right md:table-cell">ACWR</th>
+                    <th>Fatigue</th>
+                    <th className="hidden lg:table-cell">Ce qui pese</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {fatigue.slice(0, 10).map((j: any) => (
-                    <tr key={j.id}>
+                  {suivis.slice(0, 15).map((j: any) => (
+                    <tr key={j.id ?? j.nom}>
                       <td className="font-semibold">{j.prenom} {j.nom}</td>
-                      <td className="text-xs text-muted">{j.poste ?? "—"}</td>
-                      <td className="text-right tabular-nums">{j.minutes ?? 0}</td>
-                      <td className="text-right tabular-nums">{Math.round(j.chargeAcute7j ?? 0)}</td>
-                      <td className="text-right tabular-nums">{(j.acwr ?? 1).toFixed(2)}</td>
-                      <td className="text-right tabular-nums">
-                        <span className={
-                          j.fatigue >= 80 ? "text-danger font-bold"
-                          : j.fatigue >= 60 ? "text-amber font-bold"
-                          : "text-accent font-bold"}>
-                          {j.fatigue}
-                        </span>
+                      <td className="hidden text-xs text-muted sm:table-cell">{j.poste ?? "—"}</td>
+                      <td className="text-right tabular-nums">{j.detail?.minutes7j ?? 0}</td>
+                      <td className="hidden text-right tabular-nums md:table-cell">{Math.round(j.chargeAcute7j ?? 0)}</td>
+                      <td className="hidden text-right tabular-nums md:table-cell">{j.acwr != null ? j.acwr.toFixed(2) : "—"}</td>
+                      <td><FatigueBar score={j.scoreFatigue} detail={j.fatigueDetail} /></td>
+                      <td className="hidden max-w-[22rem] text-[11px] text-faint lg:table-cell">
+                        {j.detail ? facteursPrincipaux(j.detail, 2).map((f) => f.libelle).join(" · ") : ""}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </section>
-          )}
+            )}
+            {suivis.length > 15 && (
+              <p className="mt-3 text-center text-[11px] text-faint">
+                Les 15 joueurs les plus fatigues sur {suivis.length} suivis. Le detail de chaque score est sur la fiche du joueur.
+              </p>
+            )}
+            {suivis.some((j: any) => estEstimation(j.detail)) && (
+              <p className="mt-3 text-[11px] text-faint">* Estimation : historique de moins de 2 semaines ou aucune presence aux seances enregistree.</p>
+            )}
+            {sansScore.length > 0 && suivis.length > 0 && (
+              <p className="mt-2 text-[11px] text-faint">
+                {sansScore.length} joueur{sansScore.length > 1 ? "s" : ""} sans score (blesse, ou aucune charge sur 28 jours).
+              </p>
+            )}
+            <div className="mt-4 border-t border-line pt-3"><FatigueLegende /></div>
+          </section>
 
           <BlessuresEditeur joueurs={effectif as any} initialBlessures={blessuresEquipe as any}/>
         </>

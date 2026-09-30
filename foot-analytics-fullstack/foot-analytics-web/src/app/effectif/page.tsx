@@ -13,6 +13,7 @@ import type { Joueur } from "@/lib/types";
 import { Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { debug } from "@/lib/debug";
 import { postesCompacts } from "@/lib/postes";
+import { FatigueBar } from "@/components/FatigueBar";
 import { useFeedback } from "@/lib/feedback-context";
 
 const POSTES = ["TOUS","GB","DD","DC","DG","MD","MO","AT","AG","MIL"];
@@ -26,7 +27,7 @@ export default function EffectifPage() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [posteFilter, setPosteFilter] = useState("TOUS");
-  const [sort, setSort] = useState<"matchs"|"forme"|"discipline"|"nom">("matchs");
+  const [sort, setSort] = useState<"matchs"|"fatigue"|"discipline"|"nom">("matchs");
   const [edit, setEdit] = useState<Joueur | null>(null);
   const [creating, setCreating] = useState(false);
   // Nom de l'equipe selectionnee (pour l'afficher dans le header de la
@@ -74,7 +75,8 @@ export default function EffectifPage() {
     if (posteFilter !== "TOUS") r = r.filter((j) => j.poste === posteFilter);
     r.sort((a, b) => {
       if (sort === "matchs") return b.matchs - a.matchs;
-      if (sort === "forme") return (b.scoreForme ?? 0) - (a.scoreForme ?? 0);
+      // Les plus fatigues d'abord ; sans score (pas de charge recente connue) en dernier.
+      if (sort === "fatigue") return (b.scoreFatigue ?? -1) - (a.scoreFatigue ?? -1);
       if (sort === "discipline")
         return (b.cartonsJaunes + b.cartonsRouges*3) - (a.cartonsJaunes + a.cartonsRouges*3);
       return a.nom.localeCompare(b.nom);
@@ -137,7 +139,7 @@ export default function EffectifPage() {
           </select>
           <select value={sort} onChange={(e)=>setSort(e.target.value as any)} className="btn">
             <option value="matchs">Tri · Matchs</option>
-            <option value="forme">Tri · Forme</option>
+            <option value="fatigue">Tri · Fatigue</option>
             <option value="discipline">Tri · Discipline</option>
             <option value="nom">Tri · Nom</option>
           </select>
@@ -155,10 +157,10 @@ export default function EffectifPage() {
           <thead>
             <tr>
               <th>Joueur</th><th>Poste</th>
-              <th className="text-center">Mat.</th><th className="hidden text-center lg:table-cell">Titu</th>
+              <th className="text-center">Mat.</th><th className="hidden text-center min-[1100px]:table-cell">Titu</th>
               <th className="hidden min-[1280px]:table-cell">Minutes</th>
               <th className="hidden min-[1440px]:table-cell">Note</th>
-              <th className="hidden min-[1440px]:table-cell">Forme</th>
+              <th className="hidden lg:table-cell">Fatigue</th>
               <th className="text-center" title="Buts">B</th>
               <th className="text-center" title="Passes decisives">PD</th>
               <th>CJ</th><th>CR</th>
@@ -186,20 +188,11 @@ export default function EffectifPage() {
                 </td>
                 <td><span className="badge">{j.poste}</span></td>
                 <td className="text-center tabular-nums">{j.matchs}</td>
-                <td className="hidden text-center tabular-nums lg:table-cell">{j.titularisations}</td>
+                <td className="hidden text-center tabular-nums min-[1100px]:table-cell">{j.titularisations}</td>
                 <td className="hidden tabular-nums text-muted min-[1280px]:table-cell">{j.minutes}'</td>
                 <td className="hidden font-semibold text-accent tabular-nums min-[1440px]:table-cell">{j.noteMoyenne?.toFixed(1)}</td>
-                <td className="hidden min-[1440px]:table-cell">
-                  {j.scoreForme == null ? (
-                    <span className="text-xs text-faint">—</span>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <div className="w-14 h-1.5 bg-line rounded-full overflow-hidden">
-                        <div className="h-full bg-accent" style={{width:`${j.scoreForme}%`}}/>
-                      </div>
-                      <span className="text-xs text-muted tabular-nums w-6">{j.scoreForme}</span>
-                    </div>
-                  )}
+                <td className="hidden lg:table-cell">
+                  <FatigueBar score={j.scoreFatigue} detail={j.fatigueDetail} />
                 </td>
                 <td className="text-center">
                   <Stepper

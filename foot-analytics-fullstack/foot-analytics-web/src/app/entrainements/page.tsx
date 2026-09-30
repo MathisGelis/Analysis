@@ -98,7 +98,7 @@ export default function Entrainements() {
     setSeances(await api.entrainements(equipe.id));
   }
   async function onDelete(id: string) {
-    if (!(await confirmer({ titre: "Supprimer cette seance ?", message: "Sa charge sort des calculs de forme et de fatigue.", danger: true }))) return;
+    if (!(await confirmer({ titre: "Supprimer cette seance ?", message: "Sa charge sort du calcul de fatigue des joueurs.", danger: true }))) return;
     try {
       await api.deleteEntrainement(id);
       await reload();

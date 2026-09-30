@@ -110,10 +110,11 @@ export interface Joueur {
   cartonsJaunes: number;
   cartonsRouges: number;
   noteMoyenne?: number;
-  scoreForme?: number;       // /100
-  // Score de fatigue 0-100 derive de l'ACWR (Acute:Chronic Workload Ratio).
-  // Backend: voir DerivationService.recomputeJoueurs.
+  // Score de FATIGUE 0-100 (bas = frais, haut = surcharge) : charge d'entrainement + charge en match
+  // + congestion + antecedents. Recalcule a chaque lecture cote API (common/fatigue.ts).
   scoreFatigue?: number | null;
+  // Decomposition du score (JSON) : voir lib/fatigue.ts (lireDetailFatigue).
+  fatigueDetail?: string | null;
   acwr?: number | null;
   chargeAcute7j?: number | null;
   chargeChronic28j?: number | null;

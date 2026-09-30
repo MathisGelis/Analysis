@@ -122,12 +122,12 @@ export class EntrainementsService {
   }
   /**
    * Apres toute mutation d'entrainement (create / update / delete), on
-   * recalcule les scores de forme des joueurs : la charge cumulee 21j
-   * intervient dans le calcul, donc une nouvelle seance ou une seance
-   * modifiee/supprimee doit propager. On ne refait QUE recomputeJoueurs
+   * recalcule la fatigue des joueurs : la charge d'entrainement des 28
+   * derniers jours intervient dans le calcul, donc une nouvelle seance ou
+   * une seance modifiee/supprimee doit propager. On ne refait QUE recomputeJoueurs
    * (pas tout le rebuildAll), c'est suffisant et bien plus rapide.
    */
-  private async refreshFormeAsync() {
+  private async refreshFatigueAsync() {
     try { await this.derivation.recomputeJoueurs(); }
     catch (e) { /* swallow : la sauvegarde principale a deja reussi */ }
   }
@@ -138,7 +138,7 @@ export class EntrainementsService {
       ? dto.joueursPresents.length
       : dto.presents ?? 0;
     const saved = await this.repo.save(this.repo.create({ ...dto, charge, presents }));
-    await this.refreshFormeAsync();
+    await this.refreshFatigueAsync();
     return saved;
   }
   async update(id: string, dto: Partial<CreateEntrainementDto>) {
@@ -147,12 +147,12 @@ export class EntrainementsService {
     e.charge = calcCharge(e.dureeMin, e.intensite, e.type, e.espace);
     if (dto.joueursPresents) e.presents = dto.joueursPresents.length;
     const saved = await this.repo.save(e);
-    await this.refreshFormeAsync();
+    await this.refreshFatigueAsync();
     return saved;
   }
   async remove(id: string) {
     await this.repo.remove(await this.findOne(id));
-    await this.refreshFormeAsync();
+    await this.refreshFatigueAsync();
     return { ok: true, id };
   }
 }

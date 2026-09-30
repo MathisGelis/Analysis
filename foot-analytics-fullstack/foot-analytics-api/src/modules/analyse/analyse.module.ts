@@ -68,7 +68,7 @@ interface RapportEquipe {
   // KPI haut de page
   scoreDanger: number;        // 0-100, plus haut = equipe dangereuse
   scoreChaos: number;         // 0-100, plus haut = equipe instable
-  formeMoy: number | null;    // moyenne des scoreForme des titulaires types ; null hors saison active
+  fatigueMoy: number | null;  // fatigue moyenne des titulaires types (0-100, haut = fatigue) ; null hors saison active ou sans donnee
   // Ce que le rapport couvre (equipe, saison, poule) : la page l'affiche en en-tete.
   perimetre: {
     equipeId: string | null; equipeNom: string | null;
@@ -535,22 +535,24 @@ export class AnalyseService {
     };
 
     /* ============ Score de danger ============ */
-    // Combinaison de : buts marques, stabilite, forme des titulaires types.
+    // Combinaison de : buts marques, stabilite, fraicheur des titulaires types.
     const titulairesPresumes = compoProbable
       .map((c) => joueurs.find((j) =>
         norm(`${j.prenom ?? ""} ${j.nom}`.trim()) === norm(c.nom),
       ))
       .filter(Boolean) as Joueur[];
-    // La forme (scoreForme) est une mesure du moment : sur une saison passee ou a venir elle
-    // n'a pas de sens, on ne la montre pas et elle ne pese pas dans le score de danger.
-    const formeMoy = saison?.actif
-      ? +avg(titulairesPresumes.map((j) => j.scoreForme ?? 50)).toFixed(0)
-      : null;
+    // La fatigue (charge d'entrainement + de match) est une mesure du moment : sur une saison passee ou a
+    // venir elle n'a pas de sens, on ne la montre pas et elle ne pese pas dans le score de danger. Les
+    // joueurs sans donnee ne comptent pas (jamais un 50 invente).
+    const fatigues = titulairesPresumes
+      .map((j) => j.scoreFatigue)
+      .filter((f): f is number => typeof f === "number");
+    const fatigueMoy = saison?.actif && fatigues.length > 0 ? +avg(fatigues).toFixed(0) : null;
     const scoreDanger = Math.round(clamp(
       40
       + bpAvg * 15            // attaque qui marque
       + (stabGlobal - 50) * 0.3
-      + ((formeMoy ?? 50) - 50) * 0.4
+      + (50 - (fatigueMoy ?? 50)) * 0.2   // une equipe fatiguee est moins dangereuse
       - bcAvg * 5              // defense qui encaisse penalise
       + matchsClub.filter((m) => {
           const bp = m.clubDom === clubId ? m.scoreDom : m.scoreExt;
@@ -744,7 +746,7 @@ export class AnalyseService {
 
     return {
       clubId, clubNom: club.nom, matchsAnalyses: totalTitMatchs,
-      scoreDanger, scoreChaos, formeMoy,
+      scoreDanger, scoreChaos, fatigueMoy,
       perimetre: {
         equipeId: equipeRef?.id ?? null, equipeNom: equipeRef?.nom ?? null,
         saisonId: saison?.id ?? null, saisonNom: saison?.nom ?? null, saisonActive: !!saison?.actif,

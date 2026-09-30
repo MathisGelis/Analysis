@@ -160,6 +160,25 @@ test("suppression d'un joueur : confirmation dans une modale, notification, jama
   page.removeAllListeners("dialog");
 });
 
+test("fatigue : jamais de score invente hors saison active ni sans donnee, et l'effectif se trie par fatigue", async () => {
+  // Saison choisie : 2026-2027, a venir (non active). La fatigue est une mesure du moment, elle n'existe pas.
+  await page.goto("/medical");
+  await expect(page.getByText(/Charge et fatigue : indisponibles hors saison active/)).toBeVisible();
+  await expect(page.getByRole("img", { name: /^Fatigue \d+ sur 100/ })).toHaveCount(0);
+
+  // Saison active sans effectif : la page le dit.
+  await page.goto("/");
+  await ouvrirSelecteur(page);
+  await page.getByRole("button", { name: /^2025-2026/ }).click();
+  await page.goto("/medical");
+  await expect(page.getByText("Aucune donnee sur cette equipe.")).toBeVisible();
+
+  // L'effectif propose le tri par fatigue (et non plus par forme).
+  await page.goto("/effectif");
+  await expect(page.getByRole("option", { name: "Tri · Fatigue" })).toBeAttached();
+  await expect(page.getByRole("option", { name: "Tri · Forme" })).toHaveCount(0);
+});
+
 test("import FMI : la feuille est importee puis consultable", async () => {
   test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis pour parser les PDF");
 

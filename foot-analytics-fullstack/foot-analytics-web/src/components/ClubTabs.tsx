@@ -12,6 +12,8 @@ import Link from "next/link";
 import type { Club, Equipe, Joueur, Match, RapportScouting, LigneClassement, Issue } from "@/lib/types";
 import { ClubBadge } from "@/components/ClubBadge";
 import { BarsChart, FormeStrip, Sparkline } from "@/components/Charts";
+import { FatigueBar } from "@/components/FatigueBar";
+import { plusFatigues } from "@/lib/fatigue";
 import { Pitch } from "@/components/Pitch";
 import {
   AlertTriangle, ArrowDownRight, ArrowUpRight, Check, FileText, Printer,
@@ -179,10 +181,8 @@ export function ClubTabs({
 function OverviewPanel({
   bilan, resultats, joueurs, rapport, equipe, cumulCJ, cumulCR, saisonActif,
 }: any) {
-  const topForme = [...joueurs]
-    .filter((j: Joueur) => j.matchs >= 3)
-    .sort((a: Joueur, b: Joueur) => (b.scoreForme ?? 0) - (a.scoreForme ?? 0))
-    .slice(0, 5);
+  // Les plus fatigues : ceux a menager. Sans score (pas de charge recente connue) : ecartes.
+  const topFatigue = plusFatigues<Joueur>(joueurs.filter((j: Joueur) => j.matchs >= 1), 5);
   const dernier5 = resultats.slice(-5);
   return (
     <div className="grid grid-cols-12 gap-4">
@@ -260,18 +260,20 @@ function OverviewPanel({
         )}
       </div>
 
-      {/* top forme */}
+      {/* fatigue */}
       <div className="col-span-12 md:col-span-5 panel p-5">
-        <div className="h-section mb-3">Joueurs en forme</div>
+        <div className="h-section mb-3">Fatigue a surveiller</div>
         {!saisonActif ? (
           <p className="text-sm text-muted py-4">
-            La forme est une mesure du moment : elle n'est suivie que sur la saison en cours.
+            La fatigue est une mesure du moment : elle n'est suivie que sur la saison en cours.
           </p>
-        ) : topForme.length === 0 ? (
-          <p className="text-sm text-muted py-4">Effectif vide ou pas assez de matchs.</p>
+        ) : topFatigue.length === 0 ? (
+          <p className="text-sm text-muted py-4">
+            Pas de charge recente connue (matchs ou seances des 4 dernieres semaines).
+          </p>
         ) : (
           <ul className="space-y-2">
-            {topForme.map((j: Joueur, i: number) => (
+            {topFatigue.map((j: Joueur, i: number) => (
               <li key={j.id ?? i} className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-md bg-panel2 border border-line grid place-items-center font-mono text-sm font-bold text-accent">
                   {j.numeroFavori ?? "?"}
@@ -280,12 +282,7 @@ function OverviewPanel({
                   <div className="text-sm font-semibold truncate">{j.prenom} {j.nom}</div>
                   <div className="text-[11px] text-muted">{j.poste} · {j.matchs} mat. · {j.minutes}'</div>
                 </Link>
-                <div className="flex items-center gap-2">
-                  <div className="w-14 h-1.5 bg-line rounded-full overflow-hidden">
-                    <div className="h-full bg-accent" style={{width: `${j.scoreForme ?? 0}%`}}/>
-                  </div>
-                  <span className="text-xs tabular-nums w-6">{j.scoreForme ?? 0}</span>
-                </div>
+                <FatigueBar score={j.scoreFatigue} detail={j.fatigueDetail} />
               </li>
             ))}
           </ul>
@@ -325,7 +322,7 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
             <th>#</th><th>Joueur</th><th>Poste</th>
             <th className="text-center">Mat.</th><th className="text-center">Titu</th>
             {isMine && <th>Minutes</th>}
-            <th>Note</th><th>Forme</th>
+            <th>Note</th><th>Fatigue</th>
             <th className="text-center" title="Buts">B</th>
             <th className="text-center" title="Passes decisives">PD</th>
             <th className="text-center">CJ</th><th className="text-center">CR</th>
@@ -351,16 +348,7 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
               {isMine && <td className="tabular-nums text-muted">{j.minutes}'</td>}
               <td className="font-semibold text-accent tabular-nums">{j.noteMoyenne?.toFixed(1)}</td>
               <td>
-                {j.scoreForme == null ? (
-                  <span className="text-xs text-faint">—</span>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <div className="w-12 h-1.5 bg-line rounded-full overflow-hidden">
-                      <div className="h-full bg-accent" style={{width: `${j.scoreForme}%`}}/>
-                    </div>
-                    <span className="text-xs text-muted tabular-nums w-6">{j.scoreForme}</span>
-                  </div>
-                )}
+                <FatigueBar score={j.scoreFatigue} detail={j.fatigueDetail} largeur="w-12" />
               </td>
               <td className="text-center text-accent font-mono">{j.buts || ""}</td>
               <td className="text-center text-sky font-mono">{j.passesDecisives || ""}</td>

@@ -123,16 +123,26 @@ describe("AnalyseService.rapportClub", () => {
       expect(t.insights.map((i) => i.id)).toEqual(expect.arrayContaining(["forme-hausse", "serie-victoires"]));
     });
 
-    it("perimetre : equipe, saison, poule ; forme des joueurs seulement sur la saison active", async () => {
+    it("perimetre : equipe, saison, poule ; fatigue des joueurs seulement sur la saison active", async () => {
       const actif = await saisonEnDeuxTemps(true);
+      // Trois titulaires types avec une fatigue connue (30, 50, 70) et un quatrieme sans donnee (ignore).
+      for (const [nom, fatigue] of [["ALPHA", 30], ["BRAVO", 50], ["CHARLIE", 70], ["DELTA", null]] as const) {
+        await f.joueur({ nom, prenom: "Jo", clubId: actif.moi.id, ...(fatigue === null ? {} : { scoreFatigue: fatigue }) });
+        for (const m of actif.matchs.slice(0, 4)) await f.compo({ matchId: m.id, cote: "dom", nom, prenom: "Jo" });
+      }
       const r1 = await svc.rapportClub(actif.moi.id, { equipeId: actif.eq.id });
       expect(r1.perimetre).toMatchObject({ equipeNom: "Seniors D2 Poule C", saisonNom: "2025-2026", saisonActive: true, poule: "C" });
-      expect(typeof r1.formeMoy).toBe("number");
+      expect(r1.fatigueMoy).toBe(50);                      // moyenne de 30, 50, 70 : DELTA n'a aucune donnee, il ne compte pas
 
       const archive = await saisonEnDeuxTemps(false, " archive");
       const r2 = await svc.rapportClub(archive.moi.id, { equipeId: archive.eq.id });
       expect(r2.perimetre.saisonActive).toBe(false);
-      expect(r2.formeMoy).toBeNull();
+      expect(r2.fatigueMoy).toBeNull();
+    });
+
+    it("fatigue moyenne : null sans aucune donnee, jamais un 50 invente", async () => {
+      const actif = await saisonEnDeuxTemps(true);
+      expect((await svc.rapportClub(actif.moi.id, { equipeId: actif.eq.id })).fatigueMoy).toBeNull();
     });
 
     it("niveau des adversaires : rang au classement de la poule", async () => {

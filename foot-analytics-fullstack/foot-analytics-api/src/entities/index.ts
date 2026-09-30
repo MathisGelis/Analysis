@@ -6,9 +6,10 @@
 // stockes en "simple-array", les payloads en "simple-json" (portable).
 
 import {
-  Column, CreateDateColumn, Entity, JoinColumn, ManyToOne,
+  AfterLoad, Column, CreateDateColumn, Entity, JoinColumn, ManyToOne,
   OneToMany, PrimaryGeneratedColumn, Index,
 } from "typeorm";
+import { champsFatigue, deserialiserEntree } from "@/common/fatigue";
 
 @Entity("clubs")
 export class Club {
@@ -107,11 +108,14 @@ export class Joueur {
   // Nombre de blessures cumulees historiquement (impacte le risque).
   @Column({ type: "int", default: 0 }) blessuresAnt: number;
   @Column({ type: "float", nullable: true }) noteMoyenne: number;
-  @Column({ type: "int", nullable: true }) scoreForme: number;
-  // Score de fatigue 0-100, derive de l'ACWR (Acute:Chronic Workload
-  // Ratio sur la charge entrainement + match). Bas = repose, haut =
-  // surcharge. Sweet spot ACWR 0.8-1.3 -> fatigue ~50.
+  // Score de FATIGUE 0-100 (bas = frais, haut = surcharge), derive de la charge d'entrainement, de la
+  // charge en match, de la congestion et des antecedents (voir common/fatigue.ts). Recalcule a chaque
+  // lecture depuis `fatigueEntree` : la fatigue depend de la date du jour.
   @Column({ type: "int", nullable: true }) scoreFatigue: number;
+  // Entrees du calcul (efforts des 28 derniers jours, statut, antecedents), JSON compact.
+  @Column({ type: "text", nullable: true }) fatigueEntree: string;
+  // Decomposition du score (niveau, facteurs, fiabilite), JSON servi tel quel a l'interface.
+  @Column({ type: "text", nullable: true }) fatigueDetail: string;
   // ACWR brut, pour l'afficher si besoin (debug / UI).
   @Column({ type: "float", nullable: true }) acwr: number;
   // Charge aigue (7j) et chronique (moyenne hebdo 28j), en UA-RPE.
@@ -123,6 +127,23 @@ export class Joueur {
   @Column({ nullable: true }) typeDiscipline: string;
 
   @CreateDateColumn() createdAt: Date;
+
+  /**
+   * La fatigue se lit AU JOUR J : a chaque chargement, elle est recalculee a partir des entrees stockees
+   * (les efforts vieillissent, un joueur au repos redevient frais sans nouvel import). Sans entrees
+   * stockees (joueur saisi a la main, base ancienne), les valeurs enregistrees restent telles quelles.
+   */
+  @AfterLoad()
+  rafraichirFatigue() {
+    const entree = deserialiserEntree(this.fatigueEntree, new Date());
+    if (!entree) return;
+    const c = champsFatigue(entree);
+    this.scoreFatigue = c.scoreFatigue as number;
+    this.acwr = c.acwr as number;
+    this.chargeAcute7j = c.chargeAcute7j as number;
+    this.chargeChronic28j = c.chargeChronic28j as number;
+    this.fatigueDetail = c.fatigueDetail;
+  }
 }
 
 @Entity("matchs")
