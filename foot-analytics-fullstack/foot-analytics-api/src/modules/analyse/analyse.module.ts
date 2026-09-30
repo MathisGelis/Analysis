@@ -34,6 +34,7 @@ import {
 /* ---------- helpers ---------- */
 // Reexporte : les tests et le service pre-match l'importent d'ici.
 import { estMatchJoue } from "@/common/match-joue";
+import { chargerDetailsMatchs } from "@/common/details-matchs";
 export { estMatchJoue };
 function norm(s?: string): string {
   return (s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
@@ -180,13 +181,15 @@ export class AnalyseService {
 
     // Uniquement les matchs du club (et de la saison demandee), pas toute la base.
     const filtreSaison = portee.saisonId ? { saisonId: portee.saisonId } : {};
-    const matchs = await this.matchs.find({
+    const matchsDuClub = await this.matchs.find({
       where: [{ ...filtreSaison, clubDom: clubId }, { ...filtreSaison, clubExt: clubId }],
-      relations: ["compositions", "evenements"],
     });
     const dansPortee = (m: Match) => !portee.equipeId
       || m.equipeDomId === portee.equipeId || m.equipeExtId === portee.equipeId;
-    const matchsClub = matchs.filter((m) => dansPortee(m) && estMatchJoue(m));
+    // Compositions et evenements des seuls matchs retenus, en deux requetes a plat (common/details-matchs.ts).
+    const matchsClub = await chargerDetailsMatchs(
+      matchsDuClub.filter((m) => dansPortee(m) && estMatchJoue(m)), this.matchs.manager,
+    );
     const joueurs = await this.joueurs.find({ where: { clubId } });
     const joueursById = new Map(joueurs.map((j) => [j.id, j]));
 

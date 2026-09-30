@@ -12,6 +12,7 @@
 import { Controller, Injectable, Module, Post, Query, UseGuards } from "@nestjs/common";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { chargerDetailsMatchs } from "@/common/details-matchs";
 import {
   Arbitre, ArbitreMatch, Blessure, Club, Coach, Composition, Entrainement,
   Equipe, EvenementMatch, Joueur, LigneClassement, Match, Saison, StaffMatch,
@@ -116,9 +117,8 @@ export class DerivationService {
 
   /** Reconstruit l'effectif de tous les clubs depuis les compositions. */
   async recomputeJoueurs() {
-    const matchs = await this.matchs.find({
-      relations: ["compositions", "evenements"],
-    });
+    // Deux requetes a plat et non un JOIN : voir common/details-matchs.ts.
+    const matchs = await chargerDetailsMatchs(await this.matchs.find(), this.matchs.manager);
 
     type Agg = {
       clubId: string; nom: string; prenom: string; licence?: string;

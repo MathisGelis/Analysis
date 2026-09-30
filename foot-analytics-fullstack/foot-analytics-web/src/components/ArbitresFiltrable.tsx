@@ -12,6 +12,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, Filter, Search, X } from "lucide-react";
+import { lireParticipations, participationDuChampionnat, type FiltreChampionnat } from "@/lib/arbitres-liste";
 
 interface ParticipationChamp {
   saisonId: string | null;
@@ -46,11 +47,7 @@ interface Arbitre {
   participations?: string | null;   // JSON serialise
 }
 
-interface Filtre {
-  saisonId: string | null;
-  competitionLibelle: string | null;
-  poule: string | null;
-}
+type Filtre = FiltreChampionnat;
 
 const TAILLE_PAGE = 40;
 
@@ -120,14 +117,7 @@ export function ArbitresFiltrable({
     // Sinon : filtre sur championnat + stats SPECIFIQUES extraites du JSON.
     return arbitres
       .map((a) => {
-        let parts: ParticipationChamp[] = [];
-        try { parts = a.participations ? JSON.parse(a.participations) : []; }
-        catch { parts = []; }
-        const match = parts.find((p) =>
-          p.saisonId === championnat.saisonId
-          && (p.competitionLibelle ?? null) === (championnat.competitionLibelle ?? null)
-          && (p.poule ?? null) === (championnat.poule ?? null),
-        );
+        const match = participationDuChampionnat(lireParticipations<ParticipationChamp>(a.participations), championnat);
         if (!match) return null;
         return {
           ...a,
@@ -215,9 +205,9 @@ export function ArbitresFiltrable({
               {Object.entries(ROLES_LABEL).map(([k, label]) => {
                 const on = roles.has(k);
                 return (
-                  <button key={k}
+                  <button key={k} type="button" aria-pressed={on}
                     onClick={() => toggle(roles, k, setRoles)}
-                    className={`badge text-[10px] ${on ? "badge-accent" : "opacity-70"}`}>
+                    className={`badge text-[10px] ${on ? "badge-accent" : "text-muted"}`}>
                     {label}
                   </button>
                 );
@@ -231,13 +221,13 @@ export function ArbitresFiltrable({
               {PROFILS.map((p) => {
                 const on = profils.has(p);
                 return (
-                  <button key={p}
+                  <button key={p} type="button" aria-pressed={on}
                     onClick={() => toggle(profils, p, setProfils)}
                     className={`badge text-[10px] ${on
                       ? (p === "Strict" ? "badge-danger"
                         : p === "Permissif" ? "badge-accent"
                         : p === "Standard" ? "badge-amber" : "badge-accent")
-                      : "opacity-70"}`}>
+                      : "text-muted"}`}>
                     {PROFILS_LABEL[p]}
                   </button>
                 );
@@ -278,7 +268,7 @@ export function ArbitresFiltrable({
                 <th>Profil</th>
                 <th>Note moy.</th>
                 <th>Motifs frequents</th>
-                <th className="text-right"></th>
+                <th className="text-right"><span className="sr-only">Fiche</span></th>
               </tr>
             </thead>
             <tbody>
@@ -320,8 +310,9 @@ export function ArbitresFiltrable({
                     </td>
                     <td className="text-[11px] text-faint">{s.motifsTop ?? ""}</td>
                     <td className="text-right">
-                      <Link href={`/arbitres/${a.id}`} className="btn text-xs">
-                        <ChevronRight size={11}/>
+                      <Link href={`/arbitres/${a.id}`} className="btn text-xs"
+                        aria-label={`Fiche de ${[a.prenom, a.nom].filter(Boolean).join(" ")}`}>
+                        <ChevronRight size={11} aria-hidden/>
                       </Link>
                     </td>
                   </tr>

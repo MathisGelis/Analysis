@@ -23,11 +23,14 @@ const LIBELLE_STATUT: Record<string, string> = { prevu: "A venir", a_venir: "A v
 
 export default async function MatchDetailPage({ params }: { params: { id: string } }) {
   const ownClubId = getOwnClubIdServer();
-  const [match, CLUBS, allJoueurs, arbitresLiens, staffLiens] = await Promise.all([
-    api.match(params.id), api.clubs(), api.joueurs(), api.arbitresForMatch(params.id),
+  const match = await api.match(params.id);
+  if (!match) notFound();
+  // Seuls les joueurs des deux clubs du match sont utiles : charger tout le fichier joueurs pesait
+  // pres de 800 Ko a chaque ouverture de fiche.
+  const [CLUBS, joueursDom, joueursExt, arbitresLiens, staffLiens] = await Promise.all([
+    api.clubs(), api.joueurs(match.clubDom), api.joueurs(match.clubExt), api.arbitresForMatch(params.id),
     api.coachsForMatch(params.id),
   ]);
-  if (!match) notFound();
   const peutNoter = match.clubDom === ownClubId || match.clubExt === ownClubId;
   // Match de mon club pas encore joue : on propose le rapport de preparation contre l'adversaire.
   const statut: string = (match as any).statut ?? "joue";
@@ -105,6 +108,7 @@ export default async function MatchDetailPage({ params }: { params: { id: string
 
       {/* En-tete match */}
       <header className="panel p-6 relative overflow-hidden">
+        <h1 className="sr-only">{dom.nom} contre {ext.nom}</h1>
         <div className="absolute -top-24 -right-24 w-80 h-80 bg-accent/5 rounded-full blur-3xl"/>
         <div className="relative flex items-center justify-between gap-6 flex-wrap">
           <Link href={`/club/${dom.id}`} className="flex items-center gap-3 flex-1 min-w-0 hover:text-accent">
@@ -233,10 +237,10 @@ export default async function MatchDetailPage({ params }: { params: { id: string
       {/* Tableau complet compos */}
       <section className="grid grid-cols-12 gap-4">
         <CompoTable club={dom} compo={m.compoDom!}
-          joueurs={allJoueurs.filter((j) => j.clubId === dom.id)}
+          joueurs={joueursDom}
           cartons={cartonsParJoueur}/>
         <CompoTable club={ext} compo={m.compoExt!}
-          joueurs={allJoueurs.filter((j) => j.clubId === ext.id)}
+          joueurs={joueursExt}
           cartons={cartonsParJoueur}/>
       </section>
 

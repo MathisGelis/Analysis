@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { getOwnClubIdServer } from "@/lib/own-club";
 import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
 import { ClassementTabs } from "@/components/ClassementTabs";
+import { CHAMPS_JOUEUR_CLASSEMENT, CHAMPS_MATCH_CLASSEMENT, garder } from "@/lib/allegement";
 
 export const metadata = { title: "Classement · Foot Analytics" };
 
@@ -82,8 +83,8 @@ export default async function Classement() {
       <ClassementTabs
         classement={classement}
         clubs={clubs}
-        matchs={matchsChampionnat}
-        joueurs={joueursDuChampionnat}
+        matchs={garder(matchsChampionnat, CHAMPS_MATCH_CLASSEMENT)}
+        joueurs={garder(joueursDuChampionnat, CHAMPS_JOUEUR_CLASSEMENT)}
         ownClubId={CLUB_PROPRE_ID}
       />
     </div>

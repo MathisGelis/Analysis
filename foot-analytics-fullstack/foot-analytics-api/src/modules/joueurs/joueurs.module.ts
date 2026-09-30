@@ -330,18 +330,25 @@ export class JoueursService {
       .where("j.clubId IN (:...ids)", { ids: clubIds })
       .getMany();
     const byLicence = new Map(joueursTous.filter((j) => j.licence).map((j) => [j.licence, j]));
+    // Index club + nom (ordre de la base conserve) : un balayage complet de la liste pour chacun des
+    // ~500 joueurs du championnat coutait l'essentiel de la requete.
+    const parClubEtNom = new Map<string, Joueur[]>();
+    for (const j of joueursTous) {
+      const cle = `${j.clubId}|${norm(j.nom)}`;
+      const liste = parClubEtNom.get(cle);
+      if (liste) liste.push(j); else parClubEtNom.set(cle, [j]);
+    }
     const findJoueurEnBase = (a: Acc): Joueur | null => {
       if (a.licence && byLicence.has(a.licence)) return byLicence.get(a.licence)!;
-      const ln = norm(a.nom);
       const pn = norm(a.prenom);
-      return joueursTous.find((j) =>
-        j.clubId === a.clubId && norm(j.nom) === ln && (pn === "" || norm(j.prenom).startsWith(pn[0]))
+      return parClubEtNom.get(`${a.clubId}|${norm(a.nom)}`)?.find((j) =>
+        pn === "" || norm(j.prenom).startsWith(pn[0]),
       ) ?? null;
     };
 
     // Saisies manuelles (buts / passes) de chaque equipe du championnat.
     const saisiesParEquipe = new Map<string, Map<string, { buts: number | null; passesDecisives: number | null }>>();
-    for (const eid of equipeIds) saisiesParEquipe.set(eid, await this.saisiesEquipe(eid));
+    await Promise.all([...equipeIds].map(async (eid) => { saisiesParEquipe.set(eid, await this.saisiesEquipe(eid)); }));
 
     return [...accByKey.values()]
       .filter((a) => a.matchs > 0)

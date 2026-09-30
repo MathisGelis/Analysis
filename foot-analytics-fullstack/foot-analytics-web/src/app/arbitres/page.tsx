@@ -8,6 +8,7 @@
 import { api } from "@/lib/api";
 import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
 import { ArbitresFiltrable } from "@/components/ArbitresFiltrable";
+import { restreindreAuChampionnat } from "@/lib/arbitres-liste";
 
 export const metadata = { title: "Arbitres · Foot Analytics" };
 
@@ -22,6 +23,9 @@ export default async function ArbitresList() {
   // Championnat propre : resolution centralisee (meme regles que /classement).
   const { equipe: equipePropre, championnat } =
     await resolveEquipePropre({ equipes, saisons, matchs });
+
+  // Seuls les arbitres du championnat (et leur participation a celui-ci) traversent vers le client.
+  const arbitresChamp = restreindreAuChampionnat(arbitres as any[], championnat);
 
   const headerLibelle = equipePropre
     ? `${equipePropre.competitionLibelle ?? equipePropre.nom}${equipePropre.poule ? ` · Poule ${equipePropre.poule}` : ""}`
@@ -42,7 +46,7 @@ export default async function ArbitresList() {
           a chaque import de feuille FMI.
         </section>
       ) : (
-        <ArbitresFiltrable arbitres={arbitres as any} championnat={championnat} />
+        <ArbitresFiltrable arbitres={arbitresChamp as any} championnat={championnat} />
       )}
 
       <section className="panel-inset p-4 text-xs text-muted leading-relaxed">

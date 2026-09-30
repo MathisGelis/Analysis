@@ -12,9 +12,8 @@ import Link from "next/link";
 import { ClubBadge } from "@/components/ClubBadge";
 import { FormeStrip } from "@/components/Charts";
 import { FatigueBar } from "@/components/FatigueBar";
-import type {
-  Club, Joueur, LigneClassement, Match, Issue,
-} from "@/lib/types";
+import type { Club, LigneClassement, Issue } from "@/lib/types";
+import type { JoueurClassement, MatchClassement } from "@/lib/allegement";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 type Tab = "table" | "teams" | "players";
@@ -28,8 +27,8 @@ const TABS: { id: Tab; label: string }[] = [
 interface Props {
   classement: LigneClassement[];
   clubs: Club[];
-  matchs: Match[];
-  joueurs: Joueur[];
+  matchs: MatchClassement[];
+  joueurs: JoueurClassement[];
   ownClubId: string;
 }
 
@@ -171,7 +170,7 @@ const TEAM_COLS: { key: TeamKey; label: string; align?: string; title?: string }
 ];
 
 function TeamStats({ matchs, clubs, ownClubId }:
-  { matchs: Match[]; clubs: Club[]; ownClubId: string }) {
+  { matchs: MatchClassement[]; clubs: Club[]; ownClubId: string }) {
   const rows = useMemo<TeamRow[]>(() => {
     const byClub = new Map<string, TeamRow>();
     const ensure = (id: string): TeamRow => {
@@ -314,7 +313,7 @@ function KpiCard({ label, club, val }: { label: string; club: TeamRow; val: stri
 /* ============================================================ */
 /*                          Stats joueurs                         */
 /* ============================================================ */
-type PlayerRow = Joueur & { clubNom: string };
+type PlayerRow = JoueurClassement & { clubNom: string };
 type PlayerKey = "clubNom"|"prenom"|"nom"|"matchs"|"titularisations"|"minutes"
   |"buts"|"passesDecisives"|"cartonsJaunes"|"cartonsRouges"|"noteMoyenne"|"scoreFatigue";
 
@@ -333,7 +332,7 @@ const PLAYER_COLS: { key: PlayerKey; label: string; align?: string }[] = [
 ];
 
 function PlayerStats({ joueurs, clubs, ownClubId }:
-  { joueurs: Joueur[]; clubs: Club[]; ownClubId: string }) {
+  { joueurs: JoueurClassement[]; clubs: Club[]; ownClubId: string }) {
   const rows: PlayerRow[] = useMemo(() => joueurs.map((j) => ({
     ...j, clubNom: clubs.find((c) => c.id === j.clubId)?.nom ?? "",
   })), [joueurs, clubs]);

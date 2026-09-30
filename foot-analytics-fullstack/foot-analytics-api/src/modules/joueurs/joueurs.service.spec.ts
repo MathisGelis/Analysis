@@ -371,6 +371,34 @@ describe("JoueursService", () => {
     });
   });
 
+  describe("championnat : rapprochement avec la fiche en base", () => {
+    it("sans licence : club + nom + initiale du prenom, donc deux homonymes de nom ne se confondent pas", async () => {
+      const c = await contexte();
+      const luc = await f.joueur({ nom: "MARTIN", prenom: "Luc", clubId: c.moi.id, poste: "DC" });
+      const paul = await f.joueur({ nom: "MARTIN", prenom: "Paul", clubId: c.moi.id, poste: "AT" });
+      // Un homonyme exact dans un AUTRE club ne doit pas etre retenu.
+      await f.joueur({ nom: "MARTIN", prenom: "Paul", clubId: c.adv.id, poste: "GB" });
+      const m = await f.match({ clubDom: c.moi.id, clubExt: c.adv.id, equipeDomId: c.seniors.id, equipeExtId: c.advEq.id, saisonId: c.saison.id, date: "10/01/2026" });
+      await f.compo({ matchId: m.id, cote: "dom", nom: "MARTIN", prenom: "Paul", licence: undefined, numero: 9 });
+      await f.compo({ matchId: m.id, cote: "dom", nom: "MARTIN", prenom: "Luc", licence: undefined, numero: 5 });
+
+      const lignes = await svc.championnat(c.seniors.id);
+
+      expect(lignes.find((l) => l.prenom === "Paul" && l.clubId === c.moi.id)).toMatchObject({ id: paul.id, poste: "AT" });
+      expect(lignes.find((l) => l.prenom === "Luc")).toMatchObject({ id: luc.id, poste: "DC" });
+    });
+
+    it("joueur absent de la base : ligne conservee, sans identifiant", async () => {
+      const c = await contexte();
+      const m = await f.match({ clubDom: c.moi.id, clubExt: c.adv.id, equipeDomId: c.seniors.id, equipeExtId: c.advEq.id, saisonId: c.saison.id, date: "10/01/2026" });
+      await f.compo({ matchId: m.id, cote: "dom", nom: "INCONNU", prenom: "Zed", licence: undefined });
+
+      const lignes = await svc.championnat(c.seniors.id);
+
+      expect(lignes.find((l) => l.nom === "INCONNU")).toMatchObject({ id: null, poste: null });
+    });
+  });
+
   describe("search (floue)", () => {
     beforeEach(async () => {
       await f.joueur({ nom: "DIAGOLA", prenom: "Seydou", licence: "9604756569" });
