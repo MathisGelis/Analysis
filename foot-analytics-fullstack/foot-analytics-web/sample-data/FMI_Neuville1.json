@@ -1,0 +1,407 @@
+{
+  "numero_match": "53415223",
+  "numero_affaire": "25545277",
+  "date": "18/01/2026",
+  "heure": "15:00",
+  "competition": "Seniors D2 / Phase Unique",
+  "poule": "C",
+  "terrain": "STADE JEAN OBOUSSIER 2",
+  "equipe_recevante": "Neuville S/S 2",
+  "equipe_visiteuse": "F.C. Meys Grezieu 1",
+  "club_recevant_id": "504275",
+  "club_visiteur_id": "560530",
+  "score_recevant": 2,
+  "score_visiteur": 0,
+  "officiels": [
+    {
+      "role": "Arbitre centre",
+      "nom_complet": "FARGEOT Jeremy",
+      "licence": "2543106382"
+    },
+    {
+      "role": "Arbitre assistant 1",
+      "nom_complet": "MEHIAOUI Karim",
+      "licence": "2543420312"
+    },
+    {
+      "role": "Arbitre assistant 2",
+      "nom_complet": "GRATALOUX Jean Pierre",
+      "licence": "2529404617"
+    },
+    {
+      "role": "Délégué principal",
+      "nom_complet": "PAVIOLO Sebastien",
+      "licence": "2510787382"
+    },
+    {
+      "role": "Délégué adjoint 1",
+      "nom_complet": "BETTAHAR Yanis",
+      "licence": "2546921084"
+    }
+  ],
+  "encadrement": [
+    {
+      "nom_complet": "DELORME Eric",
+      "licence": "2538630712",
+      "fonction": "E/DR"
+    },
+    {
+      "nom_complet": "CLOUZET DIT ORIENTI Jean Philippe",
+      "licence": "2518696883",
+      "fonction": "E"
+    },
+    {
+      "nom_complet": "BEN KAHLA Hocine",
+      "licence": "2520245384",
+      "fonction": "D"
+    },
+    {
+      "nom_complet": "CROZIER Tanguy",
+      "licence": "2518686978",
+      "fonction": "D/DR"
+    }
+  ],
+  "compo_recevante": [
+    {
+      "numero": 1,
+      "nom": "DRONEAU",
+      "prenom": "Lucas",
+      "licence": "2546012357",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 2,
+      "nom": "BOURGEOIS BIDDI",
+      "prenom": "Jason",
+      "licence": "2548007372",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 3,
+      "nom": "MAYOUX",
+      "prenom": "Theo",
+      "licence": "2547278913",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 4,
+      "nom": "MANSOUR",
+      "prenom": "Abdamalek",
+      "licence": "2538644299",
+      "titulaire": true,
+      "capitaine": true
+    },
+    {
+      "numero": 5,
+      "nom": "BOULY",
+      "prenom": "Quentin",
+      "licence": "2543026622",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 6,
+      "nom": "BEN KAHLA",
+      "prenom": "Eddy",
+      "licence": "2543280074",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 7,
+      "nom": "DAOUADI",
+      "prenom": "Kais",
+      "licence": "2545972549",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 8,
+      "nom": "SAAD",
+      "prenom": "Nassim",
+      "licence": "2546225705",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 9,
+      "nom": "NJIE",
+      "prenom": "Abdoulie",
+      "licence": "9603945687",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 10,
+      "nom": "GASPARD",
+      "prenom": "Mael",
+      "licence": "2543946440",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 11,
+      "nom": "KHARKHACHE",
+      "prenom": "Nidal",
+      "licence": "2546004300",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 12,
+      "nom": "MANOUBI",
+      "prenom": "Nooman",
+      "licence": "2578618153",
+      "titulaire": false,
+      "capitaine": false
+    },
+    {
+      "numero": 13,
+      "nom": "CHAPELLE",
+      "prenom": "Johan",
+      "licence": "2546982285",
+      "titulaire": false,
+      "capitaine": false
+    },
+    {
+      "numero": 14,
+      "nom": "PAVIOLO",
+      "prenom": "Teemy",
+      "licence": "2546620828",
+      "titulaire": false,
+      "capitaine": false
+    }
+  ],
+  "compo_visiteuse": [
+    {
+      "numero": 1,
+      "nom": "RAMBAUD",
+      "prenom": "Enzo",
+      "licence": "2547017895",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 2,
+      "nom": "PLEVY",
+      "prenom": "Tanguy",
+      "licence": "2544707143",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 3,
+      "nom": "VILLARD",
+      "prenom": "Louis",
+      "licence": "2546076078",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 4,
+      "nom": "BESSON",
+      "prenom": "Charly",
+      "licence": "2546543220",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 5,
+      "nom": "PALLANDRE",
+      "prenom": "Damien",
+      "licence": "2547075495",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 6,
+      "nom": "GRANGE",
+      "prenom": "Timothe",
+      "licence": "2544352790",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 7,
+      "nom": "GRANGE",
+      "prenom": "Enzo",
+      "licence": "2546970692",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 8,
+      "nom": "CHARTIER",
+      "prenom": "Tom",
+      "licence": "2545948137",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 9,
+      "nom": "VENET",
+      "prenom": "Baptiste",
+      "licence": "2544707144",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 10,
+      "nom": "VILLEMAGNE",
+      "prenom": "Leo",
+      "licence": "2544352800",
+      "titulaire": true,
+      "capitaine": true
+    },
+    {
+      "numero": 11,
+      "nom": "VERICEL",
+      "prenom": "Lois",
+      "licence": "2546549334",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 12,
+      "nom": "GRANGE",
+      "prenom": "Robin",
+      "licence": "2546980459",
+      "titulaire": false,
+      "capitaine": false
+    },
+    {
+      "numero": 13,
+      "nom": "GRANJON",
+      "prenom": "Alexandre",
+      "licence": "2544320319",
+      "titulaire": false,
+      "capitaine": false
+    }
+  ],
+  "remplacements": [
+    {
+      "equipe": "recevante",
+      "sortant_licence": "2543946440",
+      "sortant_nom": "GASPARD Mael",
+      "entrant_licence": "2546982285",
+      "entrant_nom": "CHAPELLE Johan",
+      "minute": 31,
+      "arret": 0
+    },
+    {
+      "equipe": "visiteuse",
+      "sortant_licence": "2546970692",
+      "sortant_nom": "GRANGE Enzo",
+      "entrant_licence": "2544320319",
+      "entrant_nom": "GRANJON Alexandre",
+      "minute": 65,
+      "arret": 0
+    },
+    {
+      "equipe": "recevante",
+      "sortant_licence": "2546004300",
+      "sortant_nom": "KHARKHACHE Nidal",
+      "entrant_licence": "2578618153",
+      "entrant_nom": "MANOUBI Nooman",
+      "minute": 41,
+      "arret": 0
+    },
+    {
+      "equipe": "visiteuse",
+      "sortant_licence": "2546543220",
+      "sortant_nom": "BESSON Charly",
+      "entrant_licence": "2546980459",
+      "entrant_nom": "GRANGE Robin",
+      "minute": 80,
+      "arret": 0
+    },
+    {
+      "equipe": "recevante",
+      "sortant_licence": "2543280074",
+      "sortant_nom": "BEN KAHLA Eddy",
+      "entrant_licence": "2546620828",
+      "entrant_nom": "PAVIOLO Teemy",
+      "minute": 70,
+      "arret": 0
+    }
+  ],
+  "cartons": [
+    {
+      "equipe": "F.C. Meys Grezieu",
+      "licence": "2544320319",
+      "joueur": "GRANJON Alexandre",
+      "numero": 13,
+      "motif": "Enfreindre avec persistance les Lois du Jeu",
+      "couleur": "jaune",
+      "minute": 90,
+      "arret": 3
+    },
+    {
+      "equipe": "Neuville S/S",
+      "licence": "2538644299",
+      "joueur": "MANSOUR Abdamalek",
+      "numero": 4,
+      "motif": "Commet un acte de brutalité",
+      "couleur": "rouge",
+      "minute": 59,
+      "arret": 0
+    },
+    {
+      "equipe": "Neuville S/S",
+      "licence": "2543280074",
+      "joueur": "BEN KAHLA Eddy",
+      "numero": 6,
+      "motif": "Comportement antisportif",
+      "couleur": "jaune",
+      "minute": 19,
+      "arret": 0
+    },
+    {
+      "equipe": "Neuville S/S",
+      "licence": "2545972549",
+      "joueur": "DAOUADI Kais",
+      "numero": 7,
+      "motif": "Désapprobation en paroles ou en actes",
+      "couleur": "jaune",
+      "minute": 60,
+      "arret": 0
+    },
+    {
+      "equipe": "Neuville S/S",
+      "licence": "2546982285",
+      "joueur": "CHAPELLE Johan",
+      "numero": 13,
+      "motif": "Comportement antisportif",
+      "couleur": "jaune",
+      "minute": 90,
+      "arret": 4
+    },
+    {
+      "equipe": "Neuville S/S",
+      "licence": "2548007372",
+      "joueur": "BOURGEOIS BIDDI Jason",
+      "numero": 2,
+      "motif": "Retarder la reprise du jeu",
+      "couleur": "jaune",
+      "minute": 90,
+      "arret": 2
+    }
+  ],
+  "blessures": [
+    {
+      "equipe": "F.C. Meys Grezieu",
+      "licence": "2546980459",
+      "joueur": "GRANGE Robin",
+      "numero": 12,
+      "localisation": "Cheville droite",
+      "complement": "",
+      "minute": 90,
+      "arret": 4
+    }
+  ],
+  "buteurs": [],
+  "source_fichier": "FMI_Neuville1.pdf"
+}

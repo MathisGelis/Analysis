@@ -1,0 +1,405 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   FOOT ANALYTICS — Design tokens
+   Vibe : Football Manager + console d'entraineur, sobre, chaud.
+   Deux modes : dark (defaut) / light, switche via data-theme.
+   Toutes les couleurs en triplet R G B pour supporter <alpha-value>
+   dans Tailwind (bg-turf/30 etc.).
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+/* ----- Mode SOMBRE (par defaut) ------------------------------- */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg:           14 17 22;       /* #0E1116 graphite chaud */
+  --surface:      22 26 33;       /* #161A21 */
+  --surface-2:    27 32 40;       /* #1B2028 */
+  --line:         35 41 50;       /* #232932 */
+  --line-strong:  52 59 71;       /* #343B47 */
+
+  /* Texte */
+  --ink:          236 239 243;    /* #ECEFF3 */
+  --muted:        148 156 170;    /* #949CAA */
+  --faint:        91 99 113;      /* #5B6371 */
+
+  /* Accent turf (vert pelouse vue de loin, pas tech) */
+  --turf:         122 178 138;    /* #7AB28A */
+  --turf-dim:     94 138 108;     /* #5E8A6C */
+  --turf-deep:    66 102 78;      /* #42664E */
+
+  /* Data accents */
+  --sky:          120 168 213;    /* #78A8D5 */
+  --amber:        229 162 74;     /* #E5A24A */
+  --danger:       198 83 58;      /* #C6533A */
+
+  /* Issues match */
+  --win:          122 178 138;
+  --draw:         229 162 74;
+  --loss:         198 83 58;
+
+  /* Effets */
+  --shadow-panel: 0 1px 0 rgba(255,255,255,.025) inset, 0 8px 24px -16px rgba(0,0,0,.8);
+  --shadow-pop:   0 12px 40px -16px rgba(0,0,0,.7);
+
+  /* Background du body : gradient subtil + vignette */
+  --bg-gradient:
+    radial-gradient(1400px 900px at 80% -10%, rgb(122 178 138 / .04), transparent 50%),
+    radial-gradient(1000px 700px at -10% 110%, rgb(120 168 213 / .03), transparent 55%);
+}
+
+/* ----- Mode CLAIR --------------------------------------------- */
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Surfaces : on garde papier mais on rend les lignes plus visibles. */
+  --bg:           247 245 240;    /* #F7F5F0 papier */
+  --surface:      255 255 255;    /* #FFFFFF */
+  --surface-2:    240 236 226;    /* #F0ECE2 (plus contraste qu'avant) */
+  --line:         214 205 187;    /* #D6CDBB (plus dense, anciennement E2DCCF) */
+  --line-strong:  172 161 142;    /* #ACA18E */
+
+  /* Texte : ink presque noir, muted bien plus sombre qu'avant. */
+  --ink:           20 22 28;      /* #14161C presque noir, lecture confortable */
+  --muted:         74 81 95;      /* #4A515F (etait 91/99/113, trop pale) */
+  --faint:        116 124 138;    /* #747C8A */
+
+  /* Turf : plus profond pour ressortir sur le papier. */
+  --turf:          54 116 74;     /* #36744A (etait 4A8C5E, encore plus dense) */
+  --turf-dim:      74 140 94;
+  --turf-deep:     34 78 50;
+
+  /* Data accents plus denses. */
+  --sky:           62 124 184;    /* #3E7CB8 (etait 5B9BD5) */
+  --amber:        184 117 32;     /* #B87520 */
+  --danger:       162 56 36;      /* #A23824 */
+
+  --win:           54 116 74;
+  --draw:         184 117 32;
+  --loss:         162 56 36;
+
+  --shadow-panel: 0 1px 0 rgba(0,0,0,.03) inset, 0 4px 18px -10px rgba(0,0,0,.22);
+  --shadow-pop:   0 16px 50px -20px rgba(0,0,0,.3);
+
+  --bg-gradient:
+    radial-gradient(1400px 900px at 80% -10%, rgb(54 116 74 / .07), transparent 50%),
+    radial-gradient(1000px 700px at -10% 110%, rgb(62 124 184 / .05), transparent 55%);
+}
+
+/* ----- Base ---------------------------------------------------- */
+
+html, body {
+  background: var(--bg-gradient), rgb(var(--bg));
+  color: rgb(var(--ink));
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-feature-settings: "ss01", "cv11", "tnum";
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  /* Transition douce entre dark/light. */
+  transition: background-color 200ms cubic-bezier(.4,0,.2,1), color 200ms cubic-bezier(.4,0,.2,1);
+}
+
+* { border-color: rgb(var(--line)); }
+
+/* Hairline pattern : tres discrete, evoque le quadrillage tactique. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgb(var(--ink) / .02) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--ink) / .02) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+  z-index: 0;
+}
+[data-theme="light"] body::before {
+  background-image:
+    linear-gradient(rgb(var(--ink) / .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--ink) / .045) 1px, transparent 1px);
+}
+
+/* ----- Composants utilitaires --------------------------------- */
+@layer components {
+
+  /* Surfaces */
+  .panel {
+    background-color: rgb(var(--surface));
+    border: 1px solid rgb(var(--line));
+    border-radius: 12px;
+    box-shadow: var(--shadow-panel);
+  }
+  .panel-inset {
+    background-color: rgb(var(--surface-2));
+    border: 1px solid rgb(var(--line));
+    border-radius: 10px;
+  }
+  .panel-pop {
+    background-color: rgb(var(--surface));
+    border: 1px solid rgb(var(--line));
+    border-radius: 14px;
+    box-shadow: var(--shadow-pop);
+  }
+
+  /* Stat scoreboard : signature visuelle du dashboard.
+     Separateur vertical fin entre label et valeur, comme un afficheur
+     de stade. Accent ligne turf en bas, optionnel. */
+  .scoreboard {
+    @apply panel relative overflow-hidden;
+    padding: 18px 20px 20px;
+    transition: transform 200ms cubic-bezier(.4,0,.2,1), border-color 200ms;
+  }
+  .scoreboard:hover {
+    transform: translateY(-2px);
+    border-color: rgb(var(--turf) / .35);
+  }
+  .scoreboard::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 2px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgb(var(--turf) / .6) 50%,
+      transparent 100%);
+    opacity: 0;
+    transition: opacity 200ms;
+  }
+  .scoreboard:hover::after { opacity: 1; }
+
+  .stat-label {
+    font-family: "Geist", system-ui, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgb(var(--faint));
+  }
+  .stat-value {
+    font-family: "Geist", system-ui, sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+    color: rgb(var(--ink));
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .stat-suffix {
+    font-size: 11px;
+    color: rgb(var(--muted));
+    font-weight: 500;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold
+           uppercase tracking-wider rounded border;
+    background-color: rgb(var(--surface-2));
+    border-color: rgb(var(--line));
+    color: rgb(var(--muted));
+  }
+  .badge-turf  { border-color: rgb(var(--turf) / .4);   color: rgb(var(--turf));   background: rgb(var(--turf) / .08); }
+  .badge-amber { border-color: rgb(var(--amber) / .4);  color: rgb(var(--amber));  background: rgb(var(--amber) / .08); }
+  .badge-danger{ border-color: rgb(var(--danger) / .4); color: rgb(var(--danger)); background: rgb(var(--danger) / .08); }
+  .badge-sky   { border-color: rgb(var(--sky) / .4);    color: rgb(var(--sky));    background: rgb(var(--sky) / .08); }
+
+  /* Pills V/N/D : 1 carre par match, hover degrade subtil. */
+  .pill-v {
+    @apply inline-flex w-6 h-6 items-center justify-center rounded-md text-[10px] font-bold;
+    background: rgb(var(--win) / .15);
+    color: rgb(var(--win));
+    border: 1px solid rgb(var(--win) / .3);
+  }
+  .pill-n {
+    @apply inline-flex w-6 h-6 items-center justify-center rounded-md text-[10px] font-bold;
+    background: rgb(var(--draw) / .15);
+    color: rgb(var(--draw));
+    border: 1px solid rgb(var(--draw) / .3);
+  }
+  .pill-d {
+    @apply inline-flex w-6 h-6 items-center justify-center rounded-md text-[10px] font-bold;
+    background: rgb(var(--loss) / .15);
+    color: rgb(var(--loss));
+    border: 1px solid rgb(var(--loss) / .3);
+  }
+
+  /* Tables : style "feuille de match", pas Excel.
+     Hover row avec accent gauche turf. */
+  .table-fm {
+    @apply w-full text-sm border-separate;
+    border-spacing: 0;
+  }
+  .table-fm thead th {
+    font-family: "Geist", system-ui, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgb(var(--faint));
+    background-color: rgb(var(--surface-2));
+    border-bottom: 1px solid rgb(var(--line));
+    padding: 10px 12px;
+    text-align: left;
+  }
+  .table-fm tbody td {
+    border-bottom: 1px solid rgb(var(--line) / .6);
+    padding: 10px 12px;
+    color: rgb(var(--ink));
+    transition: background-color 120ms;
+  }
+  .table-fm tbody tr {
+    position: relative;
+  }
+  .table-fm tbody tr:hover td { background-color: rgb(var(--line) / .25); }
+  .table-fm tbody tr.is-mine td { background-color: rgb(var(--turf) / .07); }
+  .table-fm tbody tr.is-mine td:first-child {
+    box-shadow: inset 3px 0 0 0 rgb(var(--turf));
+  }
+
+  /* Headers */
+  .h-section {
+    font-family: "Geist", system-ui, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgb(var(--faint));
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium;
+    background-color: rgb(var(--surface));
+    border: 1px solid rgb(var(--line));
+    color: rgb(var(--ink));
+    transition: all 150ms cubic-bezier(.4,0,.2,1);
+  }
+  .btn:hover {
+    background-color: rgb(var(--line) / .4);
+    transform: translateY(-1px);
+  }
+  .btn:active { transform: translateY(0); }
+
+  .btn-turf, .btn-primary {
+    background-color: rgb(var(--turf));
+    color: rgb(var(--bg));
+    border-color: rgb(var(--turf));
+  }
+  .btn-turf:hover, .btn-primary:hover {
+    background-color: rgb(var(--turf-dim));
+    border-color: rgb(var(--turf-dim));
+  }
+
+  .btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: rgb(var(--muted));
+  }
+  .btn-ghost:hover {
+    background-color: rgb(var(--line) / .4);
+    color: rgb(var(--ink));
+  }
+
+  /* Inputs */
+  .inp, .select-fm {
+    @apply w-full px-3 py-2 rounded-lg text-sm;
+    background-color: rgb(var(--surface-2));
+    border: 1px solid rgb(var(--line));
+    color: rgb(var(--ink));
+    outline: none;
+    transition: border-color 150ms;
+  }
+  .inp:focus, .select-fm:focus {
+    border-color: rgb(var(--turf) / .6);
+    box-shadow: 0 0 0 3px rgb(var(--turf) / .12);
+  }
+  .inp::placeholder { color: rgb(var(--faint)); }
+
+  /* Text colors mapped to vars */
+  .text-ink    { color: rgb(var(--ink)); }
+  .text-muted  { color: rgb(var(--muted)); }
+  .text-faint  { color: rgb(var(--faint)); }
+}
+
+/* ----- Scrollbar discrete ------------------------------------ */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--line-strong) / .6);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--line-strong));
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+/* ----- Animations -------------------------------------------- */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 400ms cubic-bezier(.4,0,.2,1) both; }
+
+/* Stagger pour grilles : delay progressif, plus serre que l'ancien. */
+.fade-up-stagger > * { animation: fadeUp 400ms cubic-bezier(.4,0,.2,1) both; }
+.fade-up-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.fade-up-stagger > *:nth-child(2) { animation-delay: 50ms; }
+.fade-up-stagger > *:nth-child(3) { animation-delay: 100ms; }
+.fade-up-stagger > *:nth-child(4) { animation-delay: 150ms; }
+.fade-up-stagger > *:nth-child(5) { animation-delay: 200ms; }
+.fade-up-stagger > *:nth-child(6) { animation-delay: 250ms; }
+.fade-up-stagger > *:nth-child(7) { animation-delay: 300ms; }
+.fade-up-stagger > *:nth-child(8) { animation-delay: 350ms; }
+.fade-up-stagger > *:nth-child(9) { animation-delay: 400ms; }
+
+/* Count-up : effet "scoreboard" sur les KPIs numeriques.
+   La valeur est revelee chiffre par chiffre via un transform. */
+@keyframes countSlide {
+  from { transform: translateY(.6em); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.count-up { animation: countSlide 600ms cubic-bezier(.4,0,.2,1) both; }
+
+/* Pulse subtil pour les indicateurs live (saison active, etc.) */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .55; }
+}
+.pulse-live { animation: livePulse 2s ease-in-out infinite; }
+
+/* Spin pour loaders */
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.spin-slow { animation: spinSlow 2s linear infinite; }
+
+/* Respect reduced motion - desactive toute animation non-essentielle. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ----- Misc --------------------------------------------------- */
+
+.font-display { font-family: "Geist", system-ui, sans-serif; }
+.font-mono    { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+/* Liens dans le contenu : underline tres discrete sur hover */
+.link-discrete { color: rgb(var(--ink)); }
+.link-discrete:hover { color: rgb(var(--turf)); }
