@@ -1,5 +1,5 @@
 import { DataSource } from "typeorm";
-import { Entrainement, Equipe, Joueur, StatJoueurEquipe } from "@/entities";
+import { Entrainement, Equipe, Joueur, StatJoueurEquipe, Utilisateur } from "@/entities";
 import { creerBaseTest, fabriques } from "@/testing/test-db";
 import { EquipesService } from "./equipes.module";
 
@@ -255,6 +255,20 @@ describe("EquipesService", () => {
       expect(lignes.map((l) => [l.joueurId, l.equipeId, l.buts]).sort()).toEqual(
         [[j1.id, cible.id, 4], [j2.id, cible.id, 2]].sort(),
       );
+    });
+
+    it("les droits d'un utilisateur limite a l'equipe absorbee passent a l'equipe qui la remplace", async () => {
+      const c = await contexte();
+      const source = await f.equipe({ clubId: c.club.id, nom: "Provisoire", categorie: "U20", division: "D1", saisonId: c.s26.id });
+      const cible = await f.equipe({ clubId: c.club.id, nom: "Reelle", categorie: "U20", division: "D1", poule: "B", saisonId: c.s26.id });
+      const repoU = ds.getRepository(Utilisateur);
+      const u = await repoU.save({ login: "MGELIS", prenom: "M", nom: "Gelis", passwordHash: "x", role: "user", equipeIds: ["autre", source.id, cible.id] } as any);
+      const autre = await repoU.save({ login: "XUSER", prenom: "X", nom: "User", passwordHash: "x", role: "user", equipeIds: ["autre"] } as any);
+
+      await svc.fusionner(source.id, cible.id);
+
+      expect((await repoU.findOneByOrFail({ id: u.id })).equipeIds).toEqual(["autre", cible.id]);
+      expect((await repoU.findOneByOrFail({ id: autre.id })).equipeIds).toEqual(["autre"]);
     });
 
     it("n'absorbe jamais une equipe deja jouee", async () => {

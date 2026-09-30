@@ -13,7 +13,9 @@ import {
 import { IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { Club, Entrainement, Equipe, Joueur, LigneClassement, Match, StatJoueurEquipe } from "@/entities";
+import {
+  Club, Entrainement, Equipe, Joueur, LigneClassement, Match, StatJoueurEquipe, Utilisateur,
+} from "@/entities";
 import { AdminGuard, AuthModule } from "../auth/auth.module";
 
 const minuscule = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
@@ -312,6 +314,17 @@ export class EquipesService {
       j.equipesAttachees = [...new Set(avant.map((id) => (id === sourceId ? cibleId : id)))];
       await m.getRepository(Joueur).save(j);
       joueursDeplaces++;
+    }
+
+    // Droits d'acces : un utilisateur limite a l'equipe fusionnee doit garder l'acces a
+    // celle qui la remplace (sinon elle disparait de son selecteur).
+    const users = await m.getRepository(Utilisateur).createQueryBuilder("u")
+      .where("u.equipeIds LIKE :p", { p: `%${sourceId}%` })
+      .getMany();
+    for (const u of users) {
+      if (!(u.equipeIds ?? []).includes(sourceId)) continue;
+      u.equipeIds = [...new Set(u.equipeIds.map((id) => (id === sourceId ? cibleId : id)))];
+      await m.getRepository(Utilisateur).save(u);
     }
 
     const seances = await m.getRepository(Entrainement).update({ equipeId: sourceId }, { equipeId: cibleId });

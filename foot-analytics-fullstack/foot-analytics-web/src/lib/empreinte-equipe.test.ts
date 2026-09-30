@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { empreinteEquipe, equipeEquivalente, filtrerEquipesAutorisees, memeChampionnat } from "./empreinte-equipe";
+import { empreinteEquipe, equipeEquivalente, filtrerEquipesAutorisees, memeChampionnat, niveauEquipe } from "./empreinte-equipe";
 import type { Equipe } from "./types";
 
 const eq = (id: string, o: Partial<Equipe> = {}): Equipe => ({
-  id, clubId: "c1", nom: id, categorie: "Seniors", competitionLibelle: "Seniors D2", poule: "C", saisonId: "s1", ...o,
+  id, clubId: "c1", nom: id, categorie: "Seniors", division: "D2", competitionLibelle: "Seniors D2", poule: "C", saisonId: "s1", ...o,
 });
 
 describe("empreinteEquipe", () => {
@@ -48,5 +48,38 @@ describe("filtrerEquipesAutorisees", () => {
   it("autorise aussi les clones d'une equipe autorisee sur les autres saisons (meme empreinte)", () => {
     const r = filtrerEquipesAutorisees(equipes, { role: "user", equipeIds: ["a1"] });
     expect(r.map((e) => e.id)).toEqual(["a1", "a2"]);
+  });
+
+  it("la poule change d'une saison a l'autre (C puis A) : l'equipe reste autorisee grace a son niveau", () => {
+    // Cas reel : droits donnes sur "Seniors D2 poule C" 2025-2026 ; en 2026-2027 la vraie poule est A.
+    const saisons = [
+      eq("c25", { saisonId: "s25" }),
+      eq("a26", { saisonId: "s26", poule: "A" }),
+      eq("u20-26", { saisonId: "s26", categorie: "U20", division: "R2", competitionLibelle: "U20 R2", poule: "B" }),
+    ];
+    const r = filtrerEquipesAutorisees(saisons, { role: "user", equipeIds: ["c25"] });
+    expect(r.map((e) => e.id)).toEqual(["c25", "a26"]);
+  });
+
+  it("le niveau ne deborde pas : autre division, autre club ou division inconnue restent exclus", () => {
+    const toutes = [
+      eq("c25"),
+      eq("d1", { saisonId: "s26", division: "D1", competitionLibelle: "Seniors D1", poule: "A" }),
+      eq("autre-club", { clubId: "c2", saisonId: "s26", poule: "A" }),
+      eq("sans-division", { saisonId: "s26", division: null, competitionLibelle: "Coupe", poule: null }),
+    ];
+    const r = filtrerEquipesAutorisees(toutes, { role: "user", equipeIds: ["c25"] });
+    expect(r.map((e) => e.id)).toEqual(["c25"]);
+  });
+});
+
+describe("niveauEquipe", () => {
+  it("club + categorie + division, sans la poule", () => {
+    expect(niveauEquipe(eq("a"))).toBe("c1|Seniors|D2");
+    expect(niveauEquipe(eq("a", { poule: "A" }))).toBe(niveauEquipe(eq("b")));
+  });
+  it("null si categorie ou division manque", () => {
+    expect(niveauEquipe(eq("a", { division: null }))).toBeNull();
+    expect(niveauEquipe(eq("a", { categorie: undefined }))).toBeNull();
   });
 });
