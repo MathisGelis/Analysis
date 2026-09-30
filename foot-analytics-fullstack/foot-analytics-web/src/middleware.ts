@@ -3,12 +3,14 @@
 // Middleware execute AVANT tout rendu de page. Deux responsabilites :
 //
 // 1. Garde d'acces : pas de jeton valide -> redirection vers /login.
-// 2. UNIQUE responsable de la selection automatique de l'equipe au
-//    demarrage : si le cookie
-// `ownEquipeId` est absent (apres login, changement de club, cookies
-// vides), on interroge le backend, on choisit l'equipe par defaut du club
-// et on pose `ownEquipeId` + `ownSaisonId` (et `ownClubId` si on a du
-// changer de club) dans la reponse.
+// 2. UNIQUE responsable de la selection de l'equipe : elle doit TOUJOURS
+//    etre valide (cf. selection-equipe.ts). Cookies absents (apres login,
+//    changement de club) OU perimes (equipe fusionnee ou supprimee, saison
+//    reconstruite, permissions), on interroge le backend, on retient une
+//    selection valide et on pose `ownEquipeId` + `ownSaisonId` (et `ownClubId`
+//    si on a du changer de club) dans la reponse.
+//    Une selection verifiee est memorisee 2 minutes (cookie ownSelValide) pour
+//    ne pas interroger le backend a chaque navigation.
 //
 // Le Server Component layout.tsx, execute juste apres, lit deja les
 // cookies : les providers demarrent avec les bonnes valeurs et le
@@ -25,7 +27,7 @@ import { debug } from "@/lib/debug";
 import { decoderPayloadJwt } from "@/lib/jwt";
 import { DEFAULT_OWN_CLUB_ID } from "@/lib/club-defaut";
 import { filtrerEquipesAutorisees } from "@/lib/empreinte-equipe";
-import { choisirEquipeParDefaut } from "@/lib/equipe-defaut";
+import { selectionValide } from "@/lib/selection-equipe";
 import type { Club, Equipe, Saison } from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
@@ -63,12 +65,20 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  // Selection automatique : rien a faire si une equipe est deja choisie.
-  if (req.cookies.get("ownEquipeId")?.value) return NextResponse.next();
+  // Selection : rien a verifier si elle l'a ete il y a moins de 2 minutes, ni
+  // pour un prechargement de lien (pas une vraie navigation).
+  const equipeCookie = req.cookies.get("ownEquipeId")?.value ?? null;
+  const saisonCookie = req.cookies.get("ownSaisonId")?.value ?? null;
+  if (equipeCookie && saisonCookie
+    && req.cookies.get("ownSelValide")?.value === `${equipeCookie}|${saisonCookie}`) {
+    return NextResponse.next();
+  }
+  if (req.headers.get("next-router-prefetch") || req.headers.get("purpose") === "prefetch") {
+    return NextResponse.next();
+  }
   const estAdmin = payload?.role === "admin";
   const clubJwt = !estAdmin ? payload?.clubId ?? null : null;
   const clubCookie = req.cookies.get("ownClubId")?.value ?? null;
-  const saisonCookie = req.cookies.get("ownSaisonId")?.value ?? null;
 
   try {
     const headers = { Authorization: `Bearer ${token}` };
@@ -94,15 +104,18 @@ export async function middleware(req: NextRequest) {
       }
     }
 
-    const choix = choisirEquipeParDefaut(equipes, saisons, saisonCookie);
-    // Rien a selectionner (club sans equipe, ou saison choisie encore vide) :
-    // on ne touche a aucun cookie.
-    if (!choix?.equipe) return NextResponse.next();
+    const choix = selectionValide({ equipes, saisons, equipeId: equipeCookie, saisonId: saisonCookie });
+    // Club sans aucune equipe : rien a selectionner, on ne touche a aucun cookie.
+    if (!choix.equipe) return NextResponse.next();
 
     const opts = { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" as const };
-    const aPoser: [string, string][] = [["ownEquipeId", choix.equipe.id]];
-    if (choix.saisonId) aPoser.push(["ownSaisonId", choix.saisonId]);
+    const aPoser: [string, string][] = [];
+    if (choix.corrigee) {
+      aPoser.push(["ownEquipeId", choix.equipe.id]);
+      if (choix.saisonId) aPoser.push(["ownSaisonId", choix.saisonId]);
+    }
     if (clubId !== clubCookie) aPoser.push(["ownClubId", clubId]);
+    const memo: [string, string] = ["ownSelValide", `${choix.equipe.id}|${choix.saisonId ?? ""}`];
 
     // Un Set-Cookie sur la reponse n'est lu par le navigateur qu'a la
     // requete SUIVANTE : sans autre precaution, le layout et les pages de
@@ -112,7 +125,10 @@ export async function middleware(req: NextRequest) {
     for (const [nom, valeur] of aPoser) req.cookies.set(nom, valeur);
     const res = NextResponse.next({ request: { headers: req.headers } });
     for (const [nom, valeur] of aPoser) res.cookies.set(nom, valeur, opts);
-    debug(`[middleware] auto-select equipe ${choix.equipe.nom} (${choix.equipe.id}) club=${clubId}`);
+    res.cookies.set(memo[0], memo[1], { ...opts, maxAge: 120 });
+    if (choix.corrigee) {
+      debug(`[middleware] selection corrigee : equipe ${choix.equipe.nom} (${choix.equipe.id}) club=${clubId}`);
+    }
     return res;
   } catch (err) {
     console.warn("[middleware] auto-select echoue :", (err as Error).message);

@@ -18,6 +18,7 @@ import { useOwnEquipe } from "@/lib/own-equipe-context";
 import { getCachedUser } from "@/lib/auth";
 import { debug } from "@/lib/debug";
 import { filtrerEquipesAutorisees } from "@/lib/empreinte-equipe";
+import { selectionValide } from "@/lib/selection-equipe";
 
 export function OwnEquipeSwitcher() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export function OwnEquipeSwitcher() {
   const [reimportState, setReimportState] = useState<"idle" | "loading" | "error">("idle");
   const [reimportError, setReimportError] = useState<string>("");
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const reparationFaite = useRef(false);
 
   // Click exterieur ferme le menu. On utilise mousedown plutot que click
   // pour fermer AVANT que le clic n'atteigne un autre bouton (sinon on
@@ -84,13 +86,20 @@ export function OwnEquipeSwitcher() {
   };
 
   const onPickSaison = async (sid: string) => {
-    // Quand on change de saison, on selectionne la 1ere equipe du club
-    // pour cette saison ; si aucune, on met l'equipe a null mais on
-    // garde la saison.
-    const candidates = equipes.filter((e) => e.saisonId === sid);
-    const first = candidates[0] ?? null;
-    setEquipe(first?.id ?? null, sid);
-    await persist(first?.id ?? null, sid);
+    // Changer de saison ne doit jamais laisser la selection vide. Le club a des
+    // equipes cette saison : on prend l'equivalent de l'equipe actuelle (meme
+    // categorie), sinon la premiere. Il n'en a pas : on reimporte celles de la
+    // saison precedente ; si cela echoue on RESTE sur la selection actuelle et on
+    // affiche l'erreur.
+    if (!equipes.some((e) => e.saisonId === sid)) {
+      await reimporterEquipesSaisonPrecedente(sid);
+      return;
+    }
+    setReimportState("idle");
+    const choix = selectionValide({ equipes, saisons, equipeId, saisonId: sid });
+    if (!choix.equipe) return;
+    setEquipe(choix.equipe.id, choix.saisonId);
+    await persist(choix.equipe.id, choix.saisonId);
   };
   const onPickEquipe = async (eid: string) => {
     const eq = equipes.find((e) => e.id === eid);
@@ -166,10 +175,26 @@ export function OwnEquipeSwitcher() {
     }
   };
 
-  const equipeChoisie = equipes.find((e) => e.id === equipeId);
-  const saisonChoisie = saisons.find((s) => s.id === saisonId)
+  // Selection AFFICHEE : toujours valide tant que le club a une equipe. Un cookie
+  // perime (equipe fusionnee ou supprimee, autre club) ne donne plus "Aucune
+  // equipe" : on affiche la selection corrigee, et on la reecrit ci-dessous.
+  const selection = booted ? selectionValide({ equipes, saisons, equipeId, saisonId }) : null;
+  const equipeChoisie = selection?.equipe ?? null;
+  const saisonChoisie = saisons.find((s) => s.id === (selection?.saisonId ?? saisonId))
     ?? saisons.find((s) => s.actif)
     ?? saisons[0];
+
+  // Auto-reparation : le middleware corrige deja les cookies a chaque navigation ;
+  // ceci rattrape les cas survenus entre deux verifications (fusion d'equipes en
+  // cours de session). Une seule tentative, pour ne jamais boucler.
+  useEffect(() => {
+    if (!selection?.corrigee || !selection.equipe || reparationFaite.current) return;
+    reparationFaite.current = true;
+    debug("[switcher] selection perimee corrigee", { equipeId, saisonId }, "->", selection.equipe.id);
+    setEquipe(selection.equipe.id, selection.saisonId);
+    void persist(selection.equipe.id, selection.saisonId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection?.corrigee, selection?.equipe?.id, selection?.saisonId]);
 
   const equipesPourSaison = saisonChoisie
     ? equipes.filter((e) => e.saisonId === saisonChoisie.id)
@@ -203,7 +228,7 @@ export function OwnEquipeSwitcher() {
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-0 right-0 mb-2 panel p-3 shadow-xl border border-line z-30 max-h-[60vh] overflow-y-auto">
+        <div role="dialog" aria-label="Choix de la saison et de l'equipe" className="absolute bottom-full left-0 right-0 mb-2 panel p-3 shadow-xl border border-line z-30 max-h-[60vh] overflow-y-auto">
           {/* Saisons */}
           <div className="text-[10px] uppercase tracking-[0.18em] text-faint mb-2">Saison</div>
           <ul className="space-y-0.5 mb-3">
@@ -220,6 +245,14 @@ export function OwnEquipeSwitcher() {
               </li>
             ))}
           </ul>
+          {reimportState === "loading" && (
+            <p className="text-[10px] text-faint mb-3 px-2">Import des equipes de la saison…</p>
+          )}
+          {reimportState === "error" && equipesPourSaison.length > 0 && (
+            <div className="mb-3 text-[10px] text-danger px-2 py-1.5 rounded bg-danger/[0.08] border border-danger/30 leading-snug">
+              Saison inchangee : {reimportError}
+            </div>
+          )}
 
           {/* Equipes de la saison choisie */}
           <div className="text-[10px] uppercase tracking-[0.18em] text-faint mb-2">Equipe</div>
@@ -256,10 +289,10 @@ export function OwnEquipeSwitcher() {
                   <button
                     onClick={() => onPickEquipe(e.id)}
                     className={`w-full text-left px-2 py-1 rounded text-xs flex items-center justify-between
-                      ${e.id === equipeId ? "bg-turf/[0.10] text-turf font-semibold" : "hover:bg-line/40"}`}
+                      ${e.id === equipeChoisie?.id ? "bg-turf/[0.10] text-turf font-semibold" : "hover:bg-line/40"}`}
                   >
                     <span className="truncate">{e.nom}</span>
-                    {e.id === equipeId && <Check size={11}/>}
+                    {e.id === equipeChoisie?.id && <Check size={11}/>}
                   </button>
                 </li>
               ))}

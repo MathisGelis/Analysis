@@ -67,17 +67,47 @@ test("connexion : refus d'un mauvais mot de passe puis acces, equipe choisie d'o
   await expect(selecteur(page)).toContainText("Seniors D2 Poule C");
 });
 
-test("saison sans equipe : le bouton reimporte les equipes de la saison precedente", async () => {
+test("saison sans equipe : choisir la saison reimporte les equipes, la selection n'est jamais vide", async () => {
   await page.goto("/");
   await ouvrirSelecteur(page);
-  // Choisir une saison laisse le menu ouvert : la liste d'equipes s'y affiche directement.
+  // 2026-2027 n'a encore aucune equipe pour le club : plutot que de laisser
+  // "Aucune equipe", le choix de la saison reimporte celles de la precedente.
   await page.getByRole("button", { name: /^2026-2027/ }).click();
-  await expect(page.getByText("Aucune equipe sur cette saison.")).toBeVisible();
-
-  await page.getByRole("button", { name: "Reimporter les equipes de la saison precedente" }).click();
 
   await expect(selecteur(page)).toContainText("2026-2027");
   await expect(selecteur(page)).toContainText("Seniors D2 Poule C");
+  await expect(selecteur(page)).not.toContainText("Aucune equipe");
+});
+
+test("cookie d'equipe perime (equipe fusionnee ou supprimee) : la selection est reparee, jamais vide", async () => {
+  const base = `http://localhost:${WEB_PORT}`;
+  const cookie = async (nom: string) => (await contexte.cookies()).find((c) => c.name === nom)?.value;
+  const saisonId = await cookie("ownSaisonId");
+  expect(saisonId).toBeTruthy();
+
+  // 1. Le middleware detecte le cookie perime et le reecrit dans la MEME requete.
+  await contexte.addCookies([{ name: "ownEquipeId", value: "equipe-disparue", url: base }]);
+  await contexte.clearCookies({ name: "ownSelValide" });
+  await page.goto("/effectif");
+  await expect(selecteur(page)).toContainText("Seniors D2 Poule C");
+  await expect(page.locator("header .h-section").first()).toContainText("Seniors D2 Poule C");
+  expect(await cookie("ownEquipeId")).not.toBe("equipe-disparue");
+
+  // 2. Verification memorisee (moins de 2 minutes) mais equipe disparue depuis : le selecteur
+  //    se repare lui-meme, sans jamais afficher "Aucune equipe".
+  await contexte.addCookies([
+    { name: "ownEquipeId", value: "equipe-disparue", url: base },
+    { name: "ownSelValide", value: `equipe-disparue|${saisonId}`, url: base },
+  ]);
+  await page.goto("/effectif");
+  await expect(selecteur(page)).not.toContainText("Aucune equipe");
+  await expect(selecteur(page)).toContainText("Seniors D2 Poule C");
+  await expect.poll(() => cookie("ownEquipeId")).not.toBe("equipe-disparue");
+
+  // 3. Un rafraichissement garde la selection.
+  await page.reload();
+  await expect(selecteur(page)).toContainText("Seniors D2 Poule C");
+  await expect(selecteur(page)).not.toContainText("Aucune equipe");
 });
 
 test("effectif 2026-2027 : ajout d'un joueur existant (recherche floue) puis d'un nouveau", async () => {

@@ -67,10 +67,23 @@ Toutes les routes sont prefixees par `/api`.
 ### Equipes
 - `GET    /equipes?clubId=` · `GET /equipes/:id`
 - `POST   /equipes` · `PATCH /equipes/:id` · `DELETE /equipes/:id`
+- Une nouvelle saison reprend les equipes de la precedente (clones sans joueurs).
+  Des que la 1re feuille de la nouvelle poule est importee, le clone provisoire
+  (meme niveau : categorie + division) est **fusionne** dans la vraie equipe,
+  joueurs, seances et saisies comprises ; au demarrage l'API reconcilie aussi les
+  donnees existantes (`AUTO_RECONCILE=false` pour desactiver).
 
 ### Joueurs (effectif)
 - `GET    /joueurs?clubId=&poste=` · `GET /joueurs/:id`
 - `POST   /joueurs` · `PATCH /joueurs/:id` · `DELETE /joueurs/:id`
+- **Stats par equipe et par saison** (jamais les compteurs globaux du joueur) :
+  - `GET /joueurs/effectif?equipeId=` : effectif d'une equipe, stats sur ses seuls matchs ;
+  - `GET /joueurs/championnat?equipeId=` : joueurs de la poule (meme saison + competition + poule) ;
+  - `GET /joueurs/:id/historique` : une entree par saison (`totaux`, `saisonActive`) avec une ligne par equipe
+    (matchs, minutes, buts, passes, cartons, numeros portes) ;
+  - `GET /joueurs/:id/matchs?saisonId=&limite=` : derniers matchs joues, avec la feuille personnelle ;
+  - `PUT /joueurs/:id/stats-equipe/:equipeId` `{ buts?, passesDecisives? }` : saisie manuelle pour CETTE equipe
+    (les FMI n'ont pas toujours les buteurs) ; `null` efface et revient au calcul depuis les feuilles.
 
 ### Matchs (avec compositions + evenements imbriques)
 - `GET    /matchs?clubId=` · `GET /matchs/:id`
@@ -91,12 +104,14 @@ Toutes les routes sont prefixees par `/api`.
 - `POST   /blessures` · `PATCH /blessures/:id` · `DELETE /blessures/:id`
 
 ### Scouting
-- `GET    /scouting?clubId=` · `GET /scouting/club/:clubId` · `GET /scouting/:id`
+- `GET    /scouting?clubId=&saisonId=` · `GET /scouting/club/:clubId?saisonId=` · `GET /scouting/:id`
+  (avec `saisonId`, seuls les rapports dates dans la saison : du 1er juillet au 30 juin)
 - `POST   /scouting` · `PATCH /scouting/:id` · `DELETE /scouting/:id`
 
 ### Classement / Stats
 - `GET    /classement`
-- `GET    /stats/bilan/:clubId` · `GET /stats/effectif/:clubId`
+- `GET    /stats/bilan/:clubId?equipeId=&saisonId=` (sans parametre : toutes equipes et saisons melangees)
+- `GET    /analyse/club/:clubId?equipeId=&saisonId=` : rapport d'analyse d'equipe, meme perimetre
 
 ### Import FMI
 - `POST   /fmi/import` — multipart/form-data, champ `file` (PDF).

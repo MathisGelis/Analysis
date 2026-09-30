@@ -1,10 +1,10 @@
 // Prepare la base de test par l'API (une seule fois, avant les parcours) :
 //  - le compte admin cree au demarrage (AADMIN / Bienvenue1) change son mot de
 //    passe, pour ne pas etre redirige vers /change-password a chaque connexion ;
-//  - saisons 2024-2025 (archivee), 2025-2026 (active, avec equipe) et
-//    2026-2027 (creee au demarrage par l'API, VIDE) ;
-//  - un club avec une equipe Seniors D2 Poule C sur 2025-2026 et un joueur
-//    existant a retrouver par la recherche floue.
+//  - saisons 2024-2025 (archivee, avec equipe), 2025-2026 (active, avec equipe) et
+//    2026-2027 (creee au demarrage par l'API, sans equipe pour le club) ;
+//  - un club avec une equipe Seniors D2 Poule C sur 2025-2026 (Poule B en 2024-2025)
+//    et un joueur existant a retrouver par la recherche floue.
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -52,13 +52,19 @@ export default async function globalSetup() {
     clubId: club.id, nom: "Seniors D2 Poule C", categorie: "Seniors", division: "D2",
     poule: "C", competitionLibelle: "Seniors D2 / Phase Unique", saisonId: s2526.id,
   });
+  // Une saison archivee SANS equipe du club ne peut pas etre selectionnee (la
+  // selection n'est jamais vide) : l'archive a donc la sienne.
+  const equipe2425 = await appel<{ id: string }>("/equipes", token, "POST", {
+    clubId: club.id, nom: "Seniors D2 Poule B", categorie: "Seniors", division: "D2",
+    poule: "B", competitionLibelle: "Seniors D2 / Phase Unique", saisonId: s2425.id,
+  });
   await appel("/joueurs", token, "POST", {
     nom: "DIAGOLA", prenom: "Seydou", licence: "9604756569", clubId: club.id,
   });
 
   mkdirSync(path.dirname(FIXTURES), { recursive: true });
   writeFileSync(FIXTURES, JSON.stringify({
-    clubId: club.id, equipeId: equipe.id,
+    clubId: club.id, equipeId: equipe.id, equipe2425: equipe2425.id,
     saison2425: s2425.id, saison2526: s2526.id, saison2627: s2627.id,
   }, null, 2));
 }
