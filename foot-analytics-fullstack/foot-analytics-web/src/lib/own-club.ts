@@ -14,32 +14,17 @@
 // Pour les Client Components, utiliser `useOwnClubId()` du contexte.
 
 import { cookies } from "next/headers";
+import { decoderPayloadJwt } from "@/lib/jwt";
+import { DEFAULT_OWN_CLUB_ID } from "@/lib/club-defaut";
 
-export const DEFAULT_OWN_CLUB_ID =
-  process.env.NEXT_PUBLIC_CLUB_ID ?? "chapo";
-
-/**
- * Decode le payload JWT (base64) sans verifier la signature.
- * Utilise en lecture seule pour pre-filtrer cote UX ; la verification
- * crypto reste l'affaire du backend. Sync pour ne pas casser les
- * appelants (signature compatible).
- */
-function decodeJwtPayload(token: string): any | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
-    return JSON.parse(Buffer.from(padded, "base64").toString("utf8"));
-  } catch { return null; }
-}
+export { DEFAULT_OWN_CLUB_ID };
 
 export function getOwnClubIdServer(): string {
   const all = cookies();
   // 1. JWT du user connecte : si user non-admin avec clubId, on le force.
   const token = all.get("fa_token")?.value;
   if (token) {
-    const payload = decodeJwtPayload(token);
+    const payload = decoderPayloadJwt(token);
     if (payload && payload.role !== "admin" && payload.clubId) {
       return payload.clubId;
     }

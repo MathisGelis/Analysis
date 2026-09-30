@@ -15,11 +15,21 @@ export interface Equipe {
   id: string;
   clubId: string;
   nom: string;
-  categorie: string;
-  division: string;
-  poule: string;
+  categorie?: string | null;
+  division?: string | null;
+  poule?: string | null;
+  competitionLibelle?: string | null;
+  saisonId?: string | null;
   coach?: string;
-  formationDef: string;
+  formationDef?: string | null;
+}
+
+export interface Saison {
+  id: string;
+  nom: string;
+  anneeDebut: number;
+  actif: boolean;
+  statut?: string;
 }
 
 export interface Joueur {

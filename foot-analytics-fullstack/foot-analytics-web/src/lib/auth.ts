@@ -5,6 +5,8 @@
 //  - cookie "fa_token" : pour que le middleware Next + les Server
 //    Components puissent lire le token aussi (lecture serveur).
 
+import { decoderPayloadJwt } from "@/lib/jwt";
+
 export interface User {
   id: string;
   login: string;
@@ -20,9 +22,22 @@ const TOKEN_KEY = "fa.token";
 const USER_KEY = "fa.user";
 const COOKIE_NAME = "fa_token";
 
+/**
+ * Cote client. Efface la selection club/equipe/saison de la session
+ * precedente : sans ca, un cookie d'equipe d'un autre utilisateur (ou d'un
+ * autre club) survit a la reconnexion. Le middleware re-selectionne ensuite
+ * l'equipe par defaut au chargement suivant.
+ */
+function viderSelectionCookies() {
+  for (const nom of ["ownEquipeId", "ownSaisonId", "ownClubId"]) {
+    document.cookie = `${nom}=; path=/; max-age=0; samesite=lax`;
+  }
+}
+
 /** Cote client uniquement. Pose le token dans localStorage + cookie. */
 export function setSession(token: string, user: User) {
   if (typeof window === "undefined") return;
+  viderSelectionCookies();
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   // Cookie 7j, lisible cote serveur via cookies() de next/headers.
@@ -49,6 +64,7 @@ export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   document.cookie = `${COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
+  viderSelectionCookies();
 }
 
 export { COOKIE_NAME };
@@ -76,13 +92,8 @@ export async function getCurrentUserServer(): Promise<JwtPayloadLight | null> {
     const { cookies } = await import("next/headers");
     const token = cookies().get(COOKIE_NAME)?.value;
     if (!token) return null;
-    // JWT = header.payload.signature. On decode la base64 du payload.
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
-    const json = Buffer.from(padded, "base64").toString("utf8");
-    const payload = JSON.parse(json) as JwtPayloadLight;
+    const payload = decoderPayloadJwt(token) as JwtPayloadLight | null;
+    if (!payload) return null;
     // Verif expiration cote client (defensive, le backend re-controle).
     if (payload.exp && payload.exp * 1000 < Date.now()) return null;
     return payload;

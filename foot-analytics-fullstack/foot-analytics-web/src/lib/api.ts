@@ -33,10 +33,9 @@ type Json = Record<string, any>;
  * Renvoie undefined si pas de token (pre-login, anonyme...). L'appelant
  * decide ce qu'il en fait (header omis ou requete refusee).
  *
- * Cette fonction est partagee entre la fonction generique req() et les
- * methodes qui font un fetch direct (upload FormData : importFmi,
- * importFmiBatch). Sans ce token, les requetes sont rejetees avec 401
- * par le JwtAuthGuard global (cf. maj 37).
+ * Utilisee par authHeaders(), donc par fetchApi() : lectures JSON comme
+ * uploads FormData. Sans ce token, les requetes sont rejetees avec 401
+ * par le JwtAuthGuard global.
  */
 async function getAuthToken(): Promise<string | undefined> {
   if (typeof window === "undefined") {
@@ -48,36 +47,55 @@ async function getAuthToken(): Promise<string | undefined> {
   return localStorage.getItem("fa.token") ?? undefined;
 }
 
+/** En-tetes d'authentification (vide si pas de token). */
+async function authHeaders(): Promise<Record<string, string>> {
+  const token = await getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/**
+ * Appel HTTP brut vers l'API : URL de base, JWT, cache desactive.
+ * Renvoie la Response telle quelle (le statut est a la charge de l'appelant).
+ *
+ * Content-Type JSON par defaut, sauf pour un FormData : le navigateur doit
+ * fixer lui-meme la boundary multipart, un Content-Type manuel casserait
+ * l'upload.
+ */
+async function fetchApi(path: string, init: RequestInit = {}): Promise<Response> {
+  const estFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
+  return fetch(`${API_URL}${path}`, {
+    // Lectures cote serveur Next : toujours frais (pas de cache fige).
+    cache: "no-store",
+    ...init,
+    headers: {
+      ...(estFormData ? {} : { "Content-Type": "application/json" }),
+      ...(await authHeaders()),
+      ...((init.headers as Record<string, string> | undefined) ?? {}),
+    },
+  });
+}
+
+/**
+ * Lit le corps d'une reponse OK. Gere les cas sans JSON :
+ *  - 204 (delete, no-content) -> undefined
+ *  - corps vide (Nest qui renvoie `null` directement) -> `vide` (null par defaut)
+ */
+async function parseJson<T>(res: Response, vide: T | null = null): Promise<T> {
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  if (!text || !text.trim()) return vide as T;
+  return JSON.parse(text) as T;
+}
+
 async function req<T>(
   path: string,
   opts: RequestInit & { fallback?: T } = {},
 ): Promise<T> {
   const { fallback, ...init } = opts;
   try {
-    const token = await getAuthToken();
-    const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-
-    const res = await fetch(`${API_URL}${path}`, {
-      // Lectures cote serveur Next : toujours frais (pas de cache fige).
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders,
-        ...(init.headers ?? {}),
-      },
-      ...init,
-    });
+    const res = await fetchApi(path, init);
     if (!res.ok) throw new Error(`API ${res.status} sur ${path}`);
-    // 204 (delete, ou explicit no-content) -> pas de corps
-    if (res.status === 204) return undefined as T;
-    // Corps vide (typique quand Nest retourne `null` directement) :
-    // JSON.parse plante avec "Unexpected end of JSON input". On retourne
-    // null explicite ou le fallback si defini.
-    const text = await res.text();
-    if (!text || !text.trim()) {
-      return (fallback !== undefined ? fallback : null) as T;
-    }
-    return JSON.parse(text) as T;
+    return await parseJson<T>(res, fallback !== undefined ? fallback : null);
   } catch (e) {
     if (fallback !== undefined) {
       if (typeof console !== "undefined") {
@@ -87,6 +105,16 @@ async function req<T>(
     }
     throw e;
   }
+}
+
+/** Upload multipart : erreur detaillee (statut + corps) si le backend refuse. */
+async function uploadApi<T>(path: string, fd: FormData, libelle: string): Promise<T> {
+  const res = await fetchApi(path, { method: "POST", body: fd });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`${libelle} echoue (${res.status}). ${txt}`);
+  }
+  return res.json() as Promise<T>;
 }
 
 /* ----------------------------- LECTURES ---------------------------------- */
@@ -202,42 +230,18 @@ export const api = {
   // le navigateur fixe la boundary multipart lui-meme.
   // recompute=false : on n'effectue pas la reconstruction effectifs/classement
   // a chaque fichier (utile en lot, on appelle rebuildDerivation() a la fin).
-  importFmi: async (file: File, recompute = true) => {
+  importFmi: (file: File, recompute = true) => {
     const fd = new FormData();
     fd.append("file", file);
-    const q = recompute ? "" : "?recompute=false";
-    // ATTENTION : on n'ajoute PAS de Content-Type manuel. Pour un upload
-    // multipart/form-data, le browser le fait lui-meme avec le boundary
-    // genere. Ajouter un Content-Type ici casserait l'upload.
-    // Par contre on injecte le JWT, sinon le JwtAuthGuard global
-    // (depuis maj 37) rejette en 401.
-    const token = await getAuthToken();
-    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-    const res = await fetch(`${API_URL}/fmi/import${q}`, {
-      method: "POST", body: fd, headers,
-    });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`Import FMI echoue (${res.status}). ${txt}`);
-    }
-    return res.json();
+    return uploadApi<any>(`/fmi/import${recompute ? "" : "?recompute=false"}`, fd, "Import FMI");
   },
 
   // Import d'un lot complet (dossier) en une requete. Le backend importe puis
   // recalcule effectifs + classement une seule fois.
-  importFmiBatch: async (files: File[]) => {
+  importFmiBatch: (files: File[]) => {
     const fd = new FormData();
     for (const f of files) fd.append("files", f);
-    const token = await getAuthToken();
-    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-    const res = await fetch(`${API_URL}/fmi/import-batch`, {
-      method: "POST", body: fd, headers,
-    });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`Import lot echoue (${res.status}). ${txt}`);
-    }
-    return res.json();
+    return uploadApi<any>("/fmi/import-batch", fd, "Import lot");
   },
 
   // Reconstruit manuellement effectifs (tous clubs) + classement.

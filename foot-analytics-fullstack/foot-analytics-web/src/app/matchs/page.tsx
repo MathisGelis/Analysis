@@ -11,16 +11,14 @@
 
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { getOwnClubIdServer } from "@/lib/own-club";
-import { getOwnEquipeIdServer, getOwnSaisonIdServer } from "@/lib/own-equipe";
+import { getOwnSaisonIdServer } from "@/lib/own-equipe";
+import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
 import { MatchsTable } from "@/components/MatchsTable";
 import { Upload } from "lucide-react";
 
 export const metadata = { title: "Matchs · Foot Analytics" };
 
 export default async function MatchsPage() {
-  const CLUB_PROPRE_ID = getOwnClubIdServer();
-  const OWN_EQUIPE_ID = getOwnEquipeIdServer();
   const OWN_SAISON_ID = getOwnSaisonIdServer();
 
   const [matchs, clubs, saisons, equipes] = await Promise.all([
@@ -30,38 +28,13 @@ export default async function MatchsPage() {
     api.equipes(),
   ]);
 
-  // Determine l'equipe propre (memes regles que /classement, /arbitres).
-  let equipePropre: any = null;
-  if (OWN_EQUIPE_ID) {
-    equipePropre = equipes.find((e: any) => e.id === OWN_EQUIPE_ID) ?? null;
-  }
-  if (!equipePropre) {
-    const saisonActive = saisons.find((s: any) => s.actif) ?? saisons[0];
-    const mesEquipes = equipes.filter((e: any) =>
-      e.clubId === CLUB_PROPRE_ID
-      && (!saisonActive || e.saisonId === saisonActive.id));
-    const activite = new Map<string, number>();
-    for (const m of matchs) {
-      if (m.equipeDomId) activite.set(m.equipeDomId, (activite.get(m.equipeDomId) ?? 0) + 1);
-      if (m.equipeExtId) activite.set(m.equipeExtId, (activite.get(m.equipeExtId) ?? 0) + 1);
-    }
-    mesEquipes.sort((a: any, b: any) =>
-      (activite.get(b.id) ?? 0) - (activite.get(a.id) ?? 0));
-    equipePropre = mesEquipes[0] ?? null;
-  }
+  const { equipe: equipePropre, equipesDuChampionnat } =
+    await resolveEquipePropre({ equipes, saisons, matchs });
 
   // Filtre matchs et equipes par championnat propre.
   let matchsFiltres = matchs;
   let equipesFiltres = equipes;
   if (equipePropre) {
-    const equipesDuChampionnat = new Set(
-      equipes
-        .filter((e: any) =>
-          e.saisonId === equipePropre.saisonId
-          && (e.competitionLibelle ?? null) === (equipePropre.competitionLibelle ?? null)
-          && (e.poule ?? null) === (equipePropre.poule ?? null))
-        .map((e: any) => e.id),
-    );
     matchsFiltres = matchs.filter((m: any) =>
       (m.equipeDomId && equipesDuChampionnat.has(m.equipeDomId))
       || (m.equipeExtId && equipesDuChampionnat.has(m.equipeExtId)),

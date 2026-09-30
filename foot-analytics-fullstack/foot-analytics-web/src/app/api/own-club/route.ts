@@ -11,12 +11,18 @@ export async function POST(req: Request) {
   if (!clubId) {
     return Response.json({ ok: false, erreur: "clubId requis" }, { status: 400 });
   }
-  cookies().set({
+  const jar = cookies();
+  const precedent = jar.get("ownClubId")?.value;
+  jar.set({
     name: "ownClubId",
     value: clubId,
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",
   });
+  // Changement de club : l'equipe selectionnee appartient a l'ancien club.
+  // On l'efface, le middleware choisira l'equipe par defaut du nouveau club
+  // (en gardant la saison choisie) au chargement suivant.
+  if (precedent !== clubId) jar.delete("ownEquipeId");
   return Response.json({ ok: true, clubId });
 }

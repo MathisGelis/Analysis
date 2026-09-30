@@ -7,19 +7,20 @@
 // (aout <anneeDebut> -> juillet <anneeDebut+1>).
 
 import { api } from "@/lib/api";
-import { getOwnClubIdServer } from "@/lib/own-club";
-import { getOwnEquipeIdServer, getOwnSaisonIdServer } from "@/lib/own-equipe";
+import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
 import { BlessuresEditeur } from "@/components/BlessuresEditeur";
 import { Activity, AlertTriangle, Heart, HeartPulse } from "lucide-react";
 
 export const metadata = { title: "Medical & charge · Foot Analytics" };
 
 export default async function Medical() {
-  const CLUB_PROPRE_ID = getOwnClubIdServer();
-  const OWN_EQUIPE_ID = getOwnEquipeIdServer();
-  const OWN_SAISON_ID = getOwnSaisonIdServer();
+  const [equipes, saisons] = await Promise.all([api.equipes(), api.saisons()]);
+  // Equipe et saison resolues de facon centralisee : sur une saison
+  // differente de celle du cookie d'equipe, on obtient l'equivalent.
+  const { equipe, saison: saisonCourante } =
+    await resolveEquipePropre({ equipes, saisons });
 
-  if (!OWN_EQUIPE_ID) {
+  if (!equipe) {
     return (
       <div className="space-y-6 fade-up">
         <header>
@@ -37,22 +38,10 @@ export default async function Medical() {
     );
   }
 
-  const [effectif, blessuresApi, equipes, saisons] = await Promise.all([
-    api.effectifEquipe(OWN_EQUIPE_ID),
+  const [effectif, blessuresApi] = await Promise.all([
+    api.effectifEquipe(equipe.id),
     api.blessures(),
-    api.equipes(),
-    api.saisons(),
   ]);
-  const equipe = equipes.find((e: any) => e.id === OWN_EQUIPE_ID);
-  // Determine la saison courante avec priorite au cookie OWN_SAISON_ID,
-  // puis a la saison de l'equipe, puis a la saison active.
-  const saisonCourante = (OWN_SAISON_ID
-    ? saisons.find((s: any) => s.id === OWN_SAISON_ID)
-    : null)
-    ?? (equipe?.saisonId ? saisons.find((s: any) => s.id === equipe.saisonId) : null)
-    ?? saisons.find((s: any) => s.actif)
-    ?? saisons[0]
-    ?? null;
 
   // Une saison est "en cours" (stats de charge pertinentes) uniquement
   // si elle est marquee active dans la BDD. Une saison future/passee

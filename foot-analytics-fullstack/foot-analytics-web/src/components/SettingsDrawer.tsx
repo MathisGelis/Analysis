@@ -8,6 +8,7 @@
 import { useEffect } from "react";
 import { Moon, Sun, X, Monitor } from "lucide-react";
 import { useTheme } from "@/lib/theme-context";
+import { debug } from "@/lib/debug";
 
 export function SettingsDrawer({
   open, onClose,
@@ -35,19 +36,16 @@ export function SettingsDrawer({
   }, [open]);
 
   function handlePickDark() {
-    // eslint-disable-next-line no-console
-    console.debug("[theme] pick dark");
+    debug("[theme] pick dark");
     set("dark");
   }
   function handlePickLight() {
-    // eslint-disable-next-line no-console
-    console.debug("[theme] pick light");
+    debug("[theme] pick light");
     set("light");
   }
   function handlePickSystem() {
     // Reset preference -> respect systeme. Pas de pose de cookie.
-    // eslint-disable-next-line no-console
-    console.debug("[theme] pick system");
+    debug("[theme] pick system");
     try {
       localStorage.removeItem("fa.theme");
       document.cookie = "fa_theme=; path=/; max-age=0";

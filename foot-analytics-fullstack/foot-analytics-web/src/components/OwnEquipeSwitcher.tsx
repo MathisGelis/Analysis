@@ -16,40 +16,8 @@ import { api } from "@/lib/api";
 import { useOwnClubId } from "@/lib/own-club-context";
 import { useOwnEquipe } from "@/lib/own-equipe-context";
 import { getCachedUser } from "@/lib/auth";
-
-/**
- * Filtre les equipes selon les permissions de l'utilisateur.
- *
- * - Admin : voit tout, aucun filtre
- * - Sans clubId ni equipeIds : voit tout aussi (fallback permissif)
- * - Sinon : match par **empreinte** (clubId + categorie + competition
- *   libelle + poule) plutot que par ID pur. Ainsi, si le user a
- *   acces a "Seniors D2 Poule C" sur 25-26, il a automatiquement
- *   acces a "Seniors D2 Poule C" sur 26-27 (equipe clonee = meme
- *   empreinte). Sans ca, chaque nouveau clone avait un ID inconnu
- *   du JWT et etait masque.
- *
- * Fallback : on garde aussi le match par ID direct au cas ou une
- * equipe est autorisee mais avec une empreinte differente (rare).
- */
-function filtrerEquipesAutorisees(equipes: any[], user: any): any[] {
-  if (!user || user.role === "admin") return equipes;
-  if (!Array.isArray(user.equipeIds) || user.equipeIds.length === 0) return equipes;
-
-  const ids = new Set<string>(user.equipeIds);
-  // Empreintes des equipes explicitement autorisees.
-  const empreintes = new Set<string>(
-    equipes
-      .filter((e) => ids.has(e.id))
-      .map((e) => `${e.clubId}|${e.categorie ?? ""}|${e.competitionLibelle ?? ""}|${e.poule ?? ""}`),
-  );
-
-  return equipes.filter((e) => {
-    if (ids.has(e.id)) return true;
-    const emp = `${e.clubId}|${e.categorie ?? ""}|${e.competitionLibelle ?? ""}|${e.poule ?? ""}`;
-    return empreintes.has(emp);
-  });
-}
+import { debug } from "@/lib/debug";
+import { filtrerEquipesAutorisees } from "@/lib/empreinte-equipe";
 
 export function OwnEquipeSwitcher() {
   const router = useRouter();
@@ -83,75 +51,24 @@ export function OwnEquipeSwitcher() {
     };
   }, [open]);
 
+  // Chargement des saisons et des equipes autorisees. AUCUNE selection
+  // automatique ici : au demarrage, c'est le middleware qui pose les
+  // cookies ownEquipeId / ownSaisonId ; le switcher se contente d'afficher
+  // l'etat et de reagir aux choix de l'utilisateur.
   useEffect(() => {
     (async () => {
       const [s, e] = await Promise.all([api.saisons(), api.equipes(ownClubId)]);
-      setSaisons(s);
       const user = getCachedUser();
       const equipesAutorisees = filtrerEquipesAutorisees(e, user);
+      setSaisons(s);
       setEquipes(equipesAutorisees);
-
-      // Auto-bootstrap pour l'admin apres un reseed : si aucune equipe
-      // n'est trouvee pour le club courant (= cookie ownClubId pointe
-      // vers un club inexistant, typiquement "chapo" hardcode en
-      // fallback), on bascule sur le 1er club ayant des equipes.
-      // Sans ca, le switcher reste vide et l'admin ne peut rien selectionner.
-      if (equipesAutorisees.length === 0 && (user?.role === "admin" || !user?.clubId)) {
-        try {
-          const tousClubs = await api.clubs();
-          for (const c of tousClubs) {
-            const equipesDuClub = await api.equipes(c.id);
-            if (equipesDuClub.length > 0) {
-              // On a trouve un club valide -> on pose le cookie ownClubId
-              // et on reload pour que tous les Server Components reprennent.
-              await fetch("/api/own-club", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ clubId: c.id }),
-              });
-              window.location.reload();
-              return;
-            }
-          }
-        } catch { /* silent */ }
-      }
-
-      // Diagnostic detaille pour comprendre le comportement au refresh.
-      // eslint-disable-next-line no-console
-      console.debug("[switcher] boot", {
+      debug("[switcher] charge", {
         equipeIdCookie: equipeId,
         saisonIdCookie: saisonId,
         nbEquipesRecues: e.length,
         nbEquipesAutorisees: equipesAutorisees.length,
         role: user?.role ?? "unknown",
       });
-
-      // GARANTIE : ne toucher a rien tant que le cookie pointe vers
-      // une equipe reelle. Ceci evite les "flashs" de reselection au
-      // refresh, qui pouvaient basculer sur une autre saison.
-      const cookiePointeEquipeReelle = equipeId && equipesAutorisees.some((e: any) => e.id === equipeId);
-      if (cookiePointeEquipeReelle) {
-        // eslint-disable-next-line no-console
-        console.debug("[switcher] cookie valide, on garde", equipeId);
-        setBooted(true);
-        return;
-      }
-
-      // Sinon (cookie null ou pointant vers une equipe supprimee) :
-      // fallback sur la 1ere equipe de la SAISON ACTIVE (= en cours).
-      // C'est le comportement demande : "l'equipe par defaut doit
-      // etre celle de la saison en cours".
-      if (equipesAutorisees.length > 0) {
-        const active = s.find((x: any) => x.actif) ?? s[0];
-        const candidates = equipesAutorisees.filter((eq: any) => eq.saisonId === active?.id);
-        const first = candidates[0] ?? equipesAutorisees[0];
-        if (first) {
-          // eslint-disable-next-line no-console
-          console.debug("[switcher] fallback auto-select", first.id, first.nom, "saison=", active?.nom);
-          setEquipe(first.id, first.saisonId ?? active?.id ?? null);
-          await persist(first.id, first.saisonId ?? active?.id ?? null);
-        }
-      }
       setBooted(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -192,11 +109,9 @@ export function OwnEquipeSwitcher() {
     setReimportState("loading");
     setReimportError("");
     try {
-      // eslint-disable-next-line no-console
-      console.debug("[reimport] appel autoCloneSaison", sid, "pour club", ownClubId);
+      debug("[reimport] appel autoCloneSaison", sid, "pour club", ownClubId);
       const result = await api.autoCloneSaison(sid, ownClubId);
-      // eslint-disable-next-line no-console
-      console.debug("[reimport] resultat backend", result);
+      debug("[reimport] resultat backend", result);
 
       // Verifier explicitement le retour backend :
       // - result.creees > 0 -> succes reel
@@ -218,8 +133,7 @@ export function OwnEquipeSwitcher() {
       const e = await api.equipes(ownClubId);
       const user = getCachedUser();
       const equipesAutorisees = filtrerEquipesAutorisees(e, user);
-      // eslint-disable-next-line no-console
-      console.debug("[reimport] api renvoie", e.length, "equipes | filtre laisse", equipesAutorisees.length);
+      debug("[reimport] api renvoie", e.length, "equipes | filtre laisse", equipesAutorisees.length);
       if (e.length > 0 && equipesAutorisees.length === 0) {
         // eslint-disable-next-line no-console
         console.warn("[reimport] toutes les equipes sont filtrees par les permissions !", { user });

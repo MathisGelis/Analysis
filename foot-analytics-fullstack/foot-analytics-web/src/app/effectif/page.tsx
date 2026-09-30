@@ -11,6 +11,7 @@ import { Modal } from "@/components/Modal";
 import { JoueurAddModal } from "@/components/JoueurAddModal";
 import type { Joueur } from "@/lib/types";
 import { Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
+import { debug } from "@/lib/debug";
 
 const POSTES = ["TOUS","GB","DD","DC","DG","MD","MO","AT","AG","MIL"];
 
@@ -35,12 +36,10 @@ export default function EffectifPage() {
   async function reload() {
     setLoading(true);
     if (equipeId) {
-      // eslint-disable-next-line no-console
-      console.debug("[effectif] reload equipe", equipeId);
+      debug("[effectif] reload equipe", equipeId);
       try {
         const data = await api.effectifEquipe(equipeId);
-        // eslint-disable-next-line no-console
-        console.debug("[effectif] effectif recu", data.length, "joueurs");
+        debug("[effectif] effectif recu", data.length, "joueurs");
         try {
           const equipes = await api.equipes();
           const eq = equipes.find((e: any) => e.id === equipeId);
@@ -241,8 +240,7 @@ export default function EffectifPage() {
           equipeNom={equipeNom}
           onClose={() => setCreating(false)}
           onSaved={async () => {
-            // eslint-disable-next-line no-console
-            console.debug("[effectif] onSaved -> reload effectif", equipeId);
+            debug("[effectif] onSaved -> reload effectif", equipeId);
             setCreating(false);
             await reload();
             // Force aussi un refresh Server Components (dashboard, etc.).
