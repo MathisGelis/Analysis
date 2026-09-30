@@ -80,6 +80,12 @@ Toutes les routes sont prefixees par `/api`.
 - `GET    /entrainements?equipeId=` · `GET /entrainements/:id`
 - `POST   /entrainements` · `PATCH /entrainements/:id` · `DELETE /entrainements/:id`
 
+### Maintenance (admin)
+- `POST   /arbitres/maintenance/delegues` — supprime les liens d'arbitre de role
+  `autre` et les arbitres qui n'en ont pas d'autre : ce sont les delegues de
+  rencontre enregistres a tort par les anciens imports FMI. **Simulation par
+  defaut** ; `?appliquer=true` pour supprimer, puis `POST /derivation/rebuild`.
+
 ### Blessures
 - `GET    /blessures?joueurId=` · `GET /blessures/:id`
 - `POST   /blessures` · `PATCH /blessures/:id` · `DELETE /blessures/:id`

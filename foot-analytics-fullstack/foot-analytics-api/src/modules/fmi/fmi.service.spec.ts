@@ -72,6 +72,22 @@ describe("FmiService - import de lot", () => {
     expect(rebuildAll).toHaveBeenCalledTimes(1);
   });
 
+  it("n'invente aucune formation et ne reecrase pas celle saisie a la main", async () => {
+    lot({ originalname: "a.pdf", parsed: fmi() });
+    await svc.importMany(fichiers(1));
+    const repo = ds.getRepository(Match);
+    const cree = await repo.findOneByOrFail({ numeroFmi: "53415223" });
+    expect(cree.formationDom).toBeNull();
+    expect(cree.formationExt).toBeNull();
+
+    await repo.update(cree.id, { formationDom: "3-5-2" });
+    await svc.importMany(fichiers(1));
+
+    const apres = await repo.findOneByOrFail({ numeroFmi: "53415223" });
+    expect(apres.formationDom).toBe("3-5-2");
+    expect(apres.formationExt).toBeNull();
+  });
+
   it("reimport de la meme feuille : mise a jour, jamais de doublon", async () => {
     lot({ originalname: "a.pdf", parsed: fmi() });
     await svc.importMany(fichiers(1));

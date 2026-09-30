@@ -6,12 +6,13 @@
 
 import {
   Body, Controller, Delete, Get, Injectable, Module, NotFoundException,
-  Param, Patch, Post, Query,
+  Param, Patch, Post, Query, UseGuards,
 } from "@nestjs/common";
 import { IsIn, IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Arbitre, ArbitreMatch } from "@/entities";
+import { AdminGuard, AuthModule } from "../auth/auth.module";
 
 const ROLES = ["principal", "assistant1", "assistant2", "4e"] as const;
 
@@ -168,6 +169,52 @@ export class ArbitresService {
     await this.joinRepo.delete(id);
     return { ok: true, id };
   }
+
+  /**
+   * Maintenance : supprime les liens de role "autre" issus des DELEGUES de
+   * rencontre, enregistres a tort comme arbitres par les imports FMI d'avant
+   * la normalisation des libelles de role ("Délégué principal" n'etait pas
+   * reconnu). Les vrais roles (principal, assistant1/2, 4e) ne sont jamais
+   * touches ; un arbitre qui n'a plus aucun lien apres nettoyage est supprime.
+   *
+   * SIMULATION par defaut (appliquer = false) : ne modifie rien, renvoie ce qui
+   * serait supprime. Apres application, relancer POST /derivation/rebuild pour
+   * recalculer les statistiques d'arbitres.
+   */
+  async nettoyerDelegues(appliquer = false) {
+    const liensAutre = await this.joinRepo.find({ where: { role: "autre" } });
+    const parArbitre = new Map<string, number>();
+    for (const l of liensAutre) parArbitre.set(l.arbitreId, (parArbitre.get(l.arbitreId) ?? 0) + 1);
+
+    // Un arbitre est supprime si TOUS ses liens sont de role "autre".
+    const totalParArbitre = new Map<string, number>();
+    for (const id of parArbitre.keys()) {
+      totalParArbitre.set(id, await this.joinRepo.count({ where: { arbitreId: id } }));
+    }
+    const aSupprimer = [...parArbitre.keys()].filter(
+      (id) => totalParArbitre.get(id) === parArbitre.get(id),
+    );
+    const noms = new Map(
+      (await this.repo.find()).map((a) => [a.id, `${a.prenom ?? ""} ${a.nom}`.trim()]),
+    );
+    const rapport = {
+      appliquer,
+      liensAutre: liensAutre.length,
+      arbitresConcernes: parArbitre.size,
+      arbitresSupprimes: aSupprimer.length,
+      exemples: [...parArbitre.entries()].slice(0, 10).map(([id, n]) => ({
+        arbitre: noms.get(id) ?? id, liensAutre: n, supprime: aSupprimer.includes(id),
+      })),
+      suite: appliquer
+        ? "Lance POST /api/derivation/rebuild pour recalculer les statistiques d'arbitres."
+        : "Simulation : rien n'a ete modifie. Relance avec ?appliquer=true pour supprimer.",
+    };
+    if (!appliquer || liensAutre.length === 0) return rapport;
+
+    await this.joinRepo.delete({ role: "autre" });
+    if (aSupprimer.length > 0) await this.repo.delete(aSupprimer);
+    return rapport;
+  }
 }
 
 @Controller("arbitres")
@@ -180,6 +227,12 @@ class ArbitresController {
     return this.svc.update(id, dto);
   }
   @Delete(":id") remove(@Param("id") id: string) { return this.svc.remove(id); }
+
+  // Maintenance (admin) : simulation par defaut, ?appliquer=true pour supprimer.
+  @Post("maintenance/delegues") @UseGuards(AdminGuard)
+  nettoyerDelegues(@Query("appliquer") appliquer?: string) {
+    return this.svc.nettoyerDelegues(appliquer === "true");
+  }
 
   // Liens arbitre <-> match
   @Get("match/:matchId") byMatch(@Param("matchId") matchId: string) {
@@ -197,7 +250,7 @@ class ArbitresController {
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Arbitre, ArbitreMatch])],
+  imports: [TypeOrmModule.forFeature([Arbitre, ArbitreMatch]), AuthModule],
   controllers: [ArbitresController],
   providers: [ArbitresService],
   exports: [ArbitresService],

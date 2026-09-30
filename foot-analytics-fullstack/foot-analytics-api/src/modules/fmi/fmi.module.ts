@@ -409,8 +409,10 @@ export class FmiService {
       scoreDom: parsed.score_recevant,
       scoreExt: parsed.score_visiteur,
       arbitre,
-      formationDom: "4-4-2",
-      formationExt: "4-2-3-1",
+      // Pas de formation : la FMI n'en contient pas (elle etait auparavant
+      // inventee, 4-4-2 / 4-2-3-1, et ECRASAIT la saisie manuelle a chaque
+      // reimport). Champs laisses absents : null a la creation, intacts a la
+      // mise a jour.
       statut: "joue",
       compositions,
       evenements,
