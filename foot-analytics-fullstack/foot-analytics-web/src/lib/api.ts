@@ -14,6 +14,7 @@ import {
   RAPPORT_NEUVILLE as DEMO_RAPPORT,
   CLASSEMENT_POULE_C as DEMO_CLASSEMENT,
 } from "@/data/demo";
+import type { DynamiquePoule } from "@/lib/analyse-types";
 import type {
   Club, HistoriqueSaison, Joueur, LigneClassement, Match, MatchJoue, RapportScouting,
 } from "@/lib/types";
@@ -324,6 +325,9 @@ export const api = {
     const s = qs.toString();
     return req<any>(`/analyse/club/${clubId}${s ? `?${s}` : ""}`, { fallback: null });
   },
+  /** Dynamique de toutes les equipes du championnat de l'equipe donnee (forme, series, sens). */
+  dynamiquePoule: (equipeId: string) =>
+    req<DynamiquePoule | null>(`/analyse/poule?equipeId=${equipeId}`, { fallback: null }),
 
   /* ---- Saisons ---- */
   saisons: () => req<any[]>("/saisons", { fallback: [] }),

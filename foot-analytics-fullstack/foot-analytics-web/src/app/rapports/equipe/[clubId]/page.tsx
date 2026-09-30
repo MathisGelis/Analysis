@@ -3,9 +3,10 @@
 // Rapport d'analyse d'equipe genere depuis le backend
 // (/api/analyse/club/:clubId?equipeId=&saisonId=), restreint a l'equipe du club
 // consultee sur la saison choisie dans le selecteur.
-// Affiche : scores danger / chaos / forme, joueurs cles, impact de chaque
-// joueur, stabilite par ligne, faiblesses identifiees, compo probable,
-// partnerships gagnants, minute moyenne des changements.
+//
+// Lecture en trois temps : ce qu'il faut retenir (constats ecrits par le moteur de
+// tendances), les courbes de dynamique (forme, attaque, defense, lieux, adversaires,
+// discipline), puis le detail de l'effectif (joueurs cles, rotation, compo, staff, impact).
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -13,31 +14,60 @@ import { api } from "@/lib/api";
 import { getOwnSaisonIdServer } from "@/lib/own-equipe";
 import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
 import { equipeConsultee } from "@/lib/equipe-consultee";
+import type { PerimetreRapport, StabiliteRapport, Tendances } from "@/lib/analyse-types";
+import { LIBELLE_SENS, libelleSerie, serieFavorable } from "@/lib/tendances-format";
 import { ClubBadge } from "@/components/ClubBadge";
 import { DonutStat } from "@/components/Charts";
+import { CourbeGlissante } from "@/components/analyse/CourbeGlissante";
+import { InsightsGrid } from "@/components/analyse/InsightsGrid";
+import { ComparatifForme } from "@/components/analyse/ComparatifForme";
+import { ProfilCard } from "@/components/analyse/ProfilCard";
+import { LieuxCard } from "@/components/analyse/LieuxCard";
+import { NiveauCard } from "@/components/analyse/NiveauCard";
+import { MomentsButs } from "@/components/analyse/MomentsButs";
+import { DisciplineCard } from "@/components/analyse/DisciplineCard";
+import { RotationCard } from "@/components/analyse/RotationCard";
+import { PastilleSens } from "@/components/analyse/PastilleSens";
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, Award, BarChart3, Clock,
-  Flame, Info, RotateCcw, Shield, TrendingDown, TrendingUp, Users, Zap,
+  AlertTriangle, ArrowLeft, ArrowRight, Award, BarChart3, Clock, Crosshair, Flame, Info,
+  MapPin, RotateCcw, Sparkles, TrendingDown, TrendingUp, Users, Zap,
 } from "lucide-react";
 
 export const metadata = { title: "Rapport equipe · Foot Analytics" };
-
-const LIGNE_LABEL: Record<string, string> = {
-  GB: "Gardiens", DEF: "Defense", MIL: "Milieu", ATT: "Attaque",
-};
 
 export default async function RapportEquipe({
   params,
 }: { params: { clubId: string } }) {
   // Saison et equipe : sans elles le rapport melangerait Seniors, U20 et toutes
   // les saisons. La saison suit le selecteur, l'equipe le championnat de mon equipe.
-  const [saisons, equipes, matchs] = await Promise.all([api.saisons(), api.equipes(), api.matchs()]);
+  const [saisons, equipes, matchs, clubs] = await Promise.all([api.saisons(), api.equipes(), api.matchs(), api.clubs()]);
   const saison = saisons.find((s: any) => s.id === getOwnSaisonIdServer())
     ?? saisons.find((s: any) => s.actif) ?? null;
   const { equipe: maEquipe } = await resolveEquipePropre({ equipes, saisons, matchs });
   const equipe = equipeConsultee({ equipes, clubId: params.clubId, saisonId: saison?.id ?? null, maEquipe });
   const rapport = await api.analyseClub(params.clubId, { equipeId: equipe?.id, saisonId: saison?.id });
   if (!rapport) notFound();
+
+  const t: Tendances = rapport.tendances;
+  const perimetre: PerimetreRapport = rapport.perimetre;
+  const stabilite: StabiliteRapport = rapport.stabilite;
+  const noms: Record<string, string> = Object.fromEntries(clubs.map((c) => [c.id, c.nom]));
+  const jugeable = t.forme.sens !== "insuffisant";
+  const courbeOk = jugeable && t.courbe.length >= 3;
+  const yButs = Math.max(2, Math.ceil(Math.max(...t.courbe.flatMap((p) => [p.bpGlissant, p.bcGlissant]), 0) / 2) * 2);
+  const recordsNotables = t.series.records.filter((r) => r.longueur >= 3);
+
+  const ancres = [
+    t.insights.length > 0 && ["constats", "Constats"],
+    courbeOk && ["forme", "Dynamique"],
+    courbeOk && ["buts", "Attaque et defense"],
+    ["contexte", "Contexte"],
+    ["discipline", "Discipline"],
+    rapport.faiblesses.length > 0 && ["points", "Points d'attention"],
+    ["effectif", "Effectif"],
+    rapport.coachs?.length > 0 && ["staff", "Staff"],
+    ["joueurs", "Impact joueurs"],
+  ].filter(Boolean) as [string, string][];
 
   return (
     <div className="space-y-6 fade-up">
@@ -49,27 +79,42 @@ export default async function RapportEquipe({
       </div>
 
       <header className="panel p-6 grid grid-cols-12 gap-5">
-        <div className="col-span-12 md:col-span-6 flex items-center gap-4">
+        <div className="col-span-12 lg:col-span-5 flex items-center gap-4">
           <ClubBadge clubId={rapport.clubId} size={56}/>
-          <div>
+          <div className="min-w-0">
             <div className="text-xs uppercase tracking-[0.18em] text-faint">Rapport d'equipe</div>
             <h1 className="font-display text-3xl font-bold text-ink leading-tight">
               {rapport.clubNom}
             </h1>
             <p className="text-xs text-muted mt-1">
-              {equipe && <>{equipe.categorie} {equipe.division}{equipe.poule ? ` · Poule ${equipe.poule}` : ""} · </>}
-              {saison ? <>saison {saison.nom}</> : "toutes saisons"} · genere a partir des
-              feuilles FMI et donnees d'entrainement.
+              {perimetre.equipeNom
+                ? <>{perimetre.equipeNom}{perimetre.competition ? ` · ${perimetre.competition}` : ""} · </>
+                : equipe && <>{equipe.categorie} {equipe.division}{equipe.poule ? ` · Poule ${equipe.poule}` : ""} · </>}
+              {perimetre.saisonNom ? <>saison {perimetre.saisonNom}{perimetre.saisonActive ? "" : " (terminee)"}</> : "toutes saisons"}
             </p>
+            {jugeable && (
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <PastilleSens sens={t.forme.sens} libelle={`Points : ${LIBELLE_SENS[t.forme.sens].toLowerCase()}`} />
+                {t.series.enCours.slice(0, 1).map((s) => (
+                  <span key={s.type} className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                    serieFavorable(s.type) ? "border-win/35 bg-win/10 text-win" : "border-loss/35 bg-loss/10 text-loss"
+                  }`}>{libelleSerie(s.type, s.longueur)}</span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-        <div className="col-span-12 md:col-span-6 grid grid-cols-3 gap-3">
-          <ScoreCard label="Score danger" value={rapport.scoreDanger}
+        <div className="col-span-12 lg:col-span-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <ScoreCard label="Danger" note="menace de l'equipe" value={rapport.scoreDanger}
             icon={<Flame size={14}/>} color="rgb(var(--danger))" />
-          <ScoreCard label="Score chaos" value={rapport.scoreChaos}
+          <ScoreCard label="Chaos" note="instabilite du onze" value={rapport.scoreChaos}
             icon={<RotateCcw size={14}/>} color="rgb(var(--amber))" />
-          <ScoreCard label="Forme moyenne" value={rapport.formeMoy}
+          <ScoreCard label="Forme" note="titulaires types" value={rapport.formeMoy}
+            absent="Mesure du moment : disponible sur la saison en cours."
             icon={<TrendingUp size={14}/>} color="rgb(var(--accent))" />
+          <ScoreCard label="Dynamique" note={jugeable ? t.forme.libelle : "trop tot"} value={t.forme.score}
+            absent="Il faut au moins 6 matchs pour juger une dynamique."
+            icon={<Zap size={14}/>} color="rgb(var(--chart-3))" />
         </div>
       </header>
 
@@ -86,12 +131,128 @@ export default async function RapportEquipe({
       )}
 
       {rapport.matchsAnalyses > 0 && <>
+      <nav aria-label="Sections du rapport" className="-mt-2 flex gap-2 overflow-x-auto pb-1">
+        {ancres.map(([id, label]) => (
+          <a key={id} href={`#${id}`} className="badge shrink-0 hover:border-accent/40 hover:text-accent">{label}</a>
+        ))}
+      </nav>
+
+      {!jugeable && (
+        <section className="panel flex items-start gap-3 p-5">
+          <Info size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+          <div>
+            <div className="text-sm font-semibold text-ink">Pas encore assez de matchs pour degager des tendances</div>
+            <p className="mt-0.5 text-xs text-muted">
+              {t.matchs} match{t.matchs > 1 ? "s" : ""} analyse{t.matchs > 1 ? "s" : ""} : il en faut au moins 6 pour comparer la forme recente au reste de la saison.
+              Les mesures ci-dessous restent valables, mais sans courbe ni verdict de dynamique.
+            </p>
+          </div>
+        </section>
+      )}
+
+      {/* Ce qu'il faut retenir */}
+      {t.insights.length > 0 && (
+        <Section id="constats" titre="Ce qu'il faut retenir" icone={<Sparkles size={11} className="text-accent"/>}
+          aide="constats detectes automatiquement sur les resultats de la saison">
+          <InsightsGrid insights={t.insights} />
+        </Section>
+      )}
+
+      {/* Dynamique : points par match, glissant */}
+      {courbeOk && (
+        <Section id="forme" titre="Dynamique" icone={<TrendingUp size={11} className="text-accent"/>}
+          aide={`points par match, moyenne glissante sur ${t.forme.fenetre} matchs`}>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+            <div className="xl:col-span-7">
+              <CourbeGlissante points={t.courbe} noms={noms} unite="points par match" yMax={3}
+                series={[{ label: "Points / match", valeurs: t.courbe.map((p) => p.ppmGlissant), variable: "--chart-1" }]}
+                reference={{ label: "Moyenne saison", valeur: t.forme.saison.ppm }} />
+            </div>
+            <div className="space-y-5 xl:col-span-5">
+              <ComparatifForme forme={t.forme} />
+              {t.series.enCours.length > 0 && (
+                <div>
+                  <div className="h-section mb-2">Series en cours</div>
+                  <div className="flex flex-wrap gap-2">
+                    {t.series.enCours.map((s) => (
+                      <span key={s.type} className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                        serieFavorable(s.type) ? "border-win/35 bg-win/10 text-win" : "border-loss/35 bg-loss/10 text-loss"
+                      }`}>{libelleSerie(s.type, s.longueur)}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {recordsNotables.length > 0 && (
+                <p className="text-[11px] leading-relaxed text-faint">
+                  Records de la saison : {recordsNotables.map((r) => libelleSerie(r.type, r.longueur)).join(" · ")}.
+                </p>
+              )}
+            </div>
+          </div>
+        </Section>
+      )}
+
+      {/* Attaque et defense */}
+      {courbeOk && (
+        <Section id="buts" titre="Attaque et defense" icone={<Crosshair size={11} className="text-accent"/>}
+          aide={`buts par match, moyenne glissante sur ${t.forme.fenetre} matchs`}>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+            <div className="xl:col-span-7">
+              <CourbeGlissante points={t.courbe} noms={noms} unite="buts par match" yMax={yButs}
+                series={[
+                  { label: "Marques", valeurs: t.courbe.map((p) => p.bpGlissant), variable: "--chart-1" },
+                  { label: "Encaisses", valeurs: t.courbe.map((p) => p.bcGlissant), variable: "--chart-2" },
+                ]} />
+            </div>
+            <div className="xl:col-span-5">
+              <ProfilCard profil={t.profil} moities={t.moities} />
+            </div>
+          </div>
+        </Section>
+      )}
+
+      {/* Contexte : lieu et niveau des adversaires */}
+      <section id="contexte" className="grid scroll-mt-24 grid-cols-12 gap-4">
+        <div className={`panel col-span-12 p-5 ${t.parNiveau ? "lg:col-span-6" : ""}`}>
+          <div className="h-section mb-4 flex items-center gap-2"><MapPin size={11} className="text-accent"/>Domicile et exterieur</div>
+          <LieuxCard lieux={t.lieux} />
+        </div>
+        {t.parNiveau && (
+          <div className="panel col-span-12 p-5 lg:col-span-6">
+            <div className="h-section mb-4 flex items-center gap-2"><BarChart3 size={11} className="text-accent"/>Selon le niveau de l'adversaire</div>
+            <NiveauCard niveaux={t.parNiveau} />
+          </div>
+        )}
+      </section>
+
+      {/* Moments du match et discipline : le graphique des buts n'a de sens que si les feuilles donnent la minute */}
+      <section id="discipline" className="grid scroll-mt-24 grid-cols-12 gap-4">
+        {t.butsParTranche.disponible && (
+          <div className="panel col-span-12 p-5 lg:col-span-6">
+            <div className="h-section mb-4 flex items-center gap-2"><Clock size={11} className="text-accent"/>Buts par tranche de 15 minutes</div>
+            <MomentsButs buts={t.butsParTranche} />
+          </div>
+        )}
+        <div className={`panel col-span-12 p-5 ${t.butsParTranche.disponible ? "lg:col-span-6" : ""}`}>
+          <div className="h-section mb-4 flex items-center gap-2"><AlertTriangle size={11} className="text-amber"/>Discipline</div>
+          <DisciplineCard discipline={t.discipline} matchs={t.matchs} large={!t.butsParTranche.disponible} />
+          {!t.butsParTranche.disponible && (
+            <p className="mt-4 border-t border-line pt-3 text-[11px] text-faint">
+              Buts par tranche de 15 minutes : indisponible, {t.butsParTranche.couverture > 0
+                ? <>les feuilles de match ne donnent la minute que de {Math.round(t.butsParTranche.couverture * 100)} % des buts.</>
+                : <>les feuilles de match ne donnent pas la minute des buts.</>}{" "}
+              Le graphique apparaitra des que les buteurs seront renseignes.
+            </p>
+          )}
+        </div>
+      </section>
+
       {/* Faiblesses */}
       {rapport.faiblesses.length > 0 && (
-        <section className="panel p-5">
+        <section id="points" className="panel scroll-mt-24 p-5">
           <div className="h-section mb-3 flex items-center gap-2">
             <AlertTriangle size={11} className="text-danger"/>
-            Faiblesses identifiees ({rapport.faiblesses.length})
+            Points d'attention ({rapport.faiblesses.length})
           </div>
           <ul className="space-y-2">
             {rapport.faiblesses.map((f: any, i: number) => (
@@ -119,7 +280,7 @@ export default async function RapportEquipe({
         </section>
       )}
 
-      <section className="grid grid-cols-12 gap-4">
+      <section id="effectif" className="grid scroll-mt-24 grid-cols-12 gap-4">
         {/* Joueurs cles */}
         <div className="col-span-12 lg:col-span-7 panel p-5">
           <div className="h-section mb-3 flex items-center gap-2">
@@ -156,33 +317,16 @@ export default async function RapportEquipe({
           )}
         </div>
 
-        {/* Stabilite par ligne */}
+        {/* Rotation et stabilite par ligne */}
         <div className="col-span-12 lg:col-span-5 panel p-5">
-          <div className="h-section mb-3 flex items-center gap-2">
-            <Shield size={11} className="text-accent"/>
-            Stabilite ({rapport.stabilite.global} / 100)
+          <div className="h-section mb-4 flex items-center gap-2">
+            <RotateCcw size={11} className="text-accent"/>
+            Rotation du onze
           </div>
-          <ul className="space-y-2">
-            {rapport.stabilite.parLigne.map((s: any) => (
-              <li key={s.ligne} className="flex items-center gap-3">
-                <span className="text-xs uppercase tracking-wider text-faint w-20">
-                  {LIGNE_LABEL[s.ligne]}
-                </span>
-                <div className="flex-1 bg-line h-1.5 rounded-full overflow-hidden">
-                  <div className={`h-full ${
-                    s.stabilite >= 70 ? "bg-accent"
-                    : s.stabilite >= 40 ? "bg-amber" : "bg-danger"
-                  }`} style={{width:`${s.stabilite}%`}}/>
-                </div>
-                <span className="text-xs tabular-nums w-8 text-right">{s.stabilite}</span>
-                <span className="text-[10px] text-faint w-20 text-right">
-                  {s.effectifUtilise} joueurs · {s.rotations} rotations
-                </span>
-              </li>
-            ))}
-          </ul>
+          <RotationCard rotation={t.rotation} stabilite={stabilite} />
         </div>
       </section>
+
 
       {/* Maillons faibles — joueurs reguliers a impact negatif */}
       {rapport.impactsFaibles && rapport.impactsFaibles.length > 0 && (
@@ -335,7 +479,7 @@ export default async function RapportEquipe({
 
       {/* Tableau des coachs */}
       {rapport.coachs && rapport.coachs.length > 0 && (
-        <section className="panel p-5">
+        <section id="staff" className="panel scroll-mt-24 p-5">
           <div className="h-section mb-3 flex items-center gap-2">
             <Users size={11} className="text-accent"/>
             Staff identifie ({rapport.coachs.length})
@@ -452,7 +596,7 @@ export default async function RapportEquipe({
       )}
 
       {/* Tableau impact tous joueurs */}
-      <section className="panel p-5">
+      <section id="joueurs" className="panel scroll-mt-24 p-5">
         <div className="h-section mb-3 flex items-center gap-2">
           <Zap size={11} className="text-accent"/>
           Impact de chaque joueur sur les resultats
@@ -519,16 +663,36 @@ export default async function RapportEquipe({
   );
 }
 
-function ScoreCard({
-  label, value, icon, color,
-}: { label: string; value: number; icon: React.ReactNode; color: string }) {
+function Section({
+  id, titre, icone, aide, children,
+}: { id: string; titre: string; icone: React.ReactNode; aide?: string; children: React.ReactNode }) {
   return (
-    <div className="stat-tile flex flex-col items-center justify-center gap-2">
+    <section id={id} className="panel scroll-mt-24 p-5">
+      <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h2 className="h-section flex items-center gap-2">{icone}{titre}</h2>
+        {aide && <span className="text-[11px] text-faint">{aide}</span>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ScoreCard({
+  label, note, value, icon, color, absent,
+}: { label: string; note: string; value: number | null; icon: React.ReactNode; color: string; absent?: string }) {
+  return (
+    <div className="stat-tile flex flex-col items-center justify-center gap-2 !px-2">
       <div className="stat-label flex items-center gap-1">
         <span style={{ color }}>{icon}</span>
         {label}
       </div>
-      <DonutStat value={value} size={88} stroke={9} color={color} label="/ 100"/>
+      {value === null ? (
+        <div className="grid h-[72px] w-[72px] place-items-center rounded-full border-2 border-dashed border-line2 font-display text-xl font-bold text-faint"
+          role="img" aria-label={absent ?? "Non disponible"} title={absent}>—</div>
+      ) : (
+        <DonutStat value={value} size={72} stroke={8} color={color} label="/ 100"/>
+      )}
+      <div className="max-w-full truncate text-center text-[11px] text-muted">{note}</div>
     </div>
   );
 }

@@ -172,6 +172,19 @@ test("import FMI : la feuille est importee puis consultable", async () => {
   await expect(page.getByText("2–0")).toBeVisible();
 });
 
+test("rapport d'equipe : sans match analyse sur la saison, la page l'explique sans planter ni inventer de tendance", async () => {
+  await page.goto("/rapports");
+  await page.getByRole("link", { name: /Mon equipe/ }).click();
+
+  await expect(page.getByRole("heading", { level: 1, name: /OL Sud E2E/ })).toBeVisible();
+  await expect(page.getByText("Pas encore de match analyse")).toBeVisible();
+  // Aucune section de tendance sans echantillon : ni constats, ni courbe, ni navigation par sections.
+  await expect(page.getByText("Ce qu'il faut retenir")).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Sections du rapport" })).toHaveCount(0);
+  // La dynamique n'est pas chiffree : l'anneau est remplace par un tiret expliquant pourquoi.
+  await expect(page.getByRole("img", { name: /au moins 6 matchs pour juger une dynamique/ })).toBeVisible();
+});
+
 test("saison archivee : /tactique s'affiche en consultation seule", async () => {
   await page.goto("/");
   await ouvrirSelecteur(page);

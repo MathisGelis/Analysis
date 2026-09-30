@@ -12,6 +12,7 @@ import { getOwnSaisonIdServer } from "@/lib/own-equipe";
 import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
 import { clubsDeLaSaison, clubsDuChampionnat } from "@/lib/clubs-saison";
 import { ClubBadge } from "@/components/ClubBadge";
+import { MiniDynamique } from "@/components/analyse/MiniDynamique";
 import { FileText, Plus } from "lucide-react";
 
 export const metadata = { title: "Scouting · Foot Analytics" };
@@ -27,6 +28,9 @@ export default async function ScoutingList() {
     api.rapports(undefined, saison?.id),
     resolveEquipePropre({ equipes, saisons, matchs }),
   ]);
+  // Forme recente des adversaires de ma poule, pour savoir lesquels arrivent en confiance.
+  const poule = maEquipe ? await api.dynamiquePoule(maEquipe.id) : null;
+  const dynamiqueDe = new Map((poule?.equipes ?? []).map((e) => [e.clubId, e]));
 
   const avecId = new Set(rapports.map((r) => r.clubId));
   const dansMaPoule = clubsDuChampionnat(equipes, maEquipe);
@@ -81,6 +85,7 @@ export default async function ScoutingList() {
                     {dansMaPoule.has(c.id) && (
                       <div className="text-[10px] uppercase tracking-wider text-accent">Ma poule</div>
                     )}
+                    {dynamiqueDe.has(c.id) && <MiniDynamique equipe={dynamiqueDe.get(c.id)!} />}
                     {r?.dispositifAttendu && (
                       <div className="text-[11px] text-muted mt-0.5">
                         Dispositif : <span className="text-accent font-semibold">{r.dispositifAttendu}</span>
@@ -108,7 +113,8 @@ export default async function ScoutingList() {
                 <ClubBadge clubId={c.id} size={32}/>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold truncate">{c.nom}</div>
-                  <div className="text-[11px] text-accent">Voir / creer →</div>
+                  {dynamiqueDe.has(c.id) && <MiniDynamique equipe={dynamiqueDe.get(c.id)!} compact />}
+                  <div className="mt-0.5 text-[11px] text-accent">Voir / creer →</div>
                 </div>
               </Link>
             ))}

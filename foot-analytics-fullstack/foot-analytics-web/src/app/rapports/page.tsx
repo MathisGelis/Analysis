@@ -9,9 +9,11 @@ import { api } from "@/lib/api";
 import { getOwnClubIdServer } from "@/lib/own-club";
 import { getOwnSaisonIdServer } from "@/lib/own-equipe";
 import { clubsDeLaSaison } from "@/lib/clubs-saison";
+import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
 import { ClubBadge } from "@/components/ClubBadge";
 import { BandeauDemo } from "@/components/BandeauDemo";
-import { Download, Eye, FileText, Mail, Printer, BarChart3 } from "lucide-react";
+import { DynamiquePoule } from "@/components/analyse/DynamiquePoule";
+import { Download, Eye, FileText, Mail, Printer, BarChart3, TrendingUp } from "lucide-react";
 
 const RAPPORTS = [
   { id:"prematch-j22", type:"Pre-match", titre:"Pre-match J22 · vs Neuville S/S 2",  date:"26/01/2026", auteur:"Auto",          statut:"Pret" },
@@ -27,9 +29,12 @@ export default async function Rapports() {
   // Selecteur d'analyse equipe : mon club en premier, puis les autres
   // par ordre alphabetique.
   const ownClubId = getOwnClubIdServer();
-  const [clubs, saisons, equipes] = await Promise.all([api.clubs(), api.saisons(), api.equipes()]);
+  const [clubs, saisons, equipes, matchs] = await Promise.all([api.clubs(), api.saisons(), api.equipes(), api.matchs()]);
   const saison = saisons.find((s: any) => s.id === getOwnSaisonIdServer())
     ?? saisons.find((s: any) => s.actif) ?? null;
+  // Dynamique du championnat de mon equipe : qui monte, qui recule.
+  const { equipe: maEquipe } = await resolveEquipePropre({ equipes, saisons, matchs });
+  const poule = maEquipe ? await api.dynamiquePoule(maEquipe.id) : null;
   const monClub = clubs.find((c) => c.id === ownClubId);
   // Uniquement les clubs qui ont une equipe sur la saison choisie.
   const autres = clubsDeLaSaison(clubs, equipes, saison?.id ?? null, ownClubId);
@@ -42,6 +47,19 @@ export default async function Rapports() {
           <h1 className="font-display text-2xl font-bold text-ink">Rapports</h1>
         </div>
       </header>
+
+      {/* Dynamique de la poule */}
+      {poule && poule.equipes.length > 0 && (
+        <section className="panel p-5">
+          <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 className="h-section flex items-center gap-2"><TrendingUp size={11} className="text-accent"/>Dynamique de la poule</h2>
+            <span className="text-[11px] text-faint">
+              {[poule.competition, poule.poule ? `poule ${poule.poule}` : null, saison ? saison.nom : null].filter(Boolean).join(" · ")}
+            </span>
+          </div>
+          <DynamiquePoule poule={poule} equipeId={maEquipe?.id ?? null} />
+        </section>
+      )}
 
       {/* Analyse d'equipe — selecteur de club */}
       <section className="panel p-5">
