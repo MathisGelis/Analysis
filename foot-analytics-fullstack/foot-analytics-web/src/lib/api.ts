@@ -273,8 +273,12 @@ export const api = {
     req<any>(`/saisons/${id}/activer`, { method: "PATCH" }),
   creerSaison: (body: { nom: string; anneeDebut: number; actif?: boolean }) =>
     req<any>("/saisons", { method: "POST", body: JSON.stringify(body) }),
-  autoCloneSaison: (id: string) =>
-    req<any>(`/saisons/${id}/auto-clone`, { method: "POST" }),
+  /** clubId optionnel : limite le clone aux equipes de ce club (sinon tous les clubs). */
+  autoCloneSaison: (id: string, clubId?: string) =>
+    req<any>(
+      `/saisons/${id}/auto-clone${clubId ? `?clubId=${encodeURIComponent(clubId)}` : ""}`,
+      { method: "POST" },
+    ),
 
   /* ---- Equipes ---- */
   equipes: (filtres?: string | { clubId?: string; saisonId?: string }) => {

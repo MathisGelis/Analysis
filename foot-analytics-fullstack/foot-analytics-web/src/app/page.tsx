@@ -105,6 +105,8 @@ export default async function Dashboard() {
   aVenir.sort((a, b) => parseDate(a.date ?? "") - parseDate(b.date ?? ""));
 
   const bilan = localBilan(joues);
+  // Diff. de buts : ligne de classement si presente, sinon calcul local.
+  const diffButs = myRank ? myRank.bp - myRank.bc : bilan.bp - bilan.bc;
   const dernier = joues[joues.length - 1];
   const prochain = aVenir[0];
   const formeRecente: Issue[] = joues.slice(-10).map((r) => r.issue);
@@ -174,9 +176,9 @@ export default async function Dashboard() {
             <HeroStat label="Rang" value={myRank?.rang ?? "—"}
               suffix={myRank ? `/ ${classementSaison.length}` : undefined}
               accent="turf" icon={<Trophy size={14}/>}/>
-            <HeroStat label="Points" value={myRank?.points ?? bilan.pts} accent="turf"/>
-            <HeroStat label="Diff. buts" value={(myRank?.diffButs ?? bilan.bp - bilan.bc)}
-              accent={(myRank?.diffButs ?? bilan.bp - bilan.bc) >= 0 ? "turf" : "danger"}
+            <HeroStat label="Points" value={myRank?.pts ?? bilan.pts} accent="turf"/>
+            <HeroStat label="Diff. buts" value={diffButs}
+              accent={diffButs >= 0 ? "turf" : "danger"}
               showSign/>
             <HeroStat label="Joues" value={bilan.joues} icon={<Calendar size={14}/>}/>
           </div>

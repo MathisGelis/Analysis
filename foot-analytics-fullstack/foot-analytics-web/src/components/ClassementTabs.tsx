@@ -394,8 +394,8 @@ function PlayerStats({ joueurs, clubs, ownClubId }:
             // donc "—" plutot que 0 pour les joueurs des autres clubs.
             // Pour nos propres joueurs, on garde le 0 (stat reelle).
             const isMine = j.clubId === ownClubId;
-            const showOff = (v: number) =>
-              isMine ? (v || "") : (v > 0 ? v : "—");
+            const showOff = (v: number | undefined) =>
+              isMine ? (v || "") : ((v ?? 0) > 0 ? v : "—");
             return (
             <tr key={j.id} className={isMine ? "is-mine" : ""}>
               <td>

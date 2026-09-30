@@ -98,7 +98,7 @@ export default async function JoueurPage({ params }: { params: { id: string } })
     // Buts et cartons : on garde les globaux SI le joueur a joue au
     // moins 1 match cette saison. Sinon on remet a 0 (nouvelle saison
     // ou effectif frais).
-    buts: aJoueCetteSaison ? (j.butsMarques ?? j.buts ?? 0) : 0,
+    buts: aJoueCetteSaison ? (j.buts ?? 0) : 0,
     cartonsJaunes: aJoueCetteSaison ? (j.cartonsJaunes ?? 0) : 0,
     cartonsRouges: aJoueCetteSaison ? (j.cartonsRouges ?? 0) : 0,
   };

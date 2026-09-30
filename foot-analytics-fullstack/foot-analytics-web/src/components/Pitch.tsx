@@ -4,15 +4,21 @@
 // Toutes les couleurs utilisent les CSS vars du theme.
 
 interface PitchProps {
-  formation: string;                           // ex. "4-2-3-1"
+  formation: string | null | undefined;       // ex. "4-2-3-1" ; null = dispositif inconnu (4-4-2 par defaut)
   joueurs: { numero: number; nom: string; carton?: "jaune" | "rouge"; capitaine?: boolean }[];
   couleur?: string;
   titre?: string;
   oriente?: "haut" | "bas";
 }
 
-function parseFormation(f: string): number[] {
-  const lignes = f.split(/[-\s]+/).map((n) => +n).filter((n) => n > 0);
+/** Dispositif utilise quand la formation est absente ou illisible. */
+const FORMATION_DEFAUT = "4-4-2";
+
+function parseFormation(f: string | null | undefined): number[] {
+  const lignes = (f ?? FORMATION_DEFAUT)
+    .split(/[-\s]+/).map((n) => +n).filter((n) => n > 0);
+  // Chaine non vide mais illisible ("?", "n/a") : repli sur le defaut.
+  if (lignes.length === 0) return [1, 4, 4, 2];
   return [1, ...lignes];  // ajoute le gardien
 }
 
@@ -20,6 +26,8 @@ export function Pitch({
   formation, joueurs, couleur = "rgb(var(--turf))", titre, oriente = "haut",
 }: PitchProps) {
   const lignes = parseFormation(formation);
+  const formationConnue = !!formation && formation.trim().length > 0;
+  const formationAffichee = formationConnue ? formation : `${FORMATION_DEFAUT} (par defaut)`;
   const W = 320, H = 460;
   const padT = 24, padB = 24;
   const usable = H - padT - padB;
@@ -37,7 +45,7 @@ export function Pitch({
       {titre && (
         <div className="flex items-center justify-between mb-2">
           <div className="h-section">{titre}</div>
-          <span className="badge badge-turf">{formation}</span>
+          <span className="badge badge-turf">{formationAffichee}</span>
         </div>
       )}
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto rounded-md">

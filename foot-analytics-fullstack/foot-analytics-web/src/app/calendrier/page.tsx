@@ -42,7 +42,7 @@ const MOIS_FR = [
 interface MatchEv {
   id: string; date?: string; heure?: string; journee?: string;
   clubDom: string; clubExt: string; scoreDom: number; scoreExt: number;
-  equipeDomId?: string; equipeExtId?: string; statut?: string;
+  equipeDomId?: string | null; equipeExtId?: string | null; statut?: string;
   competition?: string;
 }
 interface AutreEv {
