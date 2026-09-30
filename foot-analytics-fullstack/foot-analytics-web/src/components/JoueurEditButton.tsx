@@ -2,7 +2,8 @@
 "use client";
 
 // Edition complete d'un joueur depuis sa fiche : poste, numero, statut
-// (filtre selon "mon club"), morpho (taille/poids/pied), note et forme.
+// (filtre selon "mon club"), morpho (taille/poids/pied). Note, forme et compteurs
+// de matchs sont calcules par saison : ils ne s'editent pas ici.
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -29,8 +30,6 @@ export function JoueurEditButton({ joueur }: { joueur: Joueur }) {
     poste: joueur.poste ?? "MIL",
     numeroFavori: joueur.numeroFavori ?? undefined,
     statutMutation: joueur.statutMutation ?? (isMine ? "Pas mutation" : "Non connu"),
-    noteMoyenne: joueur.noteMoyenne ?? 6,
-    scoreForme: joueur.scoreForme ?? 50,
     commentaire: joueur.commentaire ?? "",
     tailleCm: joueur.tailleCm ?? undefined,
     poidsKg: joueur.poidsKg ?? undefined,
@@ -99,14 +98,6 @@ export function JoueurEditButton({ joueur }: { joueur: Joueur }) {
                 </select>
               </Field>
 
-              <Field label="Note moyenne">
-                <input type="number" step="0.1" className="inp" value={form.noteMoyenne}
-                  onChange={(e) => set("noteMoyenne", +e.target.value)} />
-              </Field>
-              <Field label="Score forme">
-                <input type="number" min={0} max={100} className="inp" value={form.scoreForme}
-                  onChange={(e) => set("scoreForme", +e.target.value)} />
-              </Field>
               <Field label="Date de naissance">
                 <input type="date" className="inp" value={form.dateNaissance}
                   onChange={(e) => set("dateNaissance", e.target.value)} />

@@ -56,10 +56,8 @@ export async function ClubPageContent({
   //  - matchs : on garde uniquement ceux de la saison choisie
   //  - equipes : on garde uniquement celles de la saison choisie (utile
   //    a l'effectif consulte, qui est par equipe)
-  //  - joueurs : on les filtre indirectement via les matchs (joueurs
-  //    ayant compose au moins une fois cette saison). Pour rester
-  //    pragmatique, on garde joueursAll : la fiche joueur filtrera via
-  //    son historique. C'est l'effectif vu d'ici qui est filtré.
+  //  - joueurs : effectif de l'equipe consultee (stats de SA saison, jamais les
+  //    compteurs globaux) ; `joueursAll` ne sert qu'a relier un nom a sa fiche
   //  - classement : on prend la ligne du club POUR la saison choisie
   //  - bilan : recalcul local sur les matchs filtres si saison choisie
   // Equipe du club consultee : celle qui joue dans le MEME championnat que
@@ -75,6 +73,8 @@ export async function ClubPageContent({
   const equipeConsultee =
     (maEquipe ? equipes.find((e: any) => memeChampionnat(e, maEquipe)) : null)
     ?? equipes[0] ?? null;
+
+  const effectif = equipeConsultee ? await api.effectifEquipe(equipeConsultee.id) : [];
 
   const matchsSaison = saisonChoisieId
     ? matchsAll.filter((m: any) => (m.saisonId ?? null) === saisonChoisieId)
@@ -137,7 +137,8 @@ export async function ClubPageContent({
       totalClasses={totalClasses}
       bilan={bilan as any}
       resultats={resultats}
-      joueurs={joueursAll}
+      joueurs={effectif}
+      annuaire={joueursAll}
       rapport={rapport}
       isMine={club.id === CLUB_PROPRE_ID}
       initialTab={initialTab}

@@ -276,6 +276,41 @@ describe("JoueursService", () => {
       expect(h.find((s) => s.saisonNom === "2024-2025")!.saisonActive).toBe(false);
     });
 
+    it("historique : totaux par saison (toutes equipes) avec numeros et note", async () => {
+      const { j } = await joueurSurDeuxSaisons();
+      const h = await svc.historique(j.id);
+      const t25 = h.find((s) => s.saisonNom === "2025-2026")!.totaux;
+      const t24 = h.find((s) => s.saisonNom === "2024-2025")!.totaux;
+      expect(t25).toMatchObject({ matchs: 1, buts: 2, passesDecisives: 1, cartonsJaunes: 0, numeros: { 9: 1 }, noteMoyenne: 5.5 });
+      expect(t24).toMatchObject({ matchs: 1, buts: 1, cartonsJaunes: 1 });
+    });
+
+    it("matchsJoues : restreint a la saison, feuille personnelle, plus recent d'abord (dates jj/mm/aaaa)", async () => {
+      const { c, j } = await joueurSurDeuxSaisons();
+      const match = (date: string, journee: string, dom: boolean) => f.match({
+        clubDom: dom ? c.moi.id : c.adv.id, clubExt: dom ? c.adv.id : c.moi.id,
+        equipeDomId: dom ? c.seniors.id : c.advEq.id, equipeExtId: dom ? c.advEq.id : c.seniors.id,
+        saisonId: c.saison.id, date, journee, scoreDom: dom ? 2 : 1, scoreExt: dom ? 0 : 3,
+      });
+      const ancien = await match("27/09/2025", "1", false);
+      const recent = await match("15/03/2026", "2", true);
+      const banc = await match("10/01/2026", "3", true);
+      await f.compo({ matchId: ancien.id, cote: "ext", nom: "MARCON", prenom: "Leo", licence: "111", numero: 9 });
+      await f.compo({ matchId: recent.id, cote: "dom", nom: "MARCON", prenom: "Leo", licence: "111", minutes: 80, numero: 9 });
+      await f.compo({ matchId: banc.id, cote: "dom", nom: "MARCON", prenom: "Leo", licence: "111", titulaire: false, minutes: 0, numero: 14 });
+      await f.evenement({ matchId: recent.id, type: "but", equipe: "dom", joueur: "MARCON Leo", minute: 12 });
+
+      const lignes = await svc.matchsJoues(j.id, c.saison.id);
+
+      // "15/03/2026" est plus recent que "27/09/2025" bien qu'inferieur comme chaine ; le banc est ignore ;
+      // le match sans date (fabrique de contexte) ferme la marche ; ceux de 24-25 sont exclus.
+      expect(lignes.map((l) => l.journee)).toEqual(["2", "1", null]);
+      expect(lignes[0]).toMatchObject({ matchId: recent.id, domicile: true, scoreEquipe: 2, scoreAdversaire: 0, titulaire: true, minutes: 80, buts: 1, adversaireId: c.adv.id });
+      expect(lignes[1]).toMatchObject({ domicile: false, scoreEquipe: 3, scoreAdversaire: 1 });
+      expect((await svc.matchsJoues(j.id)).length).toBe(4);
+      expect(await svc.matchsJoues(j.id, c.saison.id, 1)).toHaveLength(1);
+    });
+
     it("effectif d'une equipe passee : ses seuls buts et cartons", async () => {
       const { eq24 } = await joueurSurDeuxSaisons();
       const rows = await svc.effectif(eq24.id);

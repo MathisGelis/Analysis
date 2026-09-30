@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { getOwnSaisonIdServer } from "@/lib/own-equipe";
+import { choisirSaisonFiche, indiceDiscipline, numeroPrincipal } from "@/lib/fiche-joueur";
 import { JoueurEditButton } from "@/components/JoueurEditButton";
 import { DonutStat, Sparkline } from "@/components/Charts";
 import { ClubBadge } from "@/components/ClubBadge";
@@ -19,96 +20,53 @@ import {
   Ruler, Scale, Star, Target,
 } from "lucide-react";
 
-export default async function JoueurPage({ params }: { params: { id: string } }) {
+export default async function JoueurPage({
+  params, searchParams,
+}: { params: { id: string }; searchParams: { saison?: string } }) {
   const j = await api.joueur(params.id);
   if (!j) notFound();
 
-  // Saison courante (via cookie switcher) : les stats seront filtrees
-  // sur cette saison, pour un affichage "temps reel" coherent avec ce
-  // que voit le coach dans le switcher en bas a gauche.
-  const ownSaisonId = getOwnSaisonIdServer();
-
-  // Donnees connexes : club, equipes, matchs du club (pour historique perso),
-  // entrainements de son equipe (pour la charge), blessures du joueur,
-  // et la repartition des numeros portes (pour la carte des postes).
-  const [clubs, equipes, matchsClub, blessures, numerosFreq, historique] = await Promise.all([
+  // Toute la fiche est lue sur UNE saison : celle demandee (?saison=), sinon
+  // celle du selecteur, sinon la saison active. Les compteurs globaux du joueur
+  // (toutes saisons confondues) ne sont jamais affiches ici.
+  const [clubs, saisons, historique, equipes, blessures] = await Promise.all([
     api.clubs(),
-    api.equipes(j.clubId),
-    api.matchs(j.clubId),
-    api.blessures(j.id),
-    api.joueurNumeros(j.id),
+    api.saisons(),
     api.joueurHistorique(j.id),
+    api.equipes(),
+    api.blessures(j.id),
   ]);
-  const club = clubs.find((c) => c.id === j.clubId);
-  const equipe = equipes[0];
-  const entrainements = equipe ? await api.entrainements(equipe.id) : [];
+  const { saison, entree, totaux, ligne } = choisirSaisonFiche({
+    historique, saisons,
+    demandee: searchParams.saison, cookie: getOwnSaisonIdServer(),
+  });
+  const saisonActive = !!saison?.actif;
 
-  // Historique perso : matchs ou il est en composition.
-  // Le client API ne donne pas les compositions sur la liste, on doit aller
-  // chercher chaque match. Pour rester rapide, on prend les 5 derniers
-  // matchs du club et on regarde si le joueur y figure.
-  const recents = [...matchsClub].slice(-8).reverse();
-  const perso: { match: any; titulaire: boolean; entree: boolean }[] = [];
-  for (const m of recents) {
-    const full = await api.match(m.id);
-    if (!full) continue;
-    const comp = full.compositions?.find((c: any) =>
-      c.nom?.toLowerCase() === j.nom.toLowerCase() &&
-      (!j.prenom || c.prenom?.toLowerCase() === j.prenom.toLowerCase()),
-    );
-    if (comp) {
-      perso.push({ match: full, titulaire: !!comp.titulaire, entree: !comp.titulaire });
-      if (perso.length >= 5) break;
-    }
-  }
+  // Equipe et club de CETTE saison (un joueur peut avoir change de club).
+  const equipe = ligne?.equipeId ? equipes.find((e: any) => e.id === ligne.equipeId) : undefined;
+  const club = clubs.find((c) => c.id === (ligne?.clubId ?? j.clubId));
+  const numero = numeroPrincipal(totaux.numeros) ?? j.numeroFavori ?? null;
 
-  // Series : evolution forme (derivee), charge 8 dernieres seances
+  const [entrainements, matchsJoues] = await Promise.all([
+    equipe ? api.entrainements(equipe.id) : Promise.resolve([]),
+    saison ? api.joueurMatchs(j.id, saison.id, 8) : Promise.resolve([]),
+  ]);
+
+  // Saisons proposees : celles du parcours + la saison consultee.
+  const saisonsProposees = saisons
+    .filter((s: any) => s.id === saison?.id || historique.some((h) => h.saisonId === s.id))
+    .sort((x: any, y: any) => y.anneeDebut - x.anneeDebut);
+
+  // Forme, fatigue, charge : mesures du MOMENT, sans sens sur une saison
+  // passee ou a venir.
   const formeBase = j.scoreForme ?? 50;
-  const evolutionForme = [
-    Math.max(0, formeBase - 12),
-    Math.max(0, formeBase - 8),
-    Math.max(0, formeBase - 4),
-    Math.max(0, formeBase - 2),
-    formeBase,
-  ];
+  const evolutionForme = [-12, -8, -4, -2, 0].map((d) => Math.max(0, formeBase + d));
   const chargesRecentes = entrainements
     .filter((e: any) => e.joueursPresents?.includes(j.id))
     .slice(-8)
     .map((e: any) => Math.round(e.charge ?? 0));
 
-  // Indice de discipline : score 0-100 calcule cote backend, qui pondere
-  // CJ vs CR et tient compte des motifs (brutalite > antisportif >
-  // contestation > faute). Fallback simple si non disponible.
-  // Cf. DerivationService.scoreDisciplineFor.
-  // Stats de la SAISON COURANTE : agregees depuis l'historique
-  // filtre par saison. Si le joueur n'a pas joue cette saison (nouvelle
-  // saison en cours, effectif frais), toutes les stats sont a 0.
-  // Buts et cartons restent globaux (pas dans l'historique) — on les
-  // met a 0 aussi si aucun match cette saison, sinon on garde le total.
-  const saisonCourante = ownSaisonId
-    ? historique.find((h: any) => h.saisonId === ownSaisonId)
-    : null;
-  const aJoueCetteSaison = saisonCourante
-    ? saisonCourante.lignes.reduce((s: number, l: any) => s + (l.matchs ?? 0), 0) > 0
-    : false;
-  const statsSaison = {
-    matchs: saisonCourante?.lignes.reduce((s: number, l: any) => s + (l.matchs ?? 0), 0) ?? 0,
-    titularisations: saisonCourante?.lignes.reduce((s: number, l: any) => s + (l.titularisations ?? 0), 0) ?? 0,
-    minutes: saisonCourante?.lignes.reduce((s: number, l: any) => s + (l.minutes ?? 0), 0) ?? 0,
-    // Buts et cartons : on garde les globaux SI le joueur a joue au
-    // moins 1 match cette saison. Sinon on remet a 0 (nouvelle saison
-    // ou effectif frais).
-    buts: aJoueCetteSaison ? (j.buts ?? 0) : 0,
-    cartonsJaunes: aJoueCetteSaison ? (j.cartonsJaunes ?? 0) : 0,
-    cartonsRouges: aJoueCetteSaison ? (j.cartonsRouges ?? 0) : 0,
-  };
-
-  const indiceDiscipline = j.scoreDiscipline
-    ?? Math.max(0, 100 - (j.cartonsJaunes + j.cartonsRouges * 3) * 8);
-  const risqueBlessure = Math.min(
-    95,
-    (j.blessuresAnt ?? 0) * 20 + (j.minutes > 1200 ? 25 : 8) + (j.cartonsRouges * 5),
-  );
+  const discipline = indiceDiscipline(totaux);
 
   return (
     <div className="space-y-6 fade-up">
@@ -119,11 +77,27 @@ export default async function JoueurPage({ params }: { params: { id: string } })
         <JoueurEditButton joueur={j} />
       </div>
 
+      {/* SAISON CONSULTEE : tout ce qui suit est lu sur cette saison */}
+      {saisonsProposees.length > 0 && (
+        <nav aria-label="Saison consultee" className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] uppercase tracking-wider text-faint flex items-center gap-1.5">
+            <Calendar size={11} className="text-turf"/> Saison
+          </span>
+          {saisonsProposees.map((s: any) => (
+            <Link key={s.id} href={`/joueur/${j.id}?saison=${s.id}`} scroll={false}
+              aria-current={s.id === saison?.id ? "true" : undefined}
+              className={`badge ${s.id === saison?.id ? "badge-turf" : "hover:text-ink"}`}>
+              {s.nom}{s.actif ? " · en cours" : ""}
+            </Link>
+          ))}
+        </nav>
+      )}
+
       {/* IDENTITE */}
       <header className="panel p-6 grid grid-cols-12 gap-5">
         <div className="col-span-12 md:col-span-6 flex items-center gap-5">
           <div className="w-24 h-24 rounded-md bg-panel2 border border-line grid place-items-center font-display text-4xl font-black text-turf">
-            {j.numeroFavori ?? "?"}
+            {numero ?? "?"}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs uppercase tracking-[0.18em] text-faint">{j.poste ?? "—"}</div>
@@ -143,7 +117,9 @@ export default async function JoueurPage({ params }: { params: { id: string } })
                 </Link>
               )}
               {equipe && (
-                <span className="badge">{equipe.categorie ?? ""} {equipe.division ?? ""}</span>
+                <span className="badge" title={equipe.nom}>
+                  {equipe.categorie ?? ""} {equipe.division ?? ""}{equipe.poule ? ` · Poule ${equipe.poule}` : ""}
+                </span>
               )}
               {j.typeDiscipline && (
                 <span className="badge badge-danger">{j.typeDiscipline}</span>
@@ -157,29 +133,41 @@ export default async function JoueurPage({ params }: { params: { id: string } })
 
         <div className="col-span-12 md:col-span-6 grid grid-cols-3 gap-3">
           <Card label="Score forme" big={
-            <DonutStat value={j.scoreForme ?? 0} size={96} stroke={9}
-              color={(j.scoreForme ?? 0)>70?"rgb(var(--turf))":(j.scoreForme ?? 0)>50?"rgb(var(--amber))":"rgb(var(--danger))"}
-              label="/ 100" />
+            saisonActive && j.scoreForme != null ? (
+              <DonutStat value={j.scoreForme} size={96} stroke={9}
+                color={j.scoreForme>70?"rgb(var(--turf))":j.scoreForme>50?"rgb(var(--amber))":"rgb(var(--danger))"}
+                label="/ 100" />
+            ) : (
+              <Indisponible pourquoi={saisonActive ? "Pas encore calcule" : "Mesure de la saison en cours"} />
+            )
           } />
           <Card label="Note moyenne" big={
-            <div className="font-display text-5xl font-black text-turf">
-              {j.noteMoyenne?.toFixed(1) ?? "—"}
-            </div>
+            totaux.noteMoyenne != null ? (
+              <div className="font-display text-5xl font-black text-turf">
+                {totaux.noteMoyenne.toFixed(1)}
+              </div>
+            ) : (
+              <Indisponible pourquoi="Aucun match cette saison" />
+            )
           } />
           <Card label="Fatigue" big={
-            <div className="flex flex-col items-center">
-              <div className={`font-display text-3xl font-black ${
-                (j.scoreFatigue ?? 0) >= 80 ? "text-danger"
-                : (j.scoreFatigue ?? 0) >= 60 ? "text-amber"
-                : (j.scoreFatigue ?? 0) >= 40 ? "text-turf"
-                : "text-faint"
-              }`}>
-                {j.scoreFatigue != null ? j.scoreFatigue : "—"}
+            saisonActive && j.scoreFatigue != null ? (
+              <div className="flex flex-col items-center">
+                <div className={`font-display text-3xl font-black ${
+                  j.scoreFatigue >= 80 ? "text-danger"
+                  : j.scoreFatigue >= 60 ? "text-amber"
+                  : j.scoreFatigue >= 40 ? "text-turf"
+                  : "text-faint"
+                }`}>
+                  {j.scoreFatigue}
+                </div>
+                <div className="text-[10px] uppercase tracking-wider text-faint mt-1">
+                  {j.acwr != null ? `ACWR ${j.acwr.toFixed(2)}` : "Derive"}
+                </div>
               </div>
-              <div className="text-[10px] uppercase tracking-wider text-faint mt-1">
-                {j.acwr != null ? `ACWR ${j.acwr.toFixed(2)}` : "Derive"}
-              </div>
-            </div>
+            ) : (
+              <Indisponible pourquoi={saisonActive ? "Pas de charge suivie" : "Mesure de la saison en cours"} />
+            )
           } />
         </div>
       </header>
@@ -216,39 +204,33 @@ export default async function JoueurPage({ params }: { params: { id: string } })
         }
         statsContent={
           <section className="space-y-5">
-            {saisonCourante && (
-              <div className="text-xs text-muted flex items-center gap-1.5">
-                <Calendar size={11} className="text-turf"/>
-                Stats sur la saison <strong className="text-ink">{saisonCourante.saisonNom}</strong>
-                {!aJoueCetteSaison && (
-                  <span className="text-faint">· pas encore joue de match</span>
-                )}
-              </div>
-            )}
-            {!saisonCourante && ownSaisonId && (
-              <div className="text-xs text-muted flex items-center gap-1.5">
-                <Calendar size={11} className="text-turf"/>
-                <span className="text-faint">Nouveau — pas encore inscrit sur cette saison</span>
-              </div>
-            )}
+            <div className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
+              <Calendar size={11} className="text-turf"/>
+              Stats sur la saison <strong className="text-ink">{saison?.nom ?? "—"}</strong>
+              {equipe && <span className="text-faint">· {equipe.nom}</span>}
+              {!entree && <span className="text-faint">· pas inscrit sur cette saison</span>}
+              {entree && totaux.matchs === 0 && (
+                <span className="text-faint">· pas encore joue de match</span>
+              )}
+            </div>
             {/* KPI stats */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <Kpi label="Matchs joues" value={statsSaison.matchs} icon={<Calendar size={14}/>} />
-              <Kpi label="Titularisations" value={statsSaison.titularisations} icon={<Target size={14}/>}/>
-              <Kpi label="Minutes" value={statsSaison.minutes} suffix="min" icon={<Activity size={14}/>}/>
-              <Kpi label="Buts" value={statsSaison.buts} icon={<Target size={14}/>}/>
-              <Kpi label="Passes decisives" value={j.passesDecisives ?? 0} icon={<Star size={14}/>}/>
+              <Kpi label="Matchs joues" value={totaux.matchs} icon={<Calendar size={14}/>} />
+              <Kpi label="Titularisations" value={totaux.titularisations} icon={<Target size={14}/>}/>
+              <Kpi label="Minutes" value={totaux.minutes} suffix="min" icon={<Activity size={14}/>}/>
+              <Kpi label="Buts" value={totaux.buts} icon={<Target size={14}/>}/>
+              <Kpi label="Passes decisives" value={totaux.passesDecisives} icon={<Star size={14}/>}/>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <Kpi label="Cartons jaunes" value={statsSaison.cartonsJaunes} icon={<span className="w-2.5 h-3 bg-amber rounded-sm"/>}/>
-              <Kpi label="Cartons rouges" value={statsSaison.cartonsRouges} icon={<span className="w-2.5 h-3 bg-danger rounded-sm"/>}/>
+              <Kpi label="Cartons jaunes" value={totaux.cartonsJaunes} icon={<span className="w-2.5 h-3 bg-amber rounded-sm"/>}/>
+              <Kpi label="Cartons rouges" value={totaux.cartonsRouges} icon={<span className="w-2.5 h-3 bg-danger rounded-sm"/>}/>
               <Kpi
                 label="Indice discipline"
-                value={`${indiceDiscipline}/100`}
+                value={`${discipline}/100`}
                 icon={<AlertTriangle size={14}/>}
                 accent={
-                  indiceDiscipline >= 80 ? "turf"
-                  : indiceDiscipline >= 60 ? "amber"
+                  discipline >= 80 ? "turf"
+                  : discipline >= 60 ? "amber"
                   : "danger"
                 }
               />
@@ -257,44 +239,49 @@ export default async function JoueurPage({ params }: { params: { id: string } })
             {/* Terrain + derniers matchs */}
             <div className="grid grid-cols-12 gap-4">
               <div className="col-span-12 md:col-span-5">
-                <TerrainPostes numerosFreq={numerosFreq} />
+                <TerrainPostes numerosFreq={totaux.numeros} />
               </div>
               <div className="col-span-12 md:col-span-7 panel p-5">
-                <div className="h-section mb-3">Derniers matchs</div>
-                {perso.length === 0 ? (
+                <div className="h-section mb-3">Derniers matchs · {saison?.nom ?? "—"}</div>
+                {matchsJoues.length === 0 ? (
                   <p className="text-sm text-muted py-4">
-                    Aucune apparition dans les feuilles de match recentes.
+                    Aucune apparition en feuille de match sur cette saison.
                   </p>
                 ) : (
                   <table className="table-fm">
                     <thead>
                       <tr>
                         <th>Journee</th><th>Adversaire</th><th>Score</th>
-                        <th>Statut</th>
+                        <th>Statut</th><th className="text-right">Min.</th><th>Faits</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {perso.map(({ match, titulaire }) => {
-                        const dom = match.clubDom === j.clubId;
-                        const advId = dom ? match.clubExt : match.clubDom;
-                        const adv = clubs.find((c) => c.id === advId);
+                      {matchsJoues.map((m) => {
+                        const adv = clubs.find((c) => c.id === m.adversaireId);
                         return (
-                          <tr key={match.id}>
-                            <td className="font-mono text-muted">{match.journee}</td>
+                          <tr key={m.matchId}>
+                            <td className="font-mono text-muted">{m.journee ?? "—"}</td>
                             <td>
-                              <Link href={`/club/${advId}`} className="font-semibold hover:text-turf">
-                                {adv?.nom ?? advId}
+                              <Link href={`/club/${m.adversaireId}`} className="font-semibold hover:text-turf">
+                                {adv?.nom ?? m.adversaireId}
                               </Link>
                             </td>
                             <td>
-                              <Link href={`/matchs/${match.id}`} className="font-mono font-semibold tabular-nums hover:text-turf">
-                                {dom ? match.scoreDom : match.scoreExt}–{dom ? match.scoreExt : match.scoreDom}
+                              <Link href={`/matchs/${m.matchId}`} className="font-mono font-semibold tabular-nums hover:text-turf">
+                                {m.scoreEquipe}–{m.scoreAdversaire}
                               </Link>
                             </td>
                             <td>
-                              <span className={`badge ${titulaire ? "badge-turf" : ""}`}>
-                                {titulaire ? "Titulaire" : "Remplacant"}
+                              <span className={`badge ${m.titulaire ? "badge-turf" : ""}`}>
+                                {m.titulaire ? "Titulaire" : "Remplacant"}
                               </span>
+                            </td>
+                            <td className="text-right font-mono tabular-nums text-muted">{m.minutes}'</td>
+                            <td className="text-xs whitespace-nowrap">
+                              {m.buts > 0 && <span className="text-turf mr-1.5">{m.buts} but{m.buts > 1 ? "s" : ""}</span>}
+                              {m.passesDecisives > 0 && <span className="text-sky mr-1.5">{m.passesDecisives} PD</span>}
+                              {m.cartonsJaunes > 0 && <span className="text-amber mr-1.5">CJ</span>}
+                              {m.cartonsRouges > 0 && <span className="text-danger">CR</span>}
                             </td>
                           </tr>
                         );
@@ -312,16 +299,24 @@ export default async function JoueurPage({ params }: { params: { id: string } })
             <div className="grid grid-cols-12 gap-4">
               <div className="col-span-12 md:col-span-4 panel p-5">
                 <div className="h-section mb-3">Evolution du score de forme</div>
-                <Sparkline values={evolutionForme} width={500} height={120} color="rgb(var(--turf))"/>
-                <div className="text-[11px] text-faint mt-2">
-                  Estimee depuis les dernieres seances et matchs.
-                </div>
+                {saisonActive ? (
+                  <>
+                    <Sparkline values={evolutionForme} width={500} height={120} color="rgb(var(--turf))"/>
+                    <div className="text-[11px] text-faint mt-2">
+                      Estimee depuis les dernieres seances et matchs.
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted py-4">
+                    La forme est une mesure du moment : elle n'est suivie que sur la saison en cours.
+                  </p>
+                )}
               </div>
               <div className="col-span-12 md:col-span-4 panel p-5">
-                <div className="h-section mb-3">Charge des seances</div>
+                <div className="h-section mb-3">Charge des seances · {saison?.nom ?? "—"}</div>
                 {chargesRecentes.length === 0 ? (
                   <p className="text-sm text-muted py-4">
-                    Aucune presence enregistree aux entrainements.
+                    Aucune presence enregistree aux entrainements de cette saison.
                   </p>
                 ) : (
                   <Sparkline values={chargesRecentes} width={500} height={120} color="rgb(var(--amber))"/>
@@ -330,12 +325,12 @@ export default async function JoueurPage({ params }: { params: { id: string } })
               <div className="col-span-12 md:col-span-4">
                 <div className="grid grid-cols-2 gap-3">
                   <Mini icon={<Activity size={14}/>} label="Score forme"
-                    value={j.scoreForme != null ? `${j.scoreForme}/100` : "—"}/>
-                  <Mini icon={<AlertTriangle size={14}/>} label={j.acwr != null ? `Fatigue (ACWR ${j.acwr.toFixed(2)})` : "Fatigue"}
-                    value={j.scoreFatigue != null ? `${j.scoreFatigue}/100` : "—"}/>
+                    value={saisonActive && j.scoreForme != null ? `${j.scoreForme}/100` : "—"}/>
+                  <Mini icon={<AlertTriangle size={14}/>} label={saisonActive && j.acwr != null ? `Fatigue (ACWR ${j.acwr.toFixed(2)})` : "Fatigue"}
+                    value={saisonActive && j.scoreFatigue != null ? `${j.scoreFatigue}/100` : "—"}/>
                   <Mini icon={<Activity size={14}/>} label="Charge 7j (UA-RPE)"
-                    value={j.chargeAcute7j != null ? Math.round(j.chargeAcute7j) : "—"}/>
-                  <Mini icon={<AlertTriangle size={14}/>} label="Blessures historiques"
+                    value={saisonActive && j.chargeAcute7j != null ? Math.round(j.chargeAcute7j) : "—"}/>
+                  <Mini icon={<AlertTriangle size={14}/>} label="Blessures (toutes saisons)"
                     value={j.blessuresAnt ?? 0}/>
                   <Mini icon={<Dumbbell size={14}/>} label="Blessures actives"
                     value={blessures.filter((b: any) => {
@@ -384,6 +379,15 @@ function Card({ label, big }: { label: string; big: React.ReactNode }) {
     <div className="stat-tile flex flex-col items-center justify-center gap-2">
       <div className="stat-label">{label}</div>
       {big}
+    </div>
+  );
+}
+/** Placeholder d'une mesure sans valeur sur la saison consultee. */
+function Indisponible({ pourquoi }: { pourquoi: string }) {
+  return (
+    <div className="flex flex-col items-center gap-1 text-center">
+      <div className="font-display text-3xl font-black text-faint">—</div>
+      <div className="text-[10px] uppercase tracking-wider text-faint">{pourquoi}</div>
     </div>
   );
 }

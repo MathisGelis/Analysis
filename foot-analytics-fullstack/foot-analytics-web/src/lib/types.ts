@@ -32,6 +32,67 @@ export interface Saison {
   statut?: string;
 }
 
+/** Compteurs d'un joueur sur une saison (ou une equipe de cette saison). */
+export interface TotauxSaison {
+  matchs: number;
+  titularisations: number;
+  minutes: number;
+  buts: number;
+  passesDecisives: number;
+  cartonsJaunes: number;
+  cartonsRouges: number;
+  /** Numeros portes : { "6": 3, "8": 5 }. */
+  numeros: Record<string, number>;
+  noteMoyenne: number | null;
+}
+
+/** Une ligne (equipe) du parcours d'un joueur pour une saison. */
+export interface LigneHistorique {
+  clubId: string;
+  equipeId: string | null;
+  equipeNom: string | null;
+  competitionLibelle: string | null;
+  poule: string | null;
+  matchs: number;
+  titularisations: number;
+  minutes: number;
+  buts: number;
+  passesDecisives: number;
+  cartonsJaunes: number;
+  cartonsRouges: number;
+  noteMoyenne: number | null;
+  numeros: Record<string, number>;
+}
+
+/** Parcours d'un joueur pour une saison : `GET /joueurs/:id/historique`. */
+export interface HistoriqueSaison {
+  saisonId: string | null;
+  saisonNom: string;
+  anneeDebut: number;
+  saisonActive: boolean;
+  totaux: TotauxSaison;
+  lignes: LigneHistorique[];
+}
+
+/** Un match joue par le joueur : `GET /joueurs/:id/matchs`. */
+export interface MatchJoue {
+  matchId: string;
+  date: string | null;
+  journee: string | null;
+  clubId: string;
+  adversaireId: string;
+  domicile: boolean;
+  scoreEquipe: number;
+  scoreAdversaire: number;
+  titulaire: boolean;
+  minutes: number;
+  numero: number | null;
+  buts: number;
+  passesDecisives: number;
+  cartonsJaunes: number;
+  cartonsRouges: number;
+}
+
 export interface Joueur {
   id: string;
   licence?: string;

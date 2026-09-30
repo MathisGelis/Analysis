@@ -37,7 +37,11 @@ interface Props {
     bpMoy?: number; bcMoy?: number; forme: Issue[];
   };
   resultats: ResultatLigne[];
+  /** Effectif de l'equipe consultee, avec les stats de SA saison. */
   joueurs: Joueur[];
+  /** Joueurs du club (toutes saisons) : sert seulement a relier un nom cite dans
+   *  un rapport a sa fiche, jamais a afficher des chiffres. */
+  annuaire?: Joueur[];
   rapport?: RapportScouting | null;
   isMine: boolean;
   initialTab?: Tab;
@@ -88,7 +92,7 @@ function JoueurName({
 }
 
 export function ClubTabs({
-  club, equipe, ligne, totalClasses, bilan, resultats, joueurs, rapport, isMine, initialTab,
+  club, equipe, ligne, totalClasses, bilan, resultats, joueurs, annuaire, rapport, isMine, initialTab,
   saisonNom, saisonActif,
 }: Props) {
   const [tab, setTab] = useState<Tab>(initialTab ?? "overview");
@@ -174,12 +178,13 @@ export function ClubTabs({
       {tab === "overview" && <OverviewPanel
         bilan={bilan} resultats={resultats} joueurs={joueurs}
         rapport={rapport} equipe={equipe} cumulCJ={cumulCJ} cumulCR={cumulCR}
+        saisonActif={!!saisonActif}
       />}
       {tab === "effectif" && <EffectifPanel joueurs={joueurs} isMine={isMine} />}
       {tab === "matchs" && <MatchsPanel resultats={resultats} clubId={club.id} />}
       {tab === "scouting" && <ScoutingPanel
         club={club} equipe={equipe} bilan={bilan} resultats={resultats}
-        joueurs={joueurs} rapport={rapport} cumulCJ={cumulCJ} cumulCR={cumulCR}
+        joueurs={annuaire ?? joueurs} rapport={rapport} cumulCJ={cumulCJ} cumulCR={cumulCR}
       />}
     </div>
   );
@@ -189,7 +194,7 @@ export function ClubTabs({
 /*                        PANEL : Vue d'ensemble                  */
 /* ============================================================ */
 function OverviewPanel({
-  bilan, resultats, joueurs, rapport, equipe, cumulCJ, cumulCR,
+  bilan, resultats, joueurs, rapport, equipe, cumulCJ, cumulCR, saisonActif,
 }: any) {
   const topForme = [...joueurs]
     .filter((j: Joueur) => j.matchs >= 3)
@@ -275,16 +280,20 @@ function OverviewPanel({
       {/* top forme */}
       <div className="col-span-12 md:col-span-5 panel p-5">
         <div className="h-section mb-3">Joueurs en forme</div>
-        {topForme.length === 0 ? (
+        {!saisonActif ? (
+          <p className="text-sm text-muted py-4">
+            La forme est une mesure du moment : elle n'est suivie que sur la saison en cours.
+          </p>
+        ) : topForme.length === 0 ? (
           <p className="text-sm text-muted py-4">Effectif vide ou pas assez de matchs.</p>
         ) : (
           <ul className="space-y-2">
-            {topForme.map((j: Joueur) => (
-              <li key={j.id} className="flex items-center gap-3">
+            {topForme.map((j: Joueur, i: number) => (
+              <li key={j.id ?? i} className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-md bg-panel2 border border-line grid place-items-center font-mono text-sm font-bold text-turf">
                   {j.numeroFavori ?? "?"}
                 </div>
-                <Link href={`/joueur/${j.id}`} className="flex-1 min-w-0 hover:text-turf">
+                <Link href={j.id ? `/joueur/${j.id}` : "#"} className="flex-1 min-w-0 hover:text-turf">
                   <div className="text-sm font-semibold truncate">{j.prenom} {j.nom}</div>
                   <div className="text-[11px] text-muted">{j.poste} · {j.matchs} mat. · {j.minutes}'</div>
                 </Link>
@@ -311,8 +320,9 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
   if (sorted.length === 0) {
     return (
       <div className="panel p-8 text-center text-sm text-muted">
-        Aucun joueur en base pour ce club. Les effectifs sont construits a
-        partir des compositions des feuilles FMI importees.
+        Aucun joueur sur cette saison pour cette equipe. L'effectif se construit
+        avec les compositions des feuilles FMI importees, ou en ajoutant des
+        joueurs a la main.
       </div>
     );
   }
@@ -333,18 +343,24 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
             <th className="text-center">Mat.</th><th className="text-center">Titu</th>
             {isMine && <th>Minutes</th>}
             <th>Note</th><th>Forme</th>
+            <th className="text-center" title="Buts">B</th>
+            <th className="text-center" title="Passes decisives">PD</th>
             <th className="text-center">CJ</th><th className="text-center">CR</th>
             <th>Statut</th><th>Postes joues</th>
           </tr>
         </thead>
         <tbody>
-          {sorted.map((j) => (
-            <tr key={j.id}>
+          {sorted.map((j, i) => (
+            <tr key={j.id ?? i}>
               <td className="font-mono text-muted">{j.numeroFavori ?? "—"}</td>
               <td>
-                <Link href={`/joueur/${j.id}`} className="font-semibold hover:text-turf">
-                  {j.prenom} {j.nom}
-                </Link>
+                {j.id ? (
+                  <Link href={`/joueur/${j.id}`} className="font-semibold hover:text-turf">
+                    {j.prenom} {j.nom}
+                  </Link>
+                ) : (
+                  <span className="font-semibold">{j.prenom} {j.nom}</span>
+                )}
               </td>
               <td><span className="badge">{j.poste ?? "—"}</span></td>
               <td className="text-center tabular-nums">{j.matchs}</td>
@@ -352,13 +368,19 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
               {isMine && <td className="tabular-nums text-muted">{j.minutes}'</td>}
               <td className="font-semibold text-turf tabular-nums">{j.noteMoyenne?.toFixed(1)}</td>
               <td>
-                <div className="flex items-center gap-2">
-                  <div className="w-12 h-1.5 bg-line rounded-full overflow-hidden">
-                    <div className="h-full bg-turf" style={{width: `${j.scoreForme ?? 0}%`}}/>
+                {j.scoreForme == null ? (
+                  <span className="text-xs text-faint">—</span>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="w-12 h-1.5 bg-line rounded-full overflow-hidden">
+                      <div className="h-full bg-turf" style={{width: `${j.scoreForme}%`}}/>
+                    </div>
+                    <span className="text-xs text-muted tabular-nums w-6">{j.scoreForme}</span>
                   </div>
-                  <span className="text-xs text-muted tabular-nums w-6">{j.scoreForme ?? 0}</span>
-                </div>
+                )}
               </td>
+              <td className="text-center text-turf font-mono">{j.buts || ""}</td>
+              <td className="text-center text-sky font-mono">{j.passesDecisives || ""}</td>
               <td className="text-center text-amber font-mono">{j.cartonsJaunes || ""}</td>
               <td className="text-center text-danger font-mono">{j.cartonsRouges || ""}</td>
               <td>

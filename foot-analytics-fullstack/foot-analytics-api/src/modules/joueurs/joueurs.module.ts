@@ -14,6 +14,7 @@ import { scoreRecherche } from "@/common/fuzzy";
 import { minutesJouees } from "@/common/minutes";
 import { cumuler, statsDuMatch, STATS_MATCH_VIDES, StatsMatch } from "@/common/stats-match";
 import { noteIndicative } from "@/common/indicateurs";
+import { parseDateFlexible } from "@/common/periode";
 
 /** Score minimal (0-1) pour qu'un joueur apparaisse dans la recherche. */
 const SEUIL_RECHERCHE = 0.6;
@@ -523,6 +524,72 @@ export class JoueursService {
     return sameNom && samePrenom;
   }
 
+  /** Compositions d'un joueur : licence si connue, sinon nom + prenom. */
+  private composDuJoueur(j: Joueur): Promise<Composition[]> {
+    const qb = this.compos.createQueryBuilder("c");
+    if (j.licence) {
+      qb.where("c.licence = :lic", { lic: j.licence });
+    } else if (j.prenom) {
+      qb.where("LOWER(TRIM(c.nom)) = LOWER(TRIM(:nom)) AND LOWER(TRIM(c.prenom)) = LOWER(TRIM(:prenom))",
+        { nom: j.nom, prenom: j.prenom });
+    } else {
+      qb.where("LOWER(TRIM(c.nom)) = LOWER(TRIM(:nom))", { nom: j.nom });
+    }
+    return qb.getMany();
+  }
+
+  /**
+   * Derniers matchs joues par le joueur, du plus recent au plus ancien,
+   * restreints a une saison quand `saisonId` est donne. Chaque ligne porte
+   * l'adversaire, le score de SON point de vue et sa feuille personnelle
+   * (titulaire, minutes, buts, passes, cartons) : la fiche joueur n'a plus a
+   * charger chaque match un par un.
+   */
+  async matchsJoues(joueurId: string, saisonId?: string, limite = 8) {
+    const j = await this.findOne(joueurId);
+    const composJoueur = await this.composDuJoueur(j);
+    if (composJoueur.length === 0) return [];
+    const matchIds = [...new Set(composJoueur.map((c) => c.matchId))];
+    const matchs = (await this.matchsRepo.createQueryBuilder("m").whereInIds(matchIds).getMany())
+      .filter((m) => !saisonId || m.saisonId === saisonId);
+    if (matchs.length === 0) return [];
+    const matchById = new Map(matchs.map((m) => [m.id, m]));
+    const evts = await this.evtsRepo
+      .createQueryBuilder("e")
+      .where("e.match_id IN (:...ids)", { ids: matchs.map((m) => m.id) })
+      .getMany();
+    const evtsByMatch = new Map<string, EvenementMatch[]>();
+    for (const e of evts) {
+      const arr = evtsByMatch.get(e.matchId) ?? [];
+      arr.push(e);
+      evtsByMatch.set(e.matchId, arr);
+    }
+
+    const lignes: any[] = [];
+    for (const c of composJoueur) {
+      const m = matchById.get(c.matchId);
+      if (!m) continue;
+      const evtsDuMatch = evtsByMatch.get(m.id) ?? [];
+      const minutes = minutesJouees(c, evtsDuMatch);
+      if (!c.titulaire && minutes === 0) continue; // reste sur le banc
+      const dom = c.cote === "dom";
+      lignes.push({
+        matchId: m.id, date: m.date ?? null, journee: m.journee ?? null,
+        clubId: dom ? m.clubDom : m.clubExt,
+        adversaireId: dom ? m.clubExt : m.clubDom,
+        domicile: dom,
+        scoreEquipe: dom ? m.scoreDom : m.scoreExt,
+        scoreAdversaire: dom ? m.scoreExt : m.scoreDom,
+        titulaire: c.titulaire, minutes, numero: c.numero ?? null,
+        ...statsDuMatch(c, evtsDuMatch),
+      });
+    }
+    return lignes
+      // Dates au format "jj/mm/aaaa" (FMI) ou ISO : on compare des timestamps, pas des chaines.
+      .sort((a, b) => (parseDateFlexible(b.date) ?? 0) - (parseDateFlexible(a.date) ?? 0))
+      .slice(0, limite);
+  }
+
   /**
    * Historique club/equipe du joueur, groupe par saison. Pour chaque
    * saison ou il a au moins un match, on remonte :
@@ -537,16 +604,7 @@ export class JoueursService {
     const j = await this.findOne(joueurId);
 
     // 1) Filtre SQL : recupere UNIQUEMENT les compos de ce joueur.
-    const qb = this.compos.createQueryBuilder("c");
-    if (j.licence) {
-      qb.where("c.licence = :lic", { lic: j.licence });
-    } else if (j.prenom) {
-      qb.where("LOWER(TRIM(c.nom)) = LOWER(TRIM(:nom)) AND LOWER(TRIM(c.prenom)) = LOWER(TRIM(:prenom))",
-        { nom: j.nom, prenom: j.prenom });
-    } else {
-      qb.where("LOWER(TRIM(c.nom)) = LOWER(TRIM(:nom))", { nom: j.nom });
-    }
-    const composJoueur = await qb.getMany();
+    const composJoueur = await this.composDuJoueur(j);
     // Un joueur jamais aligne mais attache a un effectif (recrue d'une saison
     // en preparation) a quand meme un parcours : ses lignes a 0 (etape 6a).
     const attachedEqIds: string[] = j.equipesAttachees ?? [];
@@ -705,8 +763,19 @@ export class JoueursService {
         numeros: a.numeros,
       });
     }
+    // Totaux de la saison (toutes ses equipes) : ce que la fiche affiche.
+    const totaux = (lignes: any[]) => {
+      const t = { matchs: 0, titularisations: 0, minutes: 0, buts: 0, passesDecisives: 0, cartonsJaunes: 0, cartonsRouges: 0 };
+      const numeros: Record<number, number> = {};
+      for (const l of lignes) {
+        for (const k of Object.keys(t) as (keyof typeof t)[]) t[k] += l[k] ?? 0;
+        for (const [n, k] of Object.entries(l.numeros ?? {})) numeros[+n] = (numeros[+n] ?? 0) + (k as number);
+      }
+      return { ...t, numeros, noteMoyenne: t.matchs > 0 ? noteIndicative(t.matchs, t.cartonsRouges) : null };
+    };
     const result = [...bySaison.entries()].map(([sid, v]) => ({
       saisonId: sid === "_inconnue" ? null : sid,
+      totaux: totaux(v.lignes),
       saisonNom: (v.saison as any)?.nom ?? "Saison inconnue",
       anneeDebut: (v.saison as any)?.anneeDebut ?? 0,
       saisonActive: !!(v.saison as any)?.actif,
@@ -794,6 +863,13 @@ class JoueursController {
   @Get(":id/numeros")
   numeros(@Param("id") id: string) {
     return this.svc.numerosFreq(id);
+  }
+
+  /** GET /joueurs/:id/matchs?saisonId=&limite= : derniers matchs joues, avec
+   *  la feuille personnelle du joueur (titulaire, minutes, buts, cartons). */
+  @Get(":id/matchs")
+  matchs(@Param("id") id: string, @Query("saisonId") saisonId?: string, @Query("limite") limite?: string) {
+    return this.svc.matchsJoues(id, saisonId || undefined, limite ? Math.min(50, Math.max(1, parseInt(limite, 10) || 8)) : 8);
   }
 
   /** PUT /joueurs/:id/stats-equipe/:equipeId : buts / passes saisis a la main

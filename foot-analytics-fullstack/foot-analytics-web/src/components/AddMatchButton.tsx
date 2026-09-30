@@ -11,6 +11,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api";
+import { useOwnEquipe } from "@/lib/own-equipe-context";
 import { Modal } from "@/components/Modal";
 import type { Club, Joueur } from "@/lib/types";
 import {
@@ -39,6 +40,7 @@ const nextUid = () => `c${++uidCounter}`;
 
 export function AddMatchButton({ clubs }: { clubs: Club[] }) {
   const router = useRouter();
+  const { saisonId } = useOwnEquipe();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,12 +86,19 @@ export function AddMatchButton({ clubs }: { clubs: Club[] }) {
     const clubId = cote === "dom" ? form.clubDom : form.clubExt;
     if (!clubId) return;
     try {
-      const joueurs = await api.joueurs(clubId);
+      // Effectif de la SAISON selectionnee : l'equipe du club qui joue dans la
+      // competition et la poule du formulaire, sinon la seule/premiere equipe.
+      // (Tous les joueurs passes par le club, toutes saisons, donnaient des
+      // compositions pleines d'anciens.)
+      const equipes = await api.equipes({ clubId, saisonId: saisonId ?? undefined });
+      const equipe = equipes.find((e: any) =>
+        e.poule === form.poule && e.competitionLibelle === form.competition) ?? equipes[0];
+      const joueurs: Joueur[] = equipe ? await api.effectifEquipe(equipe.id) : [];
       if (!joueurs.length) {
-        setInfo("Aucun joueur en base pour ce club. Importez des feuilles FMI ou ajoutez les manuellement.");
+        setInfo("Aucun joueur dans l'effectif de cette saison. Importez des feuilles FMI ou ajoutez les manuellement.");
         return;
       }
-      const lignes: CompoLigne[] = joueurs
+      const lignes: CompoLigne[] = [...joueurs]
         .sort((a, b) => (a.numeroFavori ?? 99) - (b.numeroFavori ?? 99))
         .map((j: Joueur) => ({
           uid: nextUid(),

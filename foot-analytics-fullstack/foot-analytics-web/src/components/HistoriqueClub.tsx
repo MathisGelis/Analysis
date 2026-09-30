@@ -6,25 +6,10 @@
 
 import { ClubBadge } from "@/components/ClubBadge";
 import { Calendar } from "lucide-react";
+import type { HistoriqueSaison } from "@/lib/types";
 
-interface Ligne {
-  clubId: string;
-  equipeId: string | null;
-  equipeNom: string | null;
-  competitionLibelle: string | null;
-  poule: string | null;
-  matchs: number;
-  titularisations: number;
-  minutes: number;
-}
-interface Saison {
-  saisonId: string | null;
-  saisonNom: string;
-  anneeDebut: number;
-  lignes: Ligne[];
-}
 interface Props {
-  historique: Saison[];
+  historique: HistoriqueSaison[];
   clubs: { id: string; nom: string }[];
 }
 
@@ -76,6 +61,13 @@ export function HistoriqueClub({ historique, clubs }: Props) {
                       <div className="text-[10px] text-faint">
                         {l.titularisations} titu · {l.minutes}'
                       </div>
+                      {(l.buts > 0 || l.passesDecisives > 0 || l.cartonsJaunes > 0 || l.cartonsRouges > 0) && (
+                        <div className="text-[10px] text-faint">
+                          {l.buts} B · {l.passesDecisives} PD
+                          {l.cartonsJaunes > 0 && <span className="text-amber"> · {l.cartonsJaunes} CJ</span>}
+                          {l.cartonsRouges > 0 && <span className="text-danger"> · {l.cartonsRouges} CR</span>}
+                        </div>
+                      )}
                     </div>
                   </li>
                 ))}

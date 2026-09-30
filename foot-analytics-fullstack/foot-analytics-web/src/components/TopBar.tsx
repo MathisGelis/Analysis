@@ -100,7 +100,8 @@ export function TopBar({ title }: { title?: string }) {
         out.push({
           type: "joueur",
           label: `${j.prenom ?? ""} ${j.nom}`.trim(),
-          sub: `${clubLabel} · ${j.poste ?? "—"} · ${j.matchs} mat. · ${j.cartonsJaunes}CJ`,
+          // Pas de compteurs ici : ceux du joueur sont des cumuls toutes saisons.
+          sub: `${clubLabel} · ${j.poste ?? "—"}`,
           href: `/joueur/${j.id}`,
         });
       }

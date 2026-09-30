@@ -15,7 +15,7 @@ import {
   CLASSEMENT_POULE_C as DEMO_CLASSEMENT,
 } from "@/data/demo";
 import type {
-  Club, Joueur, Match, RapportScouting, LigneClassement,
+  Club, HistoriqueSaison, Joueur, LigneClassement, Match, MatchJoue, RapportScouting,
 } from "@/lib/types";
 
 export const API_URL =
@@ -165,9 +165,17 @@ export const api = {
   joueurNumeros: (id: string) =>
     req<Record<string, number>>(`/joueurs/${id}/numeros`, { fallback: {} }),
 
-  /** Historique du joueur par saison : [{saisonNom, lignes: [{ clubId, equipeNom, matchs, ... }]}]. */
+  /** Parcours du joueur par saison, avec ses stats (buts, passes, cartons...)
+   *  par equipe et en total de saison. */
   joueurHistorique: (id: string) =>
-    req<any[]>(`/joueurs/${id}/historique`, { fallback: [] }),
+    req<HistoriqueSaison[]>(`/joueurs/${id}/historique`, { fallback: [] }),
+
+  /** Derniers matchs joues (feuille personnelle), restreints a une saison. */
+  joueurMatchs: (id: string, saisonId?: string | null, limite = 8) => {
+    const qs = new URLSearchParams({ limite: String(limite) });
+    if (saisonId) qs.set("saisonId", saisonId);
+    return req<MatchJoue[]>(`/joueurs/${id}/matchs?${qs}`, { fallback: [] });
+  },
 
   // Matchs
   matchs: (clubId?: string) =>
@@ -220,6 +228,13 @@ export const api = {
     req<Joueur>(`/joueurs/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   createJoueur: (body: Json) =>
     req<Joueur>("/joueurs", { method: "POST", body: JSON.stringify(body) }),
+  /** Buts / passes saisis a la main pour CETTE equipe (donc cette saison) ;
+   *  `null` efface la saisie et revient au calcul depuis les feuilles. */
+  definirStatEquipe: (joueurId: string, equipeId: string,
+    body: { buts?: number | null; passesDecisives?: number | null }) =>
+    req<any>(`/joueurs/${joueurId}/stats-equipe/${equipeId}`, {
+      method: "PUT", body: JSON.stringify(body),
+    }),
   deleteJoueur: (id: string) =>
     req<{ ok: boolean }>(`/joueurs/${id}`, { method: "DELETE" }),
 

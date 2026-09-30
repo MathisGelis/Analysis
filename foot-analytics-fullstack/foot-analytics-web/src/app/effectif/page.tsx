@@ -89,16 +89,17 @@ export default function EffectifPage() {
     }
   }
 
-  // Maj rapide d'un champ stat (buts / passes) : mise a jour optimiste puis
-  // appel PATCH ; en cas d'echec on remet l'ancienne valeur et on previent.
-  async function patchStat(id: string, patch: Partial<Joueur>) {
+  // Maj rapide des buts / passes : mise a jour optimiste puis PUT ; la saisie
+  // est enregistree pour l'equipe (donc la saison) affichee, jamais sur le
+  // compteur global du joueur. En cas d'echec on remet l'ancienne valeur.
+  async function patchStat(id: string, patch: { buts?: number; passesDecisives?: number }) {
     const prev = joueurs.find((x) => x.id === id);
-    if (!prev) return;
+    if (!prev || !equipeId) return;
     setJoueurs((arr) =>
       arr.map((x) => (x.id === id ? { ...x, ...patch } : x)),
     );
     try {
-      await api.updateJoueur(id, patch as any);
+      await api.definirStatEquipe(id, equipeId, patch);
     } catch (e) {
       setJoueurs((arr) => arr.map((x) => (x.id === id ? prev : x)));
       alert("Sauvegarde impossible : " + (e as Error).message);
@@ -280,13 +281,6 @@ function JoueurForm({
     poste: joueur?.poste ?? "MIL",
     numeroFavori: joueur?.numeroFavori ?? undefined,
     statutMutation: joueur?.statutMutation ?? "Pas mutation",
-    matchs: joueur?.matchs ?? 0,
-    titularisations: joueur?.titularisations ?? 0,
-    minutes: joueur?.minutes ?? 0,
-    cartonsJaunes: joueur?.cartonsJaunes ?? 0,
-    cartonsRouges: joueur?.cartonsRouges ?? 0,
-    noteMoyenne: joueur?.noteMoyenne ?? 6,
-    scoreForme: joueur?.scoreForme ?? 50,
     commentaire: joueur?.commentaire ?? "",
   });
   const [saving, setSaving] = useState(false);
@@ -338,20 +332,6 @@ function JoueurForm({
               <option>Pas mutation</option><option>Mutation</option><option>Non connu</option>
             </select>
           </Field>
-          <Field label="Note moyenne"><input type="number" step="0.1" className="inp"
-            value={form.noteMoyenne} onChange={(e)=>set("noteMoyenne", +e.target.value)}/></Field>
-          <Field label="Matchs"><input type="number" className="inp"
-            value={form.matchs} onChange={(e)=>set("matchs", +e.target.value)}/></Field>
-          <Field label="Titularisations"><input type="number" className="inp"
-            value={form.titularisations} onChange={(e)=>set("titularisations", +e.target.value)}/></Field>
-          <Field label="Minutes"><input type="number" className="inp"
-            value={form.minutes} onChange={(e)=>set("minutes", +e.target.value)}/></Field>
-          <Field label="Score forme"><input type="number" className="inp"
-            value={form.scoreForme} onChange={(e)=>set("scoreForme", +e.target.value)}/></Field>
-          <Field label="Cartons jaunes"><input type="number" className="inp"
-            value={form.cartonsJaunes} onChange={(e)=>set("cartonsJaunes", +e.target.value)}/></Field>
-          <Field label="Cartons rouges"><input type="number" className="inp"
-            value={form.cartonsRouges} onChange={(e)=>set("cartonsRouges", +e.target.value)}/></Field>
           <div className="col-span-2">
             <Field label="Commentaire staff"><input className="inp" value={form.commentaire}
               onChange={(e)=>set("commentaire", e.target.value)}/></Field>
