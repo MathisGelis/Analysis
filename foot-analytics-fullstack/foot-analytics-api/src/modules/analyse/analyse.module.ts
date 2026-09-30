@@ -4,8 +4,12 @@
 // dependance, rotation, faiblesses, partnerships gagnants, minute moyenne
 // des changements, scores de danger et de chaos.
 //
-// On expose un seul endpoint :  GET /api/analyse/club/:clubId[?equipeId=&saisonId=]
-// La reponse est un objet self-contenu, consomme tel quel par le front.
+// Deux endpoints :
+//   GET /api/analyse/club/:clubId[?equipeId=&saisonId=]  rapport d'une equipe
+//   GET /api/analyse/poule?equipeId=                     dynamique de toute la poule
+// Les reponses sont des objets self-contenus, consommes tels quels par le front.
+// Les TENDANCES (dynamique recente, series, domicile/exterieur, discipline,
+// rotation, niveau des adversaires) sont calculees par common/tendances.ts.
 //
 // Perimetre : sans parametre, tous les matchs du club (toutes equipes, toutes
 // saisons melangees : a eviter). `equipeId` restreint a UNE equipe (donc une
@@ -16,11 +20,15 @@ import {
   Controller, Get, Injectable, Module, NotFoundException, Param, Query,
 } from "@nestjs/common";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
-import { In, Repository } from "typeorm";
+import { In, IsNull, Repository } from "typeorm";
 import {
-  Club, Coach, Composition, Entrainement, EvenementMatch, Joueur, Match,
-  StaffMatch,
+  Club, Coach, Composition, Entrainement, Equipe, EvenementMatch, Joueur, LigneClassement,
+  Match, Saison, StaffMatch,
 } from "@/entities";
+import {
+  calculerTendances, dynamiqueForme, issueDe, MatchTendance, series as seriesDe, Issue, SensTendance,
+  Tendances, trierChronologiquement,
+} from "@/common/tendances";
 
 /* ---------- helpers ---------- */
 function norm(s?: string): string {
@@ -60,7 +68,15 @@ interface RapportEquipe {
   // KPI haut de page
   scoreDanger: number;        // 0-100, plus haut = equipe dangereuse
   scoreChaos: number;         // 0-100, plus haut = equipe instable
-  formeMoy: number;           // moyenne des scoreForme des titulaires types
+  formeMoy: number | null;    // moyenne des scoreForme des titulaires types ; null hors saison active
+  // Ce que le rapport couvre (equipe, saison, poule) : la page l'affiche en en-tete.
+  perimetre: {
+    equipeId: string | null; equipeNom: string | null;
+    saisonId: string | null; saisonNom: string | null; saisonActive: boolean;
+    competition: string | null; poule: string | null;
+  };
+  // Tendances : dynamique recente, series, lieux, profil, discipline, rotation, constats.
+  tendances: Tendances;
   // Impact / joueurs cles
   impacts: ImpactJoueur[];    // un par joueur, trie par impact decroissant
   joueursCles: ImpactJoueur[];// top par impactPondere, min 50% des matchs
@@ -145,6 +161,9 @@ export class AnalyseService {
     @InjectRepository(Entrainement) private trainings: Repository<Entrainement>,
     @InjectRepository(Coach) private coachsRepo: Repository<Coach>,
     @InjectRepository(StaffMatch) private staffMatchsRepo: Repository<StaffMatch>,
+    @InjectRepository(Equipe) private equipesRepo: Repository<Equipe>,
+    @InjectRepository(LigneClassement) private classementRepo: Repository<LigneClassement>,
+    @InjectRepository(Saison) private saisonsRepo: Repository<Saison>,
   ) {}
 
   async rapportClub(
@@ -192,6 +211,25 @@ export class AnalyseService {
         issue,
       };
     });
+
+    /* ============ Contexte : equipe, saison, poule, classement ============ */
+    const plusFrequent = <T,>(xs: (T | null | undefined)[]): T | null => {
+      const c = new Map<T, number>();
+      for (const x of xs) if (x != null) c.set(x, (c.get(x) ?? 0) + 1);
+      return [...c.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    };
+    const equipeRefId = portee.equipeId
+      ?? plusFrequent(infos.map((i) => (i.dom ? i.m.equipeDomId : i.m.equipeExtId)));
+    const equipeRef = equipeRefId ? await this.equipesRepo.findOne({ where: { id: equipeRefId } }) : null;
+    const saisonId = portee.saisonId ?? equipeRef?.saisonId ?? plusFrequent(infos.map((i) => i.m.saisonId));
+    const saison = saisonId ? await this.saisonsRepo.findOne({ where: { id: saisonId } }) : null;
+    // Rang de chaque equipe du championnat (pour situer les adversaires : haut / milieu / bas).
+    const equipesPoule = equipeRef ? await this.equipesDuChampionnat(equipeRef) : [];
+    const lignesPoule = equipesPoule.length === 0 ? [] : await this.classementRepo.find({
+      where: { equipeId: In(equipesPoule.map((e) => e.id)) },
+    });
+    const rangParEquipe = new Map(lignesPoule.map((l) => [l.equipeId, l.rang]));
+    const rangParClub = new Map(lignesPoule.map((l) => [l.clubId, l.rang]));
 
     /* ============ Impact par joueur ============ */
     // Pour chaque joueur connu de la base, on calcule ppm avec vs sans.
@@ -265,9 +303,10 @@ export class AnalyseService {
     // On compte combien de fois on a vu une "nouvelle face" sur la ligne
     // d'un match a l'autre.
     let prevTitu: Record<string, Set<string>> | null = null;
-    for (const info of infos.slice().sort(
-      (a, b) => (a.m.date ?? "").localeCompare(b.m.date ?? ""),
-    )) {
+    // Dates en jj/mm/aaaa : trier les chaines melangeait les mois (15/03 avant 27/09).
+    const infosChrono = trierChronologiquement(infos.map((i) => ({ i, date: i.m.date ?? null, journee: i.m.journee ?? null })))
+      .map((x) => x.i);
+    for (const info of infosChrono) {
       const titParLigne: Record<string, Set<string>> = { GB: new Set(), DEF: new Set(), MIL: new Set(), ATT: new Set() };
       for (const c of info.titulaires) {
         const k = norm(`${c.nom} ${c.prenom ?? ""}`);
@@ -494,12 +533,16 @@ export class AnalyseService {
         norm(`${j.prenom ?? ""} ${j.nom}`.trim()) === norm(c.nom),
       ))
       .filter(Boolean) as Joueur[];
-    const formeMoy = +avg(titulairesPresumes.map((j) => j.scoreForme ?? 50)).toFixed(0);
+    // La forme (scoreForme) est une mesure du moment : sur une saison passee ou a venir elle
+    // n'a pas de sens, on ne la montre pas et elle ne pese pas dans le score de danger.
+    const formeMoy = saison?.actif
+      ? +avg(titulairesPresumes.map((j) => j.scoreForme ?? 50)).toFixed(0)
+      : null;
     const scoreDanger = Math.round(clamp(
       40
       + bpAvg * 15            // attaque qui marque
       + (stabGlobal - 50) * 0.3
-      + (formeMoy - 50) * 0.4
+      + ((formeMoy ?? 50) - 50) * 0.4
       - bcAvg * 5              // defense qui encaisse penalise
       + matchsClub.filter((m) => {
           const bp = m.clubDom === clubId ? m.scoreDom : m.scoreExt;
@@ -606,9 +649,9 @@ export class AnalyseService {
     // Un changement est confirme UNIQUEMENT si le nouveau coach reste au
     // moins 2 matchs consecutifs (sinon : absence ponctuelle = pas un
     // changement, par exemple s'il etait suspendu ou absent ce jour-la).
-    const matchsChrono = [...matchsClub].sort(
-      (a, b) => (a.date ?? "").localeCompare(b.date ?? ""),
-    );
+    const matchsChrono = trierChronologiquement(
+      matchsClub.map((m) => ({ m, date: m.date ?? null, journee: m.journee ?? null })),
+    ).map((x) => x.m);
     const staffByMatch = new Map<string, StaffMatch[]>();
     for (const sm of allStaffMatchs) {
       if (!staffByMatch.has(sm.matchId)) staffByMatch.set(sm.matchId, []);
@@ -661,9 +704,45 @@ export class AnalyseService {
       }
     }
 
+    /* ============ Tendances ============ */
+    const matchsTendance: MatchTendance[] = infosChrono.map((info) => {
+      const m = info.m;
+      const moi = info.dom ? "dom" : "ext";
+      const evts = m.evenements ?? [];
+      const miens = evts.filter((e) => (e as any).equipe === moi);
+      const cartons = miens.filter((e) => e.type === "carton");
+      const minutesDes = (liste: EvenementMatch[]) => liste.filter((e) => e.minute != null).map((e) => e.minute);
+      const butsDe = (cote: string) => evts.filter((e) => e.type === "but" && e.sousType !== "csc" && (e as any).equipe === cote);
+      return {
+        matchId: m.id, date: m.date ?? null, journee: m.journee ?? null,
+        domicile: info.dom,
+        adversaireId: info.dom ? m.clubExt : m.clubDom,
+        adversaireEquipeId: (info.dom ? m.equipeExtId : m.equipeDomId) ?? null,
+        bp: info.dom ? m.scoreDom : m.scoreExt,
+        bc: info.dom ? m.scoreExt : m.scoreDom,
+        cartonsJaunes: cartons.filter((e) => e.sousType === "jaune").length,
+        cartonsRouges: cartons.filter((e) => e.sousType === "rouge" || e.sousType === "double_jaune").length,
+        minutesCartons: minutesDes(cartons),
+        minutesButsPour: minutesDes(butsDe(moi)),
+        minutesButsContre: minutesDes(butsDe(info.dom ? "ext" : "dom")),
+        titulaires: info.titulaires.length ? info.titulaires.map((c) => norm(`${c.nom} ${c.prenom ?? ""}`)) : null,
+      };
+    });
+    const tendances = calculerTendances(matchsTendance, {
+      nbEquipes: lignesPoule.length,
+      rangDe: (m) => (m.adversaireEquipeId ? rangParEquipe.get(m.adversaireEquipeId) : undefined)
+        ?? (m.adversaireId ? rangParClub.get(m.adversaireId) : undefined) ?? null,
+    });
+
     return {
       clubId, clubNom: club.nom, matchsAnalyses: totalTitMatchs,
       scoreDanger, scoreChaos, formeMoy,
+      perimetre: {
+        equipeId: equipeRef?.id ?? null, equipeNom: equipeRef?.nom ?? null,
+        saisonId: saison?.id ?? null, saisonNom: saison?.nom ?? null, saisonActive: !!saison?.actif,
+        competition: equipeRef?.competitionLibelle ?? null, poule: equipeRef?.poule ?? null,
+      },
+      tendances,
       impacts: impacts.slice(0, 30),
       joueursCles,
       impactsFaibles,
@@ -676,6 +755,93 @@ export class AnalyseService {
       changementsCoach,
     };
   }
+
+  /** Equipes du meme championnat (saison + competition + poule). */
+  private equipesDuChampionnat(e: Equipe): Promise<Equipe[]> {
+    return this.equipesRepo.find({
+      where: {
+        saisonId: e.saisonId ? e.saisonId : IsNull(),
+        competitionLibelle: e.competitionLibelle ? e.competitionLibelle : IsNull(),
+        poule: e.poule ? e.poule : IsNull(),
+      },
+    });
+  }
+
+  /**
+   * Dynamique de TOUTES les equipes du championnat de l'equipe donnee : forme recente
+   * contre le reste de la saison, serie en cours, sens de l'attaque et de la defense.
+   * Sert a voir d'un coup d'oeil qui monte et qui descend dans la poule (scouting).
+   * Calcule sur les scores seuls : pas de feuille de match a charger.
+   */
+  async dynamiquePoule(equipeId: string) {
+    const ref = await this.equipesRepo.findOne({ where: { id: equipeId } });
+    if (!ref) throw new NotFoundException(`Equipe ${equipeId} introuvable`);
+    const equipes = await this.equipesDuChampionnat(ref);
+    const ids = equipes.map((e) => e.id);
+    const [matchs, lignes] = await Promise.all([
+      this.matchs.find({ where: [{ equipeDomId: In(ids) }, { equipeExtId: In(ids) }] }),
+      this.classementRepo.find({ where: { equipeId: In(ids) } }),
+    ]);
+    const ligneDe = new Map(lignes.map((l) => [l.equipeId, l]));
+
+    const lignesSortie: DynamiqueEquipe[] = [];
+    for (const eq of equipes) {
+      const siens = matchs
+        .filter((m) => (m as any).statut !== "annule" && (m as any).statut !== "reporte")
+        .filter((m) => m.equipeDomId === eq.id || m.equipeExtId === eq.id)
+        .map((m): MatchTendance => {
+          const dom = m.equipeDomId === eq.id;
+          return {
+            matchId: m.id, date: m.date ?? null, journee: m.journee ?? null, domicile: dom,
+            adversaireId: dom ? m.clubExt : m.clubDom, adversaireEquipeId: dom ? m.equipeExtId : m.equipeDomId,
+            bp: dom ? m.scoreDom : m.scoreExt, bc: dom ? m.scoreExt : m.scoreDom,
+            cartonsJaunes: 0, cartonsRouges: 0, minutesCartons: [], minutesButsPour: [], minutesButsContre: [], titulaires: null,
+          };
+        });
+      if (siens.length === 0) continue;
+      const ordonnes = trierChronologiquement(siens);
+      const f = dynamiqueForme(ordonnes);
+      const s = seriesDe(ordonnes).enCours[0];
+      const l = ligneDe.get(eq.id);
+      lignesSortie.push({
+        equipeId: eq.id, clubId: eq.clubId, nom: eq.nom,
+        rang: l?.rang ?? null, pts: l?.pts ?? null, joues: ordonnes.length,
+        formeRecente: ordonnes.slice(-5).map((m) => issueDe(m.bp, m.bc)),
+        ppmSaison: f.saison.ppm, ppmRecent: f.sens === "insuffisant" ? f.saison.ppm : f.recente.ppm,
+        ecartPpm: f.ecartPpm, sens: f.sens, attaque: f.attaque, defense: f.defense,
+        score: f.score, libelle: f.libelle,
+        serie: s ? { type: s.type, longueur: s.longueur } : null,
+      });
+    }
+    // Classement d'abord, puis les equipes sans rang par points par match.
+    lignesSortie.sort((a, b) => (a.rang ?? 99) - (b.rang ?? 99) || b.ppmSaison - a.ppmSaison);
+    return {
+      equipeId: ref.id, saisonId: ref.saisonId ?? null,
+      competition: ref.competitionLibelle ?? null, poule: ref.poule ?? null,
+      equipes: lignesSortie,
+    };
+  }
+}
+
+/** Une ligne de la dynamique de poule. */
+export interface DynamiqueEquipe {
+  equipeId: string;
+  clubId: string;
+  nom: string;
+  rang: number | null;
+  pts: number | null;
+  joues: number;
+  /** 5 derniers resultats, du plus ancien au plus recent. */
+  formeRecente: Issue[];
+  ppmSaison: number;
+  ppmRecent: number;
+  ecartPpm: number;
+  sens: SensTendance;
+  attaque: SensTendance;
+  defense: SensTendance;
+  score: number | null;
+  libelle: string;
+  serie: { type: string; longueur: number } | null;
 }
 
 function labelLigne(l: string): string {
@@ -696,13 +862,19 @@ class AnalyseController {
   ) {
     return this.svc.rapportClub(clubId, { equipeId: equipeId || undefined, saisonId: saisonId || undefined });
   }
+
+  /** Dynamique de toutes les equipes du championnat de `equipeId`. */
+  @Get("poule")
+  poule(@Query("equipeId") equipeId: string) {
+    return this.svc.dynamiquePoule(equipeId);
+  }
 }
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Club, Match, Joueur, Composition, EvenementMatch, Entrainement,
-      Coach, StaffMatch,
+      Coach, StaffMatch, Equipe, LigneClassement, Saison,
     ]),
   ],
   controllers: [AnalyseController],
