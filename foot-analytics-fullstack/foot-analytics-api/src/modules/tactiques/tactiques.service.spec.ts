@@ -1,6 +1,6 @@
 import { BadRequestException, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
 import { DataSource } from "typeorm";
-import { Equipe, Joueur, Match, Tactique } from "@/entities";
+import { Composition, Equipe, Joueur, Match, Tactique } from "@/entities";
 import { creerBaseTest, fabriques } from "@/testing/test-db";
 import { formationValide, TactiquesService } from "./tactiques.module";
 
@@ -17,7 +17,7 @@ describe("TactiquesService", () => {
   beforeEach(async () => {
     ds = await creerBaseTest();
     f = fabriques(ds);
-    svc = new TactiquesService(ds.getRepository(Tactique), ds.getRepository(Equipe), ds.getRepository(Joueur), ds.getRepository(Match));
+    svc = new TactiquesService(ds.getRepository(Tactique), ds.getRepository(Equipe), ds.getRepository(Joueur), ds.getRepository(Match), ds.getRepository(Composition));
   });
   afterEach(() => ds.destroy());
 
@@ -160,5 +160,120 @@ describe("TactiquesService", () => {
     expect(await svc.supprimer(c.eq.id)).toEqual({ ok: true, supprime: true });
     expect(await svc.lire(c.eq.id)).toBeNull();
     expect(await svc.supprimer(c.eq.id)).toEqual({ ok: true, supprime: false });
+  });
+
+  describe("comparer : plan contre realise", () => {
+    /** Plan enregistre puis date (la colonne de mise a jour est automatique). */
+    async function preparer(c: Awaited<ReturnType<typeof contexte>>, matchId: string | null, modifieLe: string) {
+      const plan = await svc.enregistrer(dto(c, { matchId, capitaineId: c.joueurs[5].id }));
+      await ds.getRepository(Tactique).createQueryBuilder().update().set({ modifieLe: new Date(modifieLe) }).where("id = :id", { id: plan.id }).execute();
+      return plan;
+    }
+    /** Feuille de mon cote : les 11 premiers titulaires, les 7 autres sur le banc (`sauf` : absents de la feuille). */
+    async function jouerMatch(c: Awaited<ReturnType<typeof contexte>>, extra: Record<string, any> = {}, sauf: number[] = []) {
+      const match = await ds.getRepository(Match).save({
+        ...(await ds.getRepository(Match).findOneByOrFail({ id: c.match.id })), date: "25/01/2026", statut: "joue", scoreDom: 2, scoreExt: 1, ...extra,
+      });
+      await ds.getRepository(Composition).delete({ matchId: match.id });
+      for (const [i, j] of c.joueurs.entries()) {
+        if (sauf.includes(i)) continue;
+        await f.compo({ matchId: match.id, cote: "dom", nom: j.nom, prenom: j.prenom, numero: i + 1, titulaire: i < 11, capitaine: i === 5, minutes: i < 11 ? 90 : 0 });
+      }
+      return match;
+    }
+
+    it("plan rattache au match : compare a la feuille, cote et score vus de mon equipe", async () => {
+      const c = await contexte();
+      const match = await jouerMatch(c);
+      await preparer(c, match.id, "2026-01-20");
+
+      const r = await svc.comparer(c.eq.id, match.id);
+
+      expect(r.etat).toBe("ok");
+      expect(r.match).toMatchObject({ id: match.id, domicile: true, buts: 2, butsAdversaire: 1 });
+      expect(r.plan).toMatchObject({ source: "match", modifieApresMatch: false, formation: "4-4-2" });
+      expect(r.comparaison).toMatchObject({ etat: "ok", adequation: 100, titulairesConformes: 11 });
+      expect(r.comparaison!.capitaine.identique).toBe(true);
+    });
+
+    it("un titulaire prevu absent de la feuille est releve", async () => {
+      const c = await contexte();
+      const match = await jouerMatch(c, {}, [2]);
+      await preparer(c, match.id, "2026-01-20");
+
+      const r = await svc.comparer(c.eq.id, match.id);
+
+      expect(r.comparaison!.adequation).toBe(91);
+      expect(r.comparaison!.lignes.find((l) => l.joueurId === c.joueurs[2].id)).toMatchObject({ reel: "absent", ecart: "absent" });
+    });
+
+    it("vu du cote exterieur : la feuille de l'autre equipe est ignoree", async () => {
+      const c = await contexte();
+      const match = await jouerMatch(c, { clubDom: c.match.clubExt, clubExt: c.match.clubDom, equipeDomId: c.advEq.id, equipeExtId: c.eq.id, scoreDom: 0, scoreExt: 3 });
+      await ds.getRepository(Composition).update({ matchId: match.id }, { cote: "ext" });
+      await f.compo({ matchId: match.id, cote: "dom", nom: "AUTRE", prenom: "Equipe" });
+      await preparer(c, match.id, "2026-01-20");
+
+      const r = await svc.comparer(c.eq.id, match.id);
+
+      expect(r.match).toMatchObject({ domicile: false, buts: 3, butsAdversaire: 0 });
+      expect(r.comparaison!.adequation).toBe(100);
+      expect(r.comparaison!.lignes.some((l) => l.nom.includes("AUTRE"))).toBe(false);
+    });
+
+    it("sans plan rattache : le plan courant sert s'il date d'avant le match, jamais s'il est posterieur", async () => {
+      const c = await contexte();
+      const match = await jouerMatch(c);
+      const courant = await preparer(c, null, "2026-01-10");
+
+      expect((await svc.comparer(c.eq.id, match.id)).plan).toMatchObject({ source: "courant" });
+
+      await ds.getRepository(Tactique).createQueryBuilder().update().set({ modifieLe: new Date("2026-03-01") }).where("id = :id", { id: courant.id }).execute();
+      expect((await svc.comparer(c.eq.id, match.id)).etat).toBe("pas_de_plan");
+    });
+
+    it("plan rattache mais modifie apres la rencontre : compare, avec l'avertissement", async () => {
+      const c = await contexte();
+      const match = await jouerMatch(c);
+      await preparer(c, match.id, "2026-02-15");
+
+      const r = await svc.comparer(c.eq.id, match.id);
+
+      expect(r.etat).toBe("ok");
+      expect(r.plan!.modifieApresMatch).toBe(true);
+    });
+
+    it("match non joue, feuille vide et match d'une autre equipe", async () => {
+      const c = await contexte();
+      await preparer(c, c.match.id, "2026-01-20");
+      expect((await svc.comparer(c.eq.id, c.match.id)).etat).toBe("match_non_joue");
+
+      const match = await jouerMatch(c, {}, Array.from({ length: 18 }, (_, i) => i));
+      expect((await svc.comparer(c.eq.id, match.id)).etat).toBe("feuille_vide");
+
+      await expect(svc.comparer(c.advEq.id, match.id).then((r) => r.match!.domicile)).resolves.toBe(false); // l'adversaire y joue aussi
+      const tiers = await f.club("Tiers");
+      const tiersEq = await f.equipe({ clubId: tiers.id, nom: "Tiers", categorie: "Seniors", saisonId: c.eq.saisonId });
+      await expect(svc.comparer(tiersEq.id, match.id)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(svc.comparer("inconnue", match.id)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("sans matchId : le dernier match joue qui avait un plan ; aucun sinon", async () => {
+      const c = await contexte();
+      expect((await svc.comparer(c.eq.id)).etat).toBe("aucun_match_prepare");
+
+      const ancien = await jouerMatch(c);
+      await preparer(c, ancien.id, "2026-01-20");
+      // Un match programme avec son plan ne compte pas : il n'est pas joue.
+      const futur = await f.match({ clubDom: c.match.clubDom, clubExt: c.match.clubExt, equipeDomId: c.eq.id, equipeExtId: c.advEq.id, date: "25/03/2099", statut: "prevu" });
+      await ds.getRepository(Tactique).save(ds.getRepository(Tactique).create({
+        equipeId: c.eq.id, matchId: futur.id, formation: "4-4-2", titulaires: [], remplacants: [],
+      }));
+
+      const r = await svc.comparer(c.eq.id);
+
+      expect(r.etat).toBe("ok");
+      expect(r.match!.id).toBe(ancien.id);
+    });
   });
 });

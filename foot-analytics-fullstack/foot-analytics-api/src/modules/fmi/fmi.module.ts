@@ -437,6 +437,20 @@ export class FmiService {
       }
     }
     if (!savedMatch) {
+      // Un match deja PROGRAMME entre ces deux clubs (saisi a la main avant la rencontre) est
+      // complete par la feuille au lieu d'etre double : son id, donc le plan de jeu qui lui est
+      // rattache, est conserve. L'arbitre et le terrain deja saisis servent si la feuille n'en a pas.
+      const programme = await this.matchs.trouverProgramme(clubDom, clubExt, payload.date);
+      if (programme) {
+        savedMatch = await this.matchs.update(programme.id, {
+          ...payload,
+          arbitre: payload.arbitre ?? programme.arbitre,
+          terrain: payload.terrain ?? programme.terrain,
+        } as any);
+        (savedMatch as any).__reimport = false;
+      }
+    }
+    if (!savedMatch) {
       savedMatch = await this.matchs.create(payload as any);
       (savedMatch as any).__reimport = false;
     }

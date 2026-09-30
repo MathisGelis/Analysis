@@ -2,7 +2,7 @@ import { BadRequestException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { DataSource } from "typeorm";
 import {
-  Arbitre, ArbitreMatch, Club, Coach, Composition, Equipe, EvenementMatch, Match, Saison, StaffMatch,
+  Arbitre, ArbitreMatch, Club, Coach, Composition, Equipe, EvenementMatch, Match, Saison, StaffMatch, Tactique,
 } from "@/entities";
 import { creerBaseTest, fabriques } from "@/testing/test-db";
 import { ArbitresService } from "../arbitres/arbitres.module";
@@ -116,6 +116,58 @@ describe("FmiService - import de lot", () => {
     expect(await ds.getRepository(Match).count()).toBe(1);
     expect(await ds.getRepository(ArbitreMatch).count()).toBe(3);
     expect(await ds.getRepository(StaffMatch).count()).toBe(4);
+  });
+
+  describe("match deja programme", () => {
+    /** Importe la feuille une fois pour creer les clubs, puis la remplace par un match "prevu". */
+    async function programmer(date: string) {
+      lot({ originalname: "a.pdf", parsed: fmi() });
+      await svc.importMany(fichiers(1));
+      const repo = ds.getRepository(Match);
+      const joue = await repo.findOneByOrFail({ numeroFmi: "53415223" });
+      await repo.delete(joue.id);
+      const prevu = await f.match({
+        clubDom: joue.clubDom, clubExt: joue.clubExt, equipeDomId: joue.equipeDomId, equipeExtId: joue.equipeExtId,
+        saisonId: joue.saisonId, date, statut: "prevu", scoreDom: 0, scoreExt: 0, arbitre: "Dupont Jean", terrain: "Stade prevu",
+      });
+      return { prevu, joue };
+    }
+
+    it("la feuille complete le match programme : meme id, donc le plan de jeu reste rattache", async () => {
+      const { prevu, joue } = await programmer("25/01/2026");
+      const plan = await ds.getRepository(Tactique).save(ds.getRepository(Tactique).create({
+        equipeId: joue.equipeDomId, matchId: prevu.id, formation: "4-4-2", titulaires: [], remplacants: [],
+      }));
+
+      const r = await svc.importMany(fichiers(1));
+
+      expect(r).toMatchObject({ importes: 1, echecs: 0 });
+      const matchs = await ds.getRepository(Match).find();
+      expect(matchs).toHaveLength(1);
+      expect(matchs[0]).toMatchObject({ id: prevu.id, numeroFmi: "53415223", statut: "joue", scoreDom: 2, scoreExt: 0 });
+      expect(await ds.getRepository(Composition).count({ where: { matchId: prevu.id } })).toBeGreaterThan(0);
+      expect((await ds.getRepository(Tactique).findOneByOrFail({ id: plan.id })).matchId).toBe(prevu.id);
+    });
+
+    it("l'arbitre et le terrain saisis a la main restent si la feuille n'en donne pas", async () => {
+      const { prevu } = await programmer("25/01/2026");
+      lot({ originalname: "a.pdf", parsed: fmi({ terrain: null, officiels: [] }) });
+
+      await svc.importMany(fichiers(1));
+
+      const apres = await ds.getRepository(Match).findOneByOrFail({ id: prevu.id });
+      expect(apres).toMatchObject({ arbitre: "Dupont Jean", terrain: "Stade prevu" });
+    });
+
+    it("un match programme a une autre date (autre rencontre du duel) n'est pas touche", async () => {
+      const { prevu } = await programmer("20/09/2026");
+
+      await svc.importMany(fichiers(1));
+
+      const matchs = await ds.getRepository(Match).find();
+      expect(matchs).toHaveLength(2);
+      expect(matchs.find((m) => m.id === prevu.id)).toMatchObject({ statut: "prevu", numeroFmi: null });
+    });
   });
 
   it("doublon DANS le lot : signale sur le second fichier", async () => {

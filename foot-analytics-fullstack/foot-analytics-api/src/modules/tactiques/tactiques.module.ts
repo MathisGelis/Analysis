@@ -12,9 +12,12 @@ import {
 } from "@nestjs/common";
 import { IsArray, IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
-import { In, IsNull, Repository } from "typeorm";
-import { Equipe, Joueur, Match, Tactique } from "@/entities";
+import { In, IsNull, Not, Repository } from "typeorm";
+import { Composition, Equipe, Joueur, Match, Tactique } from "@/entities";
 import { bilanMutations, MAX_HORS_DELAI, MAX_MUTES } from "@/common/mutations";
+import { estMatchJoue } from "@/common/match-joue";
+import { parseDateFlexible } from "@/common/periode";
+import { comparerPlanRealise, ComparaisonPlanRealise } from "@/common/plan-realise";
 
 export const NB_TITULAIRES = 11;
 export const MAX_REMPLACANTS = 7;
@@ -37,6 +40,29 @@ class EnregistrerTactiqueDto {
   @IsOptional() @IsString() notes?: string | null;
 }
 
+/** Plan compare a la feuille d'un match joue (GET /tactiques/comparaison). */
+export interface PlanContreRealise {
+  /**
+   * ok : comparaison faite. aucun_match_prepare : aucun match joue n'a de plan (sans `matchId`).
+   * match_non_joue / pas_de_plan / feuille_vide : le match est connu mais la comparaison est impossible.
+   */
+  etat: "ok" | "aucun_match_prepare" | "match_non_joue" | "pas_de_plan" | "feuille_vide";
+  match: {
+    id: string; date: string | null; journee: string | null; domicile: boolean;
+    adversaireClubId: string; buts: number; butsAdversaire: number;
+  } | null;
+  plan: {
+    formation: string; modifieLe: string;
+    /** "match" : plan rattache a ce match ; "courant" : plan courant de l'equipe, a defaut. */
+    source: "match" | "courant";
+    /** Plan modifie apres la rencontre : il a pu etre ajuste sur le realise, a lire avec prudence. */
+    modifieApresMatch: boolean;
+  } | null;
+  comparaison: ComparaisonPlanRealise | null;
+}
+
+const JOUR = 86_400_000;
+
 @Injectable()
 export class TactiquesService {
   constructor(
@@ -44,6 +70,7 @@ export class TactiquesService {
     @InjectRepository(Equipe) private equipes: Repository<Equipe>,
     @InjectRepository(Joueur) private joueurs: Repository<Joueur>,
     @InjectRepository(Match) private matchs: Repository<Match>,
+    @InjectRepository(Composition) private compos: Repository<Composition>,
   ) {}
 
   private ou(equipeId: string, matchId?: string | null) {
@@ -114,6 +141,71 @@ export class TactiquesService {
     return this.repo.save(plan);
   }
 
+  /**
+   * Plan contre realise. Avec `matchId` : ce match ; sans : le dernier match JOUE de l'equipe pour
+   * lequel un plan avait ete prepare (plan rattache a ce match).
+   */
+  async comparer(equipeId: string, matchId?: string | null): Promise<PlanContreRealise> {
+    if (!equipeId) throw new BadRequestException("equipeId requis");
+    const equipe = await this.equipes.findOne({ where: { id: equipeId } });
+    if (!equipe) throw new NotFoundException(`Equipe ${equipeId} introuvable`);
+    const vide = (etat: PlanContreRealise["etat"], match: PlanContreRealise["match"] = null, plan: PlanContreRealise["plan"] = null): PlanContreRealise =>
+      ({ etat, match, plan, comparaison: null });
+
+    let match: Match | null;
+    if (matchId) {
+      match = await this.matchs.findOne({ where: { id: matchId } });
+      if (!match) throw new NotFoundException(`Match ${matchId} introuvable`);
+    } else {
+      const plans = await this.repo.find({ where: { equipeId, matchId: Not(IsNull()) } });
+      const candidats = plans.length
+        ? (await this.matchs.find({ where: { id: In(plans.map((p) => p.matchId as string)) } })).filter(estMatchJoue)
+        : [];
+      candidats.sort((a, b) => (parseDateFlexible(b.date) ?? 0) - (parseDateFlexible(a.date) ?? 0));
+      match = candidats[0] ?? null;
+      if (!match) return vide("aucun_match_prepare");
+    }
+
+    const domicile = match.equipeDomId === equipeId
+      || (match.equipeExtId !== equipeId && match.clubDom === equipe.clubId);
+    if (!domicile && match.equipeExtId !== equipeId && match.clubExt !== equipe.clubId) {
+      throw new BadRequestException("Ce match n'est pas un match de cette equipe.");
+    }
+    const resume: PlanContreRealise["match"] = {
+      id: match.id, date: match.date ?? null, journee: match.journee ?? null, domicile,
+      adversaireClubId: domicile ? match.clubExt : match.clubDom,
+      buts: domicile ? match.scoreDom : match.scoreExt, butsAdversaire: domicile ? match.scoreExt : match.scoreDom,
+    };
+    if (!estMatchJoue(match)) return vide("match_non_joue", resume);
+
+    // Plan rattache au match ; a defaut le plan courant, s'il date d'avant la rencontre.
+    const dateMatch = parseDateFlexible(match.date);
+    const apres = (p: Tactique) => dateMatch !== null && p.modifieLe.getTime() > dateMatch + 2 * JOUR;
+    let plan = await this.lire(equipeId, match.id);
+    let source: "match" | "courant" = "match";
+    if (!plan) {
+      const courant = await this.lire(equipeId, null);
+      if (courant && dateMatch !== null && !apres(courant)) { plan = courant; source = "courant"; }
+    }
+    if (!plan) return vide("pas_de_plan", resume);
+    const resumePlan: PlanContreRealise["plan"] = {
+      formation: plan.formation, modifieLe: plan.modifieLe.toISOString(), source, modifieApresMatch: apres(plan),
+    };
+
+    const cote = domicile ? "dom" : "ext";
+    const feuille = await this.compos.find({ where: { matchId: match.id, cote } });
+    const ids = [...plan.titulaires, ...plan.remplacants].filter(Boolean);
+    const base = ids.length ? await this.joueurs.find({ where: { id: In(ids) } }) : [];
+    const comparaison = comparerPlanRealise({
+      plan, joueurs: base, feuille,
+      formationReelle: domicile ? match.formationDom : match.formationExt,
+    });
+    return {
+      etat: comparaison.etat === "feuille_vide" ? "feuille_vide" : "ok",
+      match: resume, plan: resumePlan, comparaison,
+    };
+  }
+
   async supprimer(equipeId: string, matchId?: string | null) {
     const plan = await this.lire(equipeId, matchId);
     if (plan) await this.repo.remove(plan);
@@ -129,6 +221,10 @@ class TactiquesController {
   @Get() async lire(@Query("equipeId") equipeId: string, @Query("matchId") matchId?: string) {
     return (await this.svc.lire(equipeId, matchId)) ?? null;
   }
+  // GET /tactiques/comparaison?equipeId=...[&matchId=...] : plan prepare contre feuille de match jouee.
+  @Get("comparaison") comparer(@Query("equipeId") equipeId: string, @Query("matchId") matchId?: string) {
+    return this.svc.comparer(equipeId, matchId);
+  }
   @Put() enregistrer(@Body() dto: EnregistrerTactiqueDto) { return this.svc.enregistrer(dto); }
   @Delete() supprimer(@Query("equipeId") equipeId: string, @Query("matchId") matchId?: string) {
     return this.svc.supprimer(equipeId, matchId);
@@ -136,7 +232,7 @@ class TactiquesController {
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Tactique, Equipe, Joueur, Match])],
+  imports: [TypeOrmModule.forFeature([Tactique, Equipe, Joueur, Match, Composition])],
   controllers: [TactiquesController],
   providers: [TactiquesService],
   exports: [TactiquesService],

@@ -5,8 +5,9 @@ import {
 } from "@nestjs/common";
 import { IsArray, IsInt, IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { IsNull, Repository } from "typeorm";
 import { Composition, EvenementMatch, Match } from "@/entities";
+import { choisirProgramme, STATUTS_PROGRAMMES } from "@/common/programme";
 
 class UpsertMatchDto {
   @IsOptional() @IsString() numeroFmi?: string;
@@ -47,6 +48,18 @@ export class MatchsService {
   /** Match deja importe pour ce numero de feuille FMI (ou null). */
   findByNumeroFmi(numeroFmi: string) {
     return this.repo.findOne({ where: { numeroFmi } });
+  }
+
+  /**
+   * Match deja programme (sans feuille) que la feuille FMI `dateFeuille` vient jouer : memes clubs,
+   * meme sens, date proche. Permet a l'import de COMPLETER ce match plutot que d'en creer un second
+   * (le plan de jeu prepare reste ainsi attache au bon match).
+   */
+  async trouverProgramme(clubDom: string, clubExt: string, dateFeuille?: string | null) {
+    const candidats = await this.repo.find({
+      where: STATUTS_PROGRAMMES.map((statut) => ({ clubDom, clubExt, statut, numeroFmi: IsNull() })),
+    });
+    return choisirProgramme(candidats, dateFeuille);
   }
 
   async findOne(id: string) {

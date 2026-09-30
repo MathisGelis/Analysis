@@ -32,13 +32,9 @@ import {
 } from "@/common/tendances";
 
 /* ---------- helpers ---------- */
-/**
- * Un match programme (calendrier : statut "prevu" / "a_venir", score 0-0) n'est pas un nul : il ne
- * doit entrer dans aucune statistique. Les matchs annules ou reportes non plus.
- */
-export function estMatchJoue(m: { statut?: string | null }): boolean {
-  return !["annule", "reporte", "prevu", "a_venir"].includes((m.statut ?? "joue").toLowerCase());
-}
+// Reexporte : les tests et le service pre-match l'importent d'ici.
+import { estMatchJoue } from "@/common/match-joue";
+export { estMatchJoue };
 function norm(s?: string): string {
   return (s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
