@@ -17,20 +17,28 @@
 // pas etre pollue par les U20 ou par la saison suivante.
 
 import {
-  Controller, Get, Injectable, Module, NotFoundException, Param, Query,
+  BadRequestException, Controller, Get, Injectable, Module, NotFoundException, Param, Query,
 } from "@nestjs/common";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { In, IsNull, Repository } from "typeorm";
 import {
-  Club, Coach, Composition, Entrainement, Equipe, EvenementMatch, Joueur, LigneClassement,
+  Arbitre, Club, Coach, Composition, Entrainement, Equipe, EvenementMatch, Joueur, LigneClassement,
   Match, Saison, StaffMatch,
 } from "@/entities";
+import { PrematchService } from "./prematch.service";
 import {
   calculerTendances, dynamiqueForme, issueDe, MatchTendance, series as seriesDe, Issue, SensTendance,
   Tendances, trierChronologiquement,
 } from "@/common/tendances";
 
 /* ---------- helpers ---------- */
+/**
+ * Un match programme (calendrier : statut "prevu" / "a_venir", score 0-0) n'est pas un nul : il ne
+ * doit entrer dans aucune statistique. Les matchs annules ou reportes non plus.
+ */
+export function estMatchJoue(m: { statut?: string | null }): boolean {
+  return !["annule", "reporte", "prevu", "a_venir"].includes((m.statut ?? "joue").toLowerCase());
+}
 function norm(s?: string): string {
   return (s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
@@ -98,6 +106,8 @@ interface RapportEquipe {
     parTypeMatch: { type: "victoire" | "nul" | "defaite"; moyenne: number; nbChangements: number }[];
     nbChangementsAvant60: number;
   };
+  // Joueurs les plus avertis de l'equipe (cartons recus sur le perimetre), du plus au moins averti.
+  avertis: { nom: string; jaunes: number; rouges: number }[];
   // Stats sur le staff (coachs / dirigeants) presents sur les FMI.
   coachs: CoachStat[];
   changementsCoach: { date: string; journee?: string; avant: string; apres: string }[];
@@ -180,9 +190,7 @@ export class AnalyseService {
     });
     const dansPortee = (m: Match) => !portee.equipeId
       || m.equipeDomId === portee.equipeId || m.equipeExtId === portee.equipeId;
-    const matchsClub = matchs.filter(
-      (m) => dansPortee(m) && (m as any).statut !== "annule" && (m as any).statut !== "reporte",
-    );
+    const matchsClub = matchs.filter((m) => dansPortee(m) && estMatchJoue(m));
     const joueurs = await this.joueurs.find({ where: { clubId } });
     const joueursById = new Map(joueurs.map((j) => [j.id, j]));
 
@@ -738,6 +746,22 @@ export class AnalyseService {
         titulaires: info.titulaires.length ? info.titulaires.map((c) => norm(`${c.nom} ${c.prenom ?? ""}`)) : null,
       };
     });
+    // Joueurs les plus avertis : cartons recus PAR LE CLUB (pas par l'adversaire), regroupes par nom.
+    const cartonsParNom = new Map<string, { nom: string; jaunes: number; rouges: number }>();
+    for (const info of infos) {
+      const moi = info.dom ? "dom" : "ext";
+      for (const e of (info.m.evenements ?? [])) {
+        if (e.type !== "carton" || (e as any).equipe !== moi || !e.joueur) continue;
+        const cle = norm(e.joueur);
+        const c = cartonsParNom.get(cle) ?? { nom: e.joueur.trim(), jaunes: 0, rouges: 0 };
+        if (e.sousType === "rouge" || e.sousType === "double_jaune") c.rouges++; else c.jaunes++;
+        cartonsParNom.set(cle, c);
+      }
+    }
+    const avertis = [...cartonsParNom.values()]
+      .sort((a, b) => (b.jaunes + b.rouges * 3) - (a.jaunes + a.rouges * 3) || a.nom.localeCompare(b.nom))
+      .slice(0, 5);
+
     const tendances = calculerTendances(matchsTendance, {
       nbEquipes: lignesPoule.length,
       rangDe: (m) => (m.adversaireEquipeId ? rangParEquipe.get(m.adversaireEquipeId) : undefined)
@@ -761,13 +785,14 @@ export class AnalyseService {
       compoProbable,
       partnerships,
       changementsMoy,
+      avertis,
       coachs: coachsStats,
       changementsCoach,
     };
   }
 
   /** Equipes du meme championnat (saison + competition + poule). */
-  private equipesDuChampionnat(e: Equipe): Promise<Equipe[]> {
+  equipesDuChampionnat(e: Equipe): Promise<Equipe[]> {
     return this.equipesRepo.find({
       where: {
         saisonId: e.saisonId ? e.saisonId : IsNull(),
@@ -800,7 +825,7 @@ export class AnalyseService {
     const lignesSortie: DynamiqueEquipe[] = [];
     for (const eq of equipes) {
       const siens = matchs
-        .filter((m) => (m as any).statut !== "annule" && (m as any).statut !== "reporte")
+        .filter((m) => estMatchJoue(m))
         .filter((m) => m.equipeDomId === eq.id || m.equipeExtId === eq.id)
         .map((m): MatchTendance => {
           const dom = m.equipeDomId === eq.id;
@@ -867,7 +892,7 @@ function labelLigne(l: string): string {
 
 @Controller("analyse")
 class AnalyseController {
-  constructor(private svc: AnalyseService) {}
+  constructor(private svc: AnalyseService, private prematchSvc: PrematchService) {}
   @Get("club/:clubId")
   rapport(
     @Param("clubId") clubId: string,
@@ -882,17 +907,28 @@ class AnalyseController {
   poule(@Query("equipeId") equipeId: string) {
     return this.svc.dynamiquePoule(equipeId);
   }
+
+  /** Rapport pre-match : mon equipe contre le club `adversaireId` (match optionnel). */
+  @Get("prematch")
+  prematch(
+    @Query("equipeId") equipeId: string,
+    @Query("adversaireId") adversaireId: string,
+    @Query("matchId") matchId?: string,
+  ) {
+    if (!equipeId || !adversaireId) throw new BadRequestException("equipeId et adversaireId sont requis");
+    return this.prematchSvc.rapport(equipeId, adversaireId, matchId || null);
+  }
 }
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Club, Match, Joueur, Composition, EvenementMatch, Entrainement,
-      Coach, StaffMatch, Equipe, LigneClassement, Saison,
+      Coach, StaffMatch, Equipe, LigneClassement, Saison, Arbitre,
     ]),
   ],
   controllers: [AnalyseController],
-  providers: [AnalyseService],
+  providers: [AnalyseService, PrematchService],
   exports: [AnalyseService],
 })
 export class AnalyseModule {}
