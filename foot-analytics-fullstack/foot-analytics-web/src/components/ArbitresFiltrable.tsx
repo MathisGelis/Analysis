@@ -10,7 +10,7 @@
 // profil (Permissif/Standard/Strict/Sans profil).
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, Filter, Search, X } from "lucide-react";
 
 interface ParticipationChamp {
@@ -52,6 +52,8 @@ interface Filtre {
   poule: string | null;
 }
 
+const TAILLE_PAGE = 40;
+
 const ROLES_LABEL: Record<string, string> = {
   principal: "Principal",
   assistant: "Assistant",
@@ -74,6 +76,10 @@ export function ArbitresFiltrable({
   const [q, setQ] = useState("");
   const [roles, setRoles] = useState<Set<string>>(new Set());
   const [profils, setProfils] = useState<Set<string>>(new Set());
+  // Affichage progressif : le championnat compte des centaines d'arbitres, les
+  // rendre tous d'un coup donnait une page de 15 000 px.
+  const [limite, setLimite] = useState(TAILLE_PAGE);
+  useEffect(() => { setLimite(TAILLE_PAGE); }, [q, roles, profils]);
 
   // 1) Decompose chaque arbitre en ses stats EFFECTIVES :
   //    - si on a un championnat propre : stats du JSON `participations`
@@ -168,7 +174,12 @@ export function ArbitresFiltrable({
         if (!profils.has(p)) return false;
       }
       return true;
-    });
+    })
+    // Les plus sollicites d'abord (matchs officies, puis en principal), puis A-Z.
+    .sort((a, b) =>
+      b._stats.matchsOfficies - a._stats.matchsOfficies
+      || b._stats.matchsPrincipal - a._stats.matchsPrincipal
+      || `${a.nom} ${a.prenom ?? ""}`.localeCompare(`${b.nom} ${b.prenom ?? ""}`));
   }, [arbitresChamp, q, roles, profils]);
 
   const hasFilter = q.trim() !== "" || roles.size > 0 || profils.size > 0;
@@ -271,7 +282,7 @@ export function ArbitresFiltrable({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((a) => {
+              {filtered.slice(0, limite).map((a) => {
                 const s = a._stats;
                 const rolesArr: string[] = [];
                 if (s.matchsPrincipal > 0) rolesArr.push("principal");
@@ -318,6 +329,14 @@ export function ArbitresFiltrable({
               })}
             </tbody>
           </table>
+          {filtered.length > limite && (
+            <div className="flex justify-center pt-4">
+              <button className="btn text-xs" onClick={() => setLimite((l) => l + TAILLE_PAGE)}>
+                Afficher {Math.min(TAILLE_PAGE, filtered.length - limite)} de plus
+                ({filtered.length - limite} restants)
+              </button>
+            </div>
+          )}
         </section>
       )}
     </div>

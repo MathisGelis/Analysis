@@ -8,6 +8,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { getOwnClubIdServer } from "@/lib/own-club";
 import { ClubBadge } from "@/components/ClubBadge";
+import { BandeauDemo } from "@/components/BandeauDemo";
 import { Download, Eye, FileText, Mail, Printer, BarChart3 } from "lucide-react";
 
 const RAPPORTS = [
@@ -86,7 +87,7 @@ export default async function Rapports() {
         </div>
       </section>
 
-      {/* Modeles disponibles */}
+      {/* Modeles disponibles : la generation n'est pas encore branchee */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <ModeleCard
           titre="Pre-match"
@@ -108,6 +109,13 @@ export default async function Rapports() {
       {/* Liste rapports existants */}
       <section className="panel p-5">
         <div className="h-section mb-3">Rapports recents</div>
+        <div className="mb-4">
+          <BandeauDemo>
+            Cette liste est un exemple (rapports fictifs, boutons inactifs).
+            Seule l'analyse d'equipe ci-dessus est generee a partir de vos
+            feuilles de match.
+          </BandeauDemo>
+        </div>
         <table className="table-fm">
           <thead>
             <tr>
@@ -157,7 +165,10 @@ function ModeleCard({titre, desc, icon}:{titre:string;desc:string;icon:React.Rea
         <div className="h-section">{titre}</div>
       </div>
       <p className="text-sm text-muted mt-2 leading-relaxed">{desc}</p>
-      <button className="btn w-full mt-4 justify-center text-xs">Generer maintenant</button>
+      <button className="btn w-full mt-4 justify-center text-xs" disabled
+        title="La generation de ce rapport n'est pas encore disponible">
+        Bientot disponible
+      </button>
     </div>
   );
 }

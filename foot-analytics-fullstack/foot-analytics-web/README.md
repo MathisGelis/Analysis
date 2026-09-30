@@ -121,6 +121,16 @@ Puis :
 npm run dev
 ```
 
+### Tests unitaires (Vitest)
+
+```bash
+npm test
+```
+
+Fonctions pures de `src/lib` : resolution de l'equipe propre, empreintes et
+championnats, classement, matchs d'une equipe, calendrier, ecussons de clubs,
+validation des redirections, decodage JWT.
+
 ### Tests de bout en bout (Playwright)
 
 ```bash
@@ -129,7 +139,8 @@ npm run test:e2e
 ```
 
 Les tests demarrent leur propre API (port 4100, base SQLite temporaire) et leur
-propre front (port 3100) : la base de developpement n'est jamais touchee. Le
+propre front (port 3100, build dans `.next-e2e` : un `npm run dev` en cours n'est
+pas perturbe) : la base de developpement n'est jamais touchee. Le
 parcours d'import FMI exige Python + pdfplumber (`PYTHON_BIN=chemin/vers/python`),
 il est ignore sinon. Voir `playwright.config.ts` pour les variables.
 

@@ -7,14 +7,23 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { grouperParChampionnat } from "@/lib/championnats";
+import { ClubBadge } from "@/components/ClubBadge";
 import { Calendar, Check, Plus, Star } from "lucide-react";
+import type { Club } from "@/lib/types";
 
 interface Props {
   saisons: any[];
   equipes: any[];
+  clubs: Club[];
 }
 
-export function SaisonsManager({ saisons, equipes }: Props) {
+const LIBELLE_STATUT: Record<string, string> = {
+  en_cours: "En cours", terminee: "Terminee", a_venir: "A venir",
+};
+
+export function SaisonsManager({ saisons, equipes, clubs }: Props) {
+  const nomClub = (id: string) => clubs.find((c) => c.id === id)?.nom ?? id;
   const router = useRouter();
   const [creating, setCreating] = useState(false);
   const [nom, setNom] = useState("");
@@ -118,7 +127,7 @@ export function SaisonsManager({ saisons, equipes }: Props) {
                     <span className={`badge text-[10px] ${
                       s.statut === "en_cours" ? "badge-turf"
                       : s.statut === "terminee" ? "" : "badge-amber"
-                    }`}>{s.statut}</span>
+                    }`}>{LIBELLE_STATUT[s.statut] ?? s.statut}</span>
                   </td>
                   <td className="text-center tabular-nums">{s.anneeDebut}</td>
                   <td className="text-center tabular-nums">
@@ -161,14 +170,29 @@ export function SaisonsManager({ saisons, equipes }: Props) {
                   {equ.length === 0 ? (
                     <p className="text-xs text-faint">Aucune equipe rattachee.</p>
                   ) : (
-                    <ul className="space-y-1">
-                      {equ.map((e: any) => (
-                        <li key={e.id} className="text-xs flex items-center justify-between gap-2">
-                          <span className="font-semibold">{e.nom}</span>
-                          <span className="text-faint">{e.competitionLibelle ?? "—"}</span>
-                        </li>
+                    <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
+                      {/* Par championnat : "Seniors D2 · Poule C (12 equipes)" puis les clubs. */}
+                      {grouperParChampionnat(equ, nomClub).map((g) => (
+                        <div key={g.cle}>
+                          <div className="text-[11px] font-semibold text-ink flex items-baseline gap-2">
+                            {g.libelle}{g.poule ? ` · Poule ${g.poule}` : ""}
+                            <span className="text-faint font-normal">
+                              {g.equipes.length} equipe{g.equipes.length > 1 ? "s" : ""}
+                            </span>
+                          </div>
+                          <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                            {g.equipes.map((e) => (
+                              <li key={e.id}
+                                className="badge flex items-center gap-1.5"
+                                title={`${e.clubNom} · ${e.nom}`}>
+                                <ClubBadge clubId={e.clubId} size={14}/>
+                                {e.clubNom}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   )}
                 </div>
               );
