@@ -151,27 +151,31 @@ export default function EffectifPage() {
         {loading ? (
           <div className="text-sm text-muted py-8 text-center">Chargement de l'effectif…</div>
         ) : (
-        <table className="table-fm">
+        <table className="table-fm table-dense">
           <thead>
             <tr>
               <th>Joueur</th><th>Poste</th>
-              <th className="text-center">Mat.</th><th className="text-center">Titu</th>
-              <th>Minutes</th><th>Note</th><th>Forme</th>
+              <th className="text-center">Mat.</th><th className="hidden text-center lg:table-cell">Titu</th>
+              <th className="hidden min-[1280px]:table-cell">Minutes</th>
+              <th className="hidden min-[1440px]:table-cell">Note</th>
+              <th className="hidden min-[1440px]:table-cell">Forme</th>
               <th className="text-center" title="Buts">B</th>
               <th className="text-center" title="Passes decisives">PD</th>
               <th>CJ</th><th>CR</th>
-              <th>Statut</th><th className="hidden 2xl:table-cell">Postes joues</th><th className="text-right"><span className="sr-only">Actions</span></th>
+              <th className="hidden min-[1440px]:table-cell">Statut</th>
+              <th className="hidden 2xl:table-cell">Postes joues</th>
+              <th className="col-fixe text-right"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             {data.map((j)=>(
               <tr key={j.id}>
-                <td className="whitespace-nowrap">
+                <td>
                   <div className="flex items-center gap-3">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-panel3 font-display text-sm font-bold text-muted"
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-panel3 font-display text-sm font-bold text-muted"
                       title="Numero le plus porte cette saison">{j.numeroFavori ?? "—"}</span>
-                    <div className="min-w-0">
-                      <Link href={`/joueur/${j.id}`} className="font-semibold text-ink transition-colors hover:text-accent">
+                    <div className="min-w-0 max-w-[13rem]">
+                      <Link href={`/joueur/${j.id}`} className="font-semibold leading-snug text-ink transition-colors hover:text-accent">
                         {j.prenom} {j.nom}
                       </Link>
                       {j.typeDiscipline && (
@@ -182,10 +186,10 @@ export default function EffectifPage() {
                 </td>
                 <td><span className="badge">{j.poste}</span></td>
                 <td className="text-center tabular-nums">{j.matchs}</td>
-                <td className="text-center tabular-nums">{j.titularisations}</td>
-                <td className="tabular-nums text-muted">{j.minutes}'</td>
-                <td className="font-semibold text-accent tabular-nums">{j.noteMoyenne?.toFixed(1)}</td>
-                <td>
+                <td className="hidden text-center tabular-nums lg:table-cell">{j.titularisations}</td>
+                <td className="hidden tabular-nums text-muted min-[1280px]:table-cell">{j.minutes}'</td>
+                <td className="hidden font-semibold text-accent tabular-nums min-[1440px]:table-cell">{j.noteMoyenne?.toFixed(1)}</td>
+                <td className="hidden min-[1440px]:table-cell">
                   {j.scoreForme == null ? (
                     <span className="text-xs text-faint">—</span>
                   ) : (
@@ -213,7 +217,7 @@ export default function EffectifPage() {
                 </td>
                 <td className="text-amber font-mono">{j.cartonsJaunes || ""}</td>
                 <td className="text-danger font-mono">{j.cartonsRouges || ""}</td>
-                <td>
+                <td className="hidden min-[1440px]:table-cell">
                   <span className={`badge ${
                     j.statutMutation==="Mutation" ? "badge-amber"
                     : j.statutMutation==="Pas mutation" ? "badge-accent" : ""
@@ -227,7 +231,7 @@ export default function EffectifPage() {
                     );
                   })()}
                 </td>
-                <td>
+                <td className="col-fixe">
                   <div className="flex items-center gap-1 justify-end">
                     <button className="btn !p-2" onClick={()=>setEdit(j)}
                       aria-label={`Modifier ${j.prenom} ${j.nom}`} title="Modifier">
@@ -392,14 +396,14 @@ function Stepper({
   const dec = () => onChange(Math.max(min, value - 1));
   const inc = () => onChange(Math.min(max, value + 1));
   return (
-    <div className="inline-flex items-center gap-1">
+    <div className="inline-flex items-center gap-0.5">
       <button
         type="button"
         onClick={dec}
         className="w-5 h-5 grid place-items-center text-xs rounded border border-line bg-panel2 hover:bg-line/60 text-faint hover:text-ink"
         aria-label="diminuer"
       >−</button>
-      <span className={`font-mono text-sm tabular-nums w-6 text-center ${value > 0 ? c : "text-faint"}`}>
+      <span className={`font-mono text-sm tabular-nums w-5 text-center ${value > 0 ? c : "text-faint"}`}>
         {value}
       </span>
       <button

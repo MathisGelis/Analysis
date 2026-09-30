@@ -322,6 +322,20 @@ body::before {
   .table-fm tbody tr.is-mine td { background-color: rgb(var(--accent) / .09); }
   .table-fm tbody tr.is-mine td:first-child { box-shadow: inset 3px 0 0 0 rgb(var(--accent)); }
 
+  /* Tableau dense : cellules plus serrees (fiches a beaucoup de colonnes). */
+  .table-dense thead th, .table-dense tbody td { padding-left: 8px; padding-right: 8px; }
+
+  /* Derniere colonne (actions) collee au bord droit : quand le tableau defile dans son
+     panneau, les boutons restent toujours visibles et cliquables. Le fond opaque masque
+     les cellules qui passent dessous ; la teinte de survol se superpose au lieu de la remplacer. */
+  .table-fm .col-fixe { position: sticky; right: 0; z-index: 1; background-color: rgb(var(--surface)); }
+  .table-fm tbody tr:hover td.col-fixe {
+    background-image: linear-gradient(rgb(var(--accent) / .06), rgb(var(--accent) / .06));
+  }
+  .table-fm tbody tr.is-mine td.col-fixe {
+    background-image: linear-gradient(rgb(var(--accent) / .09), rgb(var(--accent) / .09));
+  }
+
   /* En-tetes de section */
   .h-section {
     font-size: 11px;
