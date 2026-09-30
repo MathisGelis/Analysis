@@ -387,6 +387,10 @@ function PlayerStats({ joueurs, clubs, ownClubId }:
         </thead>
         <tbody>
           {sorted.slice(0, 100).map((j) => {
+            // /joueurs/championnat renvoie id=null pour un joueur vu dans
+            // les feuilles de match mais absent de la table des profils :
+            // pas de fiche vers laquelle pointer.
+            const cle = j.id || `${j.licence ?? ""}|${j.nom}|${j.prenom}`;
             // Pour les joueurs adverses, les stats offensives (buts /
             // passes decisives) ne refletent que ce qu'on a observe lors
             // de nos confrontations directes. Une valeur 0 est trompeuse
@@ -397,11 +401,17 @@ function PlayerStats({ joueurs, clubs, ownClubId }:
             const showOff = (v: number | undefined) =>
               isMine ? (v || "") : ((v ?? 0) > 0 ? v : "—");
             return (
-            <tr key={j.id} className={isMine ? "is-mine" : ""}>
+            <tr key={cle} className={isMine ? "is-mine" : ""}>
               <td>
-                <Link href={`/joueur/${j.id}`} className="font-semibold hover:text-turf">
-                  <span className="text-faint">{j.prenom} </span>{j.nom}
-                </Link>
+                {j.id ? (
+                  <Link href={`/joueur/${j.id}`} className="font-semibold hover:text-turf">
+                    <span className="text-faint">{j.prenom} </span>{j.nom}
+                  </Link>
+                ) : (
+                  <span className="font-semibold">
+                    <span className="text-faint">{j.prenom} </span>{j.nom}
+                  </span>
+                )}
               </td>
               <td>
                 <Link href={`/club/${j.clubId}`} className="flex items-center gap-1.5 hover:text-turf">

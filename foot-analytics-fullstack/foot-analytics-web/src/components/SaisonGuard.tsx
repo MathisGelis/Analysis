@@ -1,21 +1,32 @@
 "use client";
 // src/components/SaisonGuard.tsx
 //
-// Bloque l'acces a une page si la saison selectionnee dans le switcher
-// (bas de sidebar) n'est pas la saison "en cours" (= active).
+// Encadre une page dont les ACTIONS n'ont de sens que sur la saison en
+// cours ou a venir (/tactique, /calendrier). La LECTURE reste toujours
+// possible : consulter la tactique d'un match passe ou le calendrier d'une
+// ancienne saison est legitime.
 //
-// Usage : pour les pages dont les actions n'ont de sens que sur la
-// saison courante — typiquement /tactique (analyse en temps reel) ou
-// /calendrier (planning futur). Pour les saisons passees, ces vues
-// n'apportent rien d'utile.
-//
-// Mode "warn-only" : on n'empeche pas le rendu, on l'enveloppe d'un
-// overlay informatif avec un bouton "Revenir a la saison en cours".
+//  - saison active ou a venir : la page s'affiche normalement (on peut
+//    preparer la saison suivante) ;
+//  - saison passee : la page s'affiche avec un bandeau "consultation
+//    seule" et les enfants sont informes via useLectureSeule() pour
+//    desactiver leurs boutons d'ajout / modification / suppression.
 
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useOwnEquipe } from "@/lib/own-equipe-context";
+import { useOwnClubId } from "@/lib/own-club-context";
 import { api } from "@/lib/api";
-import { AlertCircle, ArrowRight } from "lucide-react";
+import { equipeEquivalente } from "@/lib/empreinte-equipe";
+import { estLectureSeule, modeSaison } from "@/lib/saison-mode";
+import type { Equipe, Saison } from "@/lib/types";
+import { AlertCircle, ArrowRight, Info } from "lucide-react";
+
+const LectureSeuleCtx = createContext(false);
+
+/** True quand la saison consultee est une archive : masquer / desactiver les ecritures. */
+export function useLectureSeule(): boolean {
+  return useContext(LectureSeuleCtx);
+}
 
 export function SaisonGuard({
   children, libelle = "Cette page",
@@ -23,74 +34,69 @@ export function SaisonGuard({
   children: React.ReactNode;
   libelle?: string;
 }) {
-  const { saisonId, setEquipe } = useOwnEquipe();
-  const [saisons, setSaisons] = useState<any[]>([]);
-  const [equipes, setEquipes] = useState<any[]>([]);
-  const [ready, setReady] = useState(false);
+  const { saisonId, equipeId, setEquipe } = useOwnEquipe();
+  const ownClubId = useOwnClubId();
+  const [saisons, setSaisons] = useState<Saison[]>([]);
+  const [equipes, setEquipes] = useState<Equipe[]>([]);
 
   useEffect(() => {
     (async () => {
-      const [s, e] = await Promise.all([api.saisons(), api.equipes()]);
+      const [s, e] = await Promise.all([api.saisons(), api.equipes(ownClubId)]);
       setSaisons(s);
       setEquipes(e);
-      setReady(true);
     })();
-  }, []);
+  }, [ownClubId]);
 
-  if (!ready) return <>{children}</>;
-
-  const saisonActive = saisons.find((x: any) => x.actif);
-  const saisonChoisie = saisons.find((x: any) => x.id === saisonId);
-  // OK si saison active OU si rien n'est encore selectionne (= page
-  // initiale apres login, on laisse passer).
-  if (!saisonChoisie || saisonChoisie.actif) {
-    return <>{children}</>;
-  }
+  const saisonActive = saisons.find((x) => x.actif) ?? null;
+  const saisonChoisie = saisons.find((x) => x.id === saisonId) ?? null;
+  const mode = modeSaison(saisonChoisie, saisonActive);
+  const lectureSeule = estLectureSeule(mode);
 
   async function revenirSaisonActive() {
     if (!saisonActive) return;
-    // Trouver une equipe sur la saison active pour poser le cookie
-    // correctement (sinon le switcher reste sur la mauvaise saison).
-    const candidates = equipes.filter((eq: any) => eq.saisonId === saisonActive.id);
-    const first = candidates[0];
-    setEquipe(first?.id ?? null, saisonActive.id);
+    // Equipe de MON club sur la saison active : l'equivalent de l'equipe
+    // actuelle si elle existe, sinon la premiere.
+    const courante = equipes.find((eq) => eq.id === equipeId) ?? null;
+    const candidates = equipes.filter((eq) => eq.saisonId === saisonActive.id);
+    const cible = (courante && candidates.find((eq) => equipeEquivalente(eq, courante)))
+      ?? candidates[0] ?? null;
+    setEquipe(cible?.id ?? null, saisonActive.id);
     await fetch("/api/own-equipe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        equipeId: first?.id ?? null,
-        saisonId: saisonActive.id,
-      }),
+      body: JSON.stringify({ equipeId: cible?.id ?? null, saisonId: saisonActive.id }),
     });
     window.location.reload();
   }
 
   return (
-    <div className="panel p-8 text-center fade-up">
-      <div className="w-12 h-12 rounded-full bg-amber/15 grid place-items-center mx-auto mb-4">
-        <AlertCircle size={22} className="text-amber"/>
-      </div>
-      <h2 className="font-display text-xl font-bold text-ink mb-2">
-        {libelle} n'est pas disponible sur cette saison
-      </h2>
-      <p className="text-sm text-muted mb-1">
-        Tu consultes actuellement la saison <strong className="text-ink">{saisonChoisie.nom}</strong>{" "}
-        qui n'est pas la saison en cours.
-      </p>
-      <p className="text-xs text-faint max-w-md mx-auto mb-6">
-        Cette page n'a de sens que sur la saison active : elle sert au
-        suivi en temps reel ou a la preparation des matchs a venir.
-        Reviens a la saison active pour y acceder.
-      </p>
-      {saisonActive ? (
-        <button onClick={revenirSaisonActive} className="btn btn-turf">
-          Revenir a {saisonActive.nom} <ArrowRight size={14}/>
-        </button>
-      ) : (
-        <p className="text-xs text-danger">
-          Aucune saison active definie. Va dans /admin pour en activer une.
-        </p>
+    <LectureSeuleCtx.Provider value={lectureSeule}>
+      {mode === "passee" && saisonChoisie && (
+        <div className="panel-inset p-3 mb-4 flex items-center gap-3 flex-wrap border-l-2 border-amber fade-up">
+          <AlertCircle size={16} className="text-amber shrink-0"/>
+          <p className="text-xs text-muted flex-1 min-w-[16rem]">
+            <strong className="text-ink">{libelle}</strong> : saison{" "}
+            <strong className="text-ink">{saisonChoisie.nom}</strong> archivee, en
+            consultation seule. Les ajouts et modifications sont reserves a la
+            saison en cours{saisonActive ? ` (${saisonActive.nom})` : ""}.
+          </p>
+          {saisonActive && (
+            <button onClick={revenirSaisonActive} className="btn btn-ghost text-xs">
+              Revenir a {saisonActive.nom} <ArrowRight size={12}/>
+            </button>
+          )}
+        </div>
       )}
-    </div>
+      {mode === "future" && saisonChoisie && (
+        <div className="panel-inset p-3 mb-4 flex items-center gap-3 border-l-2 border-sky fade-up">
+          <Info size={16} className="text-sky shrink-0"/>
+          <p className="text-xs text-muted">
+            Saison <strong className="text-ink">{saisonChoisie.nom}</strong> a venir :
+            tu prepares la saison, les ajouts sont autorises.
+          </p>
+        </div>
+      )}
+      {children}
+    </LectureSeuleCtx.Provider>
   );
 }

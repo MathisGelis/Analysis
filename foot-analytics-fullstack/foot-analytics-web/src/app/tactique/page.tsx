@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { JOUEURS } from "@/data/demo";
 import { Pitch } from "@/components/Pitch";
 import { onzeProbable } from "@/lib/stats";
-import { SaisonGuard } from "@/components/SaisonGuard";
+import { SaisonGuard, useLectureSeule } from "@/components/SaisonGuard";
 import { Lightbulb, Save, Sparkles } from "lucide-react";
 
 const FORMATIONS = ["4-4-2","4-2-3-1","4-3-3","3-5-2","5-3-2","3-4-3"];
@@ -19,6 +19,7 @@ export default function Tactique() {
 }
 
 function TactiqueContent() {
+  const lectureSeule = useLectureSeule();
   const [formation, setFormation] = useState("4-2-3-1");
   // Onze suggere (par defaut), modifiable individuellement
   const onzeDefault = useMemo(() => onzeProbable("chapo").map((j) => j.id), []);
@@ -52,7 +53,8 @@ function TactiqueContent() {
           <button onClick={()=>setOnze(onzeDefault)} className="btn">
             <Sparkles size={13}/> Onze suggere
           </button>
-          <button className="btn btn-primary">
+          <button className="btn btn-primary" disabled={lectureSeule}
+            title={lectureSeule ? "Saison archivee : consultation seule" : undefined}>
             <Save size={13}/> Enregistrer
           </button>
         </div>

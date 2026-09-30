@@ -15,11 +15,10 @@ export const metadata = { title: "Classement · Foot Analytics" };
 export default async function Classement() {
   const CLUB_PROPRE_ID = getOwnClubIdServer();
 
-  const [classementBrut, clubs, matchs, joueurs, equipes, saisons] = await Promise.all([
+  const [classementBrut, clubs, matchs, equipes, saisons] = await Promise.all([
     api.classement(),
     api.clubs(),
     api.matchs(),
-    api.joueurs(),
     api.equipes(),
     api.saisons(),
   ]);
@@ -36,8 +35,12 @@ export default async function Classement() {
   // Sans ce filtre, les sous-onglets melangent toutes les saisons et
   // les joueurs des autres clubs.
   let matchsChampionnat = matchs;
-  let joueursDuClub = joueurs;
+  // Stats joueurs : calculees par le backend sur les seuls matchs de CE
+  // championnat. Les compteurs de api.joueurs() sont des cumuls de
+  // carriere, ils fausseraient l'onglet.
+  let joueursDuChampionnat: any[] = [];
   if (equipePropre) {
+    joueursDuChampionnat = await api.joueursChampionnat(equipePropre.id);
     const clubsDuChampionnat = new Set(
       classementBrut
         .filter((l: any) => l.equipeId && equipesDuChampionnat.has(l.equipeId))
@@ -53,14 +56,6 @@ export default async function Classement() {
           && clubsDuChampionnat.has(m.clubDom)
           && clubsDuChampionnat.has(m.clubExt)),
     );
-    // Joueurs : ceux appartenant aux equipes du championnat. On garde
-    // les joueurs dont l'equipeId principale est dans le championnat,
-    // ou ceux attaches a une des equipes via equipesAttachees.
-    joueursDuClub = joueurs.filter((j: any) => {
-      if (j.equipeId && equipesDuChampionnat.has(j.equipeId)) return true;
-      if (Array.isArray(j.equipesAttachees) && j.equipesAttachees.some((eid: string) => equipesDuChampionnat.has(eid))) return true;
-      return false;
-    });
   }
 
   // Recompose la valeur a afficher dans le header.
@@ -88,7 +83,7 @@ export default async function Classement() {
         classement={classement}
         clubs={clubs}
         matchs={matchsChampionnat}
-        joueurs={joueursDuClub}
+        joueurs={joueursDuChampionnat}
         ownClubId={CLUB_PROPRE_ID}
       />
     </div>

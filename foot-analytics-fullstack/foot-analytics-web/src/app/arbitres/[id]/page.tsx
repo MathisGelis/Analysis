@@ -2,11 +2,19 @@
 //
 // Fiche arbitre : KPIs derives + historique de ses matchs (avec la note
 // donnee par mon club s'il y en a une).
+//
+// SAISON-SENSITIVE : par defaut (?portee=saison) tout est restreint a la
+// saison choisie dans le switcher ; ?portee=carriere affiche l'historique
+// complet. Le toggle est un simple lien, la page reste un Server Component.
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { ClubBadge } from "@/components/ClubBadge";
+import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
+import {
+  liensDeSaison, parsePortee, participationsDeSaison, totauxDepuis,
+} from "@/lib/arbitre-portee";
 import { ArrowLeft, AlertTriangle, Award, Star } from "lucide-react";
 
 const ROLE_LIBELLE: Record<string, string> = {
@@ -17,33 +25,77 @@ const ROLE_LIBELLE: Record<string, string> = {
   autre: "Autre",
 };
 
-export default async function ArbitreDetail({ params }: { params: { id: string } }) {
-  const [arb, clubs, matchs] = await Promise.all([
+export default async function ArbitreDetail({
+  params, searchParams,
+}: {
+  params: { id: string };
+  searchParams?: { portee?: string | string[] };
+}) {
+  const [arb, clubs, matchs, equipes, saisons] = await Promise.all([
     api.arbitre(params.id),
     api.clubs(),
     api.matchs(),
+    api.equipes(),
+    api.saisons(),
   ]);
   if (!arb) notFound();
+
+  const portee = parsePortee(searchParams?.portee);
+  const { saison } = await resolveEquipePropre({ equipes, saisons, matchs });
+  const saisonId = saison?.id ?? null;
 
   // arb.liensMatchs: ArbitreMatch[] avec leur match (relation TypeORM).
   // arb.participations: stats DECOMPOSEES par championnat (saison +
   // competition + poule) — sert a la frise comparative entre saisons.
   const matchById = new Map<string, any>(matchs.map((m: any) => [m.id, m]));
-  const liensMatchs: any[] = (arb.liensMatchs ?? []).map((p: any) => ({
+  const liensComplets: any[] = (arb.liensMatchs ?? []).map((p: any) => ({
     ...p,
     matchData: matchById.get(p.matchId) ?? p.match,
-  })).sort((a: any, b: any) => {
+  }));
+  const liensMatchs: any[] = (portee === "saison"
+    ? liensDeSaison(liensComplets, saisonId)
+    : liensComplets
+  ).sort((a: any, b: any) => {
     const ja = parseInt((a.matchData?.journee ?? "").replace(/[^0-9]/g, ""), 10) || 0;
     const jb = parseInt((b.matchData?.journee ?? "").replace(/[^0-9]/g, ""), 10) || 0;
     return jb - ja;
   });
-  const parChampionnat: any[] = arb.participations ?? [];
+  const participations: any[] = arb.participations ?? [];
+  const parChampionnat: any[] = portee === "saison"
+    ? participationsDeSaison(participations, saisonId)
+    : participations;
+  // Totaux : sur la saison, recalcules depuis les participations filtrees ;
+  // sur la carriere, ce sont les cumuls stockes sur l'arbitre.
+  const totaux = portee === "saison"
+    ? totauxDepuis(parChampionnat, liensMatchs)
+    : {
+        matchsOfficies: arb.matchsOfficies,
+        cartonsJaunesDonnes: arb.cartonsJaunesDonnes,
+        cartonsRougesDonnes: arb.cartonsRougesDonnes,
+        noteMoyenne: arb.noteMoyenne ?? null,
+        profil: arb.profil ?? null,
+        motifsTop: arb.motifsTop ?? null,
+      };
+  const hrefPortee = (p: "saison" | "carriere") =>
+    `/arbitres/${params.id}${p === "carriere" ? "?portee=carriere" : ""}`;
 
   return (
     <div className="space-y-6 fade-up">
-      <Link href="/arbitres" className="text-xs text-muted hover:text-ink flex items-center gap-1">
-        <ArrowLeft size={12}/> Retour arbitres
-      </Link>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <Link href="/arbitres" className="text-xs text-muted hover:text-ink flex items-center gap-1">
+          <ArrowLeft size={12}/> Retour arbitres
+        </Link>
+        <nav className="flex gap-1 text-xs" aria-label="Portee de la fiche">
+          <Link href={hrefPortee("saison")} scroll={false}
+            className={`btn ${portee === "saison" ? "btn-turf" : "btn-ghost"}`}>
+            Saison {saison?.nom ?? "courante"}
+          </Link>
+          <Link href={hrefPortee("carriere")} scroll={false}
+            className={`btn ${portee === "carriere" ? "btn-turf" : "btn-ghost"}`}>
+            Carriere complete
+          </Link>
+        </nav>
+      </div>
 
       <header className="panel p-6 grid grid-cols-12 gap-5">
         <div className="col-span-12 md:col-span-7 flex items-center gap-4">
@@ -57,31 +109,41 @@ export default async function ArbitreDetail({ params }: { params: { id: string }
               {arb.nom}
             </h1>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
-              {arb.profil ? (
+              {totaux.profil ? (
                 <span className={`badge ${
-                  arb.profil === "Strict" ? "badge-danger"
-                  : arb.profil === "Permissif" ? "badge-turf" : "badge-amber"
-                }`}>Profil {arb.profil}</span>
+                  totaux.profil === "Strict" ? "badge-danger"
+                  : totaux.profil === "Permissif" ? "badge-turf" : "badge-amber"
+                }`}>Profil {totaux.profil}</span>
               ) : null}
-              <span className="badge">{arb.matchsOfficies} match{arb.matchsOfficies > 1 ? "s" : ""} officie{arb.matchsOfficies > 1 ? "s" : ""}</span>
+              <span className="badge">{totaux.matchsOfficies} match{totaux.matchsOfficies > 1 ? "s" : ""} officie{totaux.matchsOfficies > 1 ? "s" : ""}</span>
             </div>
           </div>
         </div>
 
         <div className="col-span-12 md:col-span-5 grid grid-cols-3 gap-3">
-          <Card label="CJ donnes" value={arb.cartonsJaunesDonnes} color="text-amber"/>
-          <Card label="CR donnes" value={arb.cartonsRougesDonnes} color="text-danger"/>
-          <Card label="Note moy." value={arb.noteMoyenne != null ? arb.noteMoyenne.toFixed(1) : "—"} color="text-turf"/>
+          <Card label="CJ donnes" value={totaux.cartonsJaunesDonnes} color="text-amber"/>
+          <Card label="CR donnes" value={totaux.cartonsRougesDonnes} color="text-danger"/>
+          <Card label="Note moy." value={totaux.noteMoyenne != null ? totaux.noteMoyenne.toFixed(1) : "—"} color="text-turf"/>
         </div>
       </header>
 
-      {arb.motifsTop && (
+      {portee === "saison" && parChampionnat.length === 0 && liensMatchs.length === 0 && (
+        <section className="panel p-5 text-sm text-muted">
+          Cet arbitre n'a officie dans aucun match de la saison{" "}
+          {saison?.nom ?? "selectionnee"}.{" "}
+          <Link href={hrefPortee("carriere")} className="text-turf hover:underline">
+            Voir la carriere complete
+          </Link>
+        </section>
+      )}
+
+      {totaux.motifsTop && (
         <section className="panel p-5">
           <div className="h-section mb-2 flex items-center gap-2">
             <AlertTriangle size={11} className="text-amber"/>
             Motifs de cartons les plus frequents
           </div>
-          <p className="text-sm text-ink">{arb.motifsTop}</p>
+          <p className="text-sm text-ink">{totaux.motifsTop}</p>
           <p className="text-[11px] text-faint mt-1">
             Calcule uniquement sur les matchs ou il etait arbitre principal.
           </p>
@@ -152,7 +214,7 @@ export default async function ArbitreDetail({ params }: { params: { id: string }
         <div className="h-section mb-3">Historique des matchs ({liensMatchs.length})</div>
         {liensMatchs.length === 0 ? (
           <p className="text-sm text-muted py-4 text-center">
-            Aucune participation enregistree.
+            Aucune participation enregistree{portee === "saison" ? " sur cette saison" : ""}.
           </p>
         ) : (
           <table className="table-fm">

@@ -26,7 +26,7 @@ import { Modal } from "@/components/Modal";
 import { SeanceModal } from "@/components/SeanceModal";
 import { TimePicker24 } from "@/components/TimePicker24";
 import { ClubBadge } from "@/components/ClubBadge";
-import { SaisonGuard } from "@/components/SaisonGuard";
+import { SaisonGuard, useLectureSeule } from "@/components/SaisonGuard";
 import {
   CalendarCheck, ChevronLeft, ChevronRight, Dumbbell,
   FileText, Plus, Save, Settings2, Trophy, X,
@@ -69,6 +69,7 @@ export default function Calendrier() {
 }
 
 function CalendrierContent() {
+  const lectureSeule = useLectureSeule();
   const ownClubId = useOwnClubId();
   const { equipeId } = useOwnEquipe();
   const [cursor, setCursor] = useState<Date>(() => startOfMonth(new Date()));
@@ -221,7 +222,9 @@ function CalendrierContent() {
           <button className="btn" onClick={() => setCursor((d) => addMonths(d, 1))}>
             {MOIS_FR[addMonths(cursor, 1).getMonth()].slice(0, 4)}. <ChevronRight size={14}/>
           </button>
-          <button className="btn" onClick={() => setPlanningOpen(true)}>
+          <button className="btn" onClick={() => setPlanningOpen(true)}
+            disabled={lectureSeule}
+            title={lectureSeule ? "Saison archivee : consultation seule" : undefined}>
             <Settings2 size={14}/> Jours prevus
           </button>
         </div>
@@ -281,7 +284,9 @@ function CalendrierContent() {
                   }`}>
                     {slot.date.getDate()}
                   </div>
-                  <div className="opacity-0 group-hover:opacity-100 transition flex gap-0.5">
+                  <div className={`opacity-0 group-hover:opacity-100 transition gap-0.5 ${
+                    lectureSeule ? "hidden" : "flex"
+                  }`}>
                     <button
                       onClick={() => setAddOpen({ date: iso, type: "entrainement" })}
                       title="Ajouter un entrainement"
@@ -346,6 +351,7 @@ function CalendrierContent() {
                         <span className="text-[9px] text-muted">{a.heure ?? ""}</span>
                         <button onClick={() => removeAutre(a.id)}
                           title="Supprimer"
+                          hidden={lectureSeule}
                           className="opacity-0 group-hover/autre:opacity-100 text-danger hover:bg-danger/20 rounded p-0.5">
                           <Trash2 size={8}/>
                         </button>
@@ -356,7 +362,7 @@ function CalendrierContent() {
                     </div>
                   ))}
                   {/* Placeholder jour d'entrainement prevu */}
-                  {showPlaceholder && (
+                  {showPlaceholder && !lectureSeule && (
                     <button onClick={() => setAddOpen({ date: iso, type: "entrainement" })}
                       className="w-full px-1.5 py-1 rounded-sm text-[10px] leading-tight
                         border border-dashed border-amber/30 text-amber/70
