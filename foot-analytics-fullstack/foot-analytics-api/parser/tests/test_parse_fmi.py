@@ -108,6 +108,9 @@ def test_invariants_generiques(pdf):
     for c in d["cartons"]:
         assert c["couleur"] in {"jaune", "rouge"}
         assert c["joueur"]
+    # Le fair-play n'est jamais melange aux sanctions.
+    for c in d["cartons_verts"]:
+        assert c["couleur"] == "vert"
     for r in d["remplacements"]:
         assert r["equipe"] in {"recevante", "visiteuse"}
         assert r["minute"] is None or 0 <= r["minute"] <= 130
@@ -144,6 +147,81 @@ def test_split_name(token, attendu):
 ])
 def test_couleur_carton(motif, couleur):
     assert p._card_color(motif) == couleur
+
+
+# --------------------------------------------------------------------------- #
+#  Cartons : couleur lue sur l'icone, cartons verts a part
+# --------------------------------------------------------------------------- #
+def _tableaux_motif(pdf_path):
+    """(page, tableau, en-tete) de chaque tableau a colonne Motif de la feuille."""
+    import pdfplumber
+    with pdfplumber.open(pdf_path) as pdf:
+        pages = list(pdf.pages)
+        out = []
+        for page in pages:
+            for tbl in page.find_tables():
+                table = tbl.extract()
+                if table and "motif" in p._header_text(table).lower():
+                    out.append((page, tbl, table))
+        return [(pg, t, tb, p._est_carton_vert(pg, t.bbox)) for pg, t, tb in out]
+
+
+def test_couleur_lue_sur_l_icone_pas_deviner_d_apres_le_motif():
+    import pdfplumber
+    with pdfplumber.open(REFERENCE) as pdf:
+        page = pdf.pages[1]
+        tbl = next(t for t in page.find_tables() if "motif" in p._header_text(t.extract()).lower())
+        couleurs = [p._couleur_icone(page, tbl.rows[i].cells[3]) for i in range(1, len(tbl.rows))]
+    assert couleurs == ["jaune", "rouge", "jaune", "jaune", "jaune", "jaune"]
+
+
+def test_couleur_icone_absente_ou_illisible_donne_none():
+    assert p._couleur_icone(None, (0, 0, 10, 10)) is None
+    assert p._couleur_icone(object(), None) is None
+    assert p._couleur_icone(object(), (0, 0, 10, 10)) is None          # page sans .images : jamais bloquant
+
+
+@pytest.mark.parametrize("rgb,attendu", [
+    ((255, 215, 0), "jaune"), ((250, 240, 20), "jaune"),
+    ((230, 20, 20), "rouge"), ((255, 0, 0), "rouge"),
+    ((30, 170, 60), "vert"), ((0, 200, 0), "vert"),
+    ((128, 128, 128), None),
+])
+def test_classer_couleur(rgb, attendu):
+    assert p._classer_couleur(rgb) == attendu
+
+
+def test_tableau_carton_vert_distingue_du_tableau_discipline_par_son_titre():
+    tableaux = _tableaux_motif(REFERENCE)
+    # La feuille de reference a un tableau DISCIPLINE (6 lignes) et un tableau CARTON VERT vide.
+    assert [est_vert for *_, est_vert in tableaux] == [False, True]
+
+
+def test_carton_vert_range_a_part_et_jamais_compte_comme_sanction():
+    ms = p.MatchSheet()
+    table = [
+        ["Equipe", "N° licence", "NOM Prénom", "Motif"],
+        ["Neuville S/S", "2538644299", "4 - MANSOUR Abdamalek", ""],
+        ["F.C. Meys Grezieu", "2544320319", "13 - GRANJON Alexandre", "34' + 0'"],
+    ]
+    p._parse_discipline(table, ms, verts=True)
+    assert ms.cartons == []
+    assert [(c.joueur, c.couleur, c.motif, c.minute) for c in ms.cartons_verts] == [
+        ("MANSOUR Abdamalek", "vert", "", None),
+        ("GRANJON Alexandre", "vert", "", 34),
+    ]
+
+
+def test_sanction_sans_icone_retombe_sur_le_motif():
+    ms = p.MatchSheet()
+    table = [
+        ["Equipe", "N° licence", "NOM Prénom", "Motif", None, "Informations complémentaires", "Min (+)"],
+        ["A", "2538644299", "4 - MANSOUR Abdamalek", "", "Commet un acte de brutalité", "", "59' + 0'"],
+        ["A", "2543280074", "6 - BEN KAHLA Eddy", "", "Comportement antisportif", "", "19' + 0'"],
+    ]
+    p._parse_discipline(table, ms)
+    assert [c.couleur for c in ms.cartons] == ["rouge", "jaune"]
+    assert ms.cartons_verts == []
 
 
 def test_minute_pure_exclue_des_motifs():

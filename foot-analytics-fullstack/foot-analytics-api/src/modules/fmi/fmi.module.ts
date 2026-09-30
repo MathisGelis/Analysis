@@ -370,6 +370,14 @@ export class FmiService {
         equipe: isRecev(c.equipe) ? "dom" : "ext",
       });
     }
+    // Cartons verts (fair-play) : evenement a part, jamais compte comme sanction.
+    for (const c of parsed.cartons_verts ?? []) {
+      evenements.push({
+        type: "carton_vert", sousType: "vert", motif: c.motif,
+        minute: c.minute, arret: c.arret ?? 0, joueur: c.joueur,
+        equipe: isRecev(c.equipe) ? "dom" : "ext",
+      });
+    }
     for (const s of parsed.remplacements ?? []) {
       evenements.push({
         type: "remplacement", minute: s.minute, arret: s.arret ?? 0,
@@ -662,6 +670,7 @@ class FmiController {
       compo_recevante: parsed?.compo_recevante?.length ?? 0,
       compo_visiteuse: parsed?.compo_visiteuse?.length ?? 0,
       cartons: parsed?.cartons?.length ?? 0,
+      cartonsVerts: parsed?.cartons_verts?.length ?? 0,
       buteurs: parsed?.buteurs?.length ?? 0,
       remplacements: parsed?.remplacements?.length ?? 0,
       officiels: parsed?.officiels?.length ?? 0,

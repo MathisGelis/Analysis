@@ -182,7 +182,7 @@ export class EvenementMatch {
   @ManyToOne(() => Match, (m) => m.evenements, { onDelete: "CASCADE" })
   @JoinColumn({ name: "match_id" }) match: Match;
   @Index() @Column({ name: "match_id" }) matchId: string;
-  @Column() type: string;            // carton | but | remplacement | blessure
+  @Column() type: string;            // carton | carton_vert (fair-play, pas une sanction) | but | remplacement | blessure
   @Column({ nullable: true }) sousType: string;
   @Column({ nullable: true }) motif: string;
   @Column({ type: "int", nullable: true }) minute: number;

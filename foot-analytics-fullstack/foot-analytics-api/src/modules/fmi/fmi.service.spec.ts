@@ -72,6 +72,23 @@ describe("FmiService - import de lot", () => {
     expect(rebuildAll).toHaveBeenCalledTimes(1);
   });
 
+  it("cartons verts (fair-play) : enregistres a part, jamais parmi les sanctions", async () => {
+    const parsed = fmi({
+      cartons_verts: [
+        { equipe: "Neuville S/S 2", licence: "2538644299", joueur: "MANSOUR Abdamalek", numero: 4, motif: "", couleur: "vert", minute: 34, arret: 0 },
+      ],
+    });
+    lot({ originalname: "a.pdf", parsed });
+
+    await svc.importMany(fichiers(1));
+
+    const evts = await ds.getRepository(EvenementMatch).find();
+    expect(evts.filter((e) => e.type === "carton")).toHaveLength(6);       // les 6 sanctions de la feuille, pas une de plus
+    const vert = evts.filter((e) => e.type === "carton_vert");
+    expect(vert).toHaveLength(1);
+    expect(vert[0]).toMatchObject({ sousType: "vert", joueur: "MANSOUR Abdamalek", minute: 34 });
+  });
+
   it("n'invente aucune formation et ne reecrase pas celle saisie a la main", async () => {
     lot({ originalname: "a.pdf", parsed: fmi() });
     await svc.importMany(fichiers(1));

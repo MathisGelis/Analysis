@@ -12,8 +12,9 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { ClubBadge } from "@/components/ClubBadge";
 import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
+import { MotifsCartons } from "@/components/MotifsCartons";
 import {
-  liensDeSaison, parsePortee, participationsDeSaison, totauxDepuis,
+  decompteMotifs, liensDeSaison, parsePortee, participationsDeSaison, totauxDepuis,
 } from "@/lib/arbitre-portee";
 import { ArrowLeft, AlertTriangle, Award, Star } from "lucide-react";
 
@@ -75,6 +76,8 @@ export default async function ArbitreDetail({
         noteMoyenne: arb.noteMoyenne ?? null,
         profil: arb.profil ?? null,
         motifsTop: arb.motifsTop ?? null,
+        // Le detail des motifs se lit sur les MEMES participations que les cartons : jamais un seul championnat.
+        decompteMotifs: decompteMotifs(participations),
       };
   const hrefPortee = (p: "saison" | "carriere") =>
     `/arbitres/${params.id}${p === "carriere" ? "?portee=carriere" : ""}`;
@@ -137,18 +140,8 @@ export default async function ArbitreDetail({
         </section>
       )}
 
-      {totaux.motifsTop && (
-        <section className="panel p-5">
-          <div className="h-section mb-2 flex items-center gap-2">
-            <AlertTriangle size={11} className="text-amber"/>
-            Motifs de cartons les plus frequents
-          </div>
-          <p className="text-sm text-ink">{totaux.motifsTop}</p>
-          <p className="text-[11px] text-faint mt-1">
-            Calcule uniquement sur les matchs ou il etait arbitre principal.
-          </p>
-        </section>
-      )}
+      <MotifsCartons decompte={totaux.decompteMotifs} motifsTop={totaux.motifsTop}
+        cartons={totaux.cartonsJaunesDonnes + totaux.cartonsRougesDonnes} />
 
       {parChampionnat.length > 0 && (
         <section className="panel p-5">

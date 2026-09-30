@@ -7,6 +7,9 @@
 
 export type Portee = "saison" | "carriere";
 
+/** Un motif de carton et le nombre de cartons donnes pour ce motif. */
+export interface CompteMotif { motif: string; n: number }
+
 export interface ParticipationChamp {
   saisonId?: string | null;
   matchsOfficies: number;
@@ -15,6 +18,10 @@ export interface ParticipationChamp {
   cartonsRougesDonnes: number;
   profil?: string | null;
   motifsTop?: string | null;
+  /** Decompte complet des motifs (absent des participations calculees avant cette version). */
+  motifs?: CompteMotif[] | null;
+  /** Cartons dont la feuille ne donne aucun motif. */
+  cartonsSansMotif?: number | null;
   noteMoyenne?: number | null;
 }
 
@@ -30,6 +37,15 @@ export interface TotauxArbitre {
   noteMoyenne: number | null;
   profil: string | null;
   motifsTop: string | null;
+  /** Detail des motifs sur la portee : null si une participation n'en porte pas (rebuild a relancer). */
+  decompteMotifs: DecompteMotifs | null;
+}
+
+export interface DecompteMotifs {
+  motifs: CompteMotif[];
+  sansMotif: number;
+  /** Total des cartons : somme des motifs + cartons sans motif. Egal a CJ + CR quand les donnees sont completes. */
+  total: number;
 }
 
 /** Lit ?portee=... ; toute valeur inconnue retombe sur la saison courante. */
@@ -46,6 +62,28 @@ export function participationsDeSaison<T extends ParticipationChamp>(
 
 export function liensDeSaison<T extends LienMatch>(liens: T[], saisonId: string | null): T[] {
   return liens.filter((l) => (l.matchData?.saisonId ?? null) === saisonId);
+}
+
+/**
+ * Decompte des motifs sur un ensemble de participations : chaque motif additionne sur tous les
+ * championnats, plus les cartons sans motif, pour que le total retombe sur les cartons donnes.
+ * null si une participation n'a pas le detail (calculee avant cette version) : on ne devine pas.
+ */
+export function decompteMotifs(participations: ParticipationChamp[]): DecompteMotifs | null {
+  if (participations.length === 0) return { motifs: [], sansMotif: 0, total: 0 };
+  if (participations.some((p) => !Array.isArray(p.motifs))) return null;
+  const cle = (m: string) => m.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const groupes = new Map<string, CompteMotif>();
+  let sansMotif = 0;
+  for (const p of participations) {
+    sansMotif += p.cartonsSansMotif ?? 0;
+    for (const { motif, n } of p.motifs ?? []) {
+      const g = groupes.get(cle(motif));
+      if (g) g.n += n; else groupes.set(cle(motif), { motif, n });
+    }
+  }
+  const motifs = [...groupes.values()].sort((a, b) => b.n - a.n || a.motif.localeCompare(b.motif));
+  return { motifs, sansMotif, total: motifs.reduce((s, m) => s + m.n, 0) + sansMotif };
 }
 
 /**
@@ -70,5 +108,6 @@ export function totauxDepuis(
     noteMoyenne: notes.length ? notes.reduce((s, n) => s + n, 0) / notes.length : null,
     profil: principal?.profil ?? null,
     motifsTop: principal?.motifsTop ?? null,
+    decompteMotifs: decompteMotifs(participations),
   };
 }

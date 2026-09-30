@@ -352,6 +352,10 @@ function Timeline({ events, domNom, extNom }: { events: EvenementMatch[]; domNom
           icon = <span className={`w-2.5 h-3.5 rounded-sm ${e.sousType === "rouge" ? "bg-danger" : "bg-amber"}`}/>;
           color = e.sousType === "rouge" ? "text-danger" : "text-amber";
           title = `Carton ${e.sousType} · ${e.joueur}`;
+        } else if (e.type === "carton_vert") {
+          icon = <span className="w-2.5 h-3.5 rounded-sm bg-win"/>;
+          color = "text-win";
+          title = `Carton vert (fair-play) · ${e.joueur}`;
         } else if (e.type === "remplacement") {
           icon = <span className="inline-block text-sky">⇆</span>;
           color = "text-sky";

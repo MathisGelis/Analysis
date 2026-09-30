@@ -9,7 +9,7 @@
 // Ces routines sont appelees automatiquement apres chaque import FMI, et
 // disponibles manuellement via POST /api/derivation/rebuild.
 
-import { Controller, Injectable, Module, Post } from "@nestjs/common";
+import { Controller, Injectable, Module, Post, Query, UseGuards } from "@nestjs/common";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import {
@@ -17,7 +17,9 @@ import {
   Equipe, EvenementMatch, Joueur, LigneClassement, Match, Saison, StaffMatch,
 } from "@/entities";
 import { noteIndicative } from "@/common/indicateurs";
+import { compterMotifs, resumeMotifs } from "@/common/motifs";
 import { anneeDebutPourDate, nomSaison } from "@/common/saison-date";
+import { AdminGuard, AuthModule } from "../auth/auth.module";
 
 const POSTE_BY_NUM: Record<number, string> = {
   1: "GB", 2: "DD", 3: "DG", 4: "DC", 5: "DC",
@@ -108,6 +110,7 @@ export class DerivationService {
     @InjectRepository(StaffMatch) private staffMatchsRepo: Repository<StaffMatch>,
     @InjectRepository(Equipe) private equipesRepo: Repository<Equipe>,
     @InjectRepository(Saison) private saisonsRepo: Repository<Saison>,
+    @InjectRepository(EvenementMatch) private evenementsRepo: Repository<EvenementMatch>,
   ) {}
 
   /** Reconstruit l'effectif de tous les clubs depuis les compositions. */
@@ -770,7 +773,8 @@ export class DerivationService {
       matchsAutre: number;
       cartonsJaunesDonnes: number;
       cartonsRougesDonnes: number;
-      motifsCount: Record<string, number>;
+      /** Un motif brut par carton (vide compris) : le decompte se fait ensuite, jamais en cours de route. */
+      motifsBruts: string[];
       notes: number[];
     };
     const accChamp = new Map<string, ChampStats>(); // cle = arbitreId|champKey
@@ -778,7 +782,7 @@ export class DerivationService {
       matchsOfficies: number;
       cartonsJaunesDonnes: number;
       cartonsRougesDonnes: number;
-      motifsCount: Record<string, number>;
+      motifsBruts: string[];
       notes: number[];
       roles: Set<string>;
       matchsPrincipal: number;
@@ -788,7 +792,7 @@ export class DerivationService {
     const ensureG = (id: string) => {
       if (!accGlobal.has(id)) accGlobal.set(id, {
         matchsOfficies: 0, cartonsJaunesDonnes: 0, cartonsRougesDonnes: 0,
-        motifsCount: {}, notes: [], roles: new Set(),
+        motifsBruts: [], notes: [], roles: new Set(),
         matchsPrincipal: 0, matchsAssistant: 0, matchsAutre: 0,
       });
       return accGlobal.get(id)!;
@@ -823,7 +827,7 @@ export class DerivationService {
           matchsOfficies: 0,
           matchsPrincipal: 0, matchsAssistant: 0, matchsAutre: 0,
           cartonsJaunesDonnes: 0, cartonsRougesDonnes: 0,
-          motifsCount: {}, notes: [],
+          motifsBruts: [], notes: [],
         };
         accChamp.set(k, c);
       }
@@ -841,11 +845,9 @@ export class DerivationService {
           } else {
             g.cartonsJaunesDonnes++; c.cartonsJaunesDonnes++;
           }
-          const motif = (e.motif ?? "").trim();
-          if (motif) {
-            g.motifsCount[motif] = (g.motifsCount[motif] ?? 0) + 1;
-            c.motifsCount[motif] = (c.motifsCount[motif] ?? 0) + 1;
-          }
+          // Un motif par carton, meme vide : le total des motifs doit retomber sur le total des cartons.
+          g.motifsBruts.push(e.motif ?? "");
+          c.motifsBruts.push(e.motif ?? "");
         }
       }
       if (am.note != null && (ownClubIds.has((m as any).clubDom) || ownClubIds.has((m as any).clubExt))) {
@@ -860,12 +862,11 @@ export class DerivationService {
       const ratio = (cj + cr * 2) / matchsPrincipal;
       return ratio < 2 ? "Permissif" : ratio > 5 ? "Strict" : "Standard";
     };
-    const top3Motifs = (motifsCount: Record<string, number>) =>
-      Object.entries(motifsCount)
-        .sort((x, y) => y[1] - x[1])
-        .slice(0, 3)
-        .map(([m, c]) => `${m} (${c})`)
-        .join(" · ") || null;
+    // Decompte complet des motifs (regroupes, cartons sans motif compris) + resume court pour les listes.
+    const motifsDe = (bruts: string[]) => {
+      const d = compterMotifs(bruts);
+      return { motifs: d.motifs, cartonsSansMotif: d.sansMotif, motifsTop: resumeMotifs(d) };
+    };
     const avgNote = (notes: number[]) => notes.length
       ? +(notes.reduce((s, x) => s + x, 0) / notes.length).toFixed(1)
       : null;
@@ -888,7 +889,7 @@ export class DerivationService {
         cartonsJaunesDonnes: c.cartonsJaunesDonnes,
         cartonsRougesDonnes: c.cartonsRougesDonnes,
         profil: deriveProfil(c.matchsPrincipal, c.cartonsJaunesDonnes, c.cartonsRougesDonnes),
-        motifsTop: top3Motifs(c.motifsCount),
+        ...motifsDe(c.motifsBruts),
         noteMoyenne: avgNote(c.notes),
       });
       partsByArbitre.set(arbId, arr);
@@ -934,7 +935,7 @@ export class DerivationService {
         cartonsJaunesDonnes: g.cartonsJaunesDonnes,
         cartonsRougesDonnes: g.cartonsRougesDonnes,
         profil: deriveProfil(g.matchsPrincipal, g.cartonsJaunesDonnes, g.cartonsRougesDonnes),
-        motifsTop: top3Motifs(g.motifsCount),
+        motifsTop: motifsDe(g.motifsBruts).motifsTop,
         noteMoyenne: avgNote(g.notes),
         participations: participations.length ? JSON.stringify(participations) : null,
       });
@@ -963,14 +964,14 @@ export class DerivationService {
       matchsPresent: number; v: number; n: number; d: number;
       fonctionsCounts: Record<string, number>; clubsCounts: Record<string, number>;
       cartonsJaunes: number; cartonsRouges: number;
-      motifsCount: Record<string, number>;
+      motifsBruts: string[];
     };
     const acc = new Map<string, Acc>();
     const ensure = (id: string): Acc => {
       if (!acc.has(id)) acc.set(id, {
         matchsPresent: 0, v: 0, n: 0, d: 0,
         fonctionsCounts: {}, clubsCounts: {},
-        cartonsJaunes: 0, cartonsRouges: 0, motifsCount: {},
+        cartonsJaunes: 0, cartonsRouges: 0, motifsBruts: [],
       });
       return acc.get(id)!;
     };
@@ -1031,8 +1032,7 @@ export class DerivationService {
         const a = ensure(match.id);
         if (e.sousType === "rouge") a.cartonsRouges++;
         else a.cartonsJaunes++;
-        const cleanMotif = (e.motif ?? "").trim();
-        if (cleanMotif) a.motifsCount[cleanMotif] = (a.motifsCount[cleanMotif] ?? 0) + 1;
+        a.motifsBruts.push(e.motif ?? "");
       }
     }
 
@@ -1059,9 +1059,7 @@ export class DerivationService {
       // Club courant = celui ou il a accompagne le plus.
       const topClub = Object.entries(d.clubsCounts)
         .sort((x, y) => y[1] - x[1])[0]?.[0] ?? c.clubId ?? null;
-      const motifsTop = Object.entries(d.motifsCount)
-        .sort((x, y) => y[1] - x[1]).slice(0, 3)
-        .map(([m, n]) => `${m} (${n})`).join(" · ") || null;
+      const motifsTop = resumeMotifs(compterMotifs(d.motifsBruts));
       toSave.push({
         ...c,
         matchsPresent: d.matchsPresent, v: d.v, n: d.n, d: d.d,
@@ -1375,6 +1373,36 @@ export class DerivationService {
     return { backfill: toUpdate.length };
   }
 
+  /**
+   * Maintenance : les FMI importees AVANT la separation du tableau CARTON VERT (fair-play) ont range
+   * ces cartons verts parmi les cartons JAUNES, sans motif. Ils gonflaient les jaunes des joueurs et des
+   * arbitres, et donnaient "4 cartons annonces pour 2 motifs affiches". Toute sanction de la FMI porte un
+   * motif : un carton jaune SANS motif est donc un carton vert mal range.
+   *
+   * SIMULATION par defaut (appliquer = false) : ne modifie rien. Apres application, les statistiques
+   * (joueurs, arbitres, entraineurs) sont recalculees.
+   */
+  async reclasserCartonsVerts(appliquer = false) {
+    const candidats = (await this.evenementsRepo.find({ where: { type: "carton" } }))
+      .filter((e) => (e.sousType ?? "jaune") !== "rouge" && !(e.motif ?? "").trim());
+    const total = await this.evenementsRepo.count({ where: { type: "carton" } });
+    const rapport = {
+      appliquer,
+      cartonsAvantCorrection: total,
+      cartonsVertsDetectes: candidats.length,
+      matchsConcernes: new Set(candidats.map((e) => e.matchId)).size,
+      exemples: candidats.slice(0, 8).map((e) => ({ matchId: e.matchId, joueur: e.joueur, minute: e.minute })),
+      suite: appliquer
+        ? "Statistiques recalculees."
+        : "Simulation : rien n'a ete modifie. Relance avec ?appliquer=true pour reclasser ces cartons en cartons verts.",
+    } as { [k: string]: any };
+    if (!appliquer || candidats.length === 0) return rapport;
+
+    await this.evenementsRepo.save(candidats.map((e) => ({ ...e, type: "carton_vert", sousType: "vert" })));
+    rapport.recalcul = await this.rebuildAll();
+    return rapport;
+  }
+
   async rebuildAll() {
     const backfill = await this.backfillSaisonEtEquipes();
     const journees = await this.recomputeJournees();
@@ -1415,6 +1443,12 @@ class DerivationController {
   classement() {
     return this.svc.rebuildClassement();
   }
+
+  // Maintenance (admin) : simulation par defaut, ?appliquer=true pour reclasser les cartons verts.
+  @Post("maintenance/cartons-verts") @UseGuards(AdminGuard)
+  cartonsVerts(@Query("appliquer") appliquer?: string) {
+    return this.svc.reclasserCartonsVerts(appliquer === "true");
+  }
 }
 
 @Module({
@@ -1424,6 +1458,7 @@ class DerivationController {
       Entrainement, Blessure, Arbitre, ArbitreMatch, Coach, StaffMatch,
       Equipe, Saison,
     ]),
+    AuthModule,
   ],
   controllers: [DerivationController],
   providers: [DerivationService],
