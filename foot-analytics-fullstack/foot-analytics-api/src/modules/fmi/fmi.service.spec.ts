@@ -210,6 +210,16 @@ describe("FmiService - import de lot", () => {
     expect(await ds.getRepository(Match).count()).toBe(1);
   });
 
+  it("feuille sans aucun encadrement lu : importee, avec un avertissement pour la reimporter apres correction", async () => {
+    lot({ originalname: "a.pdf", parsed: fmi({ encadrement: [] }) });
+
+    const r = await svc.importMany(fichiers(1));
+
+    expect(r.resultats[0]).toMatchObject({ ok: true, statut: "importe" });
+    expect(r.resultats[0].avertissements).toContain("aucun encadrement (entraineur, dirigeant) lu sur la feuille");
+    expect(await ds.getRepository(StaffMatch).count()).toBe(0);
+  });
+
   it("compositions incompletes : importe avec un avertissement", async () => {
     lot({ originalname: "a.pdf", parsed: fmi({ compo_recevante: [], compo_visiteuse: [] }) });
 

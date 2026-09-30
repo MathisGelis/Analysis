@@ -505,6 +505,11 @@ export class FmiService {
     // Encadrement (staff sur le banc) : on cree un coach et un staff_match
     // par membre. On filtre cote derivation pour ignorer les DR
     // (delegues de rencontre).
+    // Une feuille sans aucun membre du banc est presque toujours un defaut de lecture : on le signale pour que
+    // la feuille soit reimportee apres correction plutot que de laisser un match sans entraineur.
+    if ((parsed.encadrement ?? []).length === 0) {
+      rapport.avertissements.push("aucun encadrement (entraineur, dirigeant) lu sur la feuille");
+    }
     for (const s of (parsed.encadrement ?? [])) {
       const nomComplet = (s.nom_complet ?? "").trim();
       if (!nomComplet) continue;

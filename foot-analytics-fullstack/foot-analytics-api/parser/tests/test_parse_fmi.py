@@ -229,3 +229,58 @@ def test_minute_pure_exclue_des_motifs():
     assert p.MINUTE_LIKE_RE.match("22'")
     assert p.MINUTE_LIKE_RE.match("90' + 3'")
     assert not p.MINUTE_LIKE_RE.match("Contestation")
+
+
+# --------------------------------------------------------------------------- #
+#  Table du banc : reconnue par sa structure, pas par la presence d'un "E/DR"
+# --------------------------------------------------------------------------- #
+VIDE6 = ["", "", "", "", "", ""]
+
+
+def test_table_du_banc_sans_delegue_de_rencontre_est_reconnue():
+    """Feuille ou aucun membre du banc n'est delegue (DR) : avant, le banc entier etait ignore."""
+    table = [
+        ["DUPONT Jean", "2538630712", "E", "MARTIN Luc", "2518696883", "E"],
+        ["BERNARD Paul", "2520245384", "D", "", "", ""],
+        ["LEROY Marc", "2518686978", "M", "PETIT Yann", "2512345678", "A"],
+        VIDE6,
+    ]
+    assert p._est_table_encadrement(table)
+    ms = p.MatchSheet()
+    p._parse_staff(table, ms)
+    assert [(s.nom_complet, s.fonction, s.equipe) for s in ms.encadrement] == [
+        ("DUPONT Jean", "E", "recevante"), ("MARTIN Luc", "E", "visiteuse"),
+        ("BERNARD Paul", "D", "recevante"),
+        ("LEROY Marc", "M", "recevante"), ("PETIT Yann", "A", "visiteuse"),
+    ]
+
+
+@pytest.mark.parametrize("fonction", ["E/DR", "D/DR", "A/DR", "E / DR", "e/dr", "M", "DR"])
+def test_table_du_banc_reconnue_quelle_que_soit_la_fonction(fonction):
+    assert p._est_table_encadrement([["DUPONT Jean", "2538630712", fonction, "", "", ""]])
+
+
+def test_table_du_banc_avec_un_seul_cote_renseigne():
+    assert p._est_table_encadrement([["", "", "", "MARTIN Luc", "2518696883", "E"]])
+
+
+@pytest.mark.parametrize("table", [
+    [],
+    [VIDE6, VIDE6],
+    # Composition : numero, nom, licence.
+    [["1", "DRONEAU Lucas", "2546012357", "2", "BOURGEOIS Jason", "2548007372"]],
+    # Arbitres et delegues : role, nom, licence.
+    [["Arbitre centre", "FARGEOT Jeremy", "2543106382", "Arbitre assistant 1", "MEHIAOUI Karim", "2543420312"]],
+    # Licence valide mais pas de fonction de banc.
+    [["DUPONT Jean", "2538630712", "Signature du capitaine", "", "", ""]],
+])
+def test_ce_qui_n_est_pas_un_banc_n_est_pas_reconnu(table):
+    assert not p._est_table_encadrement(table)
+
+
+def test_reference_encadrement_complet(neuville):
+    """La feuille de reference : les quatre membres du banc, avec leur cote et leur fonction."""
+    staff = {(s["nom_complet"], s["fonction"], s["equipe"]) for s in neuville["encadrement"]}
+    assert ("DELORME Eric", "E/DR", "recevante") in staff
+    assert ("CLOUZET DIT ORIENTI Jean Philippe", "E", "visiteuse") in staff
+    assert len(staff) == 4

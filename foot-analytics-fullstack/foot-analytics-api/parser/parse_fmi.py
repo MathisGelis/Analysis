@@ -315,6 +315,26 @@ def _parse_officials(table, ms: MatchSheet):
                     ms.officiels.append(Official(role, nom, lic))
 
 
+# Fonction d'un membre du banc : une ou plusieurs lettres separees par "/" (E, D, A, M, E/DR, D/DR, A/DR...).
+FONCTION_RE = re.compile(r"^[A-Za-z]{1,2}(?:\s*/\s*[A-Za-z]{1,2})*$")
+
+
+def _est_table_encadrement(table) -> bool:
+    """Le tableau du BANC (staff) : des lignes (nom, licence, fonction), cote recevant en colonnes 0-2 et
+    visiteur en colonnes 3-5. On le reconnait a sa STRUCTURE.
+
+    Avant, il fallait y trouver un "E/DR" (educateur et delegue de rencontre) : sur les feuilles ou le delegue
+    est un officiel neutre ou un dirigeant (D/DR, A/DR) ou n'existe pas, le banc n'etait pas lu et les
+    entraineurs manquaient (8 matchs sur 142 sans aucun staff)."""
+    for row in table or []:
+        cells = [_clean(c) for c in row]
+        for base in (0, 3):
+            if (len(cells) >= base + 3 and cells[base] and LICENSE_RE.match(cells[base + 1])
+                    and FONCTION_RE.match(cells[base + 2])):
+                return True
+    return False
+
+
 def _parse_staff(table, ms: MatchSheet, forced_side: str | None = None):
     for row in table:
         cells = [_clean(c) for c in row]
@@ -518,9 +538,7 @@ def parse_fmi(pdf_path: str | Path) -> MatchSheet:
                         titulaire = first_num <= 11
                         _parse_lineup(table, ms, titulaire, forced_side)
                         seen_titulaires = seen_titulaires or titulaire
-                    elif ("e/dr" in flat and "signature" not in flat
-                          and any(LICENSE_RE.match(_clean(c))
-                                  for r in table for c in r)):
+                    elif "signature" not in flat and _est_table_encadrement(table):
                         _parse_staff(table, ms, forced_side)
 
         # Ids de club : on reutilise le texte deja extrait (cache).
