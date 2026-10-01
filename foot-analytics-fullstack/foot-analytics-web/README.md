@@ -130,7 +130,7 @@ clubs, arbitres). **Ctrl/Cmd + K** (ou `/`) y place le curseur. `prefers-reduced
 desactive les animations.
 
 ```bash
-npm run lint      # ESLint 9 (config flat, regles Next core-web-vitals) sur src, tests et e2e
+npm run lint      # ESLint 10 (config flat : regles Next core-web-vitals, hooks React, a11y JSX) sur src, tests et e2e
 ```
 
 ### Tests unitaires (Vitest)
