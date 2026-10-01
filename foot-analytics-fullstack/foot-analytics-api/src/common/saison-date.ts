@@ -4,7 +4,7 @@
 // partagee par la creation automatique des saisons (import FMI, backfill) et
 // par les vues qui rattachent un document date (rapport de scouting) a une saison.
 
-import { parseDateFlexible } from "./periode";
+import { parseDateFlexible } from "./dates";
 
 /** Annee de debut de la saison qui contient cette date ("2026-03-15" ou "15/03/2026"), null si illisible. */
 export function anneeDebutPourDate(date?: string | null): number | null {

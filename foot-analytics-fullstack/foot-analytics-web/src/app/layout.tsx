@@ -8,21 +8,24 @@
 import "@fontsource-variable/bricolage-grotesque";
 import "@fontsource-variable/instrument-sans";
 import "@fontsource-variable/jetbrains-mono";
+
 import "./globals.css";
+
 import type { Metadata, Viewport } from "next";
-import { AppShell } from "@/components/AppShell";
-import { NavProgress } from "@/components/NavProgress";
-import { FeedbackProvider } from "@/lib/feedback-context";
 import { cookies } from "next/headers";
-import { ThemeProvider } from "@/lib/theme-context";
-import { getServerTheme, themeBootstrapScript } from "@/lib/theme-server";
-import { OwnEquipeProvider } from "@/lib/own-equipe-context";
-import { OwnClubProvider } from "@/lib/own-club-context";
-import { getOwnClubIdServer } from "@/lib/own-club";
-import { getOwnEquipeIdServer, getOwnSaisonIdServer } from "@/lib/own-equipe";
-import { getCurrentUserServer } from "@/lib/auth";
-import { ClubsProvider } from "@/lib/clubs-context";
-import { api } from "@/lib/api";
+
+import { AppShell } from "@/features/shell/components/AppShell";
+import { NavProgress } from "@/features/shell/components/NavProgress";
+import { FeedbackProvider } from "@/shared/lib/feedback-context";
+import { ThemeProvider } from "@/features/shell/lib/theme-context";
+import { getServerTheme, themeBootstrapScript } from "@/features/shell/lib/theme-server";
+import { OwnEquipeProvider } from "@/features/equipes/lib/own-equipe-context";
+import { OwnClubProvider } from "@/features/equipes/lib/own-club-context";
+import { getOwnClubIdServer } from "@/features/equipes/lib/own-club";
+import { getOwnEquipeIdServer, getOwnSaisonIdServer } from "@/features/equipes/lib/own-equipe";
+import { getCurrentUserServer } from "@/features/auth/lib/auth";
+import { ClubsProvider } from "@/features/clubs/lib/clubs-context";
+import { api } from "@/shared/lib/api";
 
 export const metadata: Metadata = {
   title: "Foot Analytics — Console d'entraineur",

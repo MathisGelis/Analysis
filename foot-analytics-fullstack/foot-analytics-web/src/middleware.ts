@@ -23,11 +23,12 @@
 // club qui en a.
 
 import { NextRequest, NextResponse } from "next/server";
-import { debug } from "@/lib/debug";
-import { decoderPayloadJwt } from "@/lib/jwt";
-import { DEFAULT_OWN_CLUB_ID } from "@/lib/club-defaut";
-import { selectionValide } from "@/lib/selection-equipe";
-import type { Club, Equipe, Saison } from "@/lib/types";
+
+import { debug } from "@/shared/lib/debug";
+import { decoderPayloadJwt } from "@/features/auth/lib/jwt";
+import { DEFAULT_OWN_CLUB_ID } from "@/features/equipes/lib/club-defaut";
+import { selectionValide } from "@/features/equipes/lib/selection-equipe";
+import type { Club, Equipe, Saison } from "@/shared/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 

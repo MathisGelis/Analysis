@@ -70,7 +70,7 @@ restent dans cette API.
    Un mot de passe contenant `@`, `#` ou `/` doit etre encode (`%40`, `%23`, `%2F`).
 3. **SSL** : chiffre par defaut sans verifier le certificat. Pour verifier la chaine, telecharger le certificat
    (*Project Settings > Database > SSL configuration*) et regler `DB_SSL=verify` + `DB_SSL_CA=/chemin/prod-ca.crt`.
-4. **Schema** : il evolue par **migrations** (`src/migrations`), appliquees au demarrage ; jamais de `synchronize`
+4. **Schema** : il evolue par **migrations** (`src/database/migrations`), appliquees au demarrage ; jamais de `synchronize`
    sur Postgres.
 5. **Donnees** : copier un fichier SQLite existant vers la base (applique les migrations, puis copie tout dans une
    transaction ; refuse une cible non vide, `--ecraser` pour la vider d'abord). Le fichier SQLite n'est jamais modifie.
@@ -94,7 +94,7 @@ restent dans cette API.
 npm run migration:show                                   # etat (DATABASE_URL)
 npm run migration:run                                    # applique celles qui manquent
 npm run migration:revert                                 # annule la derniere
-npm run migration:generate -- src/migrations/NomClair    # apres avoir modifie une entite
+npm run migration:generate -- src/database/migrations/NomClair    # apres avoir modifie une entite
 ```
 
 `migration:generate` compare les entites a la base visee : elle doit etre a jour des migrations existantes
@@ -209,9 +209,9 @@ Trois roles : `admin`, `referent` (referent d'un club) et `user` (educateur).
   referent voit toujours tout.
 
 ### Perimetre d'acces (filtrage cote API)
-Chaque requete authentifiee passe par `AccesGuard` (`modules/acces`) : le compte, ses equipes attribuees et ses saisons
+Chaque requete authentifiee passe par `AccesGuard` (`src/features/acces`) : le compte, ses equipes attribuees et ses saisons
 ouvertes sont lus **en base** a chaque appel (jamais dans le jeton) ; une restriction posee par un gestionnaire joue
-immediatement et un compte supprime perd l'acces tout de suite (`401`). La politique est dans `common/acces.ts`. Le front
+immediatement et un compte supprime perd l'acces tout de suite (`401`). La politique est dans `features/acces/contexte-acces.ts`. Le front
 ne filtre rien : il affiche ce que l'API renvoie.
 
 | | admin | referent | educateur |
@@ -234,7 +234,7 @@ ne filtre rien : il affiche ce que l'API renvoie.
   club adverse, un arbitre, importer une feuille FMI et relancer la derivation.
 - Limite connue : les totaux cumules d'un joueur, d'un arbitre ou d'un entraineur (denormalises sur toute sa carriere) ne se
   decoupent pas par saison et restent visibles ; tout ce qui est ventile par saison est filtre.
-- Les tests `modules/acces/acces.http.spec.ts` demarrent l'application entiere (vrais gardes, base de test) et appellent l'API
+- Les tests `test/features/acces/acces.http.spec.ts` demarrent l'application entiere (vrais gardes, base de test) et appellent l'API
   avec les jetons d'un admin, d'un referent et de plusieurs educateurs.
 
 ### Administration
@@ -271,20 +271,40 @@ Les PDF de non-regression a ajouter sont listes dans `parser/tests/fixtures/READ
 
 ## Arborescence
 
+Une **feature** = un dossier de `src/features/`, avec tout ce qui la concerne : entite(s), DTO, service, controleur, module et la
+logique pure qui n'est utile qu'a elle. Rien n'est partage entre features par un fichier fourre-tout : ce qui sert a
+plusieurs vit dans `src/common/` (utilitaires sans domaine) ou dans la feature qui possede le concept (`matchs/minutes.ts`
+est importe par `joueurs` et `tactiques`).
+
 ```
 foot-analytics-api/
-├── parser/                       # parseur FMI (copie depuis le front)
-│   ├── parse_fmi.py
-│   └── requirements.txt
+├── parser/                       # parseur FMI (Python) et ses tests
 ├── src/
-│   ├── main.ts                   # bootstrap (CORS, prefix /api, validation)
-│   ├── app.module.ts
-│   ├── common/database.module.ts # choix sqlite (sql.js) / postgres
-│   ├── entities/index.ts         # toutes les entites TypeORM
-│   ├── seed/                     # donnees reelles + service de seed
-│   └── modules/
-│       ├── clubs/  equipes/  joueurs/  matchs/
-│       ├── entrainements/  blessures/  scouting/
-│       ├── classement/  stats/  fmi/
+│   ├── main.ts                   # demarrage (CORS, prefixe /api, validation, taches d'amorcage)
+│   ├── app.module.ts             # assemble les modules + gardes globaux (JWT puis perimetre d'acces)
+│   ├── common/                   # utilitaires transverses : dates, saison d'une date, recherche floue, niveaux de log
+│   ├── database/                 # connexion (sqlite sql.js / postgres), registre des entites, migrations, copie SQLite -> Postgres
+│   │   └── migrations/
+│   └── features/
+│       ├── acces/                # politique d'acces (club, equipes, saisons), garde global, decorateur @Acces()
+│       ├── auth/                 # login, jetons JWT, gardes, @Public()
+│       ├── utilisateurs/         # comptes, roles, saisons consultables
+│       ├── clubs/  saisons/  equipes/
+│       ├── matchs/               # match + composition + evenements, systeme de jeu, minutes, programme
+│       ├── joueurs/              # joueurs, stats par equipe, fatigue, parcours et statut de mutation
+│       ├── entrainements/  blessures/  tactiques/
+│       ├── arbitres/  coachs/  scouting/  classement/  stats/
+│       ├── analyse/              # tendances, rapport d'equipe, rapport pre-match, situation
+│       ├── fmi/                  # import des feuilles de match (appelle parser/parse_fmi.py)
+│       ├── derivation/           # recalcul des effectifs, classements et cumuls apres import
+│       └── seed/                 # donnees de demonstration
+├── test/                         # miroir de src/ : un fichier <nom>.spec.ts par fichier teste
+│   ├── common/  database/  features/
+│   └── support/                  # base de test (sqlite / Postgres), monde de test, application complete (app-test.ts)
 └── .env.example
 ```
+
+Dans une feature : `x.entity.ts` (une entite par fichier), `x.dto.ts`, `x.service.ts`, `x.controller.ts`, `x.module.ts`, plus
+les fichiers de logique pure (`fatigue.ts`, `tendances.ts`...), sans dependance a Nest ni a la base, testes tels quels.
+Les imports internes a une feature sont relatifs (`./x.service`) ; entre features, ils passent par l'alias `@/`
+(`@/features/matchs/minutes`). Les tests utilisent `@test/` pour leurs outils (`@test/support/test-db`).

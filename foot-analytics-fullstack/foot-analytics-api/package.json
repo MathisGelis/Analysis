@@ -8,15 +8,15 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
-    "seed": "ts-node -r tsconfig-paths/register src/seed/seed.cli.ts",
+    "seed": "ts-node -r tsconfig-paths/register src/features/seed/seed.cli.ts",
     "test": "jest",
     "test:watch": "jest --watch",
-    "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js -d src/common/data-source.ts",
+    "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js -d src/database/data-source.ts",
     "migration:generate": "npm run typeorm -- migration:generate",
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
     "migration:show": "npm run typeorm -- migration:show",
-    "db:copier": "ts-node -r tsconfig-paths/register src/common/copie-sqlite-vers-postgres.ts"
+    "db:copier": "ts-node -r tsconfig-paths/register src/database/copie-sqlite-vers-postgres.ts"
   },
   "dependencies": {
     "@nestjs/common": "10.4.4",
@@ -35,8 +35,7 @@
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.1",
     "sql.js": "1.11.0",
-    "typeorm": "0.3.20",
-    "uuid": "10.0.0"
+    "typeorm": "0.3.20"
   },
   "devDependencies": {
     "@nestjs/cli": "10.4.5",
@@ -45,7 +44,6 @@
     "@types/jest": "^29.5.14",
     "@types/multer": "1.4.12",
     "@types/node": "20.14.0",
-    "@types/uuid": "10.0.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.4.14",
     "ts-node": "10.9.2",

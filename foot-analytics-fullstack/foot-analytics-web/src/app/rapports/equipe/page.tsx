@@ -4,7 +4,8 @@
 // /rapports/equipe/[clubId] (le rapport y est cadre sur la saison choisie).
 
 import { redirect } from "next/navigation";
-import { getOwnClubIdServer } from "@/lib/own-club";
+
+import { getOwnClubIdServer } from "@/features/equipes/lib/own-club";
 
 export default function RapportMonEquipe() {
   redirect(`/rapports/equipe/${getOwnClubIdServer()}`);

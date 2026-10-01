@@ -5,19 +5,16 @@
 > moderne aux rapports Excel et aux feuilles de match papier — elle parse
 > directement les FMI FFF en PDF et les transforme en donnees exploitables.
 
-L'application a ete construite a partir de deux sources reelles :
-- **`FMI_Neuville1.pdf`** : feuille FFF Neuville S/S 2 vs F.C. Meys Grezieu 1
-  (match N° 53415223, 18/01/2026, Poule C).
-- **`Chaponnay.xlsx`** : rapport scouting + effectif Chaponnay sur 25 journees.
-
-Le parseur Python (`parser/parse_fmi.py`) a ete teste et fonctionne sur le
-vrai PDF. Toutes les donnees affichees dans l'UI viennent de ces extractions.
+Les donnees de demonstration viennent de deux sources reelles : une feuille FFF
+(Neuville S/S 2 vs F.C. Meys Grezieu 1, match N° 53415223, 18/01/2026, Poule C) et le
+suivi Chaponnay sur 25 journees. Le parseur Python des feuilles de match vit dans le
+backend (`foot-analytics-api/parser/`, avec la feuille de reference et ses tests).
 
 ## Backend API (NestJS)
 
 Ce front est concu pour fonctionner avec le backend **`foot-analytics-api`**
 (NestJS, fourni separement). Le front lit et ecrit via son client
-`src/lib/api.ts`, qui appelle l'URL definie par `NEXT_PUBLIC_API_URL`
+`src/shared/lib/api.ts`, qui appelle l'URL definie par `NEXT_PUBLIC_API_URL`
 (defaut `http://localhost:4000/api`).
 
 - **Si le backend tourne** : toutes les pages lisent les donnees en base, et
@@ -25,7 +22,7 @@ Ce front est concu pour fonctionner avec le backend **`foot-analytics-api`**
   ecrivent reellement via l'API (CRUD complet).
 - **Si le backend est absent ou injoignable** : chaque lecture **retombe
   automatiquement** sur les donnees locales de demonstration
-  (`src/data/demo.ts`), pour que l'app reste affichable. Les mutations
+  (`src/shared/data/demo.ts`), pour que l'app reste affichable. Les mutations
   necessitent en revanche le backend.
 
 ```bash
@@ -74,7 +71,7 @@ Fair-play, Import FMI (upload reel vers le parseur du backend).
   Postgres (Supabase) en production. Le front ne parle qu'a cette API ; il n'a aucune cle de base.
 - **pdfplumber** (Python) pour le parsing des feuilles FMI
 - Pas de dependance graphique externe : tous les graphiques sont des SVG
-  ecrits a la main dans `src/components/Charts.tsx` (BarsChart, Sparkline,
+  ecrits a la main dans `src/shared/ui/Charts.tsx` (BarsChart, Sparkline,
   DonutStat, FormeStrip, PitchHeatmap) — l'app reste tres legere.
 - Polices auto-hebergees (paquets `@fontsource-variable`, aucun appel a Google Fonts) :
   **Bricolage Grotesque** (titres, grands chiffres), **Instrument Sans** (texte),
@@ -142,9 +139,11 @@ npm run lint      # ESLint (next/core-web-vitals)
 npm test
 ```
 
-Fonctions pures de `src/lib` : resolution de l'equipe propre, empreintes et
-championnats, classement, matchs d'une equipe, calendrier, ecussons de clubs,
-validation des redirections, decodage JWT.
+Les tests sont dans `tests/`, qui reflete `src/` (`tests/features/<feature>/lib/x.test.ts` teste
+`src/features/<feature>/lib/x.ts`) : fonctions pures (resolution de l'equipe propre, empreintes et
+championnats, classement, matchs d'une equipe, calendrier, ecussons de clubs, validation des
+redirections, decodage JWT...) et un garde-fou d'architecture (`tests/architecture`) qui interdit
+les widgets natifs du navigateur.
 
 ### Tests de bout en bout (Playwright)
 
@@ -166,8 +165,10 @@ il est ignore sinon. Voir `playwright.config.ts` pour les variables.
 
 ### 3. Parseur FMI standalone
 
+Le parseur est dans le backend :
+
 ```bash
-cd parser
+cd ../foot-analytics-api/parser
 pip install -r requirements.txt
 
 # Un fichier :
@@ -185,47 +186,37 @@ Sortie : un JSON par PDF contenant `numero_match`, `date`, `competition`,
 
 ## Arborescence
 
+`src/app/` ne contient que le **routage** (App Router) : chaque `page.tsx` declare sa `metadata` et re-exporte la
+page, qui vit dans sa feature. Une **feature** regroupe tout ce qui concerne un domaine : `components/` (React) et
+`lib/` (logique pure, types, contextes). Ce qui sert a plusieurs features est dans `shared/`.
+
 ```
-foot-analytics/
-├── parser/                      # parseur Python (pdfplumber)
-│   ├── parse_fmi.py             # script principal CLI
-│   └── requirements.txt
-├── sample-data/                 # PDFs et Excels reels utilises
-│   ├── FMI_Neuville1.pdf
-│   ├── FMI_Neuville1.json       # sortie du parser
-│   └── Chaponnay.xlsx
-└── src/
-    ├── app/                     # routes App Router
-    │   ├── page.tsx             # Dashboard
-    │   ├── championnat/
-    │   ├── club/[id]/
-    │   ├── club/[id]/scouting/  # rapport scouting (= remplace l'Excel)
-    │   ├── joueur/[id]/
-    │   ├── matchs/
-    │   ├── matchs/[id]/         # detail FMI
-    │   ├── effectif/
-    │   ├── entrainements/
-    │   ├── medical/
-    │   ├── tactique/
-    │   ├── scouting/
-    │   ├── fair-play/
-    │   ├── calendrier/
-    │   ├── analytics/
-    │   ├── ia/
-    │   ├── rapports/
-    │   └── import/
-    ├── components/
-    │   ├── Sidebar.tsx
-    │   ├── TopBar.tsx           # recherche globale joueurs+clubs
-    │   ├── ClubBadge.tsx        # logos generes en SVG
-    │   ├── Pitch.tsx            # terrain SVG + formation
-    │   └── Charts.tsx           # tous les graphiques (SVG, zero deps)
-    ├── lib/
-    │   ├── types.ts
-    │   └── stats.ts             # bilans, tops, onze probable...
-    └── data/
-        └── demo.ts              # donnees reelles parsees
+foot-analytics-web/
+├── src/
+│   ├── app/                      # routes : page.tsx fins, layout, error, loading, api/own-club|own-equipe
+│   ├── middleware.ts             # garde d'acces + selection d'equipe (cookies)
+│   ├── features/
+│   │   ├── shell/                # coquille : barre laterale, barre du haut, theme, navigation
+│   │   ├── auth/  comptes/       # connexion, jeton ; gestion des comptes (page admin)
+│   │   ├── equipes/              # club et equipe actifs (contextes, cookies, empreintes, resolution)
+│   │   ├── saisons/  clubs/  classement/
+│   │   ├── joueurs/              # effectif, fiche joueur, fatigue, parcours, mutations de club
+│   │   ├── matchs/  calendrier/  entrainements/  medical/
+│   │   ├── tactique/  analyse/  prematch/   # composition, rapport d'equipe, rapport pre-match, predictions
+│   │   ├── arbitres/  coachs/  scouting/  recherche/  fmi/
+│   │   ├── dashboard/            # page d'accueil
+│   │   └── demo/                 # ecran Analytics de demonstration
+│   └── shared/
+│       ├── ui/                   # composants generiques : Select, DatePicker, Modal, Charts, Pitch...
+│       ├── lib/                  # client API (api.ts), types, retour d'information (feedback), selecteurs
+│       └── data/demo.ts          # donnees de demonstration (repli quand l'API est injoignable)
+├── tests/                        # miroir de src/ (Vitest) + architecture/
+├── e2e/                          # parcours Playwright (leur propre API et leur propre front)
+└── playwright.config.ts  vitest.config.ts  tailwind.config.ts
 ```
+
+Les imports internes a une feature sont relatifs ; entre features, ils passent par l'alias `@/`
+(`@/shared/ui/Select`, `@/features/joueurs/lib/fatigue`).
 
 ---
 

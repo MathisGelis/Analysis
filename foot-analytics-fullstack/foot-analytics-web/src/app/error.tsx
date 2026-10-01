@@ -8,7 +8,8 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { AlertTriangle, Home, RefreshCw } from "lucide-react";
-import { debug } from "@/lib/debug";
+
+import { debug } from "@/shared/lib/debug";
 
 export default function Erreur({
   error, reset,

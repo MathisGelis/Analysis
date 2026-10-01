@@ -2,11 +2,13 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe, Logger } from "@nestjs/common";
-import { AppModule } from "./app.module";
-import { AuthService } from "@/modules/auth/auth.module";
-import { BootstrapService } from "@/modules/bootstrap/bootstrap.module";
+
+import { AuthService } from "@/features/auth/auth.service";
+import { BootstrapService } from "@/features/saisons/bootstrap.service";
 import { niveauxDeLog } from "@/common/log-level";
-import { EquipesService } from "@/modules/equipes/equipes.module";
+import { EquipesService } from "@/features/equipes/equipes.service";
+
+import { AppModule } from "./app.module";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger: niveauxDeLog() });
