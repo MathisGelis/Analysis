@@ -26,6 +26,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { debug } from "@/lib/debug";
 import { decoderPayloadJwt } from "@/lib/jwt";
 import { DEFAULT_OWN_CLUB_ID } from "@/lib/club-defaut";
+import { equipesDesSaisons, saisonsVisibles } from "@/lib/acces-saisons";
 import { filtrerEquipesAutorisees } from "@/lib/empreinte-equipe";
 import { selectionValide } from "@/lib/selection-equipe";
 import type { Club, Equipe, Saison } from "@/lib/types";
@@ -82,24 +83,23 @@ export async function middleware(req: NextRequest) {
 
   try {
     const headers = { Authorization: `Bearer ${token}` };
-    const equipesDuClub = async (clubId: string) =>
-      filtrerEquipesAutorisees(
-        await getJson<Equipe[]>(`/equipes?clubId=${encodeURIComponent(clubId)}`, headers),
-        payload,
-      );
+    const equipesBrutes = (clubId: string) => getJson<Equipe[]>(`/equipes?clubId=${encodeURIComponent(clubId)}`, headers);
 
     let clubId = clubJwt ?? clubCookie ?? DEFAULT_OWN_CLUB_ID;
-    const [saisons, equipesInitiales] = await Promise.all([
+    const [saisonsToutes, equipesInitiales] = await Promise.all([
       getJson<Saison[]>("/saisons", headers),
-      equipesDuClub(clubId),
+      equipesBrutes(clubId),
     ]);
-    let equipes = equipesInitiales;
+    // Un educateur ne voit que les saisons que son gestionnaire lui a ouvertes, et leurs equipes.
+    const saisons = saisonsVisibles(saisonsToutes, payload);
+    const equipesDuClub = (liste: Equipe[]) => equipesDesSaisons(filtrerEquipesAutorisees(liste, payload), saisons);
+    let equipes = equipesDuClub(equipesInitiales);
 
     // Club sans equipe (typiquement "chapo" code en dur apres un reseed) :
     // seul un admin peut etre redirige sur un autre club.
     if (equipes.length === 0 && !clubJwt) {
       for (const c of await getJson<Club[]>("/clubs", headers)) {
-        const eqs = await equipesDuClub(c.id);
+        const eqs = equipesDuClub(await equipesBrutes(c.id));
         if (eqs.length > 0) { clubId = c.id; equipes = eqs; break; }
       }
     }

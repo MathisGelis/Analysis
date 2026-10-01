@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API_URL, WEB_PORT } from "../playwright.config";
-import { MOT_DE_PASSE } from "./global-setup";
+import { FIXTURES, MOT_DE_PASSE } from "./global-setup";
 
 test.describe.configure({ mode: "serial" });
 
@@ -635,7 +635,9 @@ test("referent de club : cree les comptes de ses educateurs, sans rien voir ni p
     await p.waitForURL((u) => u.pathname === "/");
 
     // Entree dediee dans la navigation ; pas d'acces aux autres clubs (le club est impose par son jeton).
-    await p.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Mes educateurs" }).click();
+    // Au meme endroit que l'administration (en bas de la barre laterale, a cote de la deconnexion), pas dans les menus.
+    await expect(p.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Mes educateurs" })).toHaveCount(0);
+    await p.getByRole("link", { name: "Mes educateurs" }).click();
     await expect(p.getByRole("heading", { name: "Mes educateurs" })).toBeVisible();
     await expect(p.getByText("Aucun educateur pour l'instant")).toBeVisible();
 
@@ -655,6 +657,9 @@ test("referent de club : cree les comptes de ses educateurs, sans rien voir ni p
     await expect(p.getByRole("cell", { name: "LDURAND", exact: true })).toBeVisible();
     await expect(p.getByRole("cell", { name: "LMOREAU", exact: true })).toBeVisible();
     await expect(p.getByRole("cell", { name: "VVOISIN", exact: true })).toHaveCount(0);          // l'educateur de l'autre club est invisible
+    // Chaque compte affiche son createur : ici le referent, avec son identifiant.
+    await expect(p.getByTestId("createur-LDURAND")).toContainText("Rita Referente");
+    await expect(p.getByTestId("createur-LDURAND")).toContainText("RREFERENTE");
 
     // Cote API (jeton du referent) : seulement ses educateurs ; jamais d'admin, ni d'autre club, ni les comptes d'autrui.
     const liste: { login: string; role: string; clubId: string }[] = await (await appeler("/utilisateurs", connexion.token)).json();
@@ -682,6 +687,107 @@ test("referent de club : cree les comptes de ses educateurs, sans rien voir ni p
       if (u) await appeler(`/utilisateurs/${u.id}`, token, { method: "DELETE" });
     }
     await appeler(`/clubs/${autreClub.id}`, token, { method: "DELETE" });
+  }
+});
+
+test("comptes : equipe de la saison actuelle sans la poule, saisons de l'historique, createur affiche, restrictions appliquees", async ({ browser }) => {
+  const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { clubId: string; equipeId: string; saison2425: string; saison2526: string };
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const appeler = (chemin: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
+    ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+  });
+  const comptes = async (): Promise<any[]> => (await appeler("/utilisateurs")).json();
+  const modale = page.locator("div.fixed.inset-0.overflow-y-auto");
+
+  // Creation par l'administrateur : equipe de la saison actuelle (2025-2026) par son niveau, et une saison de l'historique.
+  await page.goto("/admin/utilisateurs");
+  await page.getByRole("button", { name: "Nouveau compte" }).click();
+  await modale.getByPlaceholder("Mathis").fill("Eric");
+  await modale.getByPlaceholder("Lemaire").fill("Coach");
+  await choisir(modale.getByRole("combobox", { name: "Club autorise" }), "OL Sud E2E");
+  const equipes = modale.getByRole("group", { name: /^Equipes attribuees/ });
+  await expect(equipes).toContainText("saison 2025-2026");
+  await expect(equipes.getByRole("checkbox")).toHaveCount(1);                                 // un niveau, pas une ligne par poule ni par saison
+  await expect(equipes.getByText("Seniors D2", { exact: true })).toBeVisible();
+  await expect(equipes).not.toContainText("Poule");
+  await equipes.getByRole("checkbox", { name: "Seniors D2" }).check();
+
+  const saisons = modale.getByRole("group", { name: "Saisons consultables" });
+  await expect(saisons.getByRole("button", { name: "Cette saison uniquement" })).toHaveAttribute("aria-pressed", "true");   // defaut d'un nouveau compte
+  await expect(modale.getByTestId("resume-saisons")).toContainText("Voit la saison actuelle (2025-2026) et les suivantes, pas l'historique");
+  await saisons.getByRole("button", { name: "Choisir des saisons" }).click();
+  await saisons.getByRole("checkbox", { name: "2024-2025" }).check();
+  await expect(saisons.getByRole("checkbox")).toHaveCount(1);                                 // seules les saisons passees se choisissent
+  await expect(modale.getByTestId("resume-saisons")).toContainText("+ 2024-2025");
+  await modale.getByRole("button", { name: "Creer le compte" }).click();
+  await expect(modale.getByText("Mot de passe initial")).toBeVisible();
+  await modale.getByRole("button", { name: "OK" }).click();
+
+  // La liste : equipe sans poule, saisons, createur (l'administrateur connecte).
+  const ligne = page.getByRole("row").filter({ has: page.getByRole("cell", { name: "ECOACH", exact: true }) });
+  await expect(ligne).toContainText("Seniors D2");
+  await expect(ligne).not.toContainText("Poule");
+  await expect(ligne).toContainText("Actuelle + 2024-2025");
+  await expect(page.getByTestId("createur-ECOACH")).toContainText("Admin Admin");
+  await expect(page.getByTestId("createur-ECOACH")).toContainText("AADMIN");
+  // Les comptes anterieurs au suivi n'ont pas de createur connu.
+  await expect(page.getByTestId("createur-AADMIN")).toHaveText("—");
+
+  // Cote API : equipe de la saison actuelle, saison passee choisie, createur enregistre.
+  const eric = (await comptes()).find((u) => u.login === "ECOACH");
+  expect(eric).toMatchObject({ role: "user", toutesSaisons: false, saisonIds: [fixtures.saison2425], equipeIds: [fixtures.equipeId], createur: { login: "AADMIN" } });
+
+  // La modification montre ce que le compte a deja : niveau coche, saison choisie.
+  await ligne.getByRole("button", { name: "Modifier ECOACH" }).click();
+  await expect(modale.getByRole("group", { name: /^Equipes attribuees/ }).getByRole("checkbox", { name: "Seniors D2" })).toBeChecked();
+  await expect(modale.getByRole("group", { name: "Saisons consultables" }).getByRole("button", { name: "Choisir des saisons" })).toHaveAttribute("aria-pressed", "true");
+  await expect(modale.getByRole("group", { name: "Saisons consultables" }).getByRole("checkbox", { name: "2024-2025" })).toBeChecked();
+  await modale.getByRole("button", { name: "Annuler" }).click();
+
+  // Un second educateur, limite a la saison actuelle (par l'API : le formulaire est deja couvert ci-dessus).
+  const fred = await (await appeler("/utilisateurs", { method: "POST", body: JSON.stringify({
+    prenom: "Fred", nom: "Seul", role: "user", clubId: fixtures.clubId, equipeIds: [fixtures.equipeId], toutesSaisons: false,
+  }) })).json();
+  expect(fred).toMatchObject({ toutesSaisons: false, saisonIds: [] });
+
+  // Ce que chacun voit dans le selecteur de saison, a sa connexion (mot de passe change d'avance par l'API).
+  const saisonsVues = async (login: string, initial: string) => {
+    const jeton = (await (await fetch(`${API_URL}/auth/login`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login, password: initial }),
+    })).json()).token;
+    await fetch(`${API_URL}/auth/change-password`, {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${jeton}` },
+      body: JSON.stringify({ oldPassword: initial, newPassword: "Educateur123" }),
+    });
+    const ctx = await browser.newContext();
+    const p = await ctx.newPage();
+    try {
+      await p.goto("/login");
+      await p.locator("input[placeholder=MLEMAIRE]").fill(login);
+      await p.locator("input[type=password]").fill("Educateur123");
+      await p.locator("button[type=submit]").click();
+      await p.waitForURL((u) => u.pathname === "/");
+      await selecteur(p).click();
+      const liste = p.getByRole("dialog", { name: "Choix de la saison et de l'equipe" });
+      await expect(liste).toBeVisible();
+      await expect(liste.getByRole("button", { name: /^2025-2026/ })).toBeVisible();
+      return {
+        passee: await liste.getByRole("button", { name: /^2024-2025/ }).count(),
+        suivante: await liste.getByRole("button", { name: /^2026-2027/ }).count(),
+      };
+    } finally {
+      await ctx.close();
+    }
+  };
+  expect(await saisonsVues("ECOACH", "Bienvenue1")).toEqual({ passee: 1, suivante: 1 });   // actuelle + 2024-2025 choisie + saison a venir
+  expect(await saisonsVues("FSEUL", "Bienvenue1")).toEqual({ passee: 0, suivante: 1 });    // l'historique reste ferme
+
+  // Menage : la suite des parcours repart sans ces comptes.
+  for (const u of (await comptes()).filter((x) => ["ECOACH", "FSEUL"].includes(x.login))) {
+    await appeler(`/utilisateurs/${u.id}`, { method: "DELETE" });
   }
 });
 

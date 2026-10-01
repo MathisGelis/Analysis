@@ -200,6 +200,15 @@ Trois roles : `admin`, `referent` (referent d'un club) et `user` (educateur).
   son club (aucune equipe = toutes), les modifier, reinitialiser leur mot de passe et les supprimer. Il ne peut jamais
   creer d'admin ni de referent, ni sortir de son club : `403` ; un compte hors de son perimetre est `404`.
   Les droits sont lus en base a chaque appel (pas dans le jeton).
+- Chaque compte renvoie son **createur** (`createur: { id, login, prenom, nom }`, `null` pour un compte anterieur au
+  suivi ou cree a l'amorcage, `createurSupprime: true` si ce compte a disparu depuis). Il est fixe a la creation et ne
+  se modifie pas.
+- **Saisons consultables** d'un educateur : `toutesSaisons` (defaut `true` : comptes existants et creations par l'API sans
+  precision) ou `toutesSaisons: false` + `saisonIds` (saisons passees visibles en plus de la saison actuelle, des
+  suivantes ; liste vide = la saison actuelle seulement). Les identifiants inconnus sont refuses (`400`). Un admin ou un
+  referent voit toujours tout. Le jeton (`toutesSaisons: false`, `saisonIds`) porte cette restriction ; elle s'applique
+  donc a la prochaine connexion du compte, et pour l'instant par la selection de saison et d'equipe du front, comme
+  `equipeIds`.
 - Le referent a acces a son club et a toutes ses equipes, comme un educateur sans restriction d'equipes. Comme pour
   les autres comptes non admin, le club est impose par le jeton cote front ; l'API ne filtre pas encore les donnees
   par club.

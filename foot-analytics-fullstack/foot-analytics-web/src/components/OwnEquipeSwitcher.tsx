@@ -17,6 +17,7 @@ import { useOwnClubId } from "@/lib/own-club-context";
 import { useOwnEquipe } from "@/lib/own-equipe-context";
 import { getCachedUser } from "@/lib/auth";
 import { debug } from "@/lib/debug";
+import { equipesDesSaisons, saisonsVisibles } from "@/lib/acces-saisons";
 import { filtrerEquipesAutorisees } from "@/lib/empreinte-equipe";
 import { selectionValide } from "@/lib/selection-equipe";
 
@@ -61,8 +62,10 @@ export function OwnEquipeSwitcher() {
     (async () => {
       const [s, e] = await Promise.all([api.saisons(), api.equipes(ownClubId)]);
       const user = getCachedUser();
-      const equipesAutorisees = filtrerEquipesAutorisees(e, user);
-      setSaisons(s);
+      // Un educateur ne voit que les saisons ouvertes par son gestionnaire, et leurs equipes.
+      const saisonsOuvertes = saisonsVisibles(s, user);
+      const equipesAutorisees = equipesDesSaisons(filtrerEquipesAutorisees(e, user), saisonsOuvertes);
+      setSaisons(saisonsOuvertes);
       setEquipes(equipesAutorisees);
       debug("[switcher] charge", {
         equipeIdCookie: equipeId,
@@ -141,7 +144,7 @@ export function OwnEquipeSwitcher() {
       // Reload equipes
       const e = await api.equipes(ownClubId);
       const user = getCachedUser();
-      const equipesAutorisees = filtrerEquipesAutorisees(e, user);
+      const equipesAutorisees = equipesDesSaisons(filtrerEquipesAutorisees(e, user), saisons);
       debug("[reimport] api renvoie", e.length, "equipes | filtre laisse", equipesAutorisees.length);
       if (e.length > 0 && equipesAutorisees.length === 0) {
         // eslint-disable-next-line no-console

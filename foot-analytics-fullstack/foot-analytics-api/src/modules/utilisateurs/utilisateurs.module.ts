@@ -13,12 +13,13 @@ import {
 } from "@nestjs/common";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
-import { IsArray, IsIn, IsOptional, IsString } from "class-validator";
-import { Equipe, Utilisateur } from "@/entities";
+import { IsArray, IsBoolean, IsIn, IsOptional, IsString } from "class-validator";
+import { Equipe, Saison, Utilisateur } from "@/entities";
 import { GestionnaireGuard, AuthModule, AuthService, buildLogin, JwtPayload } from "../auth/auth.module";
 import {
   Acteur, dansPerimetre, equipesHorsPerimetre, estRole, roleAvecClub, ROLES, rolesAttribuables,
 } from "@/common/droits-comptes";
+import { accesSaisonsResultant, saisonsInconnues } from "@/common/acces-saisons";
 
 export class CreateUserDto {
   @IsString() prenom: string;
@@ -27,6 +28,10 @@ export class CreateUserDto {
   @IsOptional() @IsIn([...ROLES]) role?: string;
   @IsOptional() @IsString() clubId?: string;
   @IsOptional() @IsArray() equipeIds?: string[];
+  /** Educateur : false = saison actuelle + `saisonIds` seulement. Absent = toutes les saisons. */
+  @IsOptional() @IsBoolean() toutesSaisons?: boolean;
+  /** Saisons passees consultables en plus de la saison actuelle (educateur, quand `toutesSaisons` est faux). */
+  @IsOptional() @IsArray() @IsString({ each: true }) saisonIds?: string[];
 }
 
 export class UpdateUserDto {
@@ -35,18 +40,60 @@ export class UpdateUserDto {
   @IsOptional() @IsIn([...ROLES]) role?: string;
   @IsOptional() @IsString() clubId?: string;
   @IsOptional() @IsArray() equipeIds?: string[];
+  @IsOptional() @IsBoolean() toutesSaisons?: boolean;
+  @IsOptional() @IsArray() @IsString({ each: true }) saisonIds?: string[];
   // Si fourni, reset le mdp et force mustChangePassword=true.
   @IsOptional() @IsString() resetPassword?: string;
 }
 
-const sansHash = ({ passwordHash, ...rest }: Utilisateur) => rest;
+/** Compte qui a cree un autre compte, tel qu'on l'affiche. */
+export interface CreateurCompte { id: string; login: string; prenom: string; nom: string }
+
+/** Le compte sans son hash, avec ses saisons en clair et son createur (null : inconnu ; `createurSupprime` : compte disparu). */
+function sortie(u: Utilisateur, createurs: Map<string, CreateurCompte>) {
+  const { passwordHash, ...rest } = u;
+  const createur = u.createdById ? createurs.get(u.createdById) ?? null : null;
+  return {
+    ...rest,
+    toutesSaisons: u.toutesSaisons !== false,
+    saisonIds: u.toutesSaisons === false ? (u.saisonIds ?? []) : [],
+    createur,
+    createurSupprime: !!u.createdById && !createur,
+  };
+}
 
 @Injectable()
 export class UtilisateursService {
   constructor(
     @InjectRepository(Utilisateur) private repo: Repository<Utilisateur>,
     @InjectRepository(Equipe) private equipes: Repository<Equipe>,
+    @InjectRepository(Saison) private saisons: Repository<Saison>,
   ) {}
+
+  /** Les createurs des comptes donnes (une seule requete). */
+  private async createursDe(users: Utilisateur[]): Promise<Map<string, CreateurCompte>> {
+    const ids = [...new Set(users.map((u) => u.createdById).filter((x): x is string => !!x))];
+    if (ids.length === 0) return new Map();
+    const trouves = await this.repo.find({ where: { id: In(ids) } });
+    return new Map(trouves.map((c) => [c.id, { id: c.id, login: c.login, prenom: c.prenom, nom: c.nom }]));
+  }
+
+  private async avecCreateurs(users: Utilisateur[]) {
+    const createurs = await this.createursDe(users);
+    return users.map((u) => sortie(u, createurs));
+  }
+
+  private async avecCreateur(u: Utilisateur) {
+    return (await this.avecCreateurs([u]))[0];
+  }
+
+  /** Les saisons demandees doivent exister. */
+  private async verifierSaisons(ids: string[]) {
+    if (ids.length === 0) return;
+    const connues = (await this.saisons.find({ where: { id: In(ids) } })).map((x) => x.id);
+    const inconnues = saisonsInconnues(ids, connues);
+    if (inconnues.length) throw new BadRequestException("Saison inconnue : " + inconnues.join(", "));
+  }
 
   /**
    * L'acteur d'apres la BASE (pas le jeton) : un referent dont le role ou le club a change depuis son
@@ -66,7 +113,7 @@ export class UtilisateursService {
       ? await this.repo.find({ order: { login: "ASC" } })
       : await this.repo.find({ where: { clubId: acteur.clubId as string, role: "user" }, order: { login: "ASC" } });
     // Ne jamais leak le passwordHash en sortie.
-    return users.map(sansHash);
+    return this.avecCreateurs(users);
   }
 
   /** Un compte hors perimetre est "introuvable" : on ne revele pas qu'il existe. */
@@ -77,7 +124,7 @@ export class UtilisateursService {
   }
 
   async findOne(acteur: Acteur, id: string) {
-    return sansHash(await this.cible(acteur, id));
+    return this.avecCreateur(await this.cible(acteur, id));
   }
 
   /** Les equipes demandees doivent exister et, pour un referent, etre de son club. */
@@ -100,6 +147,9 @@ export class UtilisateursService {
     const clubId = roleAvecClub(role) ? (acteur.role === "referent" ? acteur.clubId : (dto.clubId ?? null)) : null;
     if (roleAvecClub(role) && !clubId) throw new BadRequestException("Ce compte doit etre associe a un club.");
     await this.verifierEquipes(acteur, dto.equipeIds ?? []);
+    // Seul un educateur a des saisons a restreindre : admin et referent voient toujours tout.
+    const acces = role === "user" ? accesSaisonsResultant(dto) : { toutesSaisons: true, saisonIds: [] as string[] };
+    await this.verifierSaisons(acces.saisonIds);
 
     const login = buildLogin(dto.prenom, dto.nom);
     if (await this.repo.findOne({ where: { login } })) {
@@ -112,10 +162,12 @@ export class UtilisateursService {
       login, prenom: dto.prenom.trim(), nom: dto.nom.trim(), role,
       clubId: clubId as any,
       equipeIds: role === "admin" ? [] : (dto.equipeIds ?? []),
+      toutesSaisons: acces.toutesSaisons, saisonIds: acces.toutesSaisons ? null : acces.saisonIds,
+      createdById: acteur.id,
       passwordHash, mustChangePassword: true,
     }));
     return {
-      ...sansHash(saved),
+      ...(await this.avecCreateur(saved)),
       // On renvoie le mot de passe initial UNIQUEMENT a la creation pour
       // que le gestionnaire puisse le communiquer (verbalement) a l'utilisateur.
       initialPassword: AuthService.defaultPassword(),
@@ -134,6 +186,10 @@ export class UtilisateursService {
     const clubNew = roleAvecClub(roleNew) ? (dto.clubId !== undefined ? dto.clubId : u.clubId) : null;
     if (roleAvecClub(roleNew) && !clubNew) throw new BadRequestException("Ce compte doit etre associe a un club.");
     if (dto.equipeIds !== undefined) await this.verifierEquipes(acteur, dto.equipeIds);
+    const acces = roleNew === "user"
+      ? accesSaisonsResultant(dto, { toutesSaisons: u.toutesSaisons !== false, saisonIds: u.saisonIds ?? [] })
+      : { toutesSaisons: true, saisonIds: [] as string[] };
+    await this.verifierSaisons(acces.saisonIds);
 
     // Si le prenom ou nom change, on regenere le login en consequence.
     const prenomNew = dto.prenom?.trim() ?? u.prenom;
@@ -149,11 +205,13 @@ export class UtilisateursService {
     u.clubId = clubNew as any;
     if (roleNew === "admin") u.equipeIds = [];
     else if (dto.equipeIds !== undefined) u.equipeIds = dto.equipeIds;
+    u.toutesSaisons = acces.toutesSaisons;
+    u.saisonIds = acces.toutesSaisons ? null : acces.saisonIds;
     if (dto.resetPassword) {
       u.passwordHash = await AuthService.hash(dto.resetPassword);
       u.mustChangePassword = true;
     }
-    return sansHash(await this.repo.save(u));
+    return this.avecCreateur(await this.repo.save(u));
   }
 
   async remove(acteur: Acteur, id: string) {
@@ -187,7 +245,7 @@ export class UtilisateursController {
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Utilisateur, Equipe]), AuthModule],
+  imports: [TypeOrmModule.forFeature([Utilisateur, Equipe, Saison]), AuthModule],
   controllers: [UtilisateursController],
   providers: [UtilisateursService],
   exports: [UtilisateursService],

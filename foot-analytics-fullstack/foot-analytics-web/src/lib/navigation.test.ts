@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { construireNavigation, lienActif, titrePage } from "./navigation";
+import { construireNavigation, lienActif, lienGestionComptes, titrePage } from "./navigation";
 
 describe("construireNavigation", () => {
   it("pointe 'Mon club' vers le club choisi", () => {
@@ -17,17 +17,25 @@ describe("construireNavigation", () => {
       expect(hrefs).toContain(page);
     }
   });
-  it("le referent de club a une entree pour gerer ses educateurs ; les autres roles n'en ont pas", () => {
-    const hrefs = (role?: string) => construireNavigation("c", role).flatMap((s) => s.items.map((l) => l.href));
-    expect(hrefs("referent")).toContain("/admin/utilisateurs");
-    expect(hrefs("user")).not.toContain("/admin/utilisateurs");
-    expect(hrefs("admin")).not.toContain("/admin/utilisateurs");
-    expect(hrefs()).not.toContain("/admin/utilisateurs");
-    expect(new Set(hrefs("referent")).size).toBe(hrefs("referent").length);
+  it("la gestion des comptes n'est dans aucun menu : elle est en bas de la barre laterale, pour tous les roles", () => {
+    const hrefs = construireNavigation("c").flatMap((s) => s.items.map((l) => l.href));
+    expect(hrefs).not.toContain("/admin/utilisateurs");
   });
   it("aucun lien en double", () => {
     const hrefs = construireNavigation("c").flatMap((s) => s.items.map((l) => l.href));
     expect(new Set(hrefs).size).toBe(hrefs.length);
+  });
+});
+
+describe("lienGestionComptes", () => {
+  it("administrateur : Administration ; referent de club : Mes educateurs ; meme page, meme emplacement", () => {
+    expect(lienGestionComptes("admin")).toMatchObject({ href: "/admin/utilisateurs", label: "Administration" });
+    expect(lienGestionComptes("referent")).toMatchObject({ href: "/admin/utilisateurs", label: "Mes educateurs" });
+  });
+  it("educateur, role inconnu ou absent : aucun lien", () => {
+    expect(lienGestionComptes("user")).toBeNull();
+    expect(lienGestionComptes(undefined)).toBeNull();
+    expect(lienGestionComptes(null)).toBeNull();
   });
 });
 

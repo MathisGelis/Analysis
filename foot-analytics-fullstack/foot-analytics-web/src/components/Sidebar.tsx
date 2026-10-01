@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { useOwnClubId } from "@/lib/own-club-context";
-import { getCachedUser } from "@/lib/auth";
 import { construireNavigation, lienActif } from "@/lib/navigation";
 import { Logo } from "@/components/Logo";
 import { OwnEquipeSwitcher } from "@/components/OwnEquipeSwitcher";
@@ -27,10 +26,7 @@ function Contenu({
 }: { replie: boolean; onBasculerReplie: () => void; onFermerMobile: () => void; mobile: boolean }) {
   const path = usePathname();
   const ownClubId = useOwnClubId();
-  // Le role vient du navigateur (jeton en cache) : lu apres le montage, donc sans ecart d'hydratation.
-  const [role, setRole] = useState<string | null>(null);
-  useEffect(() => { setRole(getCachedUser()?.role ?? null); }, []);
-  const nav = construireNavigation(ownClubId || null, role);
+  const nav = construireNavigation(ownClubId || null);
   const compact = replie && !mobile;
 
   return (

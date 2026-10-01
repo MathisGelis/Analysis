@@ -432,6 +432,13 @@ export class Utilisateur {
   @Column({ nullable: true }) clubId: string;
   // Equipes autorisees (CSV serialise). Vide si pas de filtre par equipe.
   @Column({ type: "simple-array", nullable: true }) equipeIds: string[];
+  // Saisons consultables (educateur) : toutes, ou la saison actuelle + les saisons passees listees dans `saisonIds`
+  // (liste vide = la saison actuelle seulement). Les comptes anterieurs au suivi gardent "toutes".
+  @Column({ default: true }) toutesSaisons: boolean;
+  @Column({ type: "simple-array", nullable: true }) saisonIds: string[] | null;
+  // Compte qui a cree celui-ci (null : creation initiale ou compte anterieur au suivi). Pas de cle etrangere : le
+  // createur peut etre supprime, le compte cree reste.
+  @Column({ type: "varchar", nullable: true }) createdById: string | null;
   @CreateDateColumn() createdAt: Date;
 }
 

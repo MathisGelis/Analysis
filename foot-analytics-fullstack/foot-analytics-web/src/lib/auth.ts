@@ -15,6 +15,9 @@ export interface User {
   role: "admin" | "referent" | "user";
   clubId?: string | null;
   equipeIds?: string[] | null;
+  /** Saisons consultables (educateur) : voir lib/acces-saisons.ts. Absent : toutes. */
+  toutesSaisons?: boolean | null;
+  saisonIds?: string[] | null;
   mustChangePassword: boolean;
 }
 

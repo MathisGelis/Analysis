@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { DataSource } from "typeorm";
 import * as bcrypt from "bcryptjs";
-import { Equipe, Utilisateur } from "@/entities";
+import { Equipe, Saison, Utilisateur } from "@/entities";
 import { creerBaseTest, fabriques } from "@/testing/test-db";
 import { UtilisateursService } from "./utilisateurs.module";
 
@@ -12,7 +12,7 @@ describe("UtilisateursService : referent de club", () => {
 
   beforeEach(async () => {
     ds = await creerBaseTest();
-    svc = new UtilisateursService(ds.getRepository(Utilisateur), ds.getRepository(Equipe));
+    svc = new UtilisateursService(ds.getRepository(Utilisateur), ds.getRepository(Equipe), ds.getRepository(Saison));
     f = fabriques(ds);
   });
   afterEach(() => ds.destroy());
@@ -167,6 +167,98 @@ describe("UtilisateursService : referent de club", () => {
     it("garde le comportement historique : un educateur sans club est refuse", async () => {
       const c = await contexte();
       await expect(svc.create(c.actAdmin, { prenom: "Sans", nom: "Club", role: "user" })).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe("createur du compte", () => {
+    it("un compte cree porte son createur (referent ou admin), restitue dans la liste, la lecture et la modification", async () => {
+      const c = await contexte();
+
+      const parReferent = await svc.create(c.actA, { prenom: "Jean", nom: "Petit" });
+      const parAdmin = await svc.create(c.actAdmin, { prenom: "Eva", nom: "Admin", role: "admin" });
+
+      expect(parReferent.createur).toEqual({ id: c.referentA.id, login: "RDUPONT", prenom: "Rita", nom: "Dupont" });
+      expect(parAdmin.createur).toEqual({ id: c.admin.id, login: "AADMIN", prenom: "Admin", nom: "Admin" });
+      const liste = await svc.findAll(c.actAdmin);
+      expect(liste.find((u) => u.login === "JPETIT")?.createur?.login).toBe("RDUPONT");
+      expect((await svc.findOne(c.actA, parReferent.id)).createur?.login).toBe("RDUPONT");
+      expect((await svc.update(c.actA, parReferent.id, { prenom: "Jeanne" })).createur?.login).toBe("RDUPONT");
+    });
+
+    it("compte anterieur au suivi : createur inconnu ; createur supprime depuis : signale, le compte reste", async () => {
+      const c = await contexte();
+      expect(await svc.findOne(c.actAdmin, c.educA.id)).toMatchObject({ createur: null, createurSupprime: false });
+
+      const cree = await svc.create(c.actAdmin, { prenom: "Zoe", nom: "Blanc", role: "user", clubId: c.clubA.id });
+      await ds.getRepository(Utilisateur).update(c.admin.id, { login: "AADMIN2" });
+      expect((await svc.findOne(c.actAdmin, cree.id)).createur?.login).toBe("AADMIN2");      // le createur est resolu a chaque lecture
+      await ds.getRepository(Utilisateur).update(cree.id, { createdById: "compte-disparu" });
+      expect(await svc.findOne(c.actAdmin, cree.id)).toMatchObject({ createur: null, createurSupprime: true });
+    });
+
+    it("le createur ne se fixe pas par l'API : un champ createdById envoye est ignore", async () => {
+      const c = await contexte();
+      const cree = await svc.create(c.actA, { prenom: "Jean", nom: "Petit", createdById: c.admin.id } as any);
+      expect(cree.createur?.login).toBe("RDUPONT");
+      await svc.update(c.actA, cree.id, { createdById: c.admin.id } as any);
+      expect((await svc.findOne(c.actA, cree.id)).createur?.login).toBe("RDUPONT");
+    });
+  });
+
+  describe("saisons consultables", () => {
+    async function saisons() {
+      const s24 = await f.saison("2024-2025", 2024);
+      const s25 = await f.saison("2025-2026", 2025);
+      return { s24, s25 };
+    }
+
+    it("sans precision : toutes les saisons (comportement historique de l'API)", async () => {
+      const c = await contexte();
+      const e = await svc.create(c.actA, { prenom: "Jean", nom: "Petit" });
+      expect(e).toMatchObject({ toutesSaisons: true, saisonIds: [] });
+    });
+
+    it("saison actuelle seulement, ou saison actuelle + saisons passees choisies", async () => {
+      const c = await contexte();
+      const { s24, s25 } = await saisons();
+
+      const seule = await svc.create(c.actA, { prenom: "Jean", nom: "Petit", toutesSaisons: false });
+      const choix = await svc.create(c.actA, { prenom: "Lea", nom: "Moreau", toutesSaisons: false, saisonIds: [s25.id, s24.id, s25.id] });
+
+      expect(seule).toMatchObject({ toutesSaisons: false, saisonIds: [] });
+      expect(choix).toMatchObject({ toutesSaisons: false, saisonIds: [s25.id, s24.id] });          // dedoublonne
+      const relu = await ds.getRepository(Utilisateur).findOneByOrFail({ id: choix.id });
+      expect(relu).toMatchObject({ toutesSaisons: false, saisonIds: [s25.id, s24.id] });
+    });
+
+    it("une saison inconnue est refusee, rien n'est cree", async () => {
+      const c = await contexte();
+      await expect(svc.create(c.actA, { prenom: "Jean", nom: "Petit", toutesSaisons: false, saisonIds: ["saison-fantome"] }))
+        .rejects.toBeInstanceOf(BadRequestException);
+      expect(await ds.getRepository(Utilisateur).count()).toBe(5);
+    });
+
+    it("modification : restreindre, elargir, revenir a toutes ; les saisons choisies sont oubliees quand on rend tout", async () => {
+      const c = await contexte();
+      const { s24, s25 } = await saisons();
+
+      expect(await svc.update(c.actA, c.educA.id, { toutesSaisons: false })).toMatchObject({ toutesSaisons: false, saisonIds: [] });
+      expect(await svc.update(c.actA, c.educA.id, { saisonIds: [s25.id] })).toMatchObject({ toutesSaisons: false, saisonIds: [s25.id] });
+      expect(await svc.update(c.actA, c.educA.id, { prenom: "Lucas" })).toMatchObject({ toutesSaisons: false, saisonIds: [s25.id] });   // inchange
+      expect(await svc.update(c.actA, c.educA.id, { saisonIds: [s25.id, s24.id] })).toMatchObject({ saisonIds: [s25.id, s24.id] });
+      expect(await svc.update(c.actA, c.educA.id, { toutesSaisons: true })).toMatchObject({ toutesSaisons: true, saisonIds: [] });
+      expect((await ds.getRepository(Utilisateur).findOneByOrFail({ id: c.educA.id })).saisonIds).toBeNull();
+    });
+
+    it("seul un educateur est restreint : un referent ou un administrateur voit toujours tout", async () => {
+      const c = await contexte();
+      const r = await svc.create(c.actAdmin, { prenom: "Nina", nom: "Roche", role: "referent", clubId: c.clubA.id, toutesSaisons: false });
+      expect(r).toMatchObject({ toutesSaisons: true, saisonIds: [] });
+
+      const e = await svc.update(c.actAdmin, c.educA.id, { toutesSaisons: false });
+      expect(e.toutesSaisons).toBe(false);
+      const promu = await svc.update(c.actAdmin, c.educA.id, { role: "referent" });
+      expect(promu).toMatchObject({ toutesSaisons: true, saisonIds: [] });
     });
   });
 });

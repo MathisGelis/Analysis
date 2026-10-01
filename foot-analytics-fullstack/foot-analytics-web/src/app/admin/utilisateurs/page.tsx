@@ -6,20 +6,29 @@
 //    (administrateur, referent de club, educateur) ;
 //  - le referent d'un club : seulement les comptes de ses educateurs, dans son club et
 //    sur les equipes de son club.
-// Le login est calcule auto a partir du prenom + nom.
+// Le login est calcule auto a partir du prenom + nom. Chaque compte affiche son createur.
+//
+// Un educateur recoit : des equipes de la SAISON ACTUELLE (par niveau, "Seniors D2" : la poule change d'une saison a
+// l'autre, l'equipe non) et les saisons de l'historique qu'il peut consulter (voir lib/acces-saisons.ts).
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { getCachedUser, type User } from "@/lib/auth";
 import { Modal } from "@/components/Modal";
 import { Select } from "@/components/Select";
 import {
+  idsDesNiveaux, libelleNiveau, modeSaisons, niveauxAttribuables, niveauxCoches, resumeSaisons, saisonActuelle,
+  saisonsPassees, type ModeSaisons,
+} from "@/lib/acces-saisons";
+import {
   KeyRound, Pencil, Plus, Save, ShieldCheck, Trash2, UserCog, X,
 } from "lucide-react";
 
 const LIBELLE_ROLE: Record<string, string> = { admin: "Admin", referent: "Referent", user: "Educateur" };
 import { useFeedback } from "@/lib/feedback-context";
+
+const dateFr = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString("fr-FR") : "");
 
 function buildLogin(prenom: string, nom: string) {
   const p = (prenom ?? "").trim();
@@ -102,6 +111,8 @@ export default function AdminUtilisateurs() {
                 {!estReferent && <th>Role</th>}
                 {!estReferent && <th>Club</th>}
                 <th>Equipes</th>
+                <th>Saisons</th>
+                <th>Cree par</th>
                 <th>Statut</th>
                 <th></th>
               </tr>
@@ -109,9 +120,11 @@ export default function AdminUtilisateurs() {
             <tbody>
               {users.map((u) => {
                 const club = clubs.find((c) => c.id === u.clubId);
-                const userEqs = (u.equipeIds ?? []).map((id: string) =>
-                  equipes.find((e) => e.id === id)?.nom ?? id.slice(0, 6),
-                );
+                // Une equipe s'affiche par son niveau ("Seniors D2"), jamais par sa poule.
+                const userEqs = [...new Set((u.equipeIds ?? []).map((id: string) => {
+                  const eq = equipes.find((e) => e.id === id);
+                  return eq ? libelleNiveau(eq) : id.slice(0, 6);
+                }))] as string[];
                 return (
                   <tr key={u.id}>
                     <td className="font-mono font-bold">{u.login}</td>
@@ -130,6 +143,24 @@ export default function AdminUtilisateurs() {
                     )}
                     <td className="text-xs text-muted">
                       {userEqs.length === 0 ? (u.role === "admin" ? "—" : "Toutes") : userEqs.join(" · ")}
+                    </td>
+                    <td className="text-xs text-muted">
+                      {u.role === "user" ? resumeSaisons(u, saisons) : "—"}
+                    </td>
+                    <td className="text-xs" data-testid={`createur-${u.login}`}>
+                      {u.createur ? (
+                        <>
+                          <div className="text-ink">{u.createur.prenom} {u.createur.nom}</div>
+                          <div className="whitespace-nowrap font-mono text-[10px] text-faint">{u.createur.login}{u.createdAt ? ` · ${dateFr(u.createdAt)}` : ""}</div>
+                        </>
+                      ) : u.createurSupprime ? (
+                        <>
+                          <div className="text-muted">Compte supprime</div>
+                          {u.createdAt && <div className="text-[10px] text-faint">{dateFr(u.createdAt)}</div>}
+                        </>
+                      ) : (
+                        <span className="text-faint" title="Compte anterieur au suivi du createur, ou creation initiale">—</span>
+                      )}
                     </td>
                     <td>
                       {u.mustChangePassword
@@ -186,9 +217,16 @@ function UserForm({
   const estReferent = acteur?.role === "referent";
   const [role, setRole] = useState<"admin" | "referent" | "user">(estReferent ? "user" : (user?.role ?? "user"));
   const [clubId, setClubId] = useState<string>(estReferent ? (acteur?.clubId ?? "") : (user?.clubId ?? ""));
-  const [equipeIds, setEquipeIds] = useState<Set<string>>(
-    () => new Set(user?.equipeIds ?? []),
-  );
+  // Equipes : celles de la SAISON ACTUELLE du club, par niveau ("Seniors D2", sans la poule). Pour un compte existant,
+  // les niveaux coches sont ceux qu'il voit deja (son equipe peut dater d'une saison precedente, avec une autre poule).
+  const saisonCourante = useMemo(() => saisonActuelle(saisons), [saisons]);
+  const [cochees, setCochees] = useState<Set<string>>(() => {
+    const club = estReferent ? (acteur?.clubId ?? "") : (user?.clubId ?? "");
+    return niveauxCoches(niveauxAttribuables(equipes, club, saisonCourante?.id ?? null), equipes, user?.equipeIds ?? []);
+  });
+  // Saisons : saison actuelle seule (defaut d'un nouveau compte), saisons passees choisies, ou toutes.
+  const [mode, setMode] = useState<ModeSaisons>(() => (user?.id ? modeSaisons(user) : "courante"));
+  const [saisonsChoisies, setSaisonsChoisies] = useState<Set<string>>(() => new Set(user?.saisonIds ?? []));
   const [resetPassword, setResetPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -196,17 +234,23 @@ function UserForm({
 
   const login = buildLogin(prenom, nom);
   const avecClub = role !== "admin";
-  const equipesFiltrees = avecClub && clubId
-    ? equipes.filter((e) => e.clubId === clubId)
-    : equipes;
+  const niveaux = useMemo(
+    () => niveauxAttribuables(equipes, clubId, saisonCourante?.id ?? null),
+    [equipes, clubId, saisonCourante],
+  );
+  const passees = useMemo(() => saisonsPassees(saisons), [saisons]);
 
-  function toggleEquipe(id: string) {
-    setEquipeIds((s) => {
-      const n = new Set(s);
-      if (n.has(id)) n.delete(id); else n.add(id);
-      return n;
-    });
+  function basculer<T>(ensemble: Set<T>, appliquer: (s: Set<T>) => void, valeur: T) {
+    const n = new Set(ensemble);
+    if (n.has(valeur)) n.delete(valeur); else n.add(valeur);
+    appliquer(n);
   }
+
+  /** Ce que le compte voit comme saisons : "toutes", ou la saison actuelle + les saisons passees cochees. */
+  const accesSaisons = {
+    toutesSaisons: mode === "toutes",
+    saisonIds: mode === "choix" ? [...saisonsChoisies] : [],
+  };
 
   async function submit() {
     setError(null);
@@ -217,7 +261,8 @@ function UserForm({
       if (isEdit) {
         const payload: any = { prenom, nom, role };
         payload.clubId = role === "admin" ? null : clubId;
-        payload.equipeIds = role === "admin" || role === "referent" ? [] : [...equipeIds];
+        payload.equipeIds = role === "admin" || role === "referent" ? [] : idsDesNiveaux(niveaux, cochees);
+        if (role === "user") Object.assign(payload, accesSaisons);
         if (estReferent) delete payload.role;     // un referent ne change pas le role d'un compte
         if (resetPassword) payload.resetPassword = resetPassword;
         await api.updateUtilisateur(user.id, payload);
@@ -227,7 +272,8 @@ function UserForm({
           prenom, nom, role,
           clubId: role === "admin" ? undefined : clubId,
           // Un referent a deja acces a toutes les equipes de son club : aucune liste a enregistrer.
-          equipeIds: role === "admin" || role === "referent" ? [] : [...equipeIds],
+          equipeIds: role === "admin" || role === "referent" ? [] : idsDesNiveaux(niveaux, cochees),
+          ...(role === "user" ? accesSaisons : {}),
         });
         // Afficher le mdp initial dans la modale puis recharger.
         setCreatedPassword(res.initialPassword);
@@ -293,7 +339,7 @@ function UserForm({
         </Field>
 
         {!estReferent && (
-          <Field label="Role">
+          <Groupe label="Role">
             <div className="flex flex-wrap gap-2">
               {([["user", "Educateur (staff)"], ["referent", "Referent de club"], ["admin", "Administrateur"]] as const).map(([r, libelle]) => (
                 <button key={r} type="button" aria-pressed={role === r}
@@ -308,7 +354,7 @@ function UserForm({
                 Acces a son club et a toutes ses equipes ; peut creer et gerer les comptes de ses educateurs.
               </p>
             )}
-          </Field>
+          </Groupe>
         )}
 
         {avecClub && (
@@ -316,7 +362,7 @@ function UserForm({
             {!estReferent && (
               <Field label="Club autorise">
                 <Select className="select-fm" valeur={clubId} ariaLabel="Club autorise"
-                  onChange={(v) => { setClubId(v); setEquipeIds(new Set()); }}
+                  onChange={(v) => { setClubId(v); setCochees(new Set()); }}
                   options={[{ valeur: "", libelle: "— Selectionne un club —" }, ...clubs.map((c) => ({ valeur: c.id, libelle: c.nom }))]}/>
               </Field>
             )}
@@ -327,30 +373,71 @@ function UserForm({
             )}
 
             {clubId && role !== "referent" && (
-              <Field label={`Equipes accessibles (${equipeIds.size} / ${equipesFiltrees.length})`}>
+              <Groupe label={`Equipes attribuees${saisonCourante ? ` · saison ${saisonCourante.nom}` : ""} (${cochees.size} / ${niveaux.length})`}>
                 <div className="grid grid-cols-1 gap-1 max-h-48 overflow-auto panel-inset p-2 sm:grid-cols-2">
-                  {equipesFiltrees.length === 0 ? (
+                  {niveaux.length === 0 ? (
                     <p className="text-xs text-muted col-span-2 text-center py-3">
-                      Aucune equipe pour ce club.
+                      Aucune equipe de ce club sur la saison actuelle.
                     </p>
-                  ) : equipesFiltrees.map((e) => {
-                    const on = equipeIds.has(e.id);
+                  ) : niveaux.map((n) => {
+                    const on = cochees.has(n.cle);
                     return (
-                      <label key={e.id}
+                      <label key={n.cle}
                         className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer ${
                           on ? "bg-accent/10 text-ink" : "text-muted hover:bg-line/40"
                         }`}>
-                        <input type="checkbox" checked={on} onChange={() => toggleEquipe(e.id)}/>
-                        <span className="flex-1 truncate" title={e.competitionLibelle ?? undefined}>{e.nom}</span>
-                        <span className="text-[10px] tabular-nums text-faint">{saisons.find((x) => x.id === e.saisonId)?.nom ?? ""}</span>
+                        <input type="checkbox" checked={on} onChange={() => basculer(cochees, setCochees, n.cle)}/>
+                        <span className="flex-1 truncate">{n.libelle}</span>
                       </label>
                     );
                   })}
                 </div>
                 <p className="text-[10px] text-faint mt-1">
-                  Aucune coche = acces a toutes les equipes du club.
+                  Aucune coche = acces a toutes les equipes du club. L'equipe attribuee reste la sienne d'une saison a l'autre,
+                  meme si sa poule change.
                 </p>
-              </Field>
+              </Groupe>
+            )}
+
+            {role === "user" && (
+              <Groupe label="Saisons consultables">
+                <div className="flex flex-wrap gap-2">
+                  {([["courante", "Cette saison uniquement"], ["choix", "Choisir des saisons"], ["toutes", "Toutes les saisons"]] as const).map(([m, libelle]) => (
+                    <button key={m} type="button" aria-pressed={mode === m}
+                      onClick={() => setMode(m)}
+                      className={`btn text-xs ${mode === m ? "btn-accent" : ""}`}>
+                      {libelle}
+                    </button>
+                  ))}
+                </div>
+                {mode === "choix" && (
+                  <div className="mt-2 grid grid-cols-2 gap-1 max-h-40 overflow-auto panel-inset p-2 sm:grid-cols-3">
+                    {passees.length === 0 ? (
+                      <p className="col-span-full py-2 text-center text-xs text-muted">Aucune saison passee en base.</p>
+                    ) : passees.map((sa) => {
+                      const on = saisonsChoisies.has(sa.id);
+                      return (
+                        <label key={sa.id}
+                          className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer ${
+                            on ? "bg-accent/10 text-ink" : "text-muted hover:bg-line/40"
+                          }`}>
+                          <input type="checkbox" checked={on} onChange={() => basculer(saisonsChoisies, setSaisonsChoisies, sa.id)}/>
+                          <span className="tabular-nums">{sa.nom}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                <p className="text-[10px] text-faint mt-1" data-testid="resume-saisons">
+                  {mode === "toutes"
+                    ? "Voit toutes les saisons, y compris celles qui seront creees."
+                    : `Voit la saison actuelle${saisonCourante ? ` (${saisonCourante.nom})` : ""}${
+                        mode === "choix" && saisonsChoisies.size > 0
+                          ? ` + ${passees.filter((x) => saisonsChoisies.has(x.id)).map((x) => x.nom).join(" · ")}`
+                          : ""
+                      } et les suivantes${mode === "courante" ? ", pas l'historique" : ""}.`}
+                </p>
+              </Groupe>
             )}
           </>
         )}
@@ -380,6 +467,16 @@ function UserForm({
         </div>
       </div>
     </Modal>
+  );
+}
+
+/** Un groupe de plusieurs commandes (boutons, cases) : pas un <label>, qui activerait la premiere commande au moindre clic. */
+function Groupe({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div role="group" aria-label={label}>
+      <span className="text-[10px] uppercase tracking-wider text-faint">{label}</span>
+      <div className="mt-1">{children}</div>
+    </div>
   );
 }
 

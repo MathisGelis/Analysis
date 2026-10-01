@@ -13,6 +13,9 @@ export interface JwtPayload {
   role?: "admin" | "user" | string;
   clubId?: string | null;
   equipeIds?: string[] | null;
+  /** Absents : toutes les saisons (voir lib/acces-saisons.ts). */
+  toutesSaisons?: boolean | null;
+  saisonIds?: string[] | null;
   exp?: number;
 }
 

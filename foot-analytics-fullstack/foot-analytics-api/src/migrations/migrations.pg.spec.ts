@@ -79,8 +79,7 @@ sur("migrations Postgres", () => {
 
   it("reversible : annuler toutes les migrations ne laisse que la table de suivi", async () => {
     await ds.runMigrations();
-    await ds.undoLastMigration();
-    await ds.undoLastMigration();
+    for (const _ of ds.migrations) await ds.undoLastMigration();            // toutes, quel qu'en soit le nombre
 
     const restantes: { tablename: string }[] = await ds.query(
       `SELECT tablename FROM pg_tables WHERE schemaname = $1 ORDER BY 1`, [schema]);

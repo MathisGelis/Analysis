@@ -1,14 +1,15 @@
 "use client";
 // src/components/UserBadge.tsx
 //
-// Utilisateur connecte, en bas de la barre laterale : initiales, nom, lien
-// d'administration (role admin) et deconnexion.
+// Utilisateur connecte, en bas de la barre laterale : initiales, nom, lien de gestion
+// des comptes (Administration pour l'admin, Mes educateurs pour le referent de club) et deconnexion.
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { clearSession, getCachedUser, User } from "@/lib/auth";
-import { LogOut, ShieldCheck } from "lucide-react";
+import { lienGestionComptes } from "@/lib/navigation";
+import { LogOut } from "lucide-react";
 
 export function UserBadge({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
@@ -23,14 +24,16 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
 
   if (!user) return <div className="px-4 py-3 text-xs text-faint">{compact ? "" : "Non connecte"}</div>;
 
+  const gestion = lienGestionComptes(user.role);
+  const IconeGestion = gestion?.icon;
   const initiales = `${user.prenom?.[0] ?? ""}${user.nom?.[0] ?? user.login?.[0] ?? ""}`.toUpperCase();
 
   if (compact) {
     return (
       <div className="flex flex-col items-center gap-2 py-3">
-        {user.role === "admin" && (
-          <Link href="/admin/utilisateurs" className="btn btn-ghost !p-2" title="Administration" aria-label="Administration">
-            <ShieldCheck size={16} />
+        {gestion && IconeGestion && (
+          <Link href={gestion.href} className="btn btn-ghost !p-2" title={gestion.label} aria-label={gestion.label}>
+            <IconeGestion size={16} />
           </Link>
         )}
         <button onClick={logout} className="btn btn-ghost !p-2 text-danger" title="Se deconnecter" aria-label="Se deconnecter">
@@ -53,9 +56,9 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
           {user.role === "referent" && <span className="badge badge-accent !px-1.5 !py-0 !text-[10px]">Referent</span>}
         </div>
       </div>
-      {user.role === "admin" && (
-        <Link href="/admin/utilisateurs" className="btn btn-ghost !p-2" title="Administration" aria-label="Administration">
-          <ShieldCheck size={16} />
+      {gestion && IconeGestion && (
+        <Link href={gestion.href} className="btn btn-ghost !p-2" title={gestion.label} aria-label={gestion.label}>
+          <IconeGestion size={16} />
         </Link>
       )}
       <button onClick={logout} className="btn btn-ghost !p-2 hover:!text-danger" title="Se deconnecter" aria-label="Se deconnecter">
