@@ -12,7 +12,7 @@ export interface User {
   login: string;
   prenom: string;
   nom: string;
-  role: "admin" | "user";
+  role: "admin" | "referent" | "user";
   clubId?: string | null;
   equipeIds?: string[] | null;
   mustChangePassword: boolean;
@@ -79,7 +79,7 @@ export { COOKIE_NAME };
 interface JwtPayloadLight {
   sub: string;
   login: string;
-  role: "admin" | "user" | string;
+  role: "admin" | "referent" | "user" | string;
   clubId?: string;
   equipeIds?: string[];
   exp?: number;

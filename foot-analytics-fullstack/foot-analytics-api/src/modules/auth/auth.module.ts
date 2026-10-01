@@ -11,7 +11,7 @@
 // filtrage des donnees par club/equipe).
 
 import {
-  BadRequestException, Body, CanActivate, Controller, ExecutionContext,
+  BadRequestException, Body, CanActivate, Controller, ExecutionContext, ForbiddenException,
   Get, Injectable, Logger, Module, NotFoundException, Post, Req, SetMetadata,
   UnauthorizedException, UseGuards,
 } from "@nestjs/common";
@@ -38,7 +38,7 @@ export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 export interface JwtPayload {
   sub: string;        // user id
   login: string;
-  role: string;       // "admin" | "user"
+  role: string;       // "admin" | "referent" | "user"
   clubId?: string;
   equipeIds?: string[];
 }
@@ -175,6 +175,27 @@ export class AdminGuard implements CanActivate {
   }
 }
 
+/**
+ * Guard de gestion des comptes : un administrateur ou un referent de club. Le perimetre exact (quels comptes) est
+ * verifie par le service, a partir de la base et non du jeton.
+ */
+@Injectable()
+export class GestionnaireGuard implements CanActivate {
+  constructor(private auth: AuthService) {}
+  canActivate(ctx: ExecutionContext): boolean {
+    const req = ctx.switchToHttp().getRequest();
+    const h = (req.headers["authorization"] ?? "") as string;
+    const m = h.match(/^Bearer\s+(.+)$/i);
+    if (!m) throw new UnauthorizedException("Token absent");
+    const payload = this.auth.verify(m[1]);
+    if (payload.role !== "admin" && payload.role !== "referent") {
+      throw new ForbiddenException("Acces reserve aux administrateurs et aux referents de club");
+    }
+    req.user = payload;
+    return true;
+  }
+}
+
 @Controller("auth")
 export class AuthController {
   constructor(
@@ -226,7 +247,7 @@ export class AuthController {
 @Module({
   imports: [ConfigModule, TypeOrmModule.forFeature([Utilisateur])],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard, AdminGuard],
-  exports: [AuthService, JwtAuthGuard, AdminGuard],
+  providers: [AuthService, JwtAuthGuard, AdminGuard, GestionnaireGuard],
+  exports: [AuthService, JwtAuthGuard, AdminGuard, GestionnaireGuard],
 })
 export class AuthModule {}

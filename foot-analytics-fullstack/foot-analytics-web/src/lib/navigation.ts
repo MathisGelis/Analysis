@@ -7,7 +7,7 @@
 
 import {
   Award, Brain, Calendar, CalendarRange, ClipboardList, Dumbbell, FileText, HeartPulse, Layout,
-  LayoutDashboard, Search, Shield, Trophy, Upload, Users,
+  LayoutDashboard, Search, Shield, Trophy, Upload, UserCog, Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -21,7 +21,11 @@ export interface SectionNav {
   items: LienNav[];
 }
 
-export function construireNavigation(ownClubId: string | null): SectionNav[] {
+/**
+ * `role` : le referent d'un club gere les comptes de ses educateurs, d'ou une entree de plus dans "Mon equipe".
+ * (L'administrateur passe par le lien d'administration du bas de la barre laterale.)
+ */
+export function construireNavigation(ownClubId: string | null, role?: string | null): SectionNav[] {
   return [
     {
       section: "Vue d'ensemble",
@@ -38,6 +42,7 @@ export function construireNavigation(ownClubId: string | null): SectionNav[] {
         { href: "/effectif", label: "Effectif", icon: Users },
         { href: "/entrainements", label: "Entrainements", icon: Dumbbell },
         { href: "/medical", label: "Medical & charge", icon: HeartPulse },
+        ...(role === "referent" ? [{ href: "/admin/utilisateurs", label: "Mes educateurs", icon: UserCog }] : []),
       ],
     },
     {

@@ -50,6 +50,7 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
         <div className="flex items-center gap-1.5 text-[11px] text-faint">
           <span className="truncate font-mono">{user.login}</span>
           {user.role === "admin" && <span className="badge badge-accent !px-1.5 !py-0 !text-[10px]">Admin</span>}
+          {user.role === "referent" && <span className="badge badge-accent !px-1.5 !py-0 !text-[10px]">Referent</span>}
         </div>
       </div>
       {user.role === "admin" && (

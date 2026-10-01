@@ -1,18 +1,23 @@
 "use client";
 // src/app/admin/utilisateurs/page.tsx
 //
-// Page admin (role=admin requis cote backend). Liste les utilisateurs
-// + permet d'en creer, editer, supprimer. Le login est calcule auto a
-// partir du prenom + nom.
+// Gestion des comptes, pour deux profils (le backend verifie les droits) :
+//  - l'administrateur : tous les comptes, de tous les clubs, avec le choix du role
+//    (administrateur, referent de club, educateur) ;
+//  - le referent d'un club : seulement les comptes de ses educateurs, dans son club et
+//    sur les equipes de son club.
+// Le login est calcule auto a partir du prenom + nom.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { getCachedUser } from "@/lib/auth";
+import { getCachedUser, type User } from "@/lib/auth";
 import { Modal } from "@/components/Modal";
 import {
   KeyRound, Pencil, Plus, Save, ShieldCheck, Trash2, UserCog, X,
 } from "lucide-react";
+
+const LIBELLE_ROLE: Record<string, string> = { admin: "Admin", referent: "Referent", user: "Educateur" };
 import { useFeedback } from "@/lib/feedback-context";
 
 function buildLogin(prenom: string, nom: string) {
@@ -28,21 +33,25 @@ export default function AdminUtilisateurs() {
   const [users, setUsers] = useState<any[]>([]);
   const [clubs, setClubs] = useState<any[]>([]);
   const [equipes, setEquipes] = useState<any[]>([]);
+  const [saisons, setSaisons] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
+  const [moi, setMoi] = useState<User | null>(null);
+  const estReferent = moi?.role === "referent";
 
   // Verifier le role cote client (UX); le guard reel est cote backend.
   useEffect(() => {
     const u = getCachedUser();
-    if (u && u.role !== "admin") router.replace("/");
+    setMoi(u);
+    if (u && u.role !== "admin" && u.role !== "referent") router.replace("/");
   }, [router]);
 
   async function reload() {
     setLoading(true);
     try {
-      const [u, c, e] = await Promise.all([api.utilisateurs(), api.clubs(), api.equipes()]);
-      setUsers(u); setClubs(c); setEquipes(e);
+      const [u, c, e, sa] = await Promise.all([api.utilisateurs(), api.clubs(), api.equipes(), api.saisons()]);
+      setUsers(u); setClubs(c); setEquipes(e); setSaisons(sa);
     } finally { setLoading(false); }
   }
   useEffect(() => { reload(); }, []);
@@ -63,12 +72,18 @@ export default function AdminUtilisateurs() {
       <header className="flex items-end justify-between gap-3 flex-wrap">
         <div>
           <div className="h-section flex items-center gap-2">
-            <ShieldCheck size={11} className="text-accent"/>Administration
+            <ShieldCheck size={11} className="text-accent"/>{estReferent ? "Mon club" : "Administration"}
           </div>
-          <h1 className="font-display text-2xl font-bold text-ink">Comptes utilisateurs</h1>
+          <h1 className="font-display text-2xl font-bold text-ink">{estReferent ? "Mes educateurs" : "Comptes utilisateurs"}</h1>
+          {estReferent && (
+            <p className="mt-1 max-w-xl text-xs text-muted">
+              Cree un compte pour chacun de tes educateurs : il ne voit que ton club, et seulement les equipes que tu coches
+              (aucune coche = toutes les equipes du club). Son mot de passe initial est a lui transmettre ; il devra le changer a sa premiere connexion.
+            </p>
+          )}
         </div>
         <button className="btn btn-accent" onClick={() => setAdding(true)}>
-          <Plus size={14}/> Nouveau compte
+          <Plus size={14}/> {estReferent ? "Nouvel educateur" : "Nouveau compte"}
         </button>
       </header>
 
@@ -76,15 +91,15 @@ export default function AdminUtilisateurs() {
         {loading ? (
           <p className="text-muted text-sm">Chargement…</p>
         ) : users.length === 0 ? (
-          <p className="text-muted text-sm py-6 text-center">Aucun compte.</p>
+          <p className="text-muted text-sm py-6 text-center">{estReferent ? "Aucun educateur pour l'instant : cree son premier compte." : "Aucun compte."}</p>
         ) : (
           <table className="table-fm">
             <thead>
               <tr>
                 <th>Login</th>
                 <th>Nom</th>
-                <th>Role</th>
-                <th>Club</th>
+                {!estReferent && <th>Role</th>}
+                {!estReferent && <th>Club</th>}
                 <th>Equipes</th>
                 <th>Statut</th>
                 <th></th>
@@ -100,16 +115,20 @@ export default function AdminUtilisateurs() {
                   <tr key={u.id}>
                     <td className="font-mono font-bold">{u.login}</td>
                     <td>{u.prenom} {u.nom}</td>
-                    <td>
-                      <span className={`badge ${u.role === "admin" ? "badge-accent" : ""}`}>
-                        {u.role === "admin" ? "Admin" : "User"}
-                      </span>
-                    </td>
+                    {!estReferent && (
+                      <td>
+                        <span className={`badge ${u.role === "admin" || u.role === "referent" ? "badge-accent" : ""}`}>
+                          {LIBELLE_ROLE[u.role] ?? u.role}
+                        </span>
+                      </td>
+                    )}
+                    {!estReferent && (
+                      <td className="text-xs text-muted">
+                        {u.role === "admin" ? "—" : (club?.nom ?? "—")}
+                      </td>
+                    )}
                     <td className="text-xs text-muted">
-                      {u.role === "admin" ? "—" : (club?.nom ?? "—")}
-                    </td>
-                    <td className="text-xs text-muted">
-                      {userEqs.length === 0 ? "—" : userEqs.join(" · ")}
+                      {userEqs.length === 0 ? (u.role === "admin" ? "—" : "Toutes") : userEqs.join(" · ")}
                     </td>
                     <td>
                       {u.mustChangePassword
@@ -135,12 +154,12 @@ export default function AdminUtilisateurs() {
       </section>
 
       {adding && (
-        <UserForm clubs={clubs} equipes={equipes}
+        <UserForm clubs={clubs} equipes={equipes} saisons={saisons} acteur={moi}
           onClose={() => setAdding(false)}
           onSaved={async () => { setAdding(false); await reload(); }} />
       )}
       {editing && (
-        <UserForm clubs={clubs} equipes={equipes} user={editing}
+        <UserForm clubs={clubs} equipes={equipes} saisons={saisons} acteur={moi} user={editing}
           onClose={() => setEditing(null)}
           onSaved={async () => { setEditing(null); await reload(); }} />
       )}
@@ -149,19 +168,23 @@ export default function AdminUtilisateurs() {
 }
 
 function UserForm({
-  user, clubs, equipes, onClose, onSaved,
+  user, clubs, equipes, saisons, acteur, onClose, onSaved,
 }: {
   user?: any;
   clubs: any[];
   equipes: any[];
+  saisons: any[];
+  /** Le gestionnaire connecte : un referent est enferme dans son club et ne cree que des educateurs. */
+  acteur: User | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const isEdit = !!user?.id;
   const [prenom, setPrenom] = useState(user?.prenom ?? "");
   const [nom, setNom] = useState(user?.nom ?? "");
-  const [role, setRole] = useState<"admin" | "user">(user?.role ?? "user");
-  const [clubId, setClubId] = useState<string>(user?.clubId ?? "");
+  const estReferent = acteur?.role === "referent";
+  const [role, setRole] = useState<"admin" | "referent" | "user">(estReferent ? "user" : (user?.role ?? "user"));
+  const [clubId, setClubId] = useState<string>(estReferent ? (acteur?.clubId ?? "") : (user?.clubId ?? ""));
   const [equipeIds, setEquipeIds] = useState<Set<string>>(
     () => new Set(user?.equipeIds ?? []),
   );
@@ -171,7 +194,8 @@ function UserForm({
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
 
   const login = buildLogin(prenom, nom);
-  const equipesFiltrees = role === "user" && clubId
+  const avecClub = role !== "admin";
+  const equipesFiltrees = avecClub && clubId
     ? equipes.filter((e) => e.clubId === clubId)
     : equipes;
 
@@ -186,13 +210,14 @@ function UserForm({
   async function submit() {
     setError(null);
     if (!prenom.trim() || !nom.trim()) { setError("Prenom et nom requis."); return; }
-    if (role === "user" && !clubId) { setError("Selectionne un club pour un compte utilisateur."); return; }
+    if (avecClub && !clubId) { setError("Selectionne un club pour ce compte."); return; }
     setSaving(true);
     try {
       if (isEdit) {
         const payload: any = { prenom, nom, role };
         payload.clubId = role === "admin" ? null : clubId;
-        payload.equipeIds = role === "admin" ? [] : [...equipeIds];
+        payload.equipeIds = role === "admin" || role === "referent" ? [] : [...equipeIds];
+        if (estReferent) delete payload.role;     // un referent ne change pas le role d'un compte
         if (resetPassword) payload.resetPassword = resetPassword;
         await api.updateUtilisateur(user.id, payload);
         onSaved();
@@ -200,7 +225,8 @@ function UserForm({
         const res = await api.createUtilisateur({
           prenom, nom, role,
           clubId: role === "admin" ? undefined : clubId,
-          equipeIds: role === "admin" ? [] : [...equipeIds],
+          // Un referent a deja acces a toutes les equipes de son club : aucune liste a enregistrer.
+          equipeIds: role === "admin" || role === "referent" ? [] : [...equipeIds],
         });
         // Afficher le mdp initial dans la modale puis recharger.
         setCreatedPassword(res.initialPassword);
@@ -218,7 +244,7 @@ function UserForm({
             <KeyRound size={18} className="text-accent"/> Compte cree
           </h2>
           <p className="text-sm text-muted">
-            Communique ces credentials au nouvel utilisateur. Le mot de
+            Communique ces credentials {estReferent ? "a ton educateur" : "au nouvel utilisateur"}. Le mot de
             passe devra etre change a sa premiere connexion.
           </p>
           <div className="panel-inset p-4 space-y-2">
@@ -243,7 +269,7 @@ function UserForm({
         <div className="flex items-center justify-between">
           <h2 className="font-display text-xl font-bold text-ink flex items-center gap-2">
             <UserCog size={18} className="text-accent"/>
-            {isEdit ? "Modifier le compte" : "Nouveau compte"}
+            {isEdit ? "Modifier le compte" : (estReferent ? "Nouvel educateur" : "Nouveau compte")}
           </h2>
           <button onClick={onClose} className="btn text-xs"><X size={14}/></button>
         </div>
@@ -265,31 +291,45 @@ function UserForm({
           </div>
         </Field>
 
-        <Field label="Role">
-          <div className="flex gap-2">
-            {["user", "admin"].map((r) => (
-              <button key={r}
-                onClick={() => setRole(r as any)}
-                className={`btn text-xs ${role === r ? "btn-accent" : ""}`}>
-                {r === "admin" ? "Administrateur" : "Utilisateur (staff)"}
-              </button>
-            ))}
-          </div>
-        </Field>
+        {!estReferent && (
+          <Field label="Role">
+            <div className="flex flex-wrap gap-2">
+              {([["user", "Educateur (staff)"], ["referent", "Referent de club"], ["admin", "Administrateur"]] as const).map(([r, libelle]) => (
+                <button key={r} type="button" aria-pressed={role === r}
+                  onClick={() => setRole(r)}
+                  className={`btn text-xs ${role === r ? "btn-accent" : ""}`}>
+                  {libelle}
+                </button>
+              ))}
+            </div>
+            {role === "referent" && (
+              <p className="mt-1 text-[10px] text-faint">
+                Acces a son club et a toutes ses equipes ; peut creer et gerer les comptes de ses educateurs.
+              </p>
+            )}
+          </Field>
+        )}
 
-        {role === "user" && (
+        {avecClub && (
           <>
-            <Field label="Club autorise">
-              <select className="select-fm" value={clubId}
-                onChange={(e) => { setClubId(e.target.value); setEquipeIds(new Set()); }}>
-                <option value="">— Selectionne un club —</option>
-                {clubs.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
-              </select>
-            </Field>
+            {!estReferent && (
+              <Field label="Club autorise">
+                <select className="select-fm" value={clubId}
+                  onChange={(e) => { setClubId(e.target.value); setEquipeIds(new Set()); }}>
+                  <option value="">— Selectionne un club —</option>
+                  {clubs.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                </select>
+              </Field>
+            )}
+            {estReferent && (
+              <Field label="Club">
+                <div className="select-fm bg-panel text-ink">{clubs.find((c) => c.id === clubId)?.nom ?? "Mon club"}</div>
+              </Field>
+            )}
 
-            {clubId && (
+            {clubId && role !== "referent" && (
               <Field label={`Equipes accessibles (${equipeIds.size} / ${equipesFiltrees.length})`}>
-                <div className="grid grid-cols-2 gap-1 max-h-48 overflow-auto panel-inset p-2">
+                <div className="grid grid-cols-1 gap-1 max-h-48 overflow-auto panel-inset p-2 sm:grid-cols-2">
                   {equipesFiltrees.length === 0 ? (
                     <p className="text-xs text-muted col-span-2 text-center py-3">
                       Aucune equipe pour ce club.
@@ -302,8 +342,8 @@ function UserForm({
                           on ? "bg-accent/10 text-ink" : "text-muted hover:bg-line/40"
                         }`}>
                         <input type="checkbox" checked={on} onChange={() => toggleEquipe(e.id)}/>
-                        <span className="flex-1 truncate">{e.nom}</span>
-                        <span className="text-[9px] text-faint">{e.competitionLibelle}</span>
+                        <span className="flex-1 truncate" title={e.competitionLibelle ?? undefined}>{e.nom}</span>
+                        <span className="text-[10px] tabular-nums text-faint">{saisons.find((x) => x.id === e.saisonId)?.nom ?? ""}</span>
                       </label>
                     );
                   })}

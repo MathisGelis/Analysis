@@ -17,6 +17,14 @@ describe("construireNavigation", () => {
       expect(hrefs).toContain(page);
     }
   });
+  it("le referent de club a une entree pour gerer ses educateurs ; les autres roles n'en ont pas", () => {
+    const hrefs = (role?: string) => construireNavigation("c", role).flatMap((s) => s.items.map((l) => l.href));
+    expect(hrefs("referent")).toContain("/admin/utilisateurs");
+    expect(hrefs("user")).not.toContain("/admin/utilisateurs");
+    expect(hrefs("admin")).not.toContain("/admin/utilisateurs");
+    expect(hrefs()).not.toContain("/admin/utilisateurs");
+    expect(new Set(hrefs("referent")).size).toBe(hrefs("referent").length);
+  });
   it("aucun lien en double", () => {
     const hrefs = construireNavigation("c").flatMap((s) => s.items.map((l) => l.href));
     expect(new Set(hrefs).size).toBe(hrefs.length);
