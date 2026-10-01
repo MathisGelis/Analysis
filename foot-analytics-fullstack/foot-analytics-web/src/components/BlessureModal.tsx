@@ -11,9 +11,12 @@
 // Le statut est derive automatiquement : si date de retour < aujourd'hui
 // -> "Retabli", sinon "Indisponible".
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Modal } from "@/components/Modal";
-import { api, ApiError } from "@/lib/api";
+import { DatePicker } from "@/components/DatePicker";
+import { Select, type OptionSelect } from "@/components/Select";
+import { optionsSimples } from "@/lib/selecteur";
+import { api, ApiError, messageApi } from "@/lib/api";
 import { Save, X } from "lucide-react";
 
 // Regions du corps groupees pour le select. Aligne sur les zones
@@ -53,6 +56,11 @@ export const REGIONS = [
 ];
 
 const STATUTS = ["Indisponible", "Reprise", "Retabli"];
+const OPTIONS_STATUTS = optionsSimples(STATUTS);
+const OPTIONS_REGIONS: OptionSelect[] = [
+  { valeur: "", libelle: "— Selectionne —" },
+  ...REGIONS.flatMap((g) => g.items.map((r) => ({ valeur: r, libelle: r, groupe: g.group }))),
+];
 
 interface JoueurLite {
   id: string;
@@ -72,6 +80,13 @@ interface Props {
 export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueurId: lockedJoueurId }: Props) {
   const isEdit = !!blessure?.id;
   const today = new Date().toISOString().slice(0, 10);
+  const optionsJoueurs = useMemo<OptionSelect[]>(() => [
+    { valeur: "", libelle: "— Selectionne —" },
+    ...joueurs
+      .slice()
+      .sort((a, b) => `${a.prenom ?? ""} ${a.nom}`.localeCompare(`${b.prenom ?? ""} ${b.nom}`))
+      .map((j) => ({ valeur: j.id, libelle: `${j.prenom ?? ""} ${j.nom}`.trim() })),
+  ], [joueurs]);
 
   const [form, setForm] = useState<any>({
     joueurId: lockedJoueurId ?? blessure?.joueurId ?? "",
@@ -158,7 +173,7 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
       if (e instanceof ApiError && e.statut === 409 && e.corps?.code === "BLESSURE_CHEVAUCHANTE") {
         setConflits(e.corps.conflits ?? []);
       } else {
-        setError(e?.message ?? "Erreur a la sauvegarde");
+        setError(messageApi(e, "Erreur a la sauvegarde"));
       }
     } finally {
       setSaving(false);
@@ -173,70 +188,36 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
         </h2>
         {/* Joueur */}
         <Field label="Joueur">
-          <select
-            value={form.joueurId}
-            onChange={(e) => set("joueurId", e.target.value)}
-            disabled={!!lockedJoueurId}
-            className="select-fm"
-          >
-            <option value="">— Selectionne —</option>
-            {joueurs
-              .slice()
-              .sort((a, b) => `${a.prenom ?? ""} ${a.nom}`.localeCompare(`${b.prenom ?? ""} ${b.nom}`))
-              .map((j) => (
-                <option key={j.id} value={j.id}>
-                  {j.prenom ?? ""} {j.nom}
-                </option>
-              ))}
-          </select>
+          <Select
+            valeur={form.joueurId} onChange={(v) => set("joueurId", v)} disabled={!!lockedJoueurId} ariaLabel="Joueur"
+            className="select-fm" options={optionsJoueurs}
+          />
         </Field>
 
         {/* Region */}
         <Field label="Region">
-          <select
-            value={form.localisation}
-            onChange={(e) => set("localisation", e.target.value)}
-            className="select-fm"
-          >
-            <option value="">— Selectionne —</option>
-            {REGIONS.map((g) => (
-              <optgroup key={g.group} label={g.group}>
-                {g.items.map((r) => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+          <Select
+            valeur={form.localisation} onChange={(v) => set("localisation", v)} ariaLabel="Region"
+            className="select-fm" options={OPTIONS_REGIONS}
+          />
         </Field>
 
         {/* Dates */}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Date debut">
-            <input type="date"
-              value={form.dateDebut}
-              onChange={(e) => set("dateDebut", e.target.value)}
-              className="select-fm"
-            />
+            <DatePicker valeur={form.dateDebut} onChange={(v) => set("dateDebut", v)} ariaLabel="Date debut" className="select-fm"/>
           </Field>
           <Field label="Date retour (si blessure terminee)">
-            <input type="date"
-              value={form.retourEstime}
-              onChange={(e) => onChangeDateRetour(e.target.value)}
-              className="select-fm"
-              placeholder="—"
-            />
+            <DatePicker valeur={form.retourEstime} onChange={onChangeDateRetour} ariaLabel="Date retour" className="select-fm"/>
           </Field>
         </div>
 
         {/* Statut */}
         <Field label="Statut">
-          <select
-            value={form.statut}
-            onChange={(e) => onChangeStatut(e.target.value)}
-            className="select-fm"
-          >
-            {STATUTS.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <Select
+            valeur={form.statut} onChange={onChangeStatut} ariaLabel="Statut"
+            className="select-fm" options={OPTIONS_STATUTS}
+          />
         </Field>
 
         {/* Details */}

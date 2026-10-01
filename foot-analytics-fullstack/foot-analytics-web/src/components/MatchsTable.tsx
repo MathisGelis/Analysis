@@ -9,6 +9,7 @@ import { useOwnEquipe } from "@/lib/own-equipe-context";
 import Link from "next/link";
 import { ClubBadge } from "@/components/ClubBadge";
 import { DeleteMatchButton } from "@/components/DeleteMatchButton";
+import { Select } from "@/components/Select";
 import { Filter, X } from "lucide-react";
 import type { Match, Club } from "@/lib/types";
 
@@ -126,37 +127,28 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
         {equipesPourSaison.length > 0 && (
           <label className="flex items-center gap-2 text-xs">
             <span className="text-faint">Equipe</span>
-            <select
-              value={equipeId}
-              onChange={(e) => setEquipeId(e.target.value)}
-              className="select-fm min-w-[200px]"
-            >
-              <option value="all">Toutes ({equipesPourSaison.length})</option>
-              {equipesPourSaison
-                .slice()
-                .sort((a, b) =>
-                  (clubNomById.get(a.clubId) ?? "").localeCompare(clubNomById.get(b.clubId) ?? ""))
-                .map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {clubNomById.get(e.clubId) ?? e.nom}
-                  </option>
-                ))}
-            </select>
+            <Select
+              valeur={equipeId} onChange={setEquipeId} className="select-fm min-w-[200px]" ariaLabel="Equipe"
+              options={[
+                { valeur: "all", libelle: `Toutes (${equipesPourSaison.length})` },
+                ...equipesPourSaison
+                  .slice()
+                  .sort((a, b) => (clubNomById.get(a.clubId) ?? "").localeCompare(clubNomById.get(b.clubId) ?? ""))
+                  .map((e) => ({ valeur: e.id, libelle: clubNomById.get(e.clubId) ?? e.nom })),
+              ]}
+            />
           </label>
         )}
 
         <label className="flex items-center gap-2 text-xs">
           <span className="text-faint">Journee</span>
-          <select
-            value={journee}
-            onChange={(e) => setJournee(e.target.value)}
-            className="select-fm"
-          >
-            <option value="all">Toutes ({journees.length})</option>
-            {journees.map((j) => (
-              <option key={j} value={j}>J{j}</option>
-            ))}
-          </select>
+          <Select
+            valeur={journee} onChange={setJournee} className="select-fm" ariaLabel="Journee"
+            options={[
+              { valeur: "all", libelle: `Toutes (${journees.length})` },
+              ...journees.map((j) => ({ valeur: String(j), libelle: `J${j}` })),
+            ]}
+          />
         </label>
 
         {hasFilter && (

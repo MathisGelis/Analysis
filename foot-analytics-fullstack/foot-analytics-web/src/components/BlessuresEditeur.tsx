@@ -152,11 +152,11 @@ export function BlessuresEditeur({
                   )}
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <button onClick={() => openEdit(b)}
+                  <button onClick={() => openEdit(b)} aria-label="Modifier la blessure" title="Modifier"
                     className="btn text-[10px] flex items-center gap-1">
                     <Pencil size={10}/>
                   </button>
-                  <button onClick={() => confirmDelete(b.id)}
+                  <button onClick={() => confirmDelete(b.id)} aria-label="Supprimer la blessure" title="Supprimer"
                     disabled={deleting === b.id}
                     className="btn text-[10px] text-danger flex items-center gap-1">
                     <Trash2 size={10}/>

@@ -27,11 +27,15 @@ import { Pitch, type JoueurTerrain } from "@/components/Pitch";
 import { SaisonGuard, useLectureSeule } from "@/components/SaisonGuard";
 import { RegleMutations } from "@/components/tactique/RegleMutations";
 import { SelecteurJoueur } from "@/components/tactique/SelecteurJoueur";
+import { Select } from "@/components/Select";
+import { optionsSimples } from "@/lib/selecteur";
 import { FatigueBar } from "@/components/FatigueBar";
 import { DernierPlanRealise } from "@/components/tactique/DernierPlanRealise";
 import {
   AlertTriangle, CalendarClock, Eraser, Info, Plus, Save, Sparkles, X,
 } from "lucide-react";
+
+const OPTIONS_FORMATIONS = optionsSimples(FORMATIONS);
 
 export default function Tactique() {
   return (
@@ -65,7 +69,7 @@ function TactiqueContent() {
   const [sauvegarde, setSauvegarde] = useState(false);
   const [erreurRegle, setErreurRegle] = useState<string[] | null>(null);
   const [poste, setPoste] = useState<number | null>(null);               // poste selectionne sur le terrain
-  const selects = useRef<(HTMLSelectElement | null)[]>([]);
+  const selects = useRef<(HTMLButtonElement | null)[]>([]);
 
   const instantane = useCallback(
     () => JSON.stringify({ formation, titulaires, remplacants, capitaineId, notes: notes.trim() }),
@@ -284,10 +288,8 @@ function TactiqueContent() {
           <ProchainMatchPuce prochain={prochain} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select value={formation} onChange={(e) => choisirFormation(e.target.value)} disabled={lectureSeule}
-            className="btn" aria-label="Dispositif">
-            {FORMATIONS.map((f) => <option key={f}>{f}</option>)}
-          </select>
+          <Select valeur={formation} onChange={choisirFormation} disabled={lectureSeule} className="btn" ariaLabel="Dispositif"
+            options={OPTIONS_FORMATIONS} recherche={false}/>
           <button onClick={suggerer} className="btn" disabled={lectureSeule}><Sparkles size={13} /> Onze suggere</button>
           <button onClick={vider} className="btn" disabled={lectureSeule || groupe.length === 0}><Eraser size={13} /> Vider</button>
           <button onClick={enregistrer} className="btn btn-primary" disabled={!peutEnregistrer}
@@ -357,14 +359,15 @@ function TactiqueContent() {
             </ol>
             <label className="mt-4 flex items-center gap-2 text-xs text-muted">
               <span className="w-14 shrink-0 text-[11px] uppercase tracking-wider text-faint">Capitaine</span>
-              <select className="inp min-w-0 flex-1 text-xs" value={capitaineId ?? ""} disabled={lectureSeule}
-                onChange={(e) => setCapitaineId(e.target.value || null)} aria-label="Capitaine">
-                <option value="">— Aucun —</option>
-                {titulaires.filter((x): x is string => !!x).map((id) => {
-                  const p = parId.get(id)!;
-                  return <option key={id} value={id}>{`${p.prenom ?? ""} ${p.nom}`.trim()}</option>;
-                })}
-              </select>
+              <Select className="inp min-w-0 flex-1 text-xs" valeur={capitaineId ?? ""} disabled={lectureSeule} ariaLabel="Capitaine"
+                onChange={(v) => setCapitaineId(v || null)}
+                options={[
+                  { valeur: "", libelle: "— Aucun —" },
+                  ...titulaires.filter((x): x is string => !!x).map((id) => {
+                    const p = parId.get(id)!;
+                    return { valeur: id, libelle: `${p.prenom ?? ""} ${p.nom}`.trim() };
+                  }),
+                ]}/>
             </label>
           </section>
 

@@ -4,10 +4,11 @@
 // ensuite. Un joueur indisponible, ou dont le choix ferait depasser la regle des mutes, est grise avec
 // sa raison : on ne peut pas composer une feuille non conforme par erreur.
 
-import { forwardRef } from "react";
+import { forwardRef, useMemo } from "react";
 import type { OptionJoueur } from "@/lib/composition";
 import { categorieMutation, SIGLE_CATEGORIE } from "@/lib/mutations";
 import { LIBELLE_NIVEAU, niveauFatigue } from "@/lib/fatigue";
+import { Select, type OptionSelect } from "@/components/Select";
 
 export function libelleJoueur(j: OptionJoueur["joueur"]): string {
   const sigle = SIGLE_CATEGORIE[categorieMutation(j.statutMutation)];
@@ -21,7 +22,7 @@ export function libelleJoueur(j: OptionJoueur["joueur"]): string {
   ].filter(Boolean).join(" · ");
 }
 
-export const SelecteurJoueur = forwardRef<HTMLSelectElement, {
+export const SelecteurJoueur = forwardRef<HTMLButtonElement, {
   valeur: string;
   options: OptionJoueur[];
   onChange: (id: string) => void;
@@ -31,19 +32,22 @@ export const SelecteurJoueur = forwardRef<HTMLSelectElement, {
   ariaLabel: string;
   groupePoste?: string;
 }>(function SelecteurJoueur({ valeur, options, onChange, disabled, vide, ariaLabel, groupePoste }, ref) {
-  const duPoste = options.filter((o) => o.groupe === "poste");
-  const autres = options.filter((o) => o.groupe === "autres");
-  const rendre = (o: OptionJoueur) => (
-    <option key={o.joueur.id} value={o.joueur.id} disabled={o.refus !== null}>
-      {libelleJoueur(o.joueur)}{o.refus ? ` — ${o.refus}` : ""}
-    </option>
-  );
+  const liste = useMemo<OptionSelect[]>(() => {
+    const duPoste = options.filter((o) => o.groupe === "poste");
+    const autres = options.filter((o) => o.groupe === "autres");
+    const titrePoste = groupePoste ? `Sur ce poste (${groupePoste})` : "Meme ligne";
+    const titreAutres = duPoste.length > 0 || groupePoste ? "Autres postes" : "Effectif";
+    const enOption = (o: OptionJoueur, groupe: string): OptionSelect => ({
+      valeur: o.joueur.id, libelle: libelleJoueur(o.joueur), groupe, desactive: o.refus !== null, detail: o.refus ?? undefined,
+    });
+    return [
+      { valeur: "", libelle: vide },
+      ...duPoste.map((o) => enOption(o, titrePoste)),
+      ...autres.map((o) => enOption(o, titreAutres)),
+    ];
+  }, [options, vide, groupePoste]);
   return (
-    <select ref={ref} className="inp min-w-0 flex-1 text-xs" aria-label={ariaLabel} value={valeur} disabled={disabled}
-      onChange={(e) => onChange(e.target.value)}>
-      <option value="">{vide}</option>
-      {duPoste.length > 0 && <optgroup label={groupePoste ? `Sur ce poste (${groupePoste})` : "Meme ligne"}>{duPoste.map(rendre)}</optgroup>}
-      {autres.length > 0 && <optgroup label={duPoste.length > 0 || groupePoste ? "Autres postes" : "Effectif"}>{autres.map(rendre)}</optgroup>}
-    </select>
+    <Select ref={ref} className="inp min-w-0 flex-1 text-xs" ariaLabel={ariaLabel} valeur={valeur} disabled={disabled}
+      options={liste} onChange={onChange} largeurListe={340} />
   );
 });

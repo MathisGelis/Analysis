@@ -10,6 +10,8 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { FORMATIONS } from "@/lib/composition";
 import { useFeedback } from "@/lib/feedback-context";
+import { Select } from "@/components/Select";
+import { optionsSimples } from "@/lib/selecteur";
 
 const NON_RENSEIGNE = "";
 
@@ -20,7 +22,8 @@ export function SystemeMatch({
   const { notifier } = useFeedback();
   const [enCours, setEnCours] = useState(false);
   // Un dispositif deja saisi hors de la liste usuelle reste proposable.
-  const options = valeur && !(FORMATIONS as readonly string[]).includes(valeur) ? [...FORMATIONS, valeur] : [...FORMATIONS];
+  const formations = valeur && !(FORMATIONS as readonly string[]).includes(valeur) ? [...FORMATIONS, valeur] : [...FORMATIONS];
+  const options = [{ valeur: NON_RENSEIGNE, libelle: "Non renseigne" }, ...optionsSimples(formations)];
 
   async function changer(nouvelle: string) {
     setEnCours(true);
@@ -38,11 +41,8 @@ export function SystemeMatch({
   return (
     <label className="flex items-center gap-2 text-xs">
       <span className="min-w-0 flex-1 truncate text-muted">{equipe}</span>
-      <select value={valeur ?? NON_RENSEIGNE} onChange={(e) => changer(e.target.value)} disabled={enCours}
-        className="btn !py-1 text-xs" aria-label={`Systeme de jeu de ${equipe}`}>
-        <option value={NON_RENSEIGNE}>Non renseigne</option>
-        {options.map((f) => <option key={f} value={f}>{f}</option>)}
-      </select>
+      <Select valeur={valeur ?? NON_RENSEIGNE} onChange={changer} disabled={enCours}
+        className="btn !py-1 text-xs" ariaLabel={`Systeme de jeu de ${equipe}`} options={options} recherche={false}/>
     </label>
   );
 }

@@ -10,6 +10,9 @@
 import { useState } from "react";
 import { Check, Save, Users, X } from "lucide-react";
 import { Modal } from "@/components/Modal";
+import { DatePicker } from "@/components/DatePicker";
+import { Select } from "@/components/Select";
+import { optionsSimples } from "@/lib/selecteur";
 import { TimePicker24 } from "@/components/TimePicker24";
 import { api } from "@/lib/api";
 
@@ -28,6 +31,8 @@ export const ESPACES = [
   { id: "salle",          label: "Salle",            facteur: 0.90 },
   { id: "autre",          label: "Autre",            facteur: 1.00 },
 ];
+const OPTIONS_TYPES = optionsSimples(TYPES);
+const OPTIONS_ESPACES = ESPACES.map((e) => ({ valeur: e.id, libelle: e.label }));
 export const FACTEURS_TYPE: Record<string, number> = {
   Physique: 1.20, "Pre-match": 1.00, Tactique: 0.85,
   Technique: 0.75, Activation: 0.40, Recup: 0.30,
@@ -139,8 +144,7 @@ export function SeanceModal({
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <Field label="Date">
-          <input type="date" className="inp" value={form.date}
-            onChange={(e) => set("date", e.target.value)}/>
+          <DatePicker valeur={form.date} onChange={(v) => set("date", v)} ariaLabel="Date" effacable={false}/>
         </Field>
         <Field label="Jour (libelle)">
           <input className="inp" value={form.jour}
@@ -150,18 +154,10 @@ export function SeanceModal({
           <TimePicker24 value={form.heure} onChange={(v) => set("heure", v)}/>
         </Field>
         <Field label="Type">
-          <select className="inp" value={form.type}
-            onChange={(e) => set("type", e.target.value)}>
-            {TYPES.map((t) => <option key={t}>{t}</option>)}
-          </select>
+          <Select valeur={form.type} onChange={(v) => set("type", v)} ariaLabel="Type" options={OPTIONS_TYPES}/>
         </Field>
         <Field label="Espace">
-          <select className="inp" value={form.espace}
-            onChange={(e) => set("espace", e.target.value)}>
-            {ESPACES.map((e) => (
-              <option key={e.id} value={e.id}>{e.label}</option>
-            ))}
-          </select>
+          <Select valeur={form.espace} onChange={(v) => set("espace", v)} ariaLabel="Espace" options={OPTIONS_ESPACES}/>
         </Field>
         <Field label="Terrain">
           <input className="inp" value={form.terrain}

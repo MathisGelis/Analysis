@@ -1,7 +1,7 @@
 // Parcours critiques, dans l'ordre : chaque test s'appuie sur l'etat laisse par
 // le precedent (connexion -> saison vide -> effectif -> import -> archive).
 
-import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -15,13 +15,25 @@ test.describe.configure({ mode: "serial" });
 // Playwright ouvre sinon un contexte vierge par test.
 let contexte: BrowserContext;
 let page: Page;
+// Aucune boite de dialogue du navigateur (alert, confirm, prompt) ne doit jamais s'ouvrir : useFeedback les remplace.
+const dialoguesNatifs: string[] = [];
 test.beforeAll(async ({ browser }) => {
   contexte = await browser.newContext();
   page = await contexte.newPage();
+  page.on("dialog", (d) => { dialoguesNatifs.push(`${d.type()} : ${d.message()}`); void d.dismiss(); });
+});
+test.afterEach(() => {
+  expect(dialoguesNatifs, "une boite de dialogue du navigateur s'est ouverte").toEqual([]);
 });
 test.afterAll(async () => { await contexte.close(); });
 
 const FMI = path.resolve(__dirname, "../../foot-analytics-api/parser/FMI_Neuville1.pdf");
+
+/** Liste deroulante maison : on ouvre le declencheur puis on clique l'option par son libelle exact. */
+async function choisir(declencheur: Locator, libelle: string | RegExp) {
+  await declencheur.click();
+  await declencheur.page().getByRole("option", { name: libelle, exact: typeof libelle === "string" }).click();
+}
 
 /** Le bouton du selecteur de saison / equipe, en bas a gauche de la barre laterale. */
 const selecteur = (page: Page) => page.locator("aside button.panel-inset, nav button.panel-inset").first();
@@ -197,22 +209,26 @@ test("tactique : composition sur l'effectif reel, regle des mutes imposee, plan 
 
   // Quota atteint : un mute de plus est grise dans la liste des remplacants, avec sa raison. On complete le banc
   // avec des mutes jusqu'a ce que la regle en refuse (6 mutes au plus sur la feuille).
-  const ajout = page.getByLabel("Ajouter un remplacant");
-  for (let i = 0; i < 4 && (await ajout.locator("option[disabled]").count()) === 0; i++) {
-    const mute = ajout.locator("option:not([disabled])").filter({ hasText: /MUTE|HORSDELAI/ }).first();
-    if (!(await mute.count())) break;
-    await ajout.selectOption({ label: (await mute.innerText()).trim() });
+  const ajout = page.getByRole("combobox", { name: "Ajouter un remplacant" });
+  const grisees = page.getByRole("option", { disabled: true });
+  for (let i = 0; i < 4; i++) {
+    await ajout.click();
+    const mute = page.getByRole("option", { disabled: false }).filter({ hasText: /MUTE|HORSDELAI/ }).first();
+    if ((await grisees.count()) > 0 || !(await mute.count())) { await page.keyboard.press("Escape"); break; }
+    await mute.click();
   }
-  const grises = await ajout.locator("option[disabled]").allInnerTexts();
+  await ajout.click();
+  const grises = await grisees.allInnerTexts();
+  await page.keyboard.press("Escape");
   expect(grises.length).toBeGreaterThan(0);
   expect(grises.every((t) => /regle des mutes|indisponible/.test(t))).toBe(true);
 
   // Enregistrement, puis le plan est relu apres rechargement.
-  await page.getByLabel("Dispositif").selectOption("3-5-2");
+  await choisir(page.getByRole("combobox", { name: "Dispositif" }), "3-5-2");
   await page.getByRole("button", { name: "Enregistrer" }).click();
   await expect(page.getByText(/Composition enregistree/).first()).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel("Dispositif")).toHaveValue("3-5-2");
+  await expect(page.getByRole("combobox", { name: "Dispositif" })).toContainText("3-5-2");
   await expect(page.getByRole("status")).toContainText("Enregistre le");
   expect(await nombre("mutes")).toBeLessThanOrEqual(6);
 });
@@ -232,8 +248,10 @@ test("fatigue : jamais de score invente hors saison active ni sans donnee, et l'
 
   // L'effectif propose le tri par fatigue (et non plus par forme).
   await page.goto("/effectif");
-  await expect(page.getByRole("option", { name: "Tri · Fatigue" })).toBeAttached();
+  await page.getByRole("combobox", { name: "Trier l'effectif par" }).click();
+  await expect(page.getByRole("option", { name: "Tri · Fatigue" })).toBeVisible();
   await expect(page.getByRole("option", { name: "Tri · Forme" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
 });
 
 test("import FMI : la feuille est importee puis consultable", async () => {
@@ -337,12 +355,12 @@ test("systeme de jeu : saisi sur la fiche du match, repris par la prediction et 
 
   await page.goto(`/matchs/${match.id}`);
   // Aucun systeme suppose : la feuille FMI n'en contient pas.
-  const domicile = page.getByLabel(/^Systeme de jeu de /).first();
-  await expect(domicile).toHaveValue("");
-  await domicile.selectOption("4-3-3");
+  const domicile = page.getByRole("combobox", { name: /^Systeme de jeu de / }).first();
+  await expect(domicile).toContainText("Non renseigne");
+  await choisir(domicile, "4-3-3");
   await expect(page.getByText(/Systeme de .* : 4-3-3\./)).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel(/^Systeme de jeu de /).first()).toHaveValue("4-3-3");
+  await expect(page.getByRole("combobox", { name: /^Systeme de jeu de / }).first()).toContainText("4-3-3");
 
   // Un dispositif qui n'en est pas un est refuse par l'API (dix joueurs de champ).
   const refus = await fetch(`${API_URL}/matchs/${match.id}`, {
@@ -443,8 +461,10 @@ test("effectif : trier par n'importe quelle colonne de stats, en cliquant son en
   await expect(entete("B")).toHaveAttribute("aria-sort", "descending");
   await expect(ligne.first().locator("td").nth(7)).toContainText("1");
   // Le selecteur propose les memes tris, y compris les colonnes masquees sur petit ecran.
-  await expect(page.getByRole("option", { name: "Tri · Passes decisives" })).toBeAttached();
-  await expect(page.getByRole("option", { name: "Tri · Minutes" })).toBeAttached();
+  await page.getByRole("combobox", { name: "Trier l'effectif par" }).click();
+  await expect(page.getByRole("option", { name: "Tri · Passes decisives" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Tri · Minutes" })).toBeVisible();
+  await page.keyboard.press("Escape");
 });
 
 test("calendrier : un match ajoute (adversaire choisi dans une liste) apparait au calendrier, puis comme prochain match du dashboard", async () => {
@@ -490,11 +510,88 @@ test("calendrier : un match ajoute (adversaire choisi dans une liste) apparait a
 
   // Page Matchs : aucun filtre n'est pre-applique.
   await page.goto("/matchs");
-  await expect(page.locator("label").filter({ hasText: /^Equipe/ }).locator("select")).toHaveValue("all");
-  await expect(page.locator("label").filter({ hasText: /^Journee/ }).locator("select")).toHaveValue("all");
+  await expect(page.getByRole("combobox", { name: "Equipe" })).toContainText("Toutes");
+  await expect(page.getByRole("combobox", { name: "Journee" })).toContainText("Toutes");
   await expect(page.getByRole("link", { name: /Olympique Test FC/ }).first()).toBeVisible();
 
   // Menage : la suite des parcours repart sans match a venir.
+  await fetch(`${API_URL}/matchs/${idMatch}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+});
+
+test("calendrier : un match cree puis modifie reste unique, et un doublon est refuse avec son motif", async () => {
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const modale = page.locator("div.fixed.inset-0.overflow-y-auto");
+  const ouvrirAjout = async () => {
+    await page.goto("/calendrier");
+    await page.getByRole("button", { name: /^[A-Z][a-z]{2,3}\.$/ }).last().click();
+    await page.getByTitle("Ajouter un match").first().click();
+    await expect(modale.getByRole("heading", { name: "Nouveau match" })).toBeVisible();
+  };
+
+  // Creation : l'adversaire est cree sur place.
+  await ouvrirAjout();
+  await modale.getByRole("combobox", { name: "Rechercher l'adversaire" }).fill("Racing Doublon");
+  await modale.getByRole("button", { name: /Club absent de la liste/ }).click();
+  await modale.getByRole("button", { name: "Creer le match" }).click();
+  await expect(modale).toBeHidden();
+  const lien = page.getByRole("link", { name: /Racing Doublon/ });
+  await expect(lien).toHaveCount(1);
+  const idMatch = (await lien.getAttribute("href"))!.split("/").pop()!;
+
+  // Le meme match, le meme jour : refuse, avec la raison, et rien n'est cree.
+  await ouvrirAjout();
+  await modale.getByRole("combobox", { name: "Rechercher l'adversaire" }).fill("racing");
+  await modale.getByRole("option", { name: /Racing Doublon/ }).click();
+  await modale.getByRole("button", { name: "Creer le match" }).click();
+  await expect(modale.getByText(/deja programme a cette date/)).toBeVisible();
+  await modale.getByRole("button", { name: "Annuler" }).click();
+  await expect(page.getByRole("link", { name: /Racing Doublon/ })).toHaveCount(1);
+
+  // Modification depuis la fiche du match : les listes et le calendrier sont ceux de l'application.
+  const match = await (await fetch(`${API_URL}/matchs/${idMatch}`, { headers: { Authorization: `Bearer ${token}` } })).json();
+  const [annee, mois, jour] = (match.date as string).split("-");
+  const nouveauJour = jour === "15" ? "20" : "15";
+  await page.goto(`/matchs/${idMatch}`);
+  await page.getByRole("button", { name: "Modifier" }).click();
+  await expect(modale.getByRole("heading", { name: "Modifier le match" })).toBeVisible();
+
+  // Echap ferme la liste ouverte, pas la modale qui la contient.
+  const statut = modale.getByRole("combobox", { name: "Statut" });
+  await expect(statut).toContainText("Prevu");
+  await statut.click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+  await expect(modale.getByRole("heading", { name: "Modifier le match" })).toBeVisible();
+
+  // Calendrier de la date : un jour du mois, puis la saisie au clavier ; Echap referme le calendrier seul.
+  const champDate = modale.getByRole("textbox", { name: "Date" });
+  await expect(champDate).toHaveValue(`${jour}/${mois}/${annee}`);
+  await modale.getByRole("button", { name: "Ouvrir le calendrier" }).click();
+  const calendrier = page.getByRole("dialog", { name: "Choisir une date" });
+  await expect(calendrier).toBeVisible();
+  await calendrier.getByRole("button", { name: new RegExp(`^${nouveauJour} [a-z]+ ${annee}$`) }).click();
+  await expect(calendrier).toHaveCount(0);
+  await expect(champDate).toHaveValue(`${nouveauJour}/${mois}/${annee}`);
+  await modale.getByRole("button", { name: "Ouvrir le calendrier" }).click();
+  await page.keyboard.press("Escape");
+  await expect(calendrier).toHaveCount(0);
+  await expect(modale.getByRole("heading", { name: "Modifier le match" })).toBeVisible();
+
+  await modale.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(modale).toBeHidden();
+
+  // Une seule instance au calendrier, a la nouvelle date.
+  await page.goto("/calendrier");
+  await page.getByRole("button", { name: /^[A-Z][a-z]{2,3}\.$/ }).last().click();
+  await expect(page.getByRole("link", { name: /Racing Doublon/ })).toHaveCount(1);
+  const tous = await (await fetch(`${API_URL}/matchs`, { headers: { Authorization: `Bearer ${token}` } })).json();
+  expect(tous.filter((m: any) => m.id === idMatch || (m.clubExt === match.clubExt && m.clubDom === match.clubDom))).toHaveLength(1);
+  expect((await (await fetch(`${API_URL}/matchs/${idMatch}`, { headers: { Authorization: `Bearer ${token}` } })).json()).date).toBe(`${annee}-${mois}-${nouveauJour}`);
+
   await fetch(`${API_URL}/matchs/${idMatch}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
 });
 
@@ -555,9 +652,9 @@ test("referent de club : cree les comptes de ses educateurs, sans rien voir ni p
     };
     await creer("Luc", "Durand");
     await creer("Lea", "Moreau");
-    await expect(p.getByRole("cell", { name: "LDURAND" })).toBeVisible();
-    await expect(p.getByRole("cell", { name: "LMOREAU" })).toBeVisible();
-    await expect(p.getByRole("cell", { name: "VVOISIN" })).toHaveCount(0);          // l'educateur de l'autre club est invisible
+    await expect(p.getByRole("cell", { name: "LDURAND", exact: true })).toBeVisible();
+    await expect(p.getByRole("cell", { name: "LMOREAU", exact: true })).toBeVisible();
+    await expect(p.getByRole("cell", { name: "VVOISIN", exact: true })).toHaveCount(0);          // l'educateur de l'autre club est invisible
 
     // Cote API (jeton du referent) : seulement ses educateurs ; jamais d'admin, ni d'autre club, ni les comptes d'autrui.
     const liste: { login: string; role: string; clubId: string }[] = await (await appeler("/utilisateurs", connexion.token)).json();

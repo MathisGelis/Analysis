@@ -7,11 +7,20 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { api } from "@/lib/api";
+import { api, messageApi } from "@/lib/api";
 import { Modal } from "@/components/Modal";
+import { DatePicker } from "@/components/DatePicker";
+import { Select } from "@/components/Select";
 import type { Match } from "@/lib/types";
 import { Pencil, Save, Trash2, X } from "lucide-react";
 import { useFeedback } from "@/lib/feedback-context";
+
+const STATUTS = [
+  { valeur: "joue", libelle: "Joue" },
+  { valeur: "prevu", libelle: "Prevu" },
+  { valeur: "reporte", libelle: "Reporte" },
+  { valeur: "annule", libelle: "Annule" },
+];
 
 export function MatchActions({ match }: { match: Match }) {
   const { notifier, confirmer } = useFeedback();
@@ -45,7 +54,7 @@ export function MatchActions({ match }: { match: Match }) {
       setOpen(false);
       router.refresh();
     } catch (e) {
-      setError("Echec : " + (e as Error).message);
+      setError("Echec : " + messageApi(e));
       setSaving(false);
     }
   }
@@ -91,8 +100,7 @@ export function MatchActions({ match }: { match: Match }) {
                   onChange={(e) => set("journee", e.target.value)}/>
               </Field>
               <Field label="Date">
-                <input type="date" className="inp" value={form.date}
-                  onChange={(e) => set("date", e.target.value)}/>
+                <DatePicker valeur={form.date} onChange={(v) => set("date", v)} ariaLabel="Date" effacable={false}/>
               </Field>
               <Field label="Heure">
                 <input className="inp" value={form.heure}
@@ -119,13 +127,7 @@ export function MatchActions({ match }: { match: Match }) {
                   onChange={(e) => set("scoreExt", +e.target.value)}/>
               </Field>
               <Field label="Statut">
-                <select className="inp" value={form.statut}
-                  onChange={(e) => set("statut", e.target.value)}>
-                  <option value="joue">Joue</option>
-                  <option value="prevu">Prevu</option>
-                  <option value="reporte">Reporte</option>
-                  <option value="annule">Annule</option>
-                </select>
+                <Select valeur={form.statut} onChange={(v) => set("statut", v)} ariaLabel="Statut" options={STATUTS}/>
               </Field>
               <Field label="Formation dom">
                 <input className="inp" value={form.formationDom}

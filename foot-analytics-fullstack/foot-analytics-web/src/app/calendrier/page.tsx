@@ -315,7 +315,7 @@ function CalendrierContent() {
                     <button
                       onClick={() => setAddOpen({ date: iso, type: "autre" })}
                       title="Ajouter un evenement"
-                      className="text-[9px] px-1 py-0.5 rounded hover:bg-sky/20 text-sky">+A</button>
+                      className="text-[9px] px-1 py-0.5 rounded hover:underline text-sky">+A</button>
                   </div>
                 </div>
 

@@ -12,6 +12,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { Modal } from "@/components/Modal";
+import { DatePicker } from "@/components/DatePicker";
+import { Select } from "@/components/Select";
+import { optionsSimples } from "@/lib/selecteur";
 import { useClub } from "@/lib/clubs-context";
 import { saisonPassee, type DerniereSaison } from "@/lib/parcours-joueur";
 import {
@@ -21,6 +24,9 @@ import {
 const POSTES = ["G", "DC", "DD", "DG", "MD", "MC", "MO", "AD", "AG", "BU"];
 const PIEDS = ["", "Droit", "Gauche", "Mixte"];
 const STATUTS_MUTATION = ["Pas mutation", "Mutation", "Mutation hors delai"];
+const OPTIONS_POSTES = [{ valeur: "", libelle: "—" }, ...optionsSimples(POSTES)];
+const OPTIONS_PIEDS = PIEDS.map((p) => ({ valeur: p, libelle: p || "—" }));
+const OPTIONS_STATUTS = optionsSimples(STATUTS_MUTATION);
 
 interface JoueurExistant {
   id: string;
@@ -296,18 +302,13 @@ function NouveauPanel({
             placeholder="2570521234567"/>
         </Field>
         <Field label="Date de naissance">
-          <input type="date" className="inp" value={form.dateNaissance}
-            onChange={(e) => set("dateNaissance", e.target.value)}/>
+          <DatePicker naissance valeur={form.dateNaissance} onChange={(v) => set("dateNaissance", v)} ariaLabel="Date de naissance"/>
         </Field>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
         <Field label="Poste">
-          <select className="inp" value={form.poste}
-            onChange={(e) => set("poste", e.target.value)}>
-            <option value="">—</option>
-            {POSTES.map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
+          <Select valeur={form.poste} onChange={(v) => set("poste", v)} ariaLabel="Poste" options={OPTIONS_POSTES}/>
         </Field>
         <Field label="Numero">
           <input type="number" min={1} max={99} className="inp"
@@ -315,10 +316,7 @@ function NouveauPanel({
             onChange={(e) => set("numeroFavori", e.target.value)}/>
         </Field>
         <Field label="Pied">
-          <select className="inp" value={form.piedFort}
-            onChange={(e) => set("piedFort", e.target.value)}>
-            {PIEDS.map((p) => <option key={p} value={p}>{p || "—"}</option>)}
-          </select>
+          <Select valeur={form.piedFort} onChange={(v) => set("piedFort", v)} ariaLabel="Pied" options={OPTIONS_PIEDS}/>
         </Field>
       </div>
 
@@ -334,10 +332,7 @@ function NouveauPanel({
             onChange={(e) => set("poidsKg", e.target.value)}/>
         </Field>
         <Field label="Statut mutation">
-          <select className="inp" value={form.statutMutation}
-            onChange={(e) => set("statutMutation", e.target.value)}>
-            {STATUTS_MUTATION.map((s) => <option key={s}>{s}</option>)}
-          </select>
+          <Select valeur={form.statutMutation} onChange={(v) => set("statutMutation", v)} ariaLabel="Statut mutation" options={OPTIONS_STATUTS}/>
         </Field>
       </div>
 

@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { getCachedUser, type User } from "@/lib/auth";
 import { Modal } from "@/components/Modal";
+import { Select } from "@/components/Select";
 import {
   KeyRound, Pencil, Plus, Save, ShieldCheck, Trash2, UserCog, X,
 } from "lucide-react";
@@ -137,10 +138,10 @@ export default function AdminUtilisateurs() {
                     </td>
                     <td className="text-right">
                       <div className="flex gap-1 justify-end">
-                        <button className="btn text-[10px]" onClick={() => setEditing(u)}>
+                        <button className="btn text-[10px]" onClick={() => setEditing(u)} aria-label={`Modifier ${u.login}`} title="Modifier">
                           <Pencil size={10}/>
                         </button>
-                        <button className="btn text-[10px] text-danger" onClick={() => onDelete(u.id)}>
+                        <button className="btn text-[10px] text-danger" onClick={() => onDelete(u.id)} aria-label={`Supprimer ${u.login}`} title="Supprimer">
                           <Trash2 size={10}/>
                         </button>
                       </div>
@@ -314,11 +315,9 @@ function UserForm({
           <>
             {!estReferent && (
               <Field label="Club autorise">
-                <select className="select-fm" value={clubId}
-                  onChange={(e) => { setClubId(e.target.value); setEquipeIds(new Set()); }}>
-                  <option value="">— Selectionne un club —</option>
-                  {clubs.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
-                </select>
+                <Select className="select-fm" valeur={clubId} ariaLabel="Club autorise"
+                  onChange={(v) => { setClubId(v); setEquipeIds(new Set()); }}
+                  options={[{ valeur: "", libelle: "— Selectionne un club —" }, ...clubs.map((c) => ({ valeur: c.id, libelle: c.nom }))]}/>
               </Field>
             )}
             {estReferent && (

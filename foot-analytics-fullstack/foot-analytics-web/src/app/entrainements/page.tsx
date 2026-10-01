@@ -10,6 +10,9 @@ import { api } from "@/lib/api";
 import { useOwnEquipe } from "@/lib/own-equipe-context";
 import { useOwnClubId } from "@/lib/own-club-context";
 import { Modal } from "@/components/Modal";
+import { DatePicker } from "@/components/DatePicker";
+import { Select } from "@/components/Select";
+import { optionsSimples } from "@/lib/selecteur";
 import { Sparkline } from "@/components/Charts";
 import {
   Calendar, Check, Clock, Dumbbell, MapPin, Maximize2,
@@ -315,8 +318,7 @@ function SeanceForm({
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <Field label="Date">
-          <input type="date" className="inp" value={form.date}
-            onChange={(e)=>set("date", e.target.value)}/>
+          <DatePicker valeur={form.date} onChange={(v)=>set("date", v)} ariaLabel="Date" effacable={false}/>
         </Field>
         <Field label="Jour (libelle)">
           <input className="inp" value={form.jour}
@@ -327,16 +329,11 @@ function SeanceForm({
             onChange={(e)=>set("heure", e.target.value)}/>
         </Field>
         <Field label="Type">
-          <select className="inp" value={form.type} onChange={(e)=>set("type", e.target.value)}>
-            {TYPES.map((t)=><option key={t}>{t}</option>)}
-          </select>
+          <Select valeur={form.type} onChange={(v)=>set("type", v)} ariaLabel="Type" options={optionsSimples(TYPES)}/>
         </Field>
         <Field label="Espace">
-          <select className="inp" value={form.espace} onChange={(e)=>set("espace", e.target.value)}>
-            {ESPACES.map((e)=>(
-              <option key={e.id} value={e.id}>{e.label}</option>
-            ))}
-          </select>
+          <Select valeur={form.espace} onChange={(v)=>set("espace", v)} ariaLabel="Espace"
+            options={ESPACES.map((e) => ({ valeur: e.id, libelle: e.label }))}/>
         </Field>
         <Field label="Terrain">
           <input className="inp" value={form.terrain}

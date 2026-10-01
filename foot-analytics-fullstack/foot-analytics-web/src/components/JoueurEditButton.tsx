@@ -10,6 +10,9 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { useOwnClubId } from "@/lib/own-club-context";
 import { Modal } from "@/components/Modal";
+import { DatePicker } from "@/components/DatePicker";
+import { Select } from "@/components/Select";
+import { optionsSimples } from "@/lib/selecteur";
 import type { Joueur } from "@/lib/types";
 import { Pencil, Save, X } from "lucide-react";
 
@@ -17,6 +20,8 @@ const POSTES = ["GB", "DD", "DC", "DG", "MD", "MO", "AT", "AG", "MIL"];
 const STATUTS_MINE = ["Pas mutation", "Mutation", "Mutation hors delai"];
 const STATUTS_OTHERS = ["Non connu", "Pas mutation", "Mutation", "Mutation hors delai"];
 const PIEDS = ["droit", "gauche", "ambidextre"];
+const OPTIONS_POSTES = optionsSimples(POSTES);
+const OPTIONS_PIEDS = [{ valeur: "", libelle: "—" }, ...optionsSimples(PIEDS)];
 
 export function JoueurEditButton({ joueur }: { joueur: Joueur }) {
   const router = useRouter();
@@ -81,10 +86,7 @@ export function JoueurEditButton({ joueur }: { joueur: Joueur }) {
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <Field label="Poste">
-                <select className="inp" value={form.poste}
-                  onChange={(e) => set("poste", e.target.value)}>
-                  {POSTES.map((p) => <option key={p}>{p}</option>)}
-                </select>
+                <Select valeur={form.poste} onChange={(v) => set("poste", v)} ariaLabel="Poste" options={OPTIONS_POSTES}/>
               </Field>
               <Field label="Numero">
                 <input type="number" className="inp" value={form.numeroFavori ?? ""}
@@ -92,15 +94,12 @@ export function JoueurEditButton({ joueur }: { joueur: Joueur }) {
                     e.target.value ? +e.target.value : undefined)} />
               </Field>
               <Field label="Statut mutation">
-                <select className="inp" value={form.statutMutation}
-                  onChange={(e) => set("statutMutation", e.target.value)}>
-                  {statuts.map((s) => <option key={s}>{s}</option>)}
-                </select>
+                <Select valeur={form.statutMutation} onChange={(v) => set("statutMutation", v)} ariaLabel="Statut mutation"
+                  options={optionsSimples(statuts)}/>
               </Field>
 
               <Field label="Date de naissance">
-                <input type="date" className="inp" value={form.dateNaissance}
-                  onChange={(e) => set("dateNaissance", e.target.value)} />
+                <DatePicker naissance valeur={form.dateNaissance} onChange={(v) => set("dateNaissance", v)} ariaLabel="Date de naissance"/>
               </Field>
 
               <Field label="Taille (cm)">
@@ -114,11 +113,8 @@ export function JoueurEditButton({ joueur }: { joueur: Joueur }) {
                     e.target.value ? +e.target.value : undefined)} />
               </Field>
               <Field label="Pied fort">
-                <select className="inp" value={form.piedFort ?? ""}
-                  onChange={(e) => set("piedFort", e.target.value as any || undefined)}>
-                  <option value="">—</option>
-                  {PIEDS.map((p) => <option key={p}>{p}</option>)}
-                </select>
+                <Select valeur={form.piedFort ?? ""} onChange={(v) => set("piedFort", (v as any) || undefined)} ariaLabel="Pied fort"
+                  options={OPTIONS_PIEDS}/>
               </Field>
 
               <div className="col-span-2 md:col-span-3">

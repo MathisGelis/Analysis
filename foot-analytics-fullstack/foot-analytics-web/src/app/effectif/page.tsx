@@ -9,6 +9,8 @@ import { useOwnClubId } from "@/lib/own-club-context";
 import { useOwnEquipe } from "@/lib/own-equipe-context";
 import { Modal } from "@/components/Modal";
 import { JoueurAddModal } from "@/components/JoueurAddModal";
+import { Select } from "@/components/Select";
+import { optionsSimples } from "@/lib/selecteur";
 import type { Joueur } from "@/lib/types";
 import { ArrowDown, ArrowUp, Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { debug } from "@/lib/debug";
@@ -19,6 +21,9 @@ import { useFeedback } from "@/lib/feedback-context";
 import { COLONNES_TRI, sensParDefaut, trierEffectif, type CleTri, type Sens } from "@/lib/tri-effectif";
 
 const POSTES = ["TOUS","GB","DD","DC","DG","MD","MO","AT","AG","MIL"];
+const OPTIONS_POSTES_FILTRE = optionsSimples(POSTES);
+const OPTIONS_POSTES = optionsSimples(POSTES.filter((p) => p !== "TOUS"));
+const OPTIONS_TRI = COLONNES_TRI.map((c) => ({ valeur: c.cle, libelle: `Tri · ${c.libelle}` }));
 
 export default function EffectifPage() {
   const { notifier, confirmer } = useFeedback();
@@ -134,14 +139,10 @@ export default function EffectifPage() {
               className="bg-transparent outline-none text-sm w-44 placeholder:text-faint"
             />
           </div>
-          <select value={posteFilter} onChange={(e)=>setPosteFilter(e.target.value)} className="btn" aria-label="Filtrer par poste">
-            {POSTES.map(p=><option key={p} value={p}>{p}</option>)}
-          </select>
+          <Select valeur={posteFilter} onChange={setPosteFilter} className="btn" ariaLabel="Filtrer par poste" options={OPTIONS_POSTES_FILTRE} recherche={false}/>
           <div className="flex items-center gap-1">
-            <select value={tri.cle} onChange={(e)=>{ const cle = e.target.value as CleTri; setTri({ cle, sens: sensParDefaut(cle) }); }}
-              className="btn" aria-label="Trier l'effectif par">
-              {COLONNES_TRI.map((c) => <option key={c.cle} value={c.cle}>Tri · {c.libelle}</option>)}
-            </select>
+            <Select valeur={tri.cle} onChange={(v)=>{ const cle = v as CleTri; setTri({ cle, sens: sensParDefaut(cle) }); }}
+              className="btn" ariaLabel="Trier l'effectif par" options={OPTIONS_TRI} recherche={false} largeurListe={200}/>
             <button type="button" className="btn !p-2.5" onClick={() => setTri((t) => ({ ...t, sens: t.sens === "asc" ? "desc" : "asc" }))}
               aria-label={tri.sens === "asc" ? "Ordre croissant, inverser" : "Ordre decroissant, inverser"}
               title={tri.sens === "asc" ? "Croissant" : "Decroissant"}>
@@ -365,17 +366,12 @@ function JoueurForm({
           <Field label="Nom"><input className="inp" value={form.nom}
             onChange={(e)=>set("nom", e.target.value)}/></Field>
           <Field label="Poste">
-            <select className="inp" value={form.poste} onChange={(e)=>set("poste", e.target.value)}>
-              {POSTES.filter(p=>p!=="TOUS").map(p=><option key={p}>{p}</option>)}
-            </select>
+            <Select valeur={form.poste} onChange={(v)=>set("poste", v)} ariaLabel="Poste" options={OPTIONS_POSTES}/>
           </Field>
           <Field label="Numero"><input type="number" className="inp"
             value={form.numeroFavori ?? ""} onChange={(e)=>set("numeroFavori", e.target.value? +e.target.value: undefined)}/></Field>
           <Field label="Statut">
-            <select className="inp" value={form.statutMutation}
-              onChange={(e)=>set("statutMutation", e.target.value)}>
-              {STATUTS_MUTATION.map((st)=><option key={st}>{st}</option>)}
-            </select>
+            <Select valeur={form.statutMutation} onChange={(v)=>set("statutMutation", v)} ariaLabel="Statut" options={optionsSimples(STATUTS_MUTATION)}/>
           </Field>
           <div className="col-span-2">
             <Field label="Commentaire staff"><input className="inp" value={form.commentaire}
