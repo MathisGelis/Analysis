@@ -221,15 +221,23 @@ export class AnalyseService {
     });
 
     /* ============ Contexte : equipe, saison, poule, classement ============ */
+    // Valeur la plus frequente ; a egalite, la plus recente (xs est en ordre chronologique). Jamais l'ordre de
+    // lecture de la base : il differe d'un moteur a l'autre et changeait l'equipe de reference.
     const plusFrequent = <T,>(xs: (T | null | undefined)[]): T | null => {
-      const c = new Map<T, number>();
-      for (const x of xs) if (x != null) c.set(x, (c.get(x) ?? 0) + 1);
-      return [...c.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+      const c = new Map<T, { n: number; dernier: number }>();
+      xs.forEach((x, i) => {
+        if (x == null) return;
+        const e = c.get(x) ?? { n: 0, dernier: i };
+        e.n++; e.dernier = i;
+        c.set(x, e);
+      });
+      return [...c.entries()].sort((a, b) => b[1].n - a[1].n || b[1].dernier - a[1].dernier)[0]?.[0] ?? null;
     };
+    const infosParDate = trierChronologiquement(infos.map((i) => ({ i, date: i.m.date ?? null, journee: i.m.journee ?? null }))).map((x) => x.i);
     const equipeRefId = portee.equipeId
-      ?? plusFrequent(infos.map((i) => (i.dom ? i.m.equipeDomId : i.m.equipeExtId)));
+      ?? plusFrequent(infosParDate.map((i) => (i.dom ? i.m.equipeDomId : i.m.equipeExtId)));
     const equipeRef = equipeRefId ? await this.equipesRepo.findOne({ where: { id: equipeRefId } }) : null;
-    const saisonId = portee.saisonId ?? equipeRef?.saisonId ?? plusFrequent(infos.map((i) => i.m.saisonId));
+    const saisonId = portee.saisonId ?? equipeRef?.saisonId ?? plusFrequent(infosParDate.map((i) => i.m.saisonId));
     const saison = saisonId ? await this.saisonsRepo.findOne({ where: { id: saisonId } }) : null;
     // Rang de chaque equipe du championnat (pour situer les adversaires : haut / milieu / bas).
     const equipesPoule = equipeRef ? await this.equipesDuChampionnat(equipeRef) : [];
@@ -288,19 +296,22 @@ export class AnalyseService {
     // avoir un impact positif, et au moins 1 match sans pour avoir une
     // base de comparaison.
     const seuilCles = Math.max(1, Math.ceil(totalMatchs / 2));
+    // A impact egal : ordre alphabetique, jamais l'ordre de lecture de la base (il differe d'un moteur a l'autre).
+    const parNom = (a: ImpactJoueur, b: ImpactJoueur) =>
+      a.nom.localeCompare(b.nom) || (a.prenom ?? "").localeCompare(b.prenom ?? "") || (a.joueurId ?? "").localeCompare(b.joueurId ?? "");
     const joueursCles = [...impacts]
       .filter((i) => i.matchsAvec >= seuilCles && i.matchsSans >= 1 && i.impactPondere > 0)
-      .sort((a, b) => b.impactPondere - a.impactPondere)
+      .sort((a, b) => b.impactPondere - a.impactPondere || parNom(a, b))
       .slice(0, 5);
     // Maillons faibles : titulaires reguliers (>= moitie des matchs) dont
     // l'equipe perd des points quand ils sont la (impact pondere negatif).
     const impactsFaibles = [...impacts]
       .filter((i) => i.matchsAvec >= seuilCles && i.matchsSans >= 1 && i.impactPondere < 0)
-      .sort((a, b) => a.impactPondere - b.impactPondere)
+      .sort((a, b) => a.impactPondere - b.impactPondere || parNom(a, b))
       .slice(0, 5);
     // Les joueurs du club absents de tous les matchs du perimetre n'ont rien a faire dans le tableau.
     impacts.splice(0, impacts.length, ...impacts.filter((i) => i.matchsAvec > 0));
-    impacts.sort((a, b) => b.impactPondere - a.impactPondere);
+    impacts.sort((a, b) => b.impactPondere - a.impactPondere || parNom(a, b));
 
     /* ============ Stabilite (rotations) ============ */
     // Pour chaque poste : combien de joueurs differents l'ont occupe
@@ -471,7 +482,8 @@ export class AnalyseService {
     }
     // On prend les 11 plus titularises tous postes confondus (simplification).
     const compoProbable: PosteScore[] = [...titsParJoueur.values()]
-      .sort((a, b) => b.titularisations - a.titularisations)
+      // A egalite, l'ordre alphabetique : jamais l'ordre de lecture de la base, qui differe d'un moteur a l'autre.
+      .sort((a, b) => b.titularisations - a.titularisations || a.nom.localeCompare(b.nom))
       .slice(0, 11)
       .map((j) => ({ poste: j.poste, numero: j.numero, nom: j.nom, matchsJoues: j.titularisations }));
 
@@ -513,7 +525,8 @@ export class AnalyseService {
         };
       })
       .filter((p) => p.matchsEnsemble >= 2)
-      .sort((a, b) => b.txReussite - a.txReussite || b.matchsEnsemble - a.matchsEnsemble)
+      .sort((a, b) => b.txReussite - a.txReussite || b.matchsEnsemble - a.matchsEnsemble
+        || a.type.localeCompare(b.type) || a.joueurs.join("|").localeCompare(b.joueurs.join("|")))
       .slice(0, 12);
 
     /* ============ Minute moyenne des changements ============ */
@@ -648,7 +661,8 @@ export class AnalyseService {
     }
     const coachsStats = [...coachsAcc.values()].map((c) => {
       const total = c.v + c.n + c.d;
-      const fctMaj = Object.entries(c.fonctionsCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+      const parFrequence = Object.entries(c.fonctionsCounts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+      const fctMaj = parFrequence[0]?.[0];
       const fctLabel: Record<string, string> = {
         E: "Entraineur", A: "Adjoint", M: "Medecin", D: "Dirigeant",
       };
@@ -657,13 +671,11 @@ export class AnalyseService {
         matchsPresent: c.matchsPresent, v: c.v, n: c.n, d: c.d,
         txReussite: total ? Math.round((c.v / total) * 100) : 0,
         cartonsJaunes: c.cartonsJaunes, cartonsRouges: c.cartonsRouges,
-        fonctions: Object.entries(c.fonctionsCounts)
-          .sort((a, b) => b[1] - a[1])
-          .map(([f, n]) => `${f} (${n})`).join(" · "),
+        fonctions: parFrequence.map(([f, n]) => `${f} (${n})`).join(" · "),
         fonctionPrincipale: fctMaj ? (fctLabel[fctMaj] ?? fctMaj) : null,
         premierMatch: c.premierMatch, dernierMatch: c.dernierMatch,
       };
-    }).sort((a, b) => b.matchsPresent - a.matchsPresent);
+    }).sort((a, b) => b.matchsPresent - a.matchsPresent || a.nom.localeCompare(b.nom));
 
     // Detection des changements de coach E sur ce club, par ordre chrono.
     // Un changement est confirme UNIQUEMENT si le nouveau coach reste au

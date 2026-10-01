@@ -15,6 +15,7 @@ import { minutesJouees } from "@/common/minutes";
 import { cumuler, statsDuMatch, STATS_MATCH_VIDES, StatsMatch } from "@/common/stats-match";
 import { noteIndicative } from "@/common/indicateurs";
 import { parseDateFlexible } from "@/common/periode";
+import { trierChronologiquement } from "@/common/tendances";
 import {
   Apparition, apparitionsDesEquipes, changementDeClub, derniereApparition, derniereSaison, saisonCourte, SaisonRef,
   statutMutationDeduit, statutSaisi,
@@ -309,6 +310,10 @@ export class JoueursService {
     const keyOf = (lic: string | null, nom: string, prenom: string | null) =>
       lic ? `lic:${lic}` : `name:${nom}|${prenom ?? ""}`;
 
+    // Dans l'ordre des dates : un joueur passe d'un club a l'autre du meme championnat est range dans le plus
+    // recent (le dernier lu), et non dans celui que la base rend en premier (ordre propre a chaque moteur).
+    const rang = new Map(trierChronologiquement(matchs).map((m, i) => [m.id, i]));
+    compos.sort((a, b) => (rang.get(a.matchId) ?? 0) - (rang.get(b.matchId) ?? 0));
     for (const c of compos) {
       const m = matchById.get(c.matchId);
       if (!m) continue;
@@ -328,6 +333,8 @@ export class JoueursService {
         };
         accByKey.set(k, a);
       }
+      a.clubId = clubId;
+      a.equipeId = equipeIdComp;
       a.stats = cumuler(a.stats, statsDuMatch(c, evtsDuMatch));
       // Skip remplacant non entre en jeu (coherent avec effectif()).
       if (!c.titulaire && minutes === 0) continue;
@@ -393,7 +400,9 @@ export class JoueursService {
           noteMoyenne: noteIndicative(a.matchs, a.stats.cartonsRouges),
         };
       })
-      .sort((a, b) => b.matchs - a.matchs);
+      // A egalite de matchs : ordre alphabetique, jamais l'ordre de lecture de la base.
+      .sort((a, b) => b.matchs - a.matchs || a.nom.localeCompare(b.nom)
+        || (a.prenom ?? "").localeCompare(b.prenom ?? "") || a.clubId.localeCompare(b.clubId));
   }
 
   /**

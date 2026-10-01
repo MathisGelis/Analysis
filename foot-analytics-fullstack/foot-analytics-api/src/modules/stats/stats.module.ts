@@ -7,6 +7,7 @@ import { Controller, Get, Injectable, Param, Query, Module } from "@nestjs/commo
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Match } from "@/entities";
+import { trierChronologiquement } from "@/common/tendances";
 
 @Injectable()
 export class StatsService {
@@ -24,7 +25,9 @@ export class StatsService {
       });
     if (portee.saisonId) qb.andWhere("m.saison_id = :sid", { sid: portee.saisonId });
     if (portee.equipeId) qb.andWhere("(m.equipe_dom = :eid OR m.equipe_ext = :eid)", { eid: portee.equipeId });
-    const matchs = await qb.getMany();
+    // Chronologique : la forme est la fin de cette liste, quel que soit l'ordre d'import des feuilles
+    // (et l'ordre de lecture de la base, qui n'est garanti nulle part).
+    const matchs = trierChronologiquement(await qb.getMany());
 
     let v = 0, n = 0, d = 0, bp = 0, bc = 0;
     const forme: string[] = [];

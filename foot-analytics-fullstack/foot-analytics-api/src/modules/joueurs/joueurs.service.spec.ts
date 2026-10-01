@@ -494,6 +494,25 @@ describe("JoueursService", () => {
       expect(lignes.find((l) => l.prenom === "Luc")).toMatchObject({ id: luc.id, poste: "DC" });
     });
 
+    it.each([["ancienne puis recente", false], ["recente puis ancienne", true]])(
+      "joueur passe d'un club a l'autre du championnat : range dans le plus recent, feuilles importees %s",
+      async (_ordre, recentEnPremier) => {
+        const c = await contexte();
+        const feuilleRecente = async () => {
+          const m = await f.match({ clubDom: c.adv.id, clubExt: c.moi.id, equipeDomId: c.advEq.id, equipeExtId: c.seniors.id, saisonId: c.saison.id, date: "15/03/2026" });
+          await f.compo({ matchId: m.id, cote: "dom", nom: "NOMADE", prenom: "Ali", licence: "L-NOMADE" });
+        };
+        const feuilleAncienne = async () => {
+          const m = await f.match({ clubDom: c.moi.id, clubExt: c.adv.id, equipeDomId: c.seniors.id, equipeExtId: c.advEq.id, saisonId: c.saison.id, date: "20/09/2025" });
+          await f.compo({ matchId: m.id, cote: "dom", nom: "NOMADE", prenom: "Ali", licence: "L-NOMADE" });
+        };
+        if (recentEnPremier) { await feuilleRecente(); await feuilleAncienne(); } else { await feuilleAncienne(); await feuilleRecente(); }
+
+        const ligne = (await svc.championnat(c.seniors.id)).find((l) => l.nom === "NOMADE")!;
+
+        expect(ligne).toMatchObject({ clubId: c.adv.id, equipeId: c.advEq.id, matchs: 2 });
+      });
+
     it("joueur absent de la base : ligne conservee, sans identifiant", async () => {
       const c = await contexte();
       const m = await f.match({ clubDom: c.moi.id, clubExt: c.adv.id, equipeDomId: c.seniors.id, equipeExtId: c.advEq.id, saisonId: c.saison.id, date: "10/01/2026" });

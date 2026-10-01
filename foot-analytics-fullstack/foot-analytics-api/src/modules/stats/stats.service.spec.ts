@@ -51,4 +51,26 @@ describe("StatsService.bilanClub", () => {
     expect(await svc.bilanClub(c.moi.id, { equipeId: c.seniors25.id })).toMatchObject({ joues: 2, v: 1, n: 1, d: 0, forme: ["V", "N"] });
     expect(await svc.bilanClub(c.moi.id, { equipeId: c.u20.id })).toMatchObject({ joues: 1, d: 1 });
   });
+
+  it("forme : les 5 derniers resultats dans l'ordre des dates, meme si les feuilles ont ete importees en desordre", async () => {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse");
+    const s25 = await f.saison("2025-2026", 2025);
+    const seniors = await f.equipe({ clubId: moi.id, nom: "Seniors", saisonId: s25.id });
+    // Importes du plus recent au plus ancien ; en chaines, "15/03/2026" passerait avant "27/09/2025".
+    const jouer = (date: string, sd: number, se: number) => f.match({
+      clubDom: moi.id, clubExt: adv.id, equipeDomId: seniors.id, saisonId: s25.id, date, scoreDom: sd, scoreExt: se, statut: "joue",
+    });
+    await jouer("15/03/2026", 0, 1);   // D  (7e)
+    await jouer("08/03/2026", 2, 0);   // V  (6e)
+    await jouer("01/03/2026", 1, 1);   // N  (5e)
+    await jouer("22/02/2026", 3, 0);   // V  (4e)
+    await jouer("15/02/2026", 0, 2);   // D  (3e)
+    await jouer("27/09/2025", 4, 0);   // V  (1er)
+    await jouer("11/10/2025", 1, 0);   // V  (2e)
+
+    const bilan = await svc.bilanClub(moi.id);
+
+    expect(bilan.forme).toEqual(["D", "V", "N", "V", "D"]);
+  });
 });

@@ -70,6 +70,42 @@ describe("AnalyseService.rapportClub", () => {
     expect(r.impacts.map((i) => i.nom)).toEqual(["SENIOR"]);
   });
 
+  it.each([["la plus recente d'abord", true], ["la plus ancienne d'abord", false]])(
+    "sans perimetre : equipe de reference = la plus frequente, et a egalite la plus recente (feuilles importees %s)", async (_ordre, recentEnPremier) => {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse");
+    const s = await f.saison("2025-2026", 2025);
+    const seniors = await f.equipe({ clubId: moi.id, nom: "Seniors", categorie: "Seniors", saisonId: s.id });
+    const u20 = await f.equipe({ clubId: moi.id, nom: "U20", categorie: "U20", saisonId: s.id });
+    const advEq = await f.equipe({ clubId: adv.id, nom: "Adverse", categorie: "Seniors", saisonId: s.id });
+    const jouer = (eq: { id: string }, date: string) => f.match({
+      clubDom: moi.id, clubExt: adv.id, equipeDomId: eq.id, equipeExtId: advEq.id, saisonId: s.id, date, scoreDom: 1, scoreExt: 0,
+    });
+    if (recentEnPremier) { await jouer(seniors, "20/10/2025"); await jouer(u20, "10/09/2025"); }
+    else { await jouer(u20, "10/09/2025"); await jouer(seniors, "20/10/2025"); }
+
+    const r = await svc.rapportClub(moi.id);
+
+    expect(r.perimetre.equipeId).toBe(seniors.id);
+  });
+
+  it("impacts a egalite : ordre alphabetique, pas l'ordre de lecture de la base", async () => {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse");
+    const s = await f.saison("2025-2026", 2025);
+    const eq = await f.equipe({ clubId: moi.id, nom: "Seniors", categorie: "Seniors", saisonId: s.id });
+    const advEq = await f.equipe({ clubId: adv.id, nom: "Adverse", categorie: "Seniors", saisonId: s.id });
+    await f.joueur({ nom: "ZED", prenom: "Zoe", clubId: moi.id });
+    await f.joueur({ nom: "ABEL", prenom: "Ali", clubId: moi.id });
+    const m = await f.match({ clubDom: moi.id, clubExt: adv.id, equipeDomId: eq.id, equipeExtId: advEq.id, saisonId: s.id, scoreDom: 1, scoreExt: 0 });
+    await f.compo({ matchId: m.id, cote: "dom", nom: "ZED", prenom: "Zoe" });
+    await f.compo({ matchId: m.id, cote: "dom", nom: "ABEL", prenom: "Ali" });
+
+    const r = await svc.rapportClub(moi.id, { equipeId: eq.id });
+
+    expect(r.impacts.map((i) => i.nom)).toEqual(["ABEL", "ZED"]);
+  });
+
   it("equipe sans match : rapport vide, sans planter", async () => {
     const c = await contexte();
     const vide = await f.equipe({ clubId: c.moi.id, nom: "Seniors 2", categorie: "Seniors", saisonId: c.s26.id });
