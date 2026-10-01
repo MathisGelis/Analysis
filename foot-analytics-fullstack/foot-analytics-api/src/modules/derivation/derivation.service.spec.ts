@@ -1,7 +1,7 @@
 import { DataSource } from "typeorm";
 import {
   Arbitre, ArbitreMatch, Blessure, Club, Coach, Composition, Entrainement, Equipe, EvenementMatch,
-  Joueur, LigneClassement, Match, Saison, StaffMatch,
+  Joueur, LigneClassement, Match, Saison, StaffMatch, Tactique,
 } from "@/entities";
 import { creerBaseTest, fabriques } from "@/testing/test-db";
 import { DerivationService } from "./derivation.module";
@@ -411,5 +411,80 @@ describe("DerivationService - cartons et arbitres", () => {
       await svc.recomputeJoueurs();
       expect((await ds.getRepository(Joueur).findOneByOrFail({ id: ali.id })).scoreFatigue).toBeNull();
     });
+  });
+});
+
+describe("DerivationService - matchs programmes en double", () => {
+  let ds: DataSource;
+  let svc: DerivationService;
+  let f: ReturnType<typeof fabriques>;
+
+  beforeEach(async () => {
+    ds = await creerBaseTest();
+    f = fabriques(ds);
+    const r = <T extends object>(e: new () => T) => ds.getRepository(e);
+    svc = new DerivationService(
+      r(Joueur), r(Match), r(LigneClassement), r(Club), r(Entrainement), r(Blessure),
+      r(Arbitre), r(ArbitreMatch), r(Coach), r(StaffMatch), r(Equipe), r(Saison), r(EvenementMatch),
+    );
+  });
+  afterEach(() => ds.destroy());
+
+  async function deuxProgrammes() {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse");
+    const s = await f.saison("2026-2027", 2026, { actif: true });
+    const eq = await f.equipe({ clubId: moi.id, nom: "Seniors", saisonId: s.id });
+    // Le premier (plus ancien) est vide ; le second est le mieux renseigne : c'est lui qu'on garde.
+    const vide = await f.match({ clubDom: moi.id, clubExt: adv.id, date: "2026-10-18", statut: "prevu" });
+    const riche = await f.match({
+      clubDom: moi.id, clubExt: adv.id, date: "18/10/2026", heure: "15:00", statut: "prevu",
+      equipeDomId: eq.id, saisonId: s.id,
+    });
+    return { moi, adv, s, eq, vide, riche };
+  }
+
+  it("la reconstruction supprime le doublon et garde le match le plus renseigne", async () => {
+    const { riche } = await deuxProgrammes();
+
+    const res = await svc.rebuildAll();
+
+    expect(res.doublonsSupprimes).toBe(1);
+    const restants = await ds.getRepository(Match).find();
+    expect(restants.map((m) => m.id)).toEqual([riche.id]);
+  });
+
+  it("le plan de jeu du doublon supprime passe sur le match conserve", async () => {
+    const { eq, vide, riche } = await deuxProgrammes();
+    const tactiques = ds.getRepository(Tactique);
+    await tactiques.save({ id: "t1", equipeId: eq.id, matchId: vide.id, formation: "4-3-3", titulaires: [], remplacants: [] } as any);
+
+    await svc.rebuildAll();
+
+    expect((await tactiques.findOneByOrFail({ id: "t1" })).matchId).toBe(riche.id);
+  });
+
+  it("si le match conserve a deja son plan pour la meme equipe, celui du doublon est ecarte", async () => {
+    const { eq, vide, riche } = await deuxProgrammes();
+    const tactiques = ds.getRepository(Tactique);
+    await tactiques.save({ id: "t-garde", equipeId: eq.id, matchId: riche.id, formation: "4-4-2", titulaires: [], remplacants: [] } as any);
+    await tactiques.save({ id: "t-doublon", equipeId: eq.id, matchId: vide.id, formation: "4-3-3", titulaires: [], remplacants: [] } as any);
+
+    await svc.rebuildAll();
+
+    const restantes = await tactiques.find();
+    expect(restantes.map((t) => [t.id, t.matchId])).toEqual([["t-garde", riche.id]]);
+  });
+
+  it("deux matchs identiques dont l'un est joue : aucun n'est supprime", async () => {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse");
+    await f.match({ clubDom: moi.id, clubExt: adv.id, date: "2026-10-18", statut: "prevu" });
+    await f.match({ clubDom: moi.id, clubExt: adv.id, date: "2026-10-18", statut: "joue", scoreDom: 1, scoreExt: 0, numeroFmi: "9" });
+
+    const res = await svc.rebuildAll();
+
+    expect(res.doublonsSupprimes).toBe(0);
+    expect(await ds.getRepository(Match).count()).toBe(2);
   });
 });

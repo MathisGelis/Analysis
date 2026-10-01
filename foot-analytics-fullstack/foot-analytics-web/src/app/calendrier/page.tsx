@@ -19,7 +19,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, messageApi } from "@/lib/api";
 import { useOwnEquipe } from "@/lib/own-equipe-context";
 import { useOwnClubId } from "@/lib/own-club-context";
 import { Modal } from "@/components/Modal";
@@ -576,8 +576,8 @@ function MatchModal({
         statut: "prevu",
       });
       onSaved();
-    } catch (e: any) {
-      setError(e?.message ?? "Erreur");
+    } catch (e) {
+      setError(messageApi(e));
       setSaving(false);
     }
   }

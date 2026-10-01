@@ -19,12 +19,13 @@ import {
 } from "@/common/parcours-joueur";
 import {
   Arbitre, ArbitreMatch, Blessure, Club, Coach, Composition, Entrainement,
-  Equipe, EvenementMatch, Joueur, LigneClassement, Match, Saison, StaffMatch,
+  Equipe, EvenementMatch, Joueur, LigneClassement, Match, Saison, StaffMatch, Tactique,
 } from "@/entities";
 import { noteIndicative } from "@/common/indicateurs";
 import { champsFatigue, Effort, RPE_MATCH } from "@/common/fatigue";
 import { compterMotifs, resumeMotifs } from "@/common/motifs";
 import { anneeDebutPourDate, nomSaison } from "@/common/saison-date";
+import { doublonsProgrammes } from "@/common/programme";
 import { AdminGuard, AuthModule } from "../auth/auth.module";
 
 const POSTE_BY_NUM: Record<number, string> = {
@@ -1341,7 +1342,28 @@ export class DerivationService {
     return rapport;
   }
 
+  /**
+   * Supprime les matchs programmes en double (memes clubs, meme sens, meme jour, ni feuille FMI ni score) : on garde
+   * le plus renseigne. Le plan de jeu rattache a un doublon passe sur le match conserve, sauf si celui-ci a deja le
+   * sien pour la meme equipe (le plan du match conserve fait foi).
+   */
+  async dedoublonnerProgrammes() {
+    const doublons = doublonsProgrammes(await this.matchs.find());
+    if (doublons.length === 0) return { doublonsSupprimes: 0 };
+    const tactiques = this.matchs.manager.getRepository(Tactique);
+    for (const { supprimer, retenu } of doublons) {
+      const dejaPris = new Set((await tactiques.find({ where: { matchId: retenu.id } })).map((t) => t.equipeId));
+      for (const t of await tactiques.find({ where: { matchId: supprimer.id } })) {
+        if (dejaPris.has(t.equipeId)) await tactiques.delete(t.id);
+        else { await tactiques.update(t.id, { matchId: retenu.id }); dejaPris.add(t.equipeId); }
+      }
+    }
+    await this.matchs.delete(doublons.map((d) => d.supprimer.id));
+    return { doublonsSupprimes: doublons.length };
+  }
+
   async rebuildAll() {
+    const dedoublonnage = await this.dedoublonnerProgrammes();
     const backfill = await this.backfillSaisonEtEquipes();
     const journees = await this.recomputeJournees();
     const joueurs = await this.recomputeJoueurs();
@@ -1358,6 +1380,7 @@ export class DerivationService {
       journees: journees.journees,
       poules: journees.poules,
       backfill: backfill.backfill,
+      doublonsSupprimes: dedoublonnage.doublonsSupprimes,
     };
   }
 }
@@ -1400,7 +1423,7 @@ class DerivationController {
     TypeOrmModule.forFeature([
       Joueur, Match, Composition, EvenementMatch, LigneClassement, Club,
       Entrainement, Blessure, Arbitre, ArbitreMatch, Coach, StaffMatch,
-      Equipe, Saison,
+      Equipe, Saison, Tactique,
     ]),
     AuthModule,
   ],

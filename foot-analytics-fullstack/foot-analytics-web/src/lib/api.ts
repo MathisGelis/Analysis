@@ -45,6 +45,19 @@ export class ApiError extends Error {
 }
 
 /**
+ * Message a montrer a l'utilisateur pour une erreur d'appel : la raison donnee par l'API (ex. "Ce match est deja
+ * programme a cette date") quand il y en a une, sinon le message technique.
+ */
+export function messageApi(e: unknown, defaut = "Erreur"): string {
+  if (e instanceof ApiError) {
+    const m = e.corps?.message;
+    const texte = Array.isArray(m) ? m.join(" ; ") : typeof m === "string" ? m : "";
+    if (texte) return texte;
+  }
+  return (e as Error)?.message || defaut;
+}
+
+/**
  * Recupere le JWT courant, peu importe le contexte d'execution :
  *  - Server Components / Route Handlers Next : depuis le cookie fa_token
  *    (importe `next/headers` dynamiquement pour ne pas crasher cote client)

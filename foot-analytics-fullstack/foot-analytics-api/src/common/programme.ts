@@ -43,3 +43,70 @@ export function choisirProgramme<T extends MatchProgramme>(
   }
   return meilleur?.m ?? null;
 }
+
+// ---------------------------------------------------------------------------
+//  Doublons de matchs programmes
+// ---------------------------------------------------------------------------
+
+export interface MatchDoublonnable extends MatchProgramme {
+  clubDom: string;
+  clubExt: string;
+  equipeDomId?: string | null;
+  equipeExtId?: string | null;
+  saisonId?: string | null;
+  heure?: string | null;
+  terrain?: string | null;
+  arbitre?: string | null;
+  scoreDom?: number | null;
+  scoreExt?: number | null;
+  createdAt?: Date | string | null;
+}
+
+/** Match programme et rien d'autre : ni feuille FMI, ni score, statut "prevu" ou "a venir" (pas "reporte"). */
+const estProgrammePur = (m: MatchDoublonnable) =>
+  !m.numeroFmi && (m.statut === "prevu" || m.statut === "a_venir") && !(m.scoreDom || m.scoreExt);
+
+/** Jour du match en AAAA-MM-JJ, quel que soit le format saisi (JJ/MM/AAAA de la FMI ou AAAA-MM-JJ du calendrier). */
+function jourDe(date: string | null | undefined): string | null {
+  const t = parseDateFlexible(date);
+  return t === null ? null : new Date(t).toISOString().slice(0, 10);
+}
+
+/** Plus un match programme est renseigne, plus on a envie de le garder. */
+function richesse(m: MatchDoublonnable): number {
+  return [m.equipeDomId, m.equipeExtId, m.saisonId, m.heure, m.terrain, m.arbitre].filter(Boolean).length;
+}
+
+/**
+ * Les matchs programmes en double : memes clubs, dans le meme sens, le meme jour. Dans chaque groupe on garde le
+ * plus renseigne (equipes, saison, heure...), a egalite le plus ancien ; les autres sont a supprimer. Deux matchs sans
+ * jour lisible ne sont jamais consideres comme des doublons (on prefere un doublon visible a une suppression hasardeuse).
+ * `retenu` dit quel match garde chaque doublon supprime : c'est lui qui reprend ce qui s'y rattachait (plan de jeu).
+ */
+export function doublonsProgrammes<T extends MatchDoublonnable>(matchs: T[]): { supprimer: T; retenu: T }[] {
+  const groupes = new Map<string, T[]>();
+  for (const m of matchs) {
+    if (!estProgrammePur(m)) continue;
+    const jour = jourDe(m.date);
+    if (!jour) continue;
+    const cle = `${m.clubDom}|${m.clubExt}|${jour}`;
+    groupes.set(cle, [...(groupes.get(cle) ?? []), m]);
+  }
+  const depuis = (m: T) => (m.createdAt ? new Date(m.createdAt).getTime() : 0);
+  const resultat: { supprimer: T; retenu: T }[] = [];
+  for (const g of groupes.values()) {
+    if (g.length < 2) continue;
+    const [retenu, ...autres] = [...g].sort((a, b) => richesse(b) - richesse(a) || depuis(a) - depuis(b) || a.id.localeCompare(b.id));
+    for (const supprimer of autres) resultat.push({ supprimer, retenu });
+  }
+  return resultat;
+}
+
+/** Un match programme identique (memes clubs, meme sens, meme jour) existe-t-il deja ? */
+export function programmeIdentique<T extends MatchDoublonnable>(
+  existants: T[], nouveau: { clubDom: string; clubExt: string; date?: string | null },
+): T | undefined {
+  const jour = jourDe(nouveau.date);
+  if (!jour) return undefined;
+  return existants.find((m) => estProgrammePur(m) && m.clubDom === nouveau.clubDom && m.clubExt === nouveau.clubExt && jourDe(m.date) === jour);
+}

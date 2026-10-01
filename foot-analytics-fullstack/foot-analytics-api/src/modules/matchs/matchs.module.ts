@@ -1,13 +1,13 @@
 // src/modules/matchs/matchs.module.ts
 import {
-  BadRequestException, Body, Controller, Delete, Get, Injectable, NotFoundException, Param,
+  BadRequestException, Body, ConflictException, Controller, Delete, Get, Injectable, NotFoundException, Param,
   Patch, Post, Query, Module,
 } from "@nestjs/common";
 import { IsArray, IsInt, IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { IsNull, Repository } from "typeorm";
 import { Composition, EvenementMatch, Match } from "@/entities";
-import { choisirProgramme, STATUTS_PROGRAMMES } from "@/common/programme";
+import { choisirProgramme, programmeIdentique, STATUTS_PROGRAMMES } from "@/common/programme";
 import { estFormationInventee, formationValide, normaliserFormation } from "@/common/systeme";
 
 export class UpsertMatchDto {
@@ -130,6 +130,18 @@ export class MatchsService {
 
   async create(dto: UpsertMatchDto) {
     const { compositions, evenements, ...rest } = dto;
+    // Un match programme identique (memes clubs, meme sens, meme jour) existe deja.
+    if (!dto.numeroFmi && dto.date) {
+      const existants = await this.repo.find({ where: { clubDom: dto.clubDom, clubExt: dto.clubExt } });
+      const identique = programmeIdentique(existants, dto);
+      if (identique) {
+        if (identique.equipeDomId || identique.equipeExtId) {
+          throw new ConflictException("Ce match est deja programme a cette date : modifie-le depuis le calendrier plutot que d'en creer un second.");
+        }
+        // Reliquat d'une ancienne creation (equipes et saison perdues, donc invisible au calendrier) : on le complete.
+        return this.update(identique.id, dto);
+      }
+    }
     const match = await this.repo.save(this.repo.create({ ...rest, ...dispositifsSaisis(dto) } as any) as unknown as Match);
     if (compositions?.length) {
       await this.compos.save(

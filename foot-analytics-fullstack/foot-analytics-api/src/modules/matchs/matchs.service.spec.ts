@@ -1,4 +1,4 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, ConflictException } from "@nestjs/common";
 import { DataSource } from "typeorm";
 import { Composition, EvenementMatch, Match } from "@/entities";
 import { creerBaseTest, fabriques } from "@/testing/test-db";
@@ -126,5 +126,83 @@ describe("Creation d'un match depuis le calendrier", () => {
 
     const maj = await valide({ equipeExtId: null as any, saisonId: s.id }, UpdateMatchDto) as UpdateMatchDto;
     expect(maj).toMatchObject({ saisonId: s.id });
+  });
+});
+
+describe("MatchsService : doublons de matchs programmes", () => {
+  let ds: DataSource;
+  let svc: MatchsService;
+  let f: ReturnType<typeof fabriques>;
+
+  beforeEach(async () => {
+    ds = await creerBaseTest();
+    svc = new MatchsService(ds.getRepository(Match), ds.getRepository(Composition), ds.getRepository(EvenementMatch));
+    f = fabriques(ds);
+  });
+  afterEach(() => ds.destroy());
+
+  it("creer deux fois le meme match programme : la seconde creation est refusee (409), un seul match existe", async () => {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse");
+    const s = await f.saison("2026-2027", 2026, { actif: true });
+    const eq = await f.equipe({ clubId: moi.id, nom: "Seniors", saisonId: s.id });
+    await svc.create({ clubDom: moi.id, clubExt: adv.id, equipeDomId: eq.id, saisonId: s.id, date: "2026-10-18", heure: "15:00", statut: "prevu" } as UpsertMatchDto);
+
+    await expect(svc.create({ clubDom: moi.id, clubExt: adv.id, equipeDomId: eq.id, saisonId: s.id, date: "2026-10-18", statut: "prevu" } as UpsertMatchDto))
+      .rejects.toBeInstanceOf(ConflictException);
+
+    expect(await ds.getRepository(Match).count()).toBe(1);
+  });
+
+  it("le doublon est reconnu meme si la date existante est au format JJ/MM/AAAA", async () => {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse");
+    const s = await f.saison("2026-2027", 2026, { actif: true });
+    const eq = await f.equipe({ clubId: moi.id, nom: "Seniors", saisonId: s.id });
+    await f.match({ clubDom: moi.id, clubExt: adv.id, equipeDomId: eq.id, saisonId: s.id, date: "18/10/2026", statut: "a_venir" });
+
+    await expect(svc.create({ clubDom: moi.id, clubExt: adv.id, equipeDomId: eq.id, saisonId: s.id, date: "2026-10-18", statut: "prevu" } as UpsertMatchDto))
+      .rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("reliquat sans equipe ni saison (ancienne creation, invisible au calendrier) : la creation le complete au lieu d'en ajouter un second", async () => {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse");
+    const s = await f.saison("2026-2027", 2026, { actif: true });
+    const eq = await f.equipe({ clubId: moi.id, nom: "Seniors", saisonId: s.id });
+    const reliquat = await f.match({ clubDom: moi.id, clubExt: adv.id, date: "2026-10-18", statut: "prevu" });
+
+    const cree = await svc.create({
+      clubDom: moi.id, clubExt: adv.id, equipeDomId: eq.id, saisonId: s.id, date: "2026-10-18", heure: "15:00", statut: "prevu",
+    } as UpsertMatchDto);
+
+    expect(cree.id).toBe(reliquat.id);
+    expect(cree).toMatchObject({ equipeDomId: eq.id, saisonId: s.id, heure: "15:00" });
+    expect(await ds.getRepository(Match).count()).toBe(1);
+  });
+
+  it("autre jour, autre sens ou match deja joue : la creation reste possible", async () => {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse");
+    await svc.create({ clubDom: moi.id, clubExt: adv.id, date: "2026-10-18", statut: "prevu" } as UpsertMatchDto);
+    await f.match({ clubDom: moi.id, clubExt: adv.id, date: "2026-11-01", statut: "joue", scoreDom: 2, scoreExt: 1, numeroFmi: "123" });
+
+    await svc.create({ clubDom: moi.id, clubExt: adv.id, date: "2026-10-25", statut: "prevu" } as UpsertMatchDto);   // autre jour
+    await svc.create({ clubDom: adv.id, clubExt: moi.id, date: "2026-10-18", statut: "prevu" } as UpsertMatchDto);   // match retour
+    await svc.create({ clubDom: moi.id, clubExt: adv.id, date: "2026-11-01", statut: "prevu" } as UpsertMatchDto);   // jour d'un match deja joue
+
+    expect(await ds.getRepository(Match).count()).toBe(5);
+  });
+
+  it("creer puis modifier un match du calendrier : une seule instance, a la nouvelle date", async () => {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse");
+    const cree = await svc.create({ clubDom: moi.id, clubExt: adv.id, date: "2026-10-18", heure: "15:00", statut: "prevu" } as UpsertMatchDto);
+
+    await svc.update(cree.id, { date: "2026-10-19", heure: "16:00" } as UpdateMatchDto);
+
+    const tous = await ds.getRepository(Match).find();
+    expect(tous).toHaveLength(1);
+    expect(tous[0]).toMatchObject({ id: cree.id, date: "2026-10-19", heure: "16:00" });
   });
 });
