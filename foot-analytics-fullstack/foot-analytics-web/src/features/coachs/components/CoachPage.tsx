@@ -18,17 +18,19 @@ import { ClubNom } from "@/features/clubs/components/ClubNom";
 
 export default async function CoachDetail({
   params, searchParams,
-}: { params: { id: string }; searchParams?: { portee?: string | string[] } }) {
-  const portee = parsePortee(searchParams?.portee);
+}: { params: Promise<{ id: string }>; searchParams?: Promise<{ portee?: string | string[] }> }) {
+  const { id: coachId } = await params;
+  const { portee: porteeDemandee } = (await searchParams) ?? {};
+  const portee = parsePortee(porteeDemandee);
   const [equipes, saisons, matchs] = await Promise.all([api.equipes(), api.saisons(), api.matchs()]);
   const { saison } = await resolveEquipePropre({ equipes, saisons, matchs });
-  const fiche = await api.ficheCoach(params.id, portee === "saison" ? saison?.id ?? null : null);
+  const fiche = await api.ficheCoach(coachId, portee === "saison" ? saison?.id ?? null : null);
   if (!fiche) notFound();
 
   const { coach, bilan } = fiche;
   const nomComplet = [coach.prenom, coach.nom].filter(Boolean).join(" ");
   const carriere = fiche.parSaison.reduce((s, l) => s + l.bilan.matchs, 0);
-  const href = (p: "saison" | "carriere") => `/coachs/${params.id}${p === "carriere" ? "?portee=carriere" : ""}`;
+  const href = (p: "saison" | "carriere") => `/coachs/${coachId}${p === "carriere" ? "?portee=carriere" : ""}`;
 
   return (
     <div className="space-y-6 fade-up">

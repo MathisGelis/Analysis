@@ -19,7 +19,7 @@ import { resolveEquipePropre } from "@/features/equipes/lib/resolve-equipe-propr
 import { MatchsTable } from "./MatchsTable";
 
 export default async function MatchsPage() {
-  const OWN_SAISON_ID = getOwnSaisonIdServer();
+  const OWN_SAISON_ID = await getOwnSaisonIdServer();
 
   const [matchs, clubs, saisons, equipes] = await Promise.all([
     api.matchs(),

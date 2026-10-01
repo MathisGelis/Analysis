@@ -23,9 +23,9 @@ const STORAGE_KEY = "fa.theme";
  * Utilise par layout.tsx pour poser data-theme="..." des le rendu SSR,
  * eliminant tout flash entre serveur et hydratation client.
  */
-export function getServerTheme(): Theme {
+export async function getServerTheme(): Promise<Theme> {
   try {
-    const v = cookies().get(COOKIE_NAME)?.value;
+    const v = (await cookies()).get(COOKIE_NAME)?.value;
     return v === "light" ? "light" : "dark";
   } catch {
     return "dark";

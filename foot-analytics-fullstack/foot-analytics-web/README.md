@@ -66,7 +66,7 @@ Fair-play, Import FMI (upload reel vers le parseur du backend).
 
 ## Stack technique
 
-- **Next.js 14** (App Router) + **TypeScript** + **Tailwind CSS**
+- **Next.js 15** (App Router) + **React 19** + **TypeScript** + **Tailwind CSS 3**
 - Donnees et authentification : l'**API NestJS** (`foot-analytics-api`), sur SQLite en dev et sur
   Postgres (Supabase) en production. Le front ne parle qu'a cette API ; il n'a aucune cle de base.
 - **pdfplumber** (Python) pour le parsing des feuilles FMI
@@ -130,7 +130,7 @@ clubs, arbitres). **Ctrl/Cmd + K** (ou `/`) y place le curseur. `prefers-reduced
 desactive les animations.
 
 ```bash
-npm run lint      # ESLint (next/core-web-vitals)
+npm run lint      # ESLint 9 (config flat, regles Next core-web-vitals) sur src, tests et e2e
 ```
 
 ### Tests unitaires (Vitest)

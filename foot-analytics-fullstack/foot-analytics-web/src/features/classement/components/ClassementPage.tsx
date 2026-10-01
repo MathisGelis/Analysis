@@ -13,7 +13,7 @@ import { CHAMPS_JOUEUR_CLASSEMENT, CHAMPS_MATCH_CLASSEMENT, garder } from "@/fea
 import { ClassementTabs } from "./ClassementTabs";
 
 export default async function Classement() {
-  const CLUB_PROPRE_ID = getOwnClubIdServer();
+  const CLUB_PROPRE_ID = await getOwnClubIdServer();
 
   const [classementBrut, clubs, matchs, equipes, saisons] = await Promise.all([
     api.classement(),

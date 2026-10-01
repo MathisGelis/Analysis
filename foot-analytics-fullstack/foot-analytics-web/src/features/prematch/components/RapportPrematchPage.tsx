@@ -23,7 +23,9 @@ import { SystemeProbable } from "./SystemeProbable";
 
 export default async function RapportPrematch({
   params, searchParams,
-}: { params: { clubId: string }; searchParams: { matchId?: string } }) {
+}: { params: Promise<{ clubId: string }>; searchParams: Promise<{ matchId?: string }> }) {
+  const { clubId: adversaireClubId } = await params;
+  const { matchId: matchDemande } = await searchParams;
   const [equipes, saisons, matchs] = await Promise.all([api.equipes(), api.saisons(), api.matchs()]);
   const { equipe: maEquipe } = await resolveEquipePropre({ equipes, saisons, matchs });
 
@@ -34,11 +36,11 @@ export default async function RapportPrematch({
       </Vide>
     );
   }
-  if (maEquipe.clubId === params.clubId) {
+  if (maEquipe.clubId === adversaireClubId) {
     return <Vide titre="C'est votre propre club">Choisissez un club adverse pour preparer le match.</Vide>;
   }
 
-  const r = await api.prematch(maEquipe.id, params.clubId, searchParams.matchId ?? null);
+  const r = await api.prematch(maEquipe.id, adversaireClubId, matchDemande ?? null);
   if (!r) notFound();
 
   const { monEquipe: moi, adversaire: adv, analyse: a, arbitre, match, faceAFace: face } = r;

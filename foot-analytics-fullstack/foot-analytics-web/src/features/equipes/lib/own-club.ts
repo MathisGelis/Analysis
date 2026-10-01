@@ -21,8 +21,8 @@ import { DEFAULT_OWN_CLUB_ID } from "./club-defaut";
 
 export { DEFAULT_OWN_CLUB_ID };
 
-export function getOwnClubIdServer(): string {
-  const all = cookies();
+export async function getOwnClubIdServer(): Promise<string> {
+  const all = await cookies();
   // 1. JWT du user connecte : si user non-admin avec clubId, on le force.
   const token = all.get("fa_token")?.value;
   if (token) {

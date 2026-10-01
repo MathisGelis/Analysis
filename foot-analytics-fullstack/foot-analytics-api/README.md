@@ -7,7 +7,7 @@ qui execute le parseur Python `parse_fmi.py`.
 
 ## Stack
 
-- **NestJS 10** + **TypeORM**
+- **NestJS 11** + **TypeORM 0.3**
 - Base **SQLite (sql.js / WASM)** par defaut — *zero configuration, aucune
   compilation native* — ou **PostgreSQL / Supabase** en production
 - Validation des entrees via **class-validator**

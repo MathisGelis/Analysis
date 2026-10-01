@@ -93,7 +93,7 @@ export async function getCurrentUserServer(): Promise<JwtPayloadLight | null> {
   if (typeof window !== "undefined") return null;
   try {
     const { cookies } = await import("next/headers");
-    const token = cookies().get(COOKIE_NAME)?.value;
+    const token = (await cookies()).get(COOKIE_NAME)?.value;
     if (!token) return null;
     const payload = decoderPayloadJwt(token) as JwtPayloadLight | null;
     if (!payload) return null;

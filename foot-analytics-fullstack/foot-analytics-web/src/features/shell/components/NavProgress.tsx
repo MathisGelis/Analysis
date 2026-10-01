@@ -13,7 +13,7 @@ function Barre() {
   const pathname = usePathname();
   const search = useSearchParams();
   const [etat, setEtat] = useState<"repos" | "charge" | "fin">("repos");
-  const minuteur = useRef<ReturnType<typeof setTimeout>>();
+  const minuteur = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Fin de navigation : la cle adresse + parametres a change.
   useEffect(() => {

@@ -76,7 +76,7 @@ async function getAuthToken(): Promise<string | undefined> {
   if (typeof window === "undefined") {
     try {
       const { cookies } = await import("next/headers");
-      return cookies().get("fa_token")?.value;
+      return (await cookies()).get("fa_token")?.value;
     } catch { return undefined; /* hors context server component */ }
   }
   return localStorage.getItem("fa.token") ?? undefined;

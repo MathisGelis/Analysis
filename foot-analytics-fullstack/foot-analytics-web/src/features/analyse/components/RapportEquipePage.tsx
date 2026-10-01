@@ -38,15 +38,17 @@ import { PastilleSens } from "./PastilleSens";
 
 export default async function RapportEquipe({
   params,
-}: { params: { clubId: string } }) {
+}: { params: Promise<{ clubId: string }> }) {
+  const { clubId: idClub } = await params;
+  const idSaisonChoisie = await getOwnSaisonIdServer();
   // Saison et equipe : sans elles le rapport melangerait Seniors, U20 et toutes
   // les saisons. La saison suit le selecteur, l'equipe le championnat de mon equipe.
   const [saisons, equipes, matchs, clubs] = await Promise.all([api.saisons(), api.equipes(), api.matchs(), api.clubs()]);
-  const saison = saisons.find((s: any) => s.id === getOwnSaisonIdServer())
+  const saison = saisons.find((s: any) => s.id === idSaisonChoisie)
     ?? saisons.find((s: any) => s.actif) ?? null;
   const { equipe: maEquipe } = await resolveEquipePropre({ equipes, saisons, matchs });
-  const equipe = equipeConsultee({ equipes, clubId: params.clubId, saisonId: saison?.id ?? null, maEquipe });
-  const rapport = await api.analyseClub(params.clubId, { equipeId: equipe?.id, saisonId: saison?.id });
+  const equipe = equipeConsultee({ equipes, clubId: idClub, saisonId: saison?.id ?? null, maEquipe });
+  const rapport = await api.analyseClub(idClub, { equipeId: equipe?.id, saisonId: saison?.id });
   if (!rapport) notFound();
 
   const t: Tendances = rapport.tendances;

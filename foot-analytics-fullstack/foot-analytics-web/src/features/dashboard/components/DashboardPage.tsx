@@ -33,7 +33,7 @@ import { plusFatigues } from "@/features/joueurs/lib/fatigue";
 import type { Issue } from "@/shared/lib/types";
 
 export default async function Dashboard() {
-  const CLUB_PROPRE_ID = getOwnClubIdServer();
+  const CLUB_PROPRE_ID = await getOwnClubIdServer();
 
   const [clubs, classement, matchs, equipes, saisons] = await Promise.all([
     api.clubs(),

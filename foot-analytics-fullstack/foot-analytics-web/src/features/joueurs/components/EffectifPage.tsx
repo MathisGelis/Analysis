@@ -60,7 +60,6 @@ export default function EffectifPage() {
         } catch { /* facultatif, pas critique */ }
         setJoueurs(data);
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error("[effectif] erreur reload", err);
         setJoueurs([]);
       }

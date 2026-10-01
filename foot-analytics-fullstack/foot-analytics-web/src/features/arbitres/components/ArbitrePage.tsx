@@ -31,11 +31,13 @@ const ROLE_LIBELLE: Record<string, string> = {
 export default async function ArbitreDetail({
   params, searchParams,
 }: {
-  params: { id: string };
-  searchParams?: { portee?: string | string[] };
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ portee?: string | string[] }>;
 }) {
+  const { id: arbitreId } = await params;
+  const { portee: porteeDemandee } = (await searchParams) ?? {};
   const [arb, clubs, matchs, equipes, saisons] = await Promise.all([
-    api.arbitre(params.id),
+    api.arbitre(arbitreId),
     api.clubs(),
     api.matchs(),
     api.equipes(),
@@ -43,7 +45,7 @@ export default async function ArbitreDetail({
   ]);
   if (!arb) notFound();
 
-  const portee = parsePortee(searchParams?.portee);
+  const portee = parsePortee(porteeDemandee);
   const { saison } = await resolveEquipePropre({ equipes, saisons, matchs });
   const saisonId = saison?.id ?? null;
 
@@ -82,7 +84,7 @@ export default async function ArbitreDetail({
         decompteMotifs: decompteMotifs(participations),
       };
   const hrefPortee = (p: "saison" | "carriere") =>
-    `/arbitres/${params.id}${p === "carriere" ? "?portee=carriere" : ""}`;
+    `/arbitres/${arbitreId}${p === "carriere" ? "?portee=carriere" : ""}`;
 
   return (
     <div className="space-y-6 fade-up">

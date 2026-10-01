@@ -7,6 +7,6 @@ import { redirect } from "next/navigation";
 
 import { getOwnClubIdServer } from "@/features/equipes/lib/own-club";
 
-export default function RapportMonEquipe() {
-  redirect(`/rapports/equipe/${getOwnClubIdServer()}`);
+export default async function RapportMonEquipe() {
+  redirect(`/rapports/equipe/${await getOwnClubIdServer()}`);
 }

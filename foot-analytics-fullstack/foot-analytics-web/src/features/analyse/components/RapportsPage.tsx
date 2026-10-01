@@ -28,9 +28,10 @@ const RAPPORTS = [
 export default async function Rapports() {
   // Selecteur d'analyse equipe : mon club en premier, puis les autres
   // par ordre alphabetique.
-  const ownClubId = getOwnClubIdServer();
+  const ownClubId = await getOwnClubIdServer();
+  const idSaisonChoisie = await getOwnSaisonIdServer();
   const [clubs, saisons, equipes, matchs] = await Promise.all([api.clubs(), api.saisons(), api.equipes(), api.matchs()]);
-  const saison = saisons.find((s: any) => s.id === getOwnSaisonIdServer())
+  const saison = saisons.find((s: any) => s.id === idSaisonChoisie)
     ?? saisons.find((s: any) => s.actif) ?? null;
   // Dynamique du championnat de mon equipe : qui monte, qui recule.
   const { equipe: maEquipe } = await resolveEquipePropre({ equipes, saisons, matchs });

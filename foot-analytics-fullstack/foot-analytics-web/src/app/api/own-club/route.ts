@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   if (!clubId) {
     return Response.json({ ok: false, erreur: "clubId requis" }, { status: 400 });
   }
-  const jar = cookies();
+  const jar = await cookies();
   const precedent = jar.get("ownClubId")?.value;
   jar.set({
     name: "ownClubId",

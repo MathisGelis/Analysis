@@ -180,7 +180,8 @@ export class SaisonsService {
   }
   async activer(id: string) {
     await this.findOne(id);
-    await this.repo.update({}, { actif: false });
+    // Une seule saison active : on desactive celles qui le sont (TypeORM refuse un update sans critere).
+    await this.repo.update({ actif: true }, { actif: false });
     await this.repo.update(id, { actif: true });
     return this.findOne(id);
   }

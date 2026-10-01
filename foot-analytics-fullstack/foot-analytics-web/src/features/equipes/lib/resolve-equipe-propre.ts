@@ -117,9 +117,9 @@ export function championnatDe(
 export async function resolveEquipePropre(
   donnees: DonneesResolution = {},
 ): Promise<EquipePropre> {
-  const cookieEquipeId = getOwnEquipeIdServer();
-  const cookieSaisonId = getOwnSaisonIdServer();
-  const clubId = getOwnClubIdServer();
+  const [cookieEquipeId, cookieSaisonId, clubId] = await Promise.all([
+    getOwnEquipeIdServer(), getOwnSaisonIdServer(), getOwnClubIdServer(),
+  ]);
 
   const [equipes, saisons] = await Promise.all([
     donnees.equipes ?? (api.equipes() as Promise<Equipe[]>),

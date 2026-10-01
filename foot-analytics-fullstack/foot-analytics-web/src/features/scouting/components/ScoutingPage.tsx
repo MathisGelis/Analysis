@@ -17,11 +17,12 @@ import { ClubBadge } from "@/features/clubs/components/ClubBadge";
 import { MiniDynamique } from "@/features/analyse/components/MiniDynamique";
 
 export default async function ScoutingList() {
-  const CLUB_PROPRE_ID = getOwnClubIdServer();
+  const CLUB_PROPRE_ID = await getOwnClubIdServer();
+  const idSaisonChoisie = await getOwnSaisonIdServer();
   const [clubs, saisons, equipes, matchs] = await Promise.all([
     api.clubs(), api.saisons(), api.equipes(), api.matchs(),
   ]);
-  const saison = saisons.find((s: any) => s.id === getOwnSaisonIdServer())
+  const saison = saisons.find((s: any) => s.id === idSaisonChoisie)
     ?? saisons.find((s: any) => s.actif) ?? null;
   const [rapports, { equipe: maEquipe }] = await Promise.all([
     api.rapports(undefined, saison?.id),

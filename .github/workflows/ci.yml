@@ -2,7 +2,7 @@
 #   api          : compilation TypeScript + tests Jest (base SQLite en memoire)
 #   api-postgres : la meme suite Jest sur Postgres 16 (un schema par test) + migrations, verrouillage RLS, copie SQLite -> Postgres
 #   parser       : tests du parseur de feuilles de match FMI (Python)
-#   web          : compilation TypeScript + tests Vitest
+#   web          : compilation TypeScript + lint ESLint + tests Vitest
 #   e2e          : parcours Playwright, avec sa propre API et son propre front (ports 4100 / 3100), sur SQLite puis sur Postgres
 name: CI
 
@@ -109,6 +109,8 @@ jobs:
       - run: npm ci
       - name: Compilation TypeScript
         run: npx tsc --noEmit -p .
+      - name: Lint
+        run: npm run lint
       - name: Tests
         run: npx vitest run
 

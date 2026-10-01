@@ -154,7 +154,6 @@ export function OwnEquipeSwitcher() {
       setReimportState("idle");
       setOpen(false);
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error("[reimport] erreur", err);
       setReimportState("error");
       setReimportError((err as Error).message || "Erreur inconnue");

@@ -43,7 +43,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const initialTheme = getServerTheme();
+  const initialTheme = await getServerTheme();
   // Utilisateur connecte (jeton present et non expire) : la coquille de l'app
   // (barre laterale, recherche, selecteur d'equipe) n'a de sens qu'apres
   // connexion. Sur /login elle affichait "Non connecte" et declenchait des
@@ -55,9 +55,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Ces valeurs se rafraichissent a chaque router.refresh(), donc quand
   // le switcher persist un nouveau choix + refresh, tout le Client tree
   // reste synchro avec le serveur.
-  const initialClubId = getOwnClubIdServer();
-  const initialEquipeId = getOwnEquipeIdServer();
-  const initialSaisonId = getOwnSaisonIdServer();
+  const initialClubId = await getOwnClubIdServer();
+  const initialEquipeId = await getOwnEquipeIdServer();
+  const initialSaisonId = await getOwnSaisonIdServer();
+  const sidebarRepliee = (await cookies()).get("fa_sidebar")?.value === "replie";
 
   return (
     <html lang="fr" data-theme={initialTheme} suppressHydrationWarning>
@@ -75,7 +76,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <FeedbackProvider>
               <NavProgress />
               {connecte ? (
-                <AppShell sidebarRepliee={cookies().get("fa_sidebar")?.value === "replie"}>
+                <AppShell sidebarRepliee={sidebarRepliee}>
                   {children}
                 </AppShell>
               ) : (

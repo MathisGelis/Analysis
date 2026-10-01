@@ -5,6 +5,7 @@
 
 import { ClubPageContent } from "@/features/clubs/components/ClubPageContent";
 
-export default function ScoutingPage({ params }: { params: { id: string } }) {
-  return <ClubPageContent id={params.id} initialTab="scouting" />;
+export default async function ScoutingPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <ClubPageContent id={id} initialTab="scouting" />;
 }

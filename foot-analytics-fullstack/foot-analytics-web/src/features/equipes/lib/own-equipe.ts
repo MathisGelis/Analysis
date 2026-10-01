@@ -11,10 +11,10 @@ import { cookies } from "next/headers";
  * premiere de `equipeIds` (comparaison d'ids exacts) renvoyait une equipe d'une
  * AUTRE saison des que l'equipe consultee etait un clone ou une equipe renommee.
  */
-export function getOwnEquipeIdServer(): string | null {
-  return cookies().get("ownEquipeId")?.value ?? null;
+export async function getOwnEquipeIdServer(): Promise<string | null> {
+  return (await cookies()).get("ownEquipeId")?.value ?? null;
 }
 
-export function getOwnSaisonIdServer(): string | null {
-  return cookies().get("ownSaisonId")?.value ?? null;
+export async function getOwnSaisonIdServer(): Promise<string | null> {
+  return (await cookies()).get("ownSaisonId")?.value ?? null;
 }

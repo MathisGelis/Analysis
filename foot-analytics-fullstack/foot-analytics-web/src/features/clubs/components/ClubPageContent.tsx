@@ -25,8 +25,8 @@ export async function ClubPageContent({
   id, initialTab,
 }: { id: string; initialTab: "overview" | "scouting" }) {
   const params = { id };
-  const CLUB_PROPRE_ID = getOwnClubIdServer();
-  const ownSaisonId = getOwnSaisonIdServer();
+  const CLUB_PROPRE_ID = await getOwnClubIdServer();
+  const ownSaisonId = await getOwnSaisonIdServer();
 
   // Saison effective : switcher > active > aucune. Elle cadre tout le reste.
   const saisons = await api.saisons();

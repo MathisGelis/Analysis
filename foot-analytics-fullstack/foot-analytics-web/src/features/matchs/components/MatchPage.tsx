@@ -24,15 +24,16 @@ import { SystemeMatch } from "./SystemeMatch";
 /** Un match sans feuille n'a pas de score : le statut remplace le "resultat final". */
 const LIBELLE_STATUT: Record<string, string> = { prevu: "A venir", a_venir: "A venir", reporte: "Reporte", annule: "Annule" };
 
-export default async function MatchDetailPage({ params }: { params: { id: string } }) {
-  const ownClubId = getOwnClubIdServer();
-  const match = await api.match(params.id);
+export default async function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: matchId } = await params;
+  const ownClubId = await getOwnClubIdServer();
+  const match = await api.match(matchId);
   if (!match) notFound();
   // Seuls les joueurs des deux clubs du match sont utiles : charger tout le fichier joueurs pesait
   // pres de 800 Ko a chaque ouverture de fiche.
   const [CLUBS, joueursDom, joueursExt, arbitresLiens, staffLiens] = await Promise.all([
-    api.clubs(), api.joueurs(match.clubDom), api.joueurs(match.clubExt), api.arbitresForMatch(params.id),
-    api.coachsForMatch(params.id),
+    api.clubs(), api.joueurs(match.clubDom), api.joueurs(match.clubExt), api.arbitresForMatch(matchId),
+    api.coachsForMatch(matchId),
   ]);
   const peutNoter = match.clubDom === ownClubId || match.clubExt === ownClubId;
   // Match de mon club pas encore joue : on propose le rapport de preparation contre l'adversaire.

@@ -26,7 +26,8 @@ import { FatigueBar } from "@/features/joueurs/components/FatigueBar";
 import { PistesMatch } from "./PistesMatch";
 import { SystemeProbable } from "./SystemeProbable";
 
-export default async function Predictions({ searchParams }: { searchParams?: { adversaire?: string } }) {
+export default async function Predictions({ searchParams }: { searchParams?: Promise<{ adversaire?: string }> }) {
+  const { adversaire: adversaireDemande } = (await searchParams) ?? {};
   const [equipes, saisons, matchs, clubs] = await Promise.all([api.equipes(), api.saisons(), api.matchs(), api.clubs()]);
   const { equipe: maEquipe, saison, equipesDuChampionnat } = await resolveEquipePropre({ equipes, saisons, matchs });
 
@@ -37,7 +38,7 @@ export default async function Predictions({ searchParams }: { searchParams?: { a
   // Adversaire : le prochain match programme, sinon celui choisi dans la liste.
   const prochain = prochainMatch(resultatsDeLEquipe(matchs, maEquipe.id).aVenir).prochain ?? undefined;
   const prochainAdvId = prochain ? (prochain.equipeDomId === maEquipe.id ? prochain.clubExt : prochain.clubDom) : null;
-  const adversaireId = searchParams?.adversaire ?? prochainAdvId;
+  const adversaireId = adversaireDemande ?? prochainAdvId;
   const adversaires = clubs
     .filter((c) => c.id !== maEquipe.clubId && equipes.some((e: any) => e.clubId === c.id && equipesDuChampionnat.has(e.id)))
     .sort((a, b) => a.nom.localeCompare(b.nom));

@@ -27,8 +27,10 @@ import { CorpsHumain } from "./CorpsHumain";
 
 export default async function JoueurPage({
   params, searchParams,
-}: { params: { id: string }; searchParams: { saison?: string } }) {
-  const j = await api.joueur(params.id);
+}: { params: Promise<{ id: string }>; searchParams: Promise<{ saison?: string }> }) {
+  const { id: joueurId } = await params;
+  const { saison: saisonDemandee } = await searchParams;
+  const j = await api.joueur(joueurId);
   if (!j) notFound();
 
   // Toute la fiche est lue sur UNE saison : celle demandee (?saison=), sinon
@@ -43,7 +45,7 @@ export default async function JoueurPage({
   ]);
   const { saison, entree, totaux, ligne } = choisirSaisonFiche({
     historique, saisons,
-    demandee: searchParams.saison, cookie: getOwnSaisonIdServer(),
+    demandee: saisonDemandee, cookie: await getOwnSaisonIdServer(),
   });
   const saisonActive = !!saison?.actif;
 
