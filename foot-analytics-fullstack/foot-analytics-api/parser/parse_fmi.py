@@ -20,7 +20,8 @@ Donnees extraites
   * encadrement      : staff sur le banc (educateurs / dirigeants)
   * compositions     : titulaires (1-11) + remplacants des 2 equipes
   * remplacements    : entrant / sortant + minute
-  * discipline       : cartons (equipe, joueur, motif, couleur estimee, minute)
+  * discipline       : cartons jaunes / rouges (equipe, joueur, motif, couleur lue sur l'icone, minute)
+  * cartons_verts    : cartons verts (fair-play), tableau a part : jamais comptes comme sanctions
   * blessures        : equipe, joueur, localisation, minute
   * buteurs          : equipe, buteur, type, passeur, minute
 
@@ -105,7 +106,7 @@ class Card:
     joueur: str
     numero: int | None
     motif: str
-    couleur: str             # "jaune" | "rouge"
+    couleur: str             # "jaune" | "rouge" | "vert" (fair-play, jamais compte comme sanction)
     minute: int | None
     arret: int = 0
 
@@ -157,6 +158,8 @@ class MatchSheet:
     compo_visiteuse: list[Player] = field(default_factory=list)
     remplacements: list[Substitution] = field(default_factory=list)
     cartons: list[Card] = field(default_factory=list)
+    # Section "CARTON VERT" : fair-play. Ce ne sont PAS des sanctions : jamais melanges aux jaunes/rouges.
+    cartons_verts: list[Card] = field(default_factory=list)
     blessures: list[Injury] = field(default_factory=list)
     buteurs: list[Goal] = field(default_factory=list)
     source_fichier: str | None = None
@@ -202,6 +205,58 @@ def _split_name(token: str) -> tuple[str, str, int | None]:
 def _card_color(motif: str) -> str:
     low = (motif or "").lower()
     return "rouge" if any(k in low for k in RED_KEYWORDS) else "jaune"
+
+
+def _classer_couleur(rgb: tuple[float, float, float]) -> str | None:
+    """Jaune / rouge / vert d'une couleur moyenne d'icone (0-255) ; None si indecis."""
+    r, g, b = rgb
+    if r > 170 and g > 150 and b < 130 and abs(r - g) < 90:
+        return "jaune"
+    if r > 150 and g < 110 and b < 110:
+        return "rouge"
+    if g > 120 and r < 150 and b < 150 and g > r + 30:
+        return "vert"
+    return None
+
+
+def _couleur_icone(page, cellule) -> str | None:
+    """
+    Couleur du carton lue sur l'ICONE dessinee dans la cellule (bbox x0, top, x1, bottom).
+    La FMI ne porte pas la couleur en texte, seulement en image : c'est la seule source
+    fiable (le motif seul ne permet que de deviner). None si aucune icone lisible.
+    """
+    if page is None or cellule is None:
+        return None
+    x0, top, x1, bottom = cellule
+    try:
+        icones = [i for i in page.images
+                  if i["x0"] >= x0 - 1 and i["x1"] <= x1 + 1 and i["top"] >= top - 1 and i["bottom"] <= bottom + 1]
+        if not icones:
+            return None
+        i = icones[0]
+        rendu = page.crop((i["x0"], i["top"], i["x1"], i["bottom"])).to_image(resolution=144).original.convert("RGB")
+        donnees = rendu.get_flattened_data() if hasattr(rendu, "get_flattened_data") else rendu.getdata()
+        pixels = [px for px in donnees if min(px) < 235]             # hors fond blanc
+        if len(pixels) < 4:
+            return None
+        n = len(pixels)
+        return _classer_couleur((sum(p[0] for p in pixels) / n, sum(p[1] for p in pixels) / n, sum(p[2] for p in pixels) / n))
+    except Exception:                                   # noqa: BLE001 - lecture d'image : jamais bloquante
+        return None
+
+
+def _est_carton_vert(page, bbox) -> bool:
+    """
+    Le tableau "Motif" juste sous le titre CARTON VERT est celui des cartons verts (fair-play),
+    pas des sanctions. Les deux tableaux ont un en-tete quasi identique : seul le titre les distingue.
+    """
+    if page is None:
+        return False
+    try:
+        titres = page.search(r"carton\s+vert", regex=True, case=False)
+    except Exception:                                   # noqa: BLE001
+        return False
+    return any(-2 <= bbox[1] - t["bottom"] <= 60 for t in titres)
 
 
 def _header_text(table) -> str:
@@ -258,6 +313,26 @@ def _parse_officials(table, ms: MatchSheet):
                 role, nom, lic = cells[base], cells[base + 1], cells[base + 2]
                 if role and lic and LICENSE_RE.match(lic):
                     ms.officiels.append(Official(role, nom, lic))
+
+
+# Fonction d'un membre du banc : une ou plusieurs lettres separees par "/" (E, D, A, M, E/DR, D/DR, A/DR...).
+FONCTION_RE = re.compile(r"^[A-Za-z]{1,2}(?:\s*/\s*[A-Za-z]{1,2})*$")
+
+
+def _est_table_encadrement(table) -> bool:
+    """Le tableau du BANC (staff) : des lignes (nom, licence, fonction), cote recevant en colonnes 0-2 et
+    visiteur en colonnes 3-5. On le reconnait a sa STRUCTURE.
+
+    Avant, il fallait y trouver un "E/DR" (educateur et delegue de rencontre) : sur les feuilles ou le delegue
+    est un officiel neutre ou un dirigeant (D/DR, A/DR) ou n'existe pas, le banc n'etait pas lu et les
+    entraineurs manquaient (8 matchs sur 142 sans aucun staff)."""
+    for row in table or []:
+        cells = [_clean(c) for c in row]
+        for base in (0, 3):
+            if (len(cells) >= base + 3 and cells[base] and LICENSE_RE.match(cells[base + 1])
+                    and FONCTION_RE.match(cells[base + 2])):
+                return True
+    return False
 
 
 def _parse_staff(table, ms: MatchSheet, forced_side: str | None = None):
@@ -337,8 +412,14 @@ def _find_minute(cells):
     return None, 0
 
 
-def _parse_discipline(table, ms: MatchSheet):
-    for row in table[1:]:
+def _parse_discipline(table, ms: MatchSheet, page=None, tbl=None, verts: bool = False):
+    """
+    Tableau DISCIPLINE (sanctions) ou CARTON VERT (`verts=True`, fair-play). La couleur d'un
+    carton de sanction est lue sur l'icone ; a defaut on la devine d'apres le motif.
+    """
+    cible = ms.cartons_verts if verts else ms.cartons
+    idx_motif = next((i for i, c in enumerate(table[0] if table else []) if "motif" in _clean(c).lower()), 3)
+    for i, row in enumerate(table[1:], start=1):
         cells = [_clean(c) for c in row]
         if len(cells) < 4 or not cells[1] or not LICENSE_RE.match(cells[1]):
             continue
@@ -351,9 +432,16 @@ def _parse_discipline(table, ms: MatchSheet):
                       if c and not MINUTE_LIKE_RE.match(c)), "")
         mn, ar = _find_minute(cells)
         nom, prenom, num = _split_name(joueur)
-        ms.cartons.append(Card(
+        if verts:
+            couleur = "vert"
+        else:
+            cellule = tbl.rows[i].cells[idx_motif] if tbl is not None and i < len(tbl.rows) and idx_motif < len(tbl.rows[i].cells) else None
+            couleur = _couleur_icone(page, cellule)
+            if couleur not in ("jaune", "rouge"):        # icone illisible ou verte : on retombe sur le motif
+                couleur = _card_color(motif)
+        cible.append(Card(
             equipe=equipe, licence=lic, joueur=f"{nom} {prenom}".strip(),
-            numero=num, motif=motif, couleur=_card_color(motif),
+            numero=num, motif=motif, couleur=couleur,
             minute=mn, arret=ar))
 
 
@@ -433,7 +521,7 @@ def parse_fmi(pdf_path: str | Path) -> MatchSheet:
                 elif "arbitre centre" in flat:
                     _parse_officials(table, ms)
                 elif "motif" in head_txt:
-                    _parse_discipline(table, ms)
+                    _parse_discipline(table, ms, page, tbl, verts=_est_carton_vert(page, tbl.bbox))
                 elif "localisation" in head_txt:
                     _parse_injuries(table, ms)
                 elif "type but" in head_txt:
@@ -450,9 +538,7 @@ def parse_fmi(pdf_path: str | Path) -> MatchSheet:
                         titulaire = first_num <= 11
                         _parse_lineup(table, ms, titulaire, forced_side)
                         seen_titulaires = seen_titulaires or titulaire
-                    elif ("e/dr" in flat and "signature" not in flat
-                          and any(LICENSE_RE.match(_clean(c))
-                                  for r in table for c in r)):
+                    elif "signature" not in flat and _est_table_encadrement(table):
                         _parse_staff(table, ms, forced_side)
 
         # Ids de club : on reutilise le texte deja extrait (cache).

@@ -4,297 +4,381 @@
 
 /* ============================================================
    FOOT ANALYTICS — Design tokens
-   Vibe : Football Manager + console d'entraineur, sobre, chaud.
-   Deux modes : dark (defaut) / light, switche via data-theme.
-   Toutes les couleurs en triplet R G B pour supporter <alpha-value>
-   dans Tailwind (bg-turf/30 etc.).
+   Direction artistique "Soiree de match" : bleu nuit profond, accent violet
+   electrique, surfaces vitrees, grands chiffres de tableau d'affichage.
+   Deux modes (nuit par defaut / jour), switches par data-theme.
+   Toutes les couleurs sont des triplets R G B pour supporter <alpha-value>
+   dans Tailwind (bg-accent/30 etc.). Contrastes verifies (WCAG AA) :
+   texte >= 4.5:1 sur toutes les surfaces, en nuit comme en jour, y compris sur les fonds teintes (texte sur `bg-<ton>/10`).
+   Les polices sont auto-hebergees (paquets @fontsource, importes dans layout.tsx).
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
-
-/* ----- Mode SOMBRE (par defaut) ------------------------------- */
+/* ----- Mode NUIT (par defaut) --------------------------------- */
 :root,
 [data-theme="dark"] {
   color-scheme: dark;
 
-  /* Surfaces */
-  --bg:           14 17 22;       /* #0E1116 graphite chaud */
-  --surface:      22 26 33;       /* #161A21 */
-  --surface-2:    27 32 40;       /* #1B2028 */
-  --line:         35 41 50;       /* #232932 */
-  --line-strong:  52 59 71;       /* #343B47 */
+  /* Surfaces : du plus profond au plus releve. */
+  --bg:           7 10 18;        /* #070A12 */
+  --surface:      14 19 32;       /* #0E1320 */
+  --surface-2:    20 27 44;       /* #141B2C */
+  --surface-3:    28 37 60;       /* #1C253C */
+  --line:         33 43 66;       /* #212B42 */
+  --line-strong:  55 69 100;      /* #374564 */
 
   /* Texte */
-  --ink:          236 239 243;    /* #ECEFF3 */
-  --muted:        148 156 170;    /* #949CAA */
-  --faint:        91 99 113;      /* #5B6371 */
+  --ink:          240 243 250;    /* #F0F3FA */
+  --muted:        152 164 189;    /* #98A4BD */
+  --faint:        122 135 164;    /* #7A87A4 */
 
-  /* Accent turf (vert pelouse vue de loin, pas tech) */
-  --turf:         122 178 138;    /* #7AB28A */
-  --turf-dim:     94 138 108;     /* #5E8A6C */
-  --turf-deep:    66 102 78;      /* #42664E */
+  /* Accent : violet electrique. `accent` sert au texte et aux icones ;
+     `accent-strong` aux aplats portant du texte blanc. */
+  --accent:         164 151 255;  /* #A497FF */
+  --accent-dim:     132 116 250;  /* #8474FA */
+  --accent-deep:     70 56 178;   /* #4638B2 */
+  --accent-strong:  101 82 240;   /* #6552F0 */
+  --accent-2:        56 189 248;  /* #38BDF8 : second ton des degrades */
 
-  /* Data accents */
-  --sky:          120 168 213;    /* #78A8D5 */
-  --amber:        229 162 74;     /* #E5A24A */
-  --danger:       198 83 58;      /* #C6533A */
+  /* Data */
+  --sky:           96 165 250;    /* #60A5FA */
+  --amber:        251 191 36;     /* #FBBF24 */
+  --danger:       248 113 113;    /* #F87171 */
 
-  /* Issues match */
-  --win:          122 178 138;
-  --draw:         229 162 74;
-  --loss:         198 83 58;
+  /* Teintes d'ecussons : distinctes des couleurs semantiques (danger =
+     alerte, accent = mon equipe) pour ne suggerer aucun etat. */
+  --crest-violet: 168 148 214;
+  --crest-teal:   104 184 184;
+  --crest-rose:   210 132 160;
+
+  /* Series des graphiques : valides (ecart CVD, bande de luminance) pour la
+     surface sombre ; texte et valeurs gardent les jetons ink/muted. */
+  --chart-1:      132 116 250;    /* #8474FA */
+  --chart-2:      229 91 91;      /* #E55B5B */
+  --chart-3:       34 166 230;    /* #22A6E6 */
+
+  /* Issues de match */
+  --win:           52 211 153;    /* #34D399 */
+  --draw:         251 191 36;
+  --loss:         248 113 113;
 
   /* Effets */
-  --shadow-panel: 0 1px 0 rgba(255,255,255,.025) inset, 0 8px 24px -16px rgba(0,0,0,.8);
-  --shadow-pop:   0 12px 40px -16px rgba(0,0,0,.7);
-
-  /* Background du body : gradient subtil + vignette */
-  --bg-gradient:
-    radial-gradient(1400px 900px at 80% -10%, rgb(122 178 138 / .04), transparent 50%),
-    radial-gradient(1000px 700px at -10% 110%, rgb(120 168 213 / .03), transparent 55%);
+  --shadow-panel: 0 1px 0 rgb(255 255 255 / .04) inset, 0 12px 32px -20px rgb(0 0 0 / .9);
+  --shadow-pop:   0 24px 60px -20px rgb(0 0 0 / .85), 0 0 0 1px rgb(255 255 255 / .05);
+  --glow-accent:  0 0 0 1px rgb(var(--accent) / .35), 0 10px 40px -12px rgb(var(--accent-strong) / .55);
+  --glass:        rgb(var(--surface) / .72);
+  --hairline:     rgb(255 255 255 / .06);
+  --aurora-a:     rgb(101 82 240 / .22);
+  --aurora-b:     rgb(56 189 248 / .12);
+  --aurora-c:     rgb(236 72 153 / .07);
 }
 
-/* ----- Mode CLAIR --------------------------------------------- */
+/* ----- Mode JOUR ---------------------------------------------- */
 [data-theme="light"] {
   color-scheme: light;
 
-  /* Surfaces : on garde papier mais on rend les lignes plus visibles. */
-  --bg:           247 245 240;    /* #F7F5F0 papier */
-  --surface:      255 255 255;    /* #FFFFFF */
-  --surface-2:    240 236 226;    /* #F0ECE2 (plus contraste qu'avant) */
-  --line:         214 205 187;    /* #D6CDBB (plus dense, anciennement E2DCCF) */
-  --line-strong:  172 161 142;    /* #ACA18E */
+  --bg:           244 246 251;    /* #F4F6FB */
+  --surface:      255 255 255;
+  --surface-2:    240 243 250;    /* #F0F3FA */
+  --surface-3:    229 234 246;    /* #E5EAF6 */
+  --line:         224 229 240;    /* #E0E5F0 */
+  --line-strong:  186 196 217;    /* #BAC4D9 */
 
-  /* Texte : ink presque noir, muted bien plus sombre qu'avant. */
-  --ink:           20 22 28;      /* #14161C presque noir, lecture confortable */
-  --muted:         74 81 95;      /* #4A515F (etait 91/99/113, trop pale) */
-  --faint:        116 124 138;    /* #747C8A */
+  --ink:           11 16 32;      /* #0B1020 */
+  --muted:         82 94 122;     /* #525E7A */
+  --faint:         92 104 133;    /* #5C6885 */
 
-  /* Turf : plus profond pour ressortir sur le papier. */
-  --turf:          54 116 74;     /* #36744A (etait 4A8C5E, encore plus dense) */
-  --turf-dim:      74 140 94;
-  --turf-deep:     34 78 50;
+  --accent:         84 64 224;    /* #5440E0 */
+  --accent-dim:     76 58 210;    /* #4C3AD2 */
+  --accent-deep:    52 38 160;    /* #3426A0 */
+  --accent-strong:  91 71 232;
+  --accent-2:        2 132 199;   /* #0284C7 */
 
-  /* Data accents plus denses. */
-  --sky:           62 124 184;    /* #3E7CB8 (etait 5B9BD5) */
-  --amber:        184 117 32;     /* #B87520 */
-  --danger:       162 56 36;      /* #A23824 */
+  --sky:            2 110 175;    /* #026EAF */
+  --amber:        145 85 0;       /* #915500 */
+  --danger:       190 35 35;      /* #BE2323 */
 
-  --win:           54 116 74;
-  --draw:         184 117 32;
-  --loss:         162 56 36;
+  --crest-violet: 112 86 170;
+  --crest-teal:    38 120 122;
+  --crest-rose:   166 72 104;
 
-  --shadow-panel: 0 1px 0 rgba(0,0,0,.03) inset, 0 4px 18px -10px rgba(0,0,0,.22);
-  --shadow-pop:   0 16px 50px -20px rgba(0,0,0,.3);
+  --chart-1:        91 71 232;    /* #5B47E8 */
+  --chart-2:       190 35 35;     /* #BE2323 */
+  --chart-3:         2 110 175;   /* #026EAF */
 
-  --bg-gradient:
-    radial-gradient(1400px 900px at 80% -10%, rgb(54 116 74 / .07), transparent 50%),
-    radial-gradient(1000px 700px at -10% 110%, rgb(62 124 184 / .05), transparent 55%);
+  --win:            3 105 73;     /* #036949 */
+  --draw:         145 85 0;
+  --loss:         190 35 35;
+
+  --shadow-panel: 0 1px 2px rgb(11 16 32 / .04), 0 12px 32px -22px rgb(30 41 90 / .35);
+  --shadow-pop:   0 24px 60px -24px rgb(30 41 90 / .45), 0 0 0 1px rgb(11 16 32 / .05);
+  --glow-accent:  0 0 0 1px rgb(var(--accent) / .3), 0 10px 32px -12px rgb(var(--accent) / .5);
+  --glass:        rgb(255 255 255 / .72);
+  --hairline:     rgb(11 16 32 / .05);
+  --aurora-a:     rgb(101 82 240 / .16);
+  --aurora-b:     rgb(56 189 248 / .14);
+  --aurora-c:     rgb(236 72 153 / .06);
 }
 
 /* ----- Base ---------------------------------------------------- */
 
+html { scroll-behavior: smooth; }
+
 html, body {
-  background: var(--bg-gradient), rgb(var(--bg));
+  background-color: rgb(var(--bg));
   color: rgb(var(--ink));
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
-  font-feature-settings: "ss01", "cv11", "tnum";
-  letter-spacing: -0.005em;
+  font-family: "Instrument Sans Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-feature-settings: "tnum", "cv11";
+  font-optical-sizing: auto;
+  letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
-  /* Transition douce entre dark/light. */
-  transition: background-color 200ms cubic-bezier(.4,0,.2,1), color 200ms cubic-bezier(.4,0,.2,1);
+  text-rendering: optimizeLegibility;
+  transition: background-color 250ms ease, color 250ms ease;
 }
 
 * { border-color: rgb(var(--line)); }
 
-/* Hairline pattern : tres discrete, evoque le quadrillage tactique. */
+::selection { background: rgb(var(--accent) / .3); color: rgb(var(--ink)); }
+
+/* Focus clavier visible partout (accessibilite) ; pas d'anneau au clic souris. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 2px;
+}
+/* `:where` = specificite nulle : un champ qui dessine deja son propre anneau
+   (.inp, outline-none) garde la main. */
+:focus:not(:focus-visible) { outline: none; }
+
+/* Aurore : trois nappes de lumiere floues, fixes derriere le contenu. Le
+   deplacement lent est un simple transform (compose sur le GPU). */
 body::before {
   content: "";
   position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgb(var(--ink) / .02) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(var(--ink) / .02) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+  inset: -20%;
   z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 34% at 82% 8%,  var(--aurora-a), transparent 70%),
+    radial-gradient(34% 32% at 8%  92%, var(--aurora-b), transparent 70%),
+    radial-gradient(26% 24% at 60% 60%, var(--aurora-c), transparent 70%);
+  animation: aurora 38s ease-in-out infinite alternate;
 }
-[data-theme="light"] body::before {
-  background-image:
-    linear-gradient(rgb(var(--ink) / .045) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(var(--ink) / .045) 1px, transparent 1px);
+@keyframes aurora {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(-3%, 2%, 0) scale(1.06); }
 }
 
-/* ----- Composants utilitaires --------------------------------- */
+/* ----- Composants ---------------------------------------------- */
 @layer components {
 
   /* Surfaces */
   .panel {
+    position: relative;
     background-color: rgb(var(--surface));
     border: 1px solid rgb(var(--line));
-    border-radius: 12px;
+    border-radius: 18px;
     box-shadow: var(--shadow-panel);
   }
   .panel-inset {
     background-color: rgb(var(--surface-2));
     border: 1px solid rgb(var(--line));
-    border-radius: 10px;
+    border-radius: 14px;
   }
   .panel-pop {
     background-color: rgb(var(--surface));
     border: 1px solid rgb(var(--line));
-    border-radius: 14px;
+    border-radius: 20px;
     box-shadow: var(--shadow-pop);
   }
+  /* Surface vitree : barres, menus, palette. */
+  .glass {
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    backdrop-filter: blur(20px) saturate(150%);
+  }
+  /* Tuile de chiffre cle (fiche joueur, en-tetes). */
+  .stat-tile {
+    background-color: rgb(var(--surface-2));
+    border: 1px solid rgb(var(--line));
+    border-radius: 16px;
+    padding: 14px 16px 16px;
+    transition: border-color 180ms ease;
+  }
+  .stat-tile:hover { border-color: rgb(var(--accent) / .35); }
 
-  /* Stat scoreboard : signature visuelle du dashboard.
-     Separateur vertical fin entre label et valeur, comme un afficheur
-     de stade. Accent ligne turf en bas, optionnel. */
+  /* Tableau d'affichage : carte KPI qui reagit au survol. */
   .scoreboard {
-    @apply panel relative overflow-hidden;
+    position: relative;
+    overflow: hidden;
+    background-color: rgb(var(--surface));
+    border: 1px solid rgb(var(--line));
+    border-radius: 18px;
+    box-shadow: var(--shadow-panel);
     padding: 18px 20px 20px;
-    transition: transform 200ms cubic-bezier(.4,0,.2,1), border-color 200ms;
+    transition: transform 220ms cubic-bezier(.2,.8,.2,1), border-color 220ms, box-shadow 220ms;
   }
   .scoreboard:hover {
-    transform: translateY(-2px);
-    border-color: rgb(var(--turf) / .35);
+    transform: translateY(-3px);
+    border-color: rgb(var(--accent) / .4);
+    box-shadow: var(--glow-accent);
   }
   .scoreboard::after {
     content: "";
     position: absolute;
     inset: auto 0 0 0;
     height: 2px;
-    background: linear-gradient(90deg,
-      transparent 0%,
-      rgb(var(--turf) / .6) 50%,
-      transparent 100%);
+    background: linear-gradient(90deg, transparent, rgb(var(--accent)), rgb(var(--accent-2)), transparent);
     opacity: 0;
-    transition: opacity 200ms;
+    transition: opacity 220ms;
   }
-  .scoreboard:hover::after { opacity: 1; }
+  .scoreboard:hover::after { opacity: .9; }
 
   .stat-label {
-    font-family: "Geist", system-ui, sans-serif;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.16em;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: rgb(var(--faint));
   }
   .stat-value {
-    font-family: "Geist", system-ui, sans-serif;
-    font-size: 32px;
+    font-family: "Bricolage Grotesque Variable", "Instrument Sans Variable", ui-sans-serif, sans-serif;
+    font-size: 34px;
     font-weight: 700;
     line-height: 1;
     color: rgb(var(--ink));
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
   }
   .stat-suffix {
-    font-size: 11px;
+    font-size: 12px;
     color: rgb(var(--muted));
     font-weight: 500;
   }
 
-  /* Badges */
+  /* Badges : pastilles douces */
   .badge {
-    @apply inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold
-           uppercase tracking-wider rounded border;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0;
     background-color: rgb(var(--surface-2));
-    border-color: rgb(var(--line));
+    border: 1px solid rgb(var(--line));
     color: rgb(var(--muted));
+    white-space: nowrap;
   }
-  .badge-turf  { border-color: rgb(var(--turf) / .4);   color: rgb(var(--turf));   background: rgb(var(--turf) / .08); }
-  .badge-amber { border-color: rgb(var(--amber) / .4);  color: rgb(var(--amber));  background: rgb(var(--amber) / .08); }
-  .badge-danger{ border-color: rgb(var(--danger) / .4); color: rgb(var(--danger)); background: rgb(var(--danger) / .08); }
-  .badge-sky   { border-color: rgb(var(--sky) / .4);    color: rgb(var(--sky));    background: rgb(var(--sky) / .08); }
+  .badge-accent { border-color: rgb(var(--accent) / .32); color: rgb(var(--accent)); background: rgb(var(--accent) / .1); }
+  .badge-amber  { border-color: rgb(var(--amber) / .35);  color: rgb(var(--amber));  background: rgb(var(--amber) / .1); }
+  .badge-danger { border-color: rgb(var(--danger) / .35); color: rgb(var(--danger)); background: rgb(var(--danger) / .1); }
+  .badge-sky    { border-color: rgb(var(--sky) / .35);    color: rgb(var(--sky));    background: rgb(var(--sky) / .1); }
 
-  /* Pills V/N/D : 1 carre par match, hover degrade subtil. */
-  .pill-v {
-    @apply inline-flex w-6 h-6 items-center justify-center rounded-md text-[10px] font-bold;
-    background: rgb(var(--win) / .15);
-    color: rgb(var(--win));
-    border: 1px solid rgb(var(--win) / .3);
+  /* Pastilles V / N / D : une par match. */
+  .pill-v, .pill-n, .pill-d {
+    display: inline-flex;
+    width: 26px;
+    height: 26px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 700;
   }
-  .pill-n {
-    @apply inline-flex w-6 h-6 items-center justify-center rounded-md text-[10px] font-bold;
-    background: rgb(var(--draw) / .15);
-    color: rgb(var(--draw));
-    border: 1px solid rgb(var(--draw) / .3);
-  }
-  .pill-d {
-    @apply inline-flex w-6 h-6 items-center justify-center rounded-md text-[10px] font-bold;
-    background: rgb(var(--loss) / .15);
-    color: rgb(var(--loss));
-    border: 1px solid rgb(var(--loss) / .3);
-  }
+  .pill-v { background: rgb(var(--win) / .16);  color: rgb(var(--win));  box-shadow: inset 0 0 0 1px rgb(var(--win) / .32); }
+  .pill-n { background: rgb(var(--draw) / .16); color: rgb(var(--draw)); box-shadow: inset 0 0 0 1px rgb(var(--draw) / .32); }
+  .pill-d { background: rgb(var(--loss) / .16); color: rgb(var(--loss)); box-shadow: inset 0 0 0 1px rgb(var(--loss) / .32); }
 
-  /* Tables : style "feuille de match", pas Excel.
-     Hover row avec accent gauche turf. */
+  /* Tableaux : en-tetes discrets, lignes aerees, survol doux. */
   .table-fm {
-    @apply w-full text-sm border-separate;
+    width: 100%;
+    font-size: 14px;
+    border-collapse: separate;
     border-spacing: 0;
   }
   .table-fm thead th {
-    font-family: "Geist", system-ui, sans-serif;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
     color: rgb(var(--faint));
-    background-color: rgb(var(--surface-2));
+    background-color: transparent;
     border-bottom: 1px solid rgb(var(--line));
     padding: 10px 12px;
     text-align: left;
+    white-space: nowrap;
   }
   .table-fm tbody td {
-    border-bottom: 1px solid rgb(var(--line) / .6);
-    padding: 10px 12px;
+    border-bottom: 1px solid rgb(var(--line) / .55);
+    padding: 12px;
     color: rgb(var(--ink));
-    transition: background-color 120ms;
+    transition: background-color 140ms;
   }
-  .table-fm tbody tr {
-    position: relative;
+  .table-fm tbody tr:last-child td { border-bottom-color: transparent; }
+  .table-fm tbody tr:hover td { background-color: rgb(var(--accent) / .06); }
+  .table-fm tbody tr:hover td:first-child { border-top-left-radius: 10px; border-bottom-left-radius: 10px; }
+  .table-fm tbody tr:hover td:last-child  { border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
+  .table-fm tbody tr.is-mine td { background-color: rgb(var(--accent) / .09); }
+  .table-fm tbody tr.is-mine td:first-child { box-shadow: inset 3px 0 0 0 rgb(var(--accent)); }
+
+  /* Tableau dense : cellules plus serrees (fiches a beaucoup de colonnes). */
+  .table-dense thead th, .table-dense tbody td { padding-left: 8px; padding-right: 8px; }
+
+  /* Derniere colonne (actions) collee au bord droit : quand le tableau defile dans son
+     panneau, les boutons restent toujours visibles et cliquables. Le fond opaque masque
+     les cellules qui passent dessous ; la teinte de survol se superpose au lieu de la remplacer. */
+  .table-fm .col-fixe { position: sticky; right: 0; z-index: 1; background-color: rgb(var(--surface)); }
+  .table-fm tbody tr:hover td.col-fixe {
+    background-image: linear-gradient(rgb(var(--accent) / .06), rgb(var(--accent) / .06));
   }
-  .table-fm tbody tr:hover td { background-color: rgb(var(--line) / .25); }
-  .table-fm tbody tr.is-mine td { background-color: rgb(var(--turf) / .07); }
-  .table-fm tbody tr.is-mine td:first-child {
-    box-shadow: inset 3px 0 0 0 rgb(var(--turf));
+  .table-fm tbody tr.is-mine td.col-fixe {
+    background-image: linear-gradient(rgb(var(--accent) / .09), rgb(var(--accent) / .09));
   }
 
-  /* Headers */
+  /* En-tetes de section */
   .h-section {
-    font-family: "Geist", system-ui, sans-serif;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: rgb(var(--faint));
   }
 
-  /* Buttons */
+  /* Boutons */
   .btn {
-    @apply inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
     background-color: rgb(var(--surface));
-    border: 1px solid rgb(var(--line));
+    border: 1px solid rgb(var(--line-strong) / .7);
     color: rgb(var(--ink));
-    transition: all 150ms cubic-bezier(.4,0,.2,1);
+    transition: background-color 160ms ease, border-color 160ms ease, transform 160ms cubic-bezier(.2,.8,.2,1), box-shadow 160ms ease, filter 160ms;
   }
   .btn:hover {
-    background-color: rgb(var(--line) / .4);
+    background-color: rgb(var(--surface-2));
+    border-color: rgb(var(--accent) / .45);
     transform: translateY(-1px);
   }
-  .btn:active { transform: translateY(0); }
+  .btn:active { transform: translateY(0) scale(.985); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
-  .btn-turf, .btn-primary {
-    background-color: rgb(var(--turf));
-    color: rgb(var(--bg));
-    border-color: rgb(var(--turf));
+  .btn-accent, .btn-primary {
+    color: #fff;
+    border-color: transparent;
+    background-image: linear-gradient(135deg, rgb(var(--accent-strong)), rgb(var(--accent-deep)));
+    box-shadow: 0 1px 0 rgb(255 255 255 / .18) inset, 0 8px 22px -10px rgb(var(--accent-strong) / .8);
   }
-  .btn-turf:hover, .btn-primary:hover {
-    background-color: rgb(var(--turf-dim));
-    border-color: rgb(var(--turf-dim));
+  .btn-accent:hover, .btn-primary:hover {
+    background-color: transparent;
+    border-color: transparent;
+    filter: brightness(1.12);
+    box-shadow: 0 1px 0 rgb(255 255 255 / .2) inset, 0 12px 28px -10px rgb(var(--accent-strong) / .95);
   }
 
   .btn-ghost {
@@ -303,36 +387,99 @@ body::before {
     color: rgb(var(--muted));
   }
   .btn-ghost:hover {
-    background-color: rgb(var(--line) / .4);
+    background-color: rgb(var(--surface-2));
+    border-color: transparent;
     color: rgb(var(--ink));
   }
 
-  /* Inputs */
+  /* Champs */
   .inp, .select-fm {
-    @apply w-full px-3 py-2 rounded-lg text-sm;
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 12px;
+    font-size: 14px;
     background-color: rgb(var(--surface-2));
-    border: 1px solid rgb(var(--line));
+    border: 1px solid rgb(var(--line-strong) / .6);
     color: rgb(var(--ink));
     outline: none;
-    transition: border-color 150ms;
+    transition: border-color 160ms, box-shadow 160ms, background-color 160ms;
   }
+  .inp:hover, .select-fm:hover { border-color: rgb(var(--line-strong)); }
   .inp:focus, .select-fm:focus {
-    border-color: rgb(var(--turf) / .6);
-    box-shadow: 0 0 0 3px rgb(var(--turf) / .12);
+    border-color: rgb(var(--accent) / .8);
+    box-shadow: 0 0 0 4px rgb(var(--accent) / .16);
+    background-color: rgb(var(--surface));
   }
   .inp::placeholder { color: rgb(var(--faint)); }
 
-  /* Text colors mapped to vars */
+  /* Touche clavier (aide de la palette). */
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 6px;
+    font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgb(var(--muted));
+    background: rgb(var(--surface-2));
+    border: 1px solid rgb(var(--line-strong) / .7);
+    box-shadow: 0 1px 0 rgb(var(--line-strong) / .7);
+  }
+
+  /* Texte degrade (grands chiffres, titres d'accroche). */
+  .text-gradient {
+    background-image: linear-gradient(120deg, rgb(var(--accent)) 0%, rgb(var(--accent-2)) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Squelette de chargement : un reflet traverse le bloc. */
+  .skeleton {
+    border-radius: 12px;
+    background-color: rgb(var(--surface-2));
+    background-image: linear-gradient(100deg, transparent 20%, rgb(var(--surface-3) / .9) 50%, transparent 80%);
+    background-size: 220% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+
+  /* Lignes de terrain en filigrane (en-tetes). Masque + couleur du theme :
+     un SVG en data-URI ne peut pas lire les variables CSS. */
+  .pitch-lines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: rgb(var(--accent) / .11);
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200' fill='none' stroke='black' stroke-width='1.5'%3E%3Ccircle cx='330' cy='100' r='62'/%3E%3Ccircle cx='330' cy='100' r='3' fill='black'/%3E%3Cpath d='M330 0v200M400 52h-68v96h68'/%3E%3Cpath d='M400 20h-116v160h116'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200' fill='none' stroke='black' stroke-width='1.5'%3E%3Ccircle cx='330' cy='100' r='62'/%3E%3Ccircle cx='330' cy='100' r='3' fill='black'/%3E%3Cpath d='M330 0v200M400 52h-68v96h68'/%3E%3Cpath d='M400 20h-116v160h116'/%3E%3C/svg%3E");
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: right center;
+    mask-position: right center;
+    -webkit-mask-size: auto 130%;
+    mask-size: auto 130%;
+  }
+
+  /* Couleurs de texte liees aux variables. */
   .text-ink    { color: rgb(var(--ink)); }
   .text-muted  { color: rgb(var(--muted)); }
   .text-faint  { color: rgb(var(--faint)); }
 }
 
-/* ----- Scrollbar discrete ------------------------------------ */
+/* ----- Ecrans etroits ------------------------------------------ */
+/* Un tableau plus large que son panneau defile dans le panneau au lieu de
+   faire deborder toute la page. */
+.panel:has(table.table-fm) { overflow-x: auto; }
+@media (max-width: 1023px) {
+  .table-fm { min-width: 560px; }
+}
+
+/* ----- Barre de defilement discrete ---------------------------- */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgb(var(--line-strong) / .6);
+  background: rgb(var(--line-strong) / .55);
   border-radius: 8px;
   border: 2px solid transparent;
   background-clip: padding-box;
@@ -343,49 +490,64 @@ body::before {
   border: 2px solid transparent;
 }
 
-/* ----- Animations -------------------------------------------- */
+/* ----- Animations ---------------------------------------------- */
 
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.fade-up { animation: fadeUp 400ms cubic-bezier(.4,0,.2,1) both; }
+.fade-up { animation: fadeUp 480ms cubic-bezier(.2,.8,.2,1) both; }
 
-/* Stagger pour grilles : delay progressif, plus serre que l'ancien. */
-.fade-up-stagger > * { animation: fadeUp 400ms cubic-bezier(.4,0,.2,1) both; }
+/* Entree de page (template.tsx) : courte, pour ne jamais retarder la lecture. */
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.page-enter { animation: pageEnter 320ms cubic-bezier(.2,.8,.2,1) both; }
+
+/* Grilles : les enfants apparaissent en cascade. */
+.fade-up-stagger > * { animation: fadeUp 480ms cubic-bezier(.2,.8,.2,1) both; }
 .fade-up-stagger > *:nth-child(1) { animation-delay: 0ms; }
-.fade-up-stagger > *:nth-child(2) { animation-delay: 50ms; }
-.fade-up-stagger > *:nth-child(3) { animation-delay: 100ms; }
-.fade-up-stagger > *:nth-child(4) { animation-delay: 150ms; }
-.fade-up-stagger > *:nth-child(5) { animation-delay: 200ms; }
-.fade-up-stagger > *:nth-child(6) { animation-delay: 250ms; }
-.fade-up-stagger > *:nth-child(7) { animation-delay: 300ms; }
-.fade-up-stagger > *:nth-child(8) { animation-delay: 350ms; }
-.fade-up-stagger > *:nth-child(9) { animation-delay: 400ms; }
+.fade-up-stagger > *:nth-child(2) { animation-delay: 60ms; }
+.fade-up-stagger > *:nth-child(3) { animation-delay: 120ms; }
+.fade-up-stagger > *:nth-child(4) { animation-delay: 180ms; }
+.fade-up-stagger > *:nth-child(5) { animation-delay: 240ms; }
+.fade-up-stagger > *:nth-child(6) { animation-delay: 300ms; }
+.fade-up-stagger > *:nth-child(7) { animation-delay: 360ms; }
+.fade-up-stagger > *:nth-child(8) { animation-delay: 420ms; }
+.fade-up-stagger > *:nth-child(9) { animation-delay: 480ms; }
 
-/* Count-up : effet "scoreboard" sur les KPIs numeriques.
-   La valeur est revelee chiffre par chiffre via un transform. */
+/* Menus et modales : apparition elastique courte. */
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(6px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+.pop-in { animation: popIn 180ms cubic-bezier(.2,.8,.2,1) both; }
+
 @keyframes countSlide {
   from { transform: translateY(.6em); opacity: 0; }
   to   { transform: translateY(0); opacity: 1; }
 }
-.count-up { animation: countSlide 600ms cubic-bezier(.4,0,.2,1) both; }
+.count-up { animation: countSlide 600ms cubic-bezier(.2,.8,.2,1) both; }
 
-/* Pulse subtil pour les indicateurs live (saison active, etc.) */
 @keyframes livePulse {
   0%, 100% { opacity: 1; }
-  50%      { opacity: .55; }
+  50%      { opacity: .5; }
 }
 .pulse-live { animation: livePulse 2s ease-in-out infinite; }
 
-/* Spin pour loaders */
+@keyframes shimmer {
+  from { background-position: 120% 0; }
+  to   { background-position: -120% 0; }
+}
+
 @keyframes spinSlow {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
 .spin-slow { animation: spinSlow 2s linear infinite; }
 
-/* Respect reduced motion - desactive toute animation non-essentielle. */
+/* Respect de "reduire les animations" : tout devient instantane. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: .01ms !important;
@@ -395,11 +557,20 @@ body::before {
   }
 }
 
-/* ----- Misc --------------------------------------------------- */
+/* ----- Divers -------------------------------------------------- */
 
-.font-display { font-family: "Geist", system-ui, sans-serif; }
-.font-mono    { font-family: "JetBrains Mono", ui-monospace, monospace; }
+.font-display { font-family: "Bricolage Grotesque Variable", "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.02em; }
+.font-mono    { font-family: "JetBrains Mono Variable", ui-monospace, monospace; }
 
-/* Liens dans le contenu : underline tres discrete sur hover */
-.link-discrete { color: rgb(var(--ink)); }
-.link-discrete:hover { color: rgb(var(--turf)); }
+.link-discrete { color: rgb(var(--ink)); transition: color 140ms; }
+.link-discrete:hover { color: rgb(var(--accent)); }
+
+/* ----- Impression : on ne garde que le contenu, sur fond blanc ---- */
+@media print {
+  @page { margin: 12mm; }
+  body::before { display: none; }
+  html, body { background: #fff; }
+  .panel, .panel-inset, .stat-tile { box-shadow: none; }
+  .panel, .panel-inset, .stat-tile, .no-coupure { break-inside: avoid; }
+  .fade-up, .fade-up-stagger, .fade-up-stagger > * { animation: none !important; opacity: 1 !important; transform: none !important; }
+}

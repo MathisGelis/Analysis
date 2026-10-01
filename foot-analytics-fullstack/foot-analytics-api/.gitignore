@@ -7,3 +7,6 @@ dist
 uploads
 parser-out
 *.tsbuildinfo
+__pycache__/
+.pytest_cache/
+*.sqlite
