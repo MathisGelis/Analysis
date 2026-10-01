@@ -40,21 +40,81 @@ pip install -r parser/requirements.txt
 | `CORS_ORIGIN` | `http://localhost:3000` | Origine autorisee (le front) |
 | `DB_TYPE` | `sqlite` | `sqlite` (sql.js) ou `postgres` |
 | `SQLITE_PATH` | `foot-analytics.sqlite` | Fichier SQLite |
-| `DATABASE_URL` | — | Connexion Postgres/Supabase si `DB_TYPE=postgres` |
+| `DATABASE_URL` | — | Connexion Postgres/Supabase si `DB_TYPE=postgres` (voir ci-dessous) |
+| `DB_SSL` | `require` (`off` en local) | `off`, `require` (chiffre, sans verifier le certificat) ou `verify` (avec `DB_SSL_CA`) |
+| `DB_SSL_CA` | — | Certificat de l'autorite (PEM, ou chemin du fichier) pour `DB_SSL=verify` |
+| `DB_POOL_MAX` | `10` | Taille du pool de connexions Postgres |
+| `DB_MIGRATIONS_RUN` | `true` | `false` : ne pas appliquer les migrations au demarrage (Postgres) |
+| `SEED_FORCE` | — | `true` autorise le peuplement de demo a vider une base Postgres (a eviter) |
 | `PYTHON_BIN` | `python3` | Binaire Python pour le parseur |
 | `FMI_PARSER_PATH` | `parser/parse_fmi.py` | Script de parsing |
-| `AUTO_SEED` | `true` | Peuple la base si vide au demarrage |
+| `AUTO_SEED` | `true` (SQLite) · `false` (Postgres) | Peuple la base de demo si elle est vide au demarrage |
 | `LOG_LEVEL` | `log` | `fatal`, `error`, `warn`, `log`, `debug`, `verbose` : `debug` active les traces de diagnostic (clone de saison, effectif, attache) |
 
 ### Passer sur Supabase / Postgres
 
-```env
-DB_TYPE=postgres
-DATABASE_URL=postgresql://postgres:motdepasse@db.xxxx.supabase.co:5432/postgres
+Supabase ne sert ici que de **Postgres heberge** : l'authentification (JWT + bcrypt), les droits et l'import FMI
+restent dans cette API.
+
+1. **Projet** : creer le projet dans une region UE (Paris ou Francfort) : la base contient des blessures
+   (donnees de sante) et des joueurs mineurs.
+2. **Connexion** : bouton *Connect* du projet (ou *Project Settings > Database*), puis la chaine **Session pooler**
+   (port `5432`) ou la connexion directe. Pas le *Transaction pooler* (`6543`) : migrations et transactions
+   supposent une session stable.
+
+   ```env
+   DB_TYPE=postgres
+   DATABASE_URL=postgresql://postgres.<ref>:<mot-de-passe>@aws-0-<region>.pooler.supabase.com:5432/postgres
+   ```
+
+   Un mot de passe contenant `@`, `#` ou `/` doit etre encode (`%40`, `%23`, `%2F`).
+3. **SSL** : chiffre par defaut sans verifier le certificat. Pour verifier la chaine, telecharger le certificat
+   (*Project Settings > Database > SSL configuration*) et regler `DB_SSL=verify` + `DB_SSL_CA=/chemin/prod-ca.crt`.
+4. **Schema** : il evolue par **migrations** (`src/migrations`), appliquees au demarrage ; jamais de `synchronize`
+   sur Postgres.
+5. **Donnees** : copier un fichier SQLite existant vers la base (applique les migrations, puis copie tout dans une
+   transaction ; refuse une cible non vide, `--ecraser` pour la vider d'abord). Le fichier SQLite n'est jamais modifie.
+
+   ```bash
+   DATABASE_URL=... npm run db:copier -- --sqlite foot-analytics.sqlite
+   ```
+6. **Securite** : Supabase expose par defaut une API REST sur toutes les tables, avec une cle `anon` publique. La
+   migration `VerrouillerApiDonnees` active la RLS sans politique sur chaque table et retire les privileges de
+   `anon` / `authenticated`, tables futures comprises (`migrations.pg.spec.ts` echoue si une table reste ouverte).
+   L'API Nest se connecte avec le role proprietaire, que la RLS ne bloque pas. Par precaution, desactiver aussi la
+   *Data API* du projet (*Project Settings*), inutilisee ici.
+7. **Peuplement de demo** : jamais automatique sur Postgres, et `npm run seed` / `POST /seed/reset` y sont refuses
+   (ils videraient toutes les tables).
+8. **Sauvegardes** : l'offre gratuite n'en fait pas de maniere fiable et met le projet en pause apres une semaine
+   d'inactivite ; pour de vraies donnees, prendre une offre avec sauvegardes quotidiennes, et verifier une restauration.
+
+### Migrations
+
+```bash
+npm run migration:show                                   # etat (DATABASE_URL)
+npm run migration:run                                    # applique celles qui manquent
+npm run migration:revert                                 # annule la derniere
+npm run migration:generate -- src/migrations/NomClair    # apres avoir modifie une entite
 ```
 
-`synchronize: true` cree les tables automatiquement (pratique pour la demo ;
-en production reelle, basculer sur des migrations TypeORM).
+`migration:generate` compare les entites a la base visee : elle doit etre a jour des migrations existantes
+(`migration:run` sur un Postgres local vide d'abord). Relire le fichier genere, retirer tout `"public".` en dur, et
+**activer la RLS** sur toute nouvelle table (`ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, comme dans
+`VerrouillerApiDonnees`) : le test de migrations le verifie.
+
+### Tests sur Postgres
+
+La suite Jest tourne par defaut sur SQLite (en memoire). Avec `TEST_DATABASE_URL`, la meme suite tourne sur
+Postgres (un schema par test, supprime ensuite) et les tests de migrations, de verrouillage RLS et de copie
+SQLite -> Postgres s'activent :
+
+```bash
+docker run -d -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=foot_test -p 5432:5432 postgres:16
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/foot_test npx jest
+```
+
+Ne jamais viser une base Supabase : les tests refusent un hote `supabase.co` / `supabase.com`. La CI lance les deux
+variantes, ainsi que le parcours Playwright sur SQLite puis sur Postgres.
 
 ## Endpoints
 

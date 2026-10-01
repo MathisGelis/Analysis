@@ -70,8 +70,8 @@ Fair-play, Import FMI (upload reel vers le parseur du backend).
 ## Stack technique
 
 - **Next.js 14** (App Router) + **TypeScript** + **Tailwind CSS**
-- **Supabase** (Postgres + Auth + Storage + Realtime) — schema fourni dans
-  `supabase/schema.sql`
+- Donnees et authentification : l'**API NestJS** (`foot-analytics-api`), sur SQLite en dev et sur
+  Postgres (Supabase) en production. Le front ne parle qu'a cette API ; il n'a aucune cle de base.
 - **pdfplumber** (Python) pour le parsing des feuilles FMI
 - Pas de dependance graphique externe : tous les graphiques sont des SVG
   ecrits a la main dans `src/components/Charts.tsx` (BarsChart, Sparkline,
@@ -86,7 +86,7 @@ Fair-play, Import FMI (upload reel vers le parseur du backend).
 
 ## Demarrage rapide
 
-### 1. Mode demo (sans Supabase)
+### 1. Mode demo (sans API)
 
 L'app fonctionne immediatement avec les donnees reelles parsees, sans
 backend :
@@ -99,28 +99,14 @@ npm run dev
 
 Ouvrir <http://localhost:3000>.
 
-### 2. Mode complet (avec Supabase)
+### 2. Mode complet (avec l'API)
 
-Creer un projet sur <https://supabase.com>, puis :
+Demarrer `foot-analytics-api` (voir son README : SQLite par defaut, Postgres / Supabase en
+production), puis :
 
 ```bash
 cp .env.example .env.local
-# Renseigner NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY
-```
-
-Dans l'editeur SQL Supabase, executer dans l'ordre :
-
-```sql
--- 1. Schema
-\i supabase/schema.sql
-
--- 2. Donnees de demo (issues du FMI Neuville et de l'Excel Chaponnay)
-\i supabase/seed.sql
-```
-
-Puis :
-
-```bash
+# NEXT_PUBLIC_API_URL doit pointer vers l'API (http://localhost:4000/api par defaut)
 npm run dev
 ```
 
@@ -204,9 +190,6 @@ foot-analytics/
 ├── parser/                      # parseur Python (pdfplumber)
 │   ├── parse_fmi.py             # script principal CLI
 │   └── requirements.txt
-├── supabase/
-│   ├── schema.sql               # 14 tables + 2 vues + indexes + RLS
-│   └── seed.sql                 # donnees demo
 ├── sample-data/                 # PDFs et Excels reels utilises
 │   ├── FMI_Neuville1.pdf
 │   ├── FMI_Neuville1.json       # sortie du parser
@@ -239,7 +222,6 @@ foot-analytics/
     │   └── Charts.tsx           # tous les graphiques (SVG, zero deps)
     ├── lib/
     │   ├── types.ts
-    │   ├── supabase.ts
     │   └── stats.ts             # bilans, tops, onze probable...
     └── data/
         └── demo.ts              # donnees reelles parsees
@@ -285,7 +267,7 @@ RLS prevue (commentee dans le SQL — a activer selon votre modele d'auth).
 ## Roadmap suggeree
 
 - [ ] Brancher `/api/import` cote serveur (execute le parser Python via worker)
-- [ ] Realtime sur les blessures/notes (Supabase channels)
+- [ ] Notifications en direct sur les blessures/notes
 - [ ] Modele ML pour predictions (xgboost sur historique FMI)
 - [ ] Mode multi-equipe (U20, U18, feminines, vétérans)
 - [ ] Export PDF des rapports pre/post-match

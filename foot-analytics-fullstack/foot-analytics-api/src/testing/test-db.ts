@@ -17,7 +17,16 @@ import {
 
 export const TESTS_SUR_POSTGRES = !!process.env.TEST_DATABASE_URL;
 
+/** Les tests creent et suppriment des schemas, et au besoin des roles : jamais sur une base hebergee. */
+export function refuserBaseHebergee(url: string): void {
+  const hote = new URL(url).hostname.toLowerCase();
+  if (/(^|\.)supabase\.(co|com)$/.test(hote) || hote.endsWith(".pooler.supabase.com")) {
+    throw new Error(`TEST_DATABASE_URL pointe vers une base Supabase (${hote}) : utilise un Postgres local ou jetable.`);
+  }
+}
+
 async function creerBasePostgres(url: string): Promise<DataSource> {
+  refuserBaseHebergee(url);
   const schema = `t_${randomBytes(6).toString("hex")}`;
   const admin = new DataSource({ type: "postgres", url, extra: { max: 1 } });
   await admin.initialize();

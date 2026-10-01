@@ -10,7 +10,13 @@
     "start:prod": "node dist/main.js",
     "seed": "ts-node -r tsconfig-paths/register src/seed/seed.cli.ts",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js -d src/common/data-source.ts",
+    "migration:generate": "npm run typeorm -- migration:generate",
+    "migration:run": "npm run typeorm -- migration:run",
+    "migration:revert": "npm run typeorm -- migration:revert",
+    "migration:show": "npm run typeorm -- migration:show",
+    "db:copier": "ts-node -r tsconfig-paths/register src/common/copie-sqlite-vers-postgres.ts"
   },
   "dependencies": {
     "@nestjs/common": "10.4.4",
@@ -23,6 +29,7 @@
     "bcryptjs": "^3.0.3",
     "class-transformer": "0.5.1",
     "class-validator": "0.14.1",
+    "dotenv": "16.4.5",
     "jsonwebtoken": "^9.0.3",
     "pg": "8.12.0",
     "reflect-metadata": "0.2.2",

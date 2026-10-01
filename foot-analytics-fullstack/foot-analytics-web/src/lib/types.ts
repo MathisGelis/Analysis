@@ -1,4 +1,4 @@
-// Types du domaine — alignes sur le schema Supabase (supabase/schema.sql).
+// Types du domaine — alignes sur les entites de l'API (foot-analytics-api/src/entities).
 
 export type Issue = "V" | "N" | "D";
 

@@ -8,6 +8,7 @@ import {
   Joueur, LigneClassement, Match, RapportScouting,
 } from "@/entities";
 import { SEED } from "./seed-data";
+import { seedAutomatique, verifierResetAutorise } from "./garde-seed";
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -28,8 +29,7 @@ export class SeedService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap() {
-    const auto = this.cfg.get<string>("AUTO_SEED", "true") === "true";
-    if (!auto) return;
+    if (!seedAutomatique({ DB_TYPE: this.cfg.get<string>("DB_TYPE"), AUTO_SEED: this.cfg.get<string>("AUTO_SEED") })) return;
     const count = await this.clubs.count();
     if (count > 0) {
       this.log.log(`Base deja peuplee (${count} clubs) — seed ignore.`);
@@ -74,6 +74,7 @@ export class SeedService implements OnApplicationBootstrap {
 
   /** Reinitialise completement (utilise par l'endpoint admin /seed/reset). */
   async reset() {
+    verifierResetAutorise({ DB_TYPE: this.cfg.get<string>("DB_TYPE"), SEED_FORCE: this.cfg.get<string>("SEED_FORCE") });
     await this.evts.clear();
     await this.compos.clear();
     await this.matchs.clear();

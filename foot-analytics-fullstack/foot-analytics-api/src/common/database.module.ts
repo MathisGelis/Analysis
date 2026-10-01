@@ -3,6 +3,7 @@ import { Module, Global } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { OPTIONS_ENTITES } from "@/entities";
+import { connexionPostgres } from "@/common/postgres";
 
 @Global()
 @Module({
@@ -14,14 +15,13 @@ import { OPTIONS_ENTITES } from "@/entities";
         const type = cfg.get<string>("DB_TYPE", "sqlite");
 
         if (type === "postgres") {
-          // Production : Supabase / Postgres. Utiliser des migrations en vrai prod.
-          return {
-            type: "postgres" as const,
-            url: cfg.get<string>("DATABASE_URL"),
-            ...OPTIONS_ENTITES,
-            synchronize: true,
-            ssl: { rejectUnauthorized: false },
-          };
+          // Production : Supabase / Postgres. Le schema evolue par migrations (src/migrations), appliquees au
+          // demarrage ; jamais de synchronize ici. Voir common/postgres.ts pour la connexion et le SSL.
+          return connexionPostgres({
+            DATABASE_URL: cfg.get<string>("DATABASE_URL"), DB_SSL: cfg.get<string>("DB_SSL"),
+            DB_SSL_CA: cfg.get<string>("DB_SSL_CA"), DB_POOL_MAX: cfg.get<string>("DB_POOL_MAX"),
+            DB_MIGRATIONS_RUN: cfg.get<string>("DB_MIGRATIONS_RUN"),
+          });
         }
 
         // Developpement : sql.js (SQLite compile en WASM).

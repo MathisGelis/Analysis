@@ -1,6 +1,6 @@
 // src/lib/stats.ts
 // Calculs et derivations statistiques cote client.
-// En production, repliquer ces formules en vues SQL (cf. supabase/schema.sql).
+// Formules pures, testees ; le serveur (foot-analytics-api) calcule les memes bilans a la volee.
 
 import {
   ALL_MATCHS,

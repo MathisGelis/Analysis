@@ -9,6 +9,8 @@
 //                         le parcours est ignore si pdfplumber est introuvable)
 //   PW_CHROMIUM_PATH      chemin d'un Chromium deja installe (evite le telechargement)
 //   E2E_REUSE_SERVERS=1   reutilise des serveurs deja lances sur 4100 / 3100
+//   E2E_DATABASE_URL      URL d'une base Postgres DEDIEE aux tests (nom contenant "test" ou "e2e") : l'API de
+//                         test tourne dessus au lieu de SQLite ; son schema "public" est recree a chaque lancement
 
 import { defineConfig } from "@playwright/test";
 import path from "node:path";
