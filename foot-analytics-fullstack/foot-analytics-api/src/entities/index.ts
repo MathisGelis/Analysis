@@ -1,19 +1,22 @@
 // src/entities/index.ts
 //
-// Entites TypeORM — alignees sur supabase/schema.sql.
-// Compatibles SQLite (dev, zero config) et Postgres/Supabase (prod).
+// Entites TypeORM. Compatibles SQLite (dev, zero config) et Postgres/Supabase (prod).
+// Les cles primaires sont des chaines opaques (UUID v4 generes par GenerateurIdentifiants) et non le type
+// `uuid` de Postgres : les cles etrangeres "sans relation" (equipeId, joueurId...) et les identifiants
+// d'URL ou de cookie restent ainsi comparables partout, et un identifiant inconnu est un 404, jamais une erreur SQL.
 // On evite les types PG-specifiques (text[], jsonb) : les tableaux sont
 // stockes en "simple-array", les payloads en "simple-json" (portable).
 
 import {
   AfterLoad, Column, CreateDateColumn, Entity, JoinColumn, ManyToOne,
-  OneToMany, PrimaryGeneratedColumn, Index, UpdateDateColumn,
+  OneToMany, PrimaryColumn, Index, UpdateDateColumn,
 } from "typeorm";
+import { GenerateurIdentifiants } from "@/entities/identifiants";
 import { champsFatigue, deserialiserEntree } from "@/common/fatigue";
 
 @Entity("clubs")
 export class Club {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @Column({ unique: true, nullable: true }) numeroFff: string;
   @Column() nom: string;
   @Column({ nullable: true }) ville: string;
@@ -28,7 +31,7 @@ export class Club {
 
 @Entity("saisons")
 export class Saison {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   // Libelle : ex. "2025-2026". Unique pour eviter les doublons.
   @Column({ unique: true }) nom: string;
   // Annee de debut (entier). Utile pour deduire la saison d'une date.
@@ -44,7 +47,7 @@ export class Saison {
 
 @Entity("equipes")
 export class Equipe {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @ManyToOne(() => Club, (c) => c.equipes, { onDelete: "CASCADE" })
   @JoinColumn({ name: "club_id" }) club: Club;
   @Index() @Column({ name: "club_id" }) clubId: string;
@@ -70,7 +73,7 @@ export class Equipe {
 
 @Entity("joueurs")
 export class Joueur {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @Column({ nullable: true }) licence: string;
   @Column() nom: string;
   @Column({ nullable: true }) prenom: string;
@@ -151,7 +154,7 @@ export class Joueur {
 
 @Entity("matchs")
 export class Match {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @Column({ unique: true, nullable: true }) numeroFmi: string;
   @Column({ nullable: true }) journee: string;
   @Column({ nullable: true }) date: string;
@@ -185,7 +188,7 @@ export class Match {
 
 @Entity("compositions")
 export class Composition {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @ManyToOne(() => Match, (m) => m.compositions, { onDelete: "CASCADE" })
   @JoinColumn({ name: "match_id" }) match: Match;
   @Index() @Column({ name: "match_id" }) matchId: string;
@@ -202,7 +205,7 @@ export class Composition {
 
 @Entity("evenements_match")
 export class EvenementMatch {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @ManyToOne(() => Match, (m) => m.evenements, { onDelete: "CASCADE" })
   @JoinColumn({ name: "match_id" }) match: Match;
   @Index() @Column({ name: "match_id" }) matchId: string;
@@ -218,7 +221,7 @@ export class EvenementMatch {
 
 @Entity("entrainements")
 export class Entrainement {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @Index() @Column({ name: "equipe_id", nullable: true }) equipeId: string;
   @Column({ nullable: true }) date: string;
   @Column({ nullable: true }) jour: string;
@@ -245,7 +248,7 @@ export class Entrainement {
 
 @Entity("blessures")
 export class Blessure {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @Index() @Column({ name: "joueur_id" }) joueurId: string;
   @Column({ nullable: true }) joueurNom: string;
   @Column({ nullable: true }) localisation: string;
@@ -262,7 +265,7 @@ export class Blessure {
 
 @Entity("rapports_scouting")
 export class RapportScouting {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @Index() @Column({ name: "club_id" }) clubId: string;
   @Column() equipeNom: string;
   @Column({ nullable: true }) auteur: string;
@@ -290,7 +293,7 @@ export class RapportScouting {
 
 @Entity("classement")
 export class LigneClassement {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @Index() @Column({ name: "club_id" }) clubId: string;
   // Equipe concretement classee (categorie + division + poule). Si null,
   // c'est une ligne ancienne au niveau club brut. Le rebuild produit
@@ -310,7 +313,7 @@ export class LigneClassement {
 
 @Entity("arbitres")
 export class Arbitre {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @Column() nom: string;
   @Column({ nullable: true }) prenom: string;
   // Cumuls denormalises GLOBAUX, recalcules par la derivation.
@@ -344,7 +347,7 @@ export class Arbitre {
 
 @Entity("arbitres_matchs")
 export class ArbitreMatch {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @ManyToOne(() => Match, (m) => m.arbitres, { onDelete: "CASCADE" })
   @JoinColumn({ name: "match_id" }) match: Match;
   @Index() @Column({ name: "match_id" }) matchId: string;
@@ -359,7 +362,7 @@ export class ArbitreMatch {
 
 @Entity("coachs")
 export class Coach {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @Column() nom: string;
   @Column({ nullable: true }) prenom: string;
   @Column({ nullable: true }) licence: string;
@@ -390,7 +393,7 @@ export class Coach {
 
 @Entity("staff_matchs")
 export class StaffMatch {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @ManyToOne(() => Match, { onDelete: "CASCADE" })
   @JoinColumn({ name: "match_id" }) match: Match;
   @Index() @Column({ name: "match_id" }) matchId: string;
@@ -415,7 +418,7 @@ export class StaffMatch {
  */
 @Entity("utilisateurs")
 export class Utilisateur {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @Index({ unique: true }) @Column() login: string;
   @Column() prenom: string;
   @Column() nom: string;
@@ -442,7 +445,7 @@ export class Utilisateur {
 @Entity("stats_joueur_equipe")
 @Index(["joueurId", "equipeId"], { unique: true })
 export class StatJoueurEquipe {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @Column({ name: "joueur_id" }) joueurId: string;
   @Column({ name: "equipe_id" }) equipeId: string;
   @Column({ type: "int", nullable: true }) buts: number | null;
@@ -455,7 +458,7 @@ export class StatJoueurEquipe {
  */
 @Entity("tactiques")
 export class Tactique {
-  @PrimaryGeneratedColumn("uuid") id: string;
+  @PrimaryColumn({ type: "varchar" }) id: string;
   @Index() @Column({ name: "equipe_id" }) equipeId: string;
   @Index() @Column({ name: "match_id", type: "varchar", nullable: true }) matchId: string | null;
   @Column() formation: string;
@@ -474,3 +477,6 @@ export const ALL_ENTITIES = [
   Arbitre, ArbitreMatch, Coach, StaffMatch, Saison, Utilisateur,
   StatJoueurEquipe, Tactique,
 ];
+
+/** A etendre dans chaque DataSource : les entites et le generateur d'identifiants vont ensemble. */
+export const OPTIONS_ENTITES = { entities: ALL_ENTITIES, subscribers: [GenerateurIdentifiants] };

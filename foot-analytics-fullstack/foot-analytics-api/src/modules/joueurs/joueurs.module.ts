@@ -493,8 +493,9 @@ export class JoueursService {
     const sansLicence = joueurs.filter((j) => !j.licence);
     const qb = this.compos.createQueryBuilder("c")
       .innerJoin(Match, "m", "m.id = c.match_id")
-      .select(["c.licence AS licence", "c.nom AS nom", "c.prenom AS prenom", "c.cote AS cote",
-        "m.date AS date", "m.saison_id AS saisonId", "m.club_dom AS clubDom", "m.club_ext AS clubExt"]);
+      // Alias entre guillemets : Postgres met en minuscules les alias non cites (saisonid), SQLite non.
+      .select(['c.licence AS "licence"', 'c.nom AS "nom"', 'c.prenom AS "prenom"', 'c.cote AS "cote"',
+        'm.date AS "date"', 'm.saison_id AS "saisonId"', 'm.club_dom AS "clubDom"', 'm.club_ext AS "clubExt"']);
     if (licences.length) qb.where("c.licence IN (:...licences)", { licences });
     if (sansLicence.length) {
       qb.orWhere("c.nom IN (:...noms)", { noms: [...new Set(sansLicence.map((j) => j.nom))] });

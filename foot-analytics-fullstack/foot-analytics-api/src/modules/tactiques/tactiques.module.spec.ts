@@ -1,12 +1,12 @@
 import { Module } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { ALL_ENTITIES } from "@/entities";
+import { OPTIONS_ENTITES } from "@/entities";
 import { TactiquesModule, TactiquesService } from "./tactiques.module";
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot({ type: "sqljs", entities: ALL_ENTITIES, synchronize: true, dropSchema: true }),
+    TypeOrmModule.forRoot({ type: "sqljs", ...OPTIONS_ENTITES, synchronize: true, dropSchema: true }),
     TactiquesModule,
   ],
 })

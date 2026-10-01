@@ -2,7 +2,7 @@
 import { Module, Global } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { ALL_ENTITIES } from "@/entities";
+import { OPTIONS_ENTITES } from "@/entities";
 
 @Global()
 @Module({
@@ -18,7 +18,7 @@ import { ALL_ENTITIES } from "@/entities";
           return {
             type: "postgres" as const,
             url: cfg.get<string>("DATABASE_URL"),
-            entities: ALL_ENTITIES,
+            ...OPTIONS_ENTITES,
             synchronize: true,
             ssl: { rejectUnauthorized: false },
           };
@@ -33,7 +33,7 @@ import { ALL_ENTITIES } from "@/entities";
           location,
           autoSave: true,
           useLocalForage: false,
-          entities: ALL_ENTITIES,
+          ...OPTIONS_ENTITES,
           synchronize: true,
         };
       },
