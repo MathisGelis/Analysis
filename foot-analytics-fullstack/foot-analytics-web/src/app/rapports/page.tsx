@@ -10,7 +10,7 @@ import { getOwnClubIdServer } from "@/lib/own-club";
 import { getOwnSaisonIdServer } from "@/lib/own-equipe";
 import { clubsDeLaSaison } from "@/lib/clubs-saison";
 import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
-import { resultatsDeLEquipe } from "@/lib/matchs-equipe";
+import { prochainMatch, resultatsDeLEquipe } from "@/lib/matchs-equipe";
 import { ClubBadge } from "@/components/ClubBadge";
 import { BandeauDemo } from "@/components/BandeauDemo";
 import { DynamiquePoule } from "@/components/analyse/DynamiquePoule";
@@ -37,7 +37,7 @@ export default async function Rapports() {
   const poule = maEquipe ? await api.dynamiquePoule(maEquipe.id) : null;
   const monClub = clubs.find((c) => c.id === ownClubId);
   // Prochain match de mon equipe : le rapport pre-match s'ouvre en un clic.
-  const prochain = maEquipe ? resultatsDeLEquipe(matchs, maEquipe.id).aVenir[0] : undefined;
+  const prochain = maEquipe ? (prochainMatch(resultatsDeLEquipe(matchs, maEquipe.id).aVenir).prochain ?? undefined) : undefined;
   const advProchain = prochain
     ? clubs.find((c) => c.id === (prochain.equipeDomId === maEquipe?.id ? prochain.clubExt : prochain.clubDom))
     : undefined;

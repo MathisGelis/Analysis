@@ -9,6 +9,8 @@ export const FORMATIONS = ["4-4-2", "4-2-3-1", "4-3-3", "3-5-2", "5-3-2", "3-4-3
 export const FORMATION_DEFAUT = "4-2-3-1";
 export const NB_TITULAIRES = 11;
 export const MAX_REMPLACANTS = 7;
+/** Banc propose par defaut (suggestion, premiere ouverture) ; le staff peut aller jusqu'a MAX_REMPLACANTS. */
+export const REMPLACANTS_PAR_DEFAUT = 3;
 
 export type Ligne = "GB" | "DEF" | "MIL" | "ATT";
 export const LIBELLE_LIGNE: Record<Ligne, string> = { GB: "Gardien", DEF: "Defense", MIL: "Milieu", ATT: "Attaque" };
@@ -94,14 +96,14 @@ export interface Suggestion {
 
 /**
  * Onze suggere : pour chaque poste, le meilleur joueur disponible de la bonne ligne (a defaut, un autre
- * poste, en dernier recours), sans jamais depasser la regle des mutes. Le banc est complete de la meme
+ * poste, en dernier recours), sans jamais depasser la regle des mutes. Le banc (3 joueurs par defaut) est complete de la meme
  * facon, avec un gardien s'il en reste un. Les indisponibles sont ecartes avec leur raison.
  */
 export function suggererOnze(entree: {
   formation: string; joueurs: JoueurTactique[]; maxRemplacants?: number;
 }): Suggestion {
   const slots = slotsDeFormation(entree.formation);
-  const maxRemplacants = entree.maxRemplacants ?? MAX_REMPLACANTS;
+  const maxRemplacants = Math.min(entree.maxRemplacants ?? REMPLACANTS_PAR_DEFAUT, MAX_REMPLACANTS);
   const dispo = entree.joueurs.filter((j) => !j.indisponible);
   const ecartes = entree.joueurs.filter((j) => j.indisponible).map((j) => ({ id: j.id, raison: "indisponible" }));
   const max = {

@@ -141,13 +141,16 @@ export default async function Medical() {
         <>
           <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Kpi label="Effectif" value={effectif.length} icon={<HeartPulse size={14}/>}/>
-            <Kpi label="Fatigue elevee" value={fatigueElevee} icon={<AlertTriangle size={14}/>}
-              tone={fatigueElevee > 0 ? "amber" : "neutral"}/>
             <Kpi label="Blesses" value={BLESSES.length} icon={<Heart size={14}/>}
               tone={BLESSES.length > 0 ? "danger" : "neutral"}/>
+            <Kpi label="Fatigue elevee" value={fatigueElevee} icon={<AlertTriangle size={14}/>}
+              tone={fatigueElevee > 0 ? "amber" : "neutral"}/>
             <Kpi label="Charge cumulee 7j" value={Math.round(chargeTotaleAcute)}
               suffix="UA" icon={<Activity size={14}/>}/>
           </section>
+
+          {/* Les blessures d'abord : c'est ce qui change la composition d'equipe, la fatigue vient ensuite. */}
+          <BlessuresEditeur joueurs={effectif as any} initialBlessures={blessuresEquipe as any}/>
 
           <section className="panel p-5">
             <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
@@ -205,7 +208,6 @@ export default async function Medical() {
             <div className="mt-4 border-t border-line pt-3"><FatigueLegende /></div>
           </section>
 
-          <BlessuresEditeur joueurs={effectif as any} initialBlessures={blessuresEquipe as any}/>
         </>
       )}
     </div>

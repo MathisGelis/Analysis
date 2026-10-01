@@ -72,7 +72,13 @@ export async function ClubPageContent({
     equipes: equipesAll, clubId: club.id, saisonId: saisonChoisieId, maEquipe,
   });
 
-  const effectif = equipeVue ? await api.effectifEquipe(equipeVue.id) : [];
+  // Effectif, situation (dispositif joue, dernier onze) et, pour mon club, dernier plan enregistre (dispositif prevu).
+  const estMonClub = club.id === CLUB_PROPRE_ID;
+  const [effectif, situation, plan] = await Promise.all([
+    equipeVue ? api.effectifEquipe(equipeVue.id) : Promise.resolve([]),
+    api.situationClub(club.id, { equipeId: equipeVue?.id, saisonId: saisonChoisieId }),
+    estMonClub && equipeVue ? api.tactique(equipeVue.id) : Promise.resolve(null),
+  ]);
 
   const matchsSaison = saisonChoisieId
     ? matchsAll.filter((m: any) => (m.saisonId ?? null) === saisonChoisieId)
@@ -137,7 +143,9 @@ export async function ClubPageContent({
       joueurs={effectif}
       annuaire={joueursAll}
       rapport={rapport}
-      isMine={club.id === CLUB_PROPRE_ID}
+      situation={situation}
+      planFormation={plan?.formation ?? null}
+      isMine={estMonClub}
       initialTab={initialTab}
       saisonNom={saisonChoisie?.nom ?? null}
       saisonActif={saisonChoisie?.actif ?? false}

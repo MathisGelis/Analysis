@@ -15,7 +15,7 @@ import { api, ApiError } from "@/lib/api";
 import { useOwnEquipe } from "@/lib/own-equipe-context";
 import { useFeedback } from "@/lib/feedback-context";
 import { useClub } from "@/lib/clubs-context";
-import { resultatsDeLEquipe } from "@/lib/matchs-equipe";
+import { prochainMatch, resultatsDeLEquipe } from "@/lib/matchs-equipe";
 import {
   changerDispositif, FORMATION_DEFAUT, FORMATIONS, ligneDuPoste, MAX_REMPLACANTS, NB_TITULAIRES,
   nettoyerComposition, optionsJoueurs, slotsDeFormation, suggererOnze, vigilances, parseFormation,
@@ -100,7 +100,7 @@ function TactiqueContent() {
       setSansFiche(effectif.length - avecFiche.length);
       setEquipeNom(equipes.find((e: any) => e.id === equipeId)?.nom ?? "");
 
-      const aVenir = resultatsDeLEquipe(matchs, equipeId).aVenir[0] ?? null;
+      const aVenir = prochainMatch(resultatsDeLEquipe(matchs, equipeId).aVenir).prochain;
       const pm: ProchainMatch | null = aVenir
         ? { id: aVenir.id, date: aVenir.date ?? "", domicile: aVenir.equipeDomId === equipeId,
             adversaireId: aVenir.equipeDomId === equipeId ? aVenir.clubExt : aVenir.clubDom }

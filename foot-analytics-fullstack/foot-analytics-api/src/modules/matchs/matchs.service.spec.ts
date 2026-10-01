@@ -2,7 +2,7 @@ import { BadRequestException } from "@nestjs/common";
 import { DataSource } from "typeorm";
 import { Composition, EvenementMatch, Match } from "@/entities";
 import { creerBaseTest, fabriques } from "@/testing/test-db";
-import { MatchsService, UpdateMatchDto } from "./matchs.module";
+import { MatchsService, UpdateMatchDto, UpsertMatchDto } from "./matchs.module";
 
 describe("MatchsService : dispositifs", () => {
   let ds: DataSource;
@@ -76,5 +76,55 @@ describe("MatchsService : dispositifs", () => {
     const m = await unMatch({ formationDom: "4-4-2", formationExt: "3-5-2" });
 
     expect(await svc.findOne(m.id)).toMatchObject({ formationDom: "4-4-2", formationExt: "3-5-2" });
+  });
+});
+
+
+describe("Creation d'un match depuis le calendrier", () => {
+  let ds: DataSource;
+  let svc: MatchsService;
+  let f: ReturnType<typeof fabriques>;
+
+  beforeEach(async () => {
+    ds = await creerBaseTest();
+    svc = new MatchsService(ds.getRepository(Match), ds.getRepository(Composition), ds.getRepository(EvenementMatch));
+    f = fabriques(ds);
+  });
+  afterEach(() => ds.destroy());
+
+  /** Le corps que le calendrier envoie, tel que la validation globale de l'API le traite (whitelist). */
+  async function valide(corps: object, metatype: new () => object) {
+    const { ValidationPipe } = await import("@nestjs/common");
+    return new ValidationPipe({ whitelist: true, transform: true }).transform(corps, { type: "body", metatype });
+  }
+
+  it("l'equipe et la saison survivent a la validation : sans elles le match n'apparait ni au calendrier ni au dashboard", async () => {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse");
+    const s = await f.saison("2026-2027", 2026, { actif: true });
+    const eq = await f.equipe({ clubId: moi.id, nom: "Seniors", saisonId: s.id });
+
+    const dto = await valide({
+      date: "2026-10-18", heure: "15:00", journee: null, clubDom: moi.id, clubExt: adv.id,
+      equipeDomId: eq.id, saisonId: s.id, competition: "Seniors D2", poule: "A", scoreDom: 0, scoreExt: 0, statut: "prevu",
+    }, UpsertMatchDto) as UpsertMatchDto;
+    const cree = await svc.create(dto);
+
+    expect(cree).toMatchObject({ equipeDomId: eq.id, saisonId: s.id, statut: "prevu", date: "2026-10-18", clubExt: adv.id });
+    const relu = await ds.getRepository(Match).findOneByOrFail({ id: cree.id });
+    expect(relu.equipeDomId).toBe(eq.id);
+  });
+
+  it("match a l'exterieur : l'equipe est cote visiteur ; mise a jour : on peut aussi les corriger", async () => {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse");
+    const s = await f.saison("2026-2027", 2026, { actif: true });
+    const eq = await f.equipe({ clubId: moi.id, nom: "Seniors", saisonId: s.id });
+    const dto = await valide({ clubDom: adv.id, clubExt: moi.id, equipeExtId: eq.id, saisonId: s.id, statut: "prevu" }, UpsertMatchDto) as UpsertMatchDto;
+    const cree = await svc.create(dto);
+    expect(cree).toMatchObject({ equipeExtId: eq.id, saisonId: s.id });
+
+    const maj = await valide({ equipeExtId: null as any, saisonId: s.id }, UpdateMatchDto) as UpdateMatchDto;
+    expect(maj).toMatchObject({ saisonId: s.id });
   });
 });

@@ -43,3 +43,26 @@ export function restreindreAuChampionnat<A extends { participations?: string | n
     return p ? [{ ...a, participations: JSON.stringify([p]) }] : [];
   });
 }
+
+/** Stats d'un arbitre sur le perimetre affiche, utiles au tri. */
+export interface StatsTriArbitre { matchsOfficies: number; matchsPrincipal: number }
+
+export type GroupeArbitre = "principal" | "autres";
+
+/** "principal" des qu'il a arbitre au moins un match au centre ; "autres" : assistant ou autre role seulement. */
+export const groupeArbitre = (s: StatsTriArbitre): GroupeArbitre => (s.matchsPrincipal > 0 ? "principal" : "autres");
+
+/**
+ * Les arbitres principaux d'abord, du plus au moins de matchs au centre (puis de matchs officies) ; ensuite
+ * ceux qui n'ont officie qu'en assistant ou autre role, du plus au moins de matchs ; A-Z a egalite.
+ */
+export function trierArbitres<A extends { nom: string; prenom?: string | null; _stats: StatsTriArbitre }>(arbitres: A[]): A[] {
+  const nomComplet = (a: A) => `${a.nom} ${a.prenom ?? ""}`.trim();
+  return [...arbitres].sort((a, b) => {
+    const ga = groupeArbitre(a._stats), gb = groupeArbitre(b._stats);
+    if (ga !== gb) return ga === "principal" ? -1 : 1;
+    return (ga === "principal" ? b._stats.matchsPrincipal - a._stats.matchsPrincipal : 0)
+      || b._stats.matchsOfficies - a._stats.matchsOfficies
+      || nomComplet(a).localeCompare(nomComplet(b), "fr", { sensitivity: "base" });
+  });
+}

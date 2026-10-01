@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bilanDesResultats, parseDateMatch, resultatsDeLEquipe } from "./matchs-equipe";
+import { bilanDesResultats, dateLongueFr, parseDateMatch, prochainMatch, resultatsDeLEquipe } from "./matchs-equipe";
 
 const m = (id: string, o: Record<string, any> = {}) => ({
   id, journee: "1", date: "01/09/2025", clubDom: "A", clubExt: "B",
@@ -60,5 +60,51 @@ describe("bilanDesResultats", () => {
   });
   it("aucun match : tout a zero", () => {
     expect(bilanDesResultats([])).toEqual({ joues: 0, v: 0, n: 0, d: 0, bp: 0, bc: 0, pts: 0 });
+  });
+});
+
+describe("prochainMatch", () => {
+  const auj = new Date(2026, 9, 10, 14, 30);                 // 10 octobre 2026, milieu d'apres-midi
+  const p = (id: string, date: string | null, statut = "prevu") => ({ id, date, statut });
+
+  it("le match a venir le plus proche, meme s'il a ete saisi apres un plus lointain", () => {
+    const { prochain } = prochainMatch([p("loin", "2026-12-20"), p("proche", "2026-10-18"), p("milieu", "01/11/2026")], auj);
+    expect(prochain!.id).toBe("proche");
+  });
+
+  it("un match passe sans feuille n'est pas le prochain : il est a renseigner", () => {
+    const r = prochainMatch([p("oublie", "03/10/2026"), p("futur", "2026-10-25")], auj);
+    expect(r.prochain!.id).toBe("futur");
+    expect(r.aRenseigner.map((x) => x.id)).toEqual(["oublie"]);
+  });
+
+  it("aujourd'hui compte comme a venir (match du jour, quelle que soit l'heure)", () => {
+    expect(prochainMatch([p("ce-soir", "10/10/2026")], auj).prochain!.id).toBe("ce-soir");
+  });
+
+  it("annule ou reporte : jamais le prochain match", () => {
+    const r = prochainMatch([p("a", "2026-10-12", "annule"), p("b", "2026-10-13", "reporte"), p("c", "2026-10-30")], auj);
+    expect(r.prochain!.id).toBe("c");
+    expect(prochainMatch([p("a", "2026-10-12", "annule")], auj).prochain).toBeNull();
+  });
+
+  it("sans date lisible : repli, apres tout match date a venir", () => {
+    expect(prochainMatch([p("sans", null), p("date", "2026-11-02")], auj).prochain!.id).toBe("date");
+    expect(prochainMatch([p("sans", null)], auj).prochain!.id).toBe("sans");
+  });
+
+  it("rien a venir : null", () => {
+    expect(prochainMatch([], auj)).toEqual({ prochain: null, aRenseigner: [] });
+  });
+});
+
+describe("dateLongueFr", () => {
+  it("jour de la semaine, jour, mois, annee ; FMI comme ISO", () => {
+    expect(dateLongueFr("18/10/2026")).toBe("dimanche 18 octobre 2026");
+    expect(dateLongueFr("2026-10-18")).toBe("dimanche 18 octobre 2026");
+  });
+  it("illisible : telle quelle ; absente : vide", () => {
+    expect(dateLongueFr("bientot")).toBe("bientot");
+    expect(dateLongueFr(null)).toBe("");
   });
 });

@@ -64,13 +64,20 @@ describe("suggererOnze", () => {
     r.titulaires.forEach((id, i) => expect(ligneDuPoste(par.get(id!)!.poste)).toBe(slots[i].ligne));
   });
 
-  it("le banc est complete, sans doublon avec les titulaires, avec un gardien", () => {
+  it("le banc est complete (3 remplacants par defaut), sans doublon avec les titulaires, avec un gardien", () => {
     const joueurs = effectif();
     const r = suggererOnze({ formation: "4-4-2", joueurs });
-    expect(r.remplacants).toHaveLength(7);
+    expect(r.remplacants).toHaveLength(3);
     expect(r.remplacants.some((id) => r.titulaires.includes(id))).toBe(false);
     const par = new Map(joueurs.map((j) => [j.id, j]));
     expect(r.remplacants.some((id) => ligneDuPoste(par.get(id)!.poste) === "GB")).toBe(true);
+  });
+
+  it("le banc peut etre elargi a la demande, jamais au-dela du maximum autorise", () => {
+    const joueurs = effectif();
+    expect(suggererOnze({ formation: "4-4-2", joueurs, maxRemplacants: 5 }).remplacants).toHaveLength(5);
+    expect(suggererOnze({ formation: "4-4-2", joueurs, maxRemplacants: 12 }).remplacants).toHaveLength(7);
+    expect(suggererOnze({ formation: "4-4-2", joueurs, maxRemplacants: 0 }).remplacants).toHaveLength(0);
   });
 
   it("prefere les joueurs les plus utilises", () => {

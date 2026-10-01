@@ -172,6 +172,8 @@ Toutes les routes sont prefixees par `/api`.
 - `GET    /classement`
 - `GET    /stats/bilan/:clubId?equipeId=&saisonId=` (sans parametre : toutes equipes et saisons melangees)
 - `GET    /analyse/club/:clubId?equipeId=&saisonId=` : rapport d'analyse d'equipe, meme perimetre
+- `GET    /analyse/club/:clubId/situation?equipeId=&saisonId=` : dispositif joue (d'apres les seuls matchs dont le staff a
+  renseigne le dispositif, jamais une valeur par defaut) et dernier onze (feuille du dernier match joue)
 
 ### Import FMI
 - `POST   /fmi/import` — multipart/form-data, champ `file` (PDF).
@@ -190,8 +192,20 @@ Toutes les routes sont prefixees par `/api`.
 Une blessure qui chevauche une autre du meme joueur est refusee (`409`,
 `code: "BLESSURE_CHEVAUCHANTE"`, liste `conflits`) sauf `forcer: true`.
 
+### Comptes et roles
+Trois roles : `admin`, `referent` (referent d'un club) et `user` (educateur).
+- `GET/POST /utilisateurs` · `GET/PATCH/DELETE /utilisateurs/:id` : reserves a l'administrateur et au referent.
+  L'**administrateur** gere tous les comptes. Le **referent** ne voit et ne gere que les comptes `user` de SON club :
+  il peut en creer autant qu'il veut (mot de passe initial a changer a la 1re connexion), leur attribuer des equipes de
+  son club (aucune equipe = toutes), les modifier, reinitialiser leur mot de passe et les supprimer. Il ne peut jamais
+  creer d'admin ni de referent, ni sortir de son club : `403` ; un compte hors de son perimetre est `404`.
+  Les droits sont lus en base a chaque appel (pas dans le jeton).
+- Le referent a acces a son club et a toutes ses equipes, comme un educateur sans restriction d'equipes. Comme pour
+  les autres comptes non admin, le club est impose par le jeton cote front ; l'API ne filtre pas encore les donnees
+  par club.
+
 ### Administration
-- `POST   /seed/reset` — vide et recree les donnees de demonstration.
+- `POST   /seed/reset` — vide et recree les donnees de demonstration (refuse sur Postgres).
 
 ## Exemples
 

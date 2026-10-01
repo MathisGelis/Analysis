@@ -23,11 +23,14 @@ import { api } from "@/lib/api";
 import { useOwnEquipe } from "@/lib/own-equipe-context";
 import { useOwnClubId } from "@/lib/own-club-context";
 import { Modal } from "@/components/Modal";
+import { AdversairePicker } from "@/components/AdversairePicker";
+import type { ClubChoix } from "@/lib/adversaires";
 import { SeanceModal } from "@/components/SeanceModal";
 import { TimePicker24 } from "@/components/TimePicker24";
 import { ClubBadge } from "@/components/ClubBadge";
 import { SaisonGuard, useLectureSeule } from "@/components/SaisonGuard";
 import { dateVersIso, moisInitial } from "@/lib/calendrier";
+import { useAjouterClub } from "@/lib/clubs-context";
 import {
   CalendarCheck, ChevronLeft, ChevronRight, Dumbbell,
   FileText, Plus, Save, Settings2, Trophy, X,
@@ -126,11 +129,14 @@ function CalendrierContent() {
 
   const reload = async () => {
     if (!equipeId) return;
-    const [s, m] = await Promise.all([
+    // Les clubs aussi : un adversaire cree depuis la modale doit s'afficher par son nom, pas par son identifiant.
+    const [s, m, c] = await Promise.all([
       api.entrainements(equipeId),
       api.matchs(),
+      api.clubs(),
     ]);
     setSeances(s);
+    setClubs(c);
     setMatchs(m.filter((mm: any) =>
       mm.equipeDomId === equipeId || mm.equipeExtId === equipeId));
   };
@@ -294,7 +300,8 @@ function CalendrierContent() {
                   }`}>
                     {slot.date.getDate()}
                   </div>
-                  <div className={`opacity-0 group-hover:opacity-100 transition gap-0.5 ${
+                  {/* Visibles au survol, au clavier (focus) et en permanence sur ecran tactile (pas de survol). */}
+                  <div className={`transition gap-0.5 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 group-focus-within:!opacity-100 ${
                     lectureSeule ? "hidden" : "flex"
                   }`}>
                     <button
@@ -413,6 +420,7 @@ function CalendrierContent() {
           date={addOpen.date}
           monEquipe={monEquipe}
           clubs={clubs}
+          equipes={equipes}
           onClose={() => setAddOpen(null)}
           onSaved={async () => { setAddOpen(null); await reload(); }}
         />
@@ -496,55 +504,74 @@ function PlanningModal({
 const TYPES_MATCH = ["Championnat", "Coupe", "Amical"];
 
 function MatchModal({
-  date, monEquipe, clubs, onClose, onSaved,
+  date, monEquipe, clubs, equipes, onClose, onSaved,
 }: {
   date: string;
   monEquipe: any;
   clubs: any[];
+  equipes: any[];
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const ajouterClub = useAjouterClub();
   const [typeMatch, setTypeMatch] = useState("Championnat");
-  const [advNom, setAdvNom] = useState("");
+  const [adversaire, setAdversaire] = useState<ClubChoix | null>(null);
   const [heure, setHeure] = useState("15:00");
   const [journee, setJournee] = useState("");
   const [domicile, setDomicile] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Clubs crees depuis cette modale : ils rejoignent la liste tout de suite (la page ne se recharge qu'a l'enregistrement).
+  const [clubsCrees, setClubsCrees] = useState<ClubChoix[]>([]);
+  const tousLesClubs = useMemo(
+    () => [...clubs, ...clubsCrees.filter((c) => !clubs.some((x) => x.id === c.id))],
+    [clubs, clubsCrees],
+  );
+
+  // Les adversaires du championnat : les clubs des autres equipes de ma poule (meme saison, competition et poule).
+  const suggeres = useMemo(() => {
+    if (!monEquipe) return [];
+    return equipes
+      .filter((e) => e.id !== monEquipe.id && e.saisonId === monEquipe.saisonId
+        && (e.competitionLibelle ?? null) === (monEquipe.competitionLibelle ?? null)
+        && (e.poule ?? null) === (monEquipe.poule ?? null))
+      .map((e) => e.clubId as string);
+  }, [equipes, monEquipe]);
+
+  async function creerClub(nom: string): Promise<ClubChoix> {
+    const club = await api.createClub({ nom });
+    const choix = { id: club.id, nom: club.nom, ville: club.ville };
+    setClubsCrees((l) => [...l, choix]);
+    ajouterClub(club);                      // son ecusson et son nom sont connus partout, sans recharger la page
+    return choix;
+  }
 
   async function save() {
     setError(null);
-    if (!advNom.trim()) { setError("Renseigne l'adversaire."); return; }
+    if (!monEquipe) { setError("Equipe non chargee : recharge la page."); return; }
+    if (!adversaire) { setError("Choisis l'adversaire."); return; }
     setSaving(true);
     try {
-      // Resolution adversaire : on cherche un club existant par nom
-      // (case-insensitive). Si introuvable, on passe le NOM libre dans
-      // clubDom/clubExt, le backend le traite comme un id ad hoc.
-      const advClub = clubs.find((c) =>
-        (c.nom ?? "").toLowerCase() === advNom.trim().toLowerCase()
-        || c.id === advNom.trim(),
-      );
-      const advId = advClub?.id ?? advNom.trim().toLowerCase().replace(/\s+/g, "-");
-
       // Le champ "competition" sert a la categorie : Championnat (libelle
       // de poule), Coupe ou Amical. Pour championnat on garde le libelle
       // exact, sinon on inscrit "Coupe" / "Amical".
       const competition = typeMatch === "Championnat"
-        ? (monEquipe?.competitionLibelle ?? "Championnat")
+        ? (monEquipe.competitionLibelle ?? "Championnat")
         : typeMatch;
 
       // Pour les non-championnat, pas de poule.
-      const poule = typeMatch === "Championnat" ? monEquipe?.poule : null;
+      const poule = typeMatch === "Championnat" ? monEquipe.poule : null;
 
       await api.createMatch({
         date, heure,
-        journee: typeMatch === "Championnat" ? journee : null,
-        clubDom: domicile ? monEquipe?.clubId : advId,
-        clubExt: domicile ? advId : monEquipe?.clubId,
-        equipeDomId: domicile ? monEquipe?.id : undefined,
-        equipeExtId: domicile ? undefined : monEquipe?.id,
+        journee: typeMatch === "Championnat" && journee.trim() ? journee.trim() : null,
+        clubDom: domicile ? monEquipe.clubId : adversaire.id,
+        clubExt: domicile ? adversaire.id : monEquipe.clubId,
+        // Mon equipe cote domicile ou visiteur : c'est ce qui rattache le match a l'equipe (calendrier, dashboard).
+        equipeDomId: domicile ? monEquipe.id : undefined,
+        equipeExtId: domicile ? undefined : monEquipe.id,
         competition, poule,
-        saisonId: monEquipe?.saisonId,
+        saisonId: monEquipe.saisonId,
         scoreDom: 0, scoreExt: 0,
         statut: "prevu",
       });
@@ -585,19 +612,10 @@ function MatchModal({
         </Section>
 
         <Section label="Adversaire">
-          <input className="inp" value={advNom} autoFocus
-            onChange={(e) => setAdvNom(e.target.value)}
-            list="clubs-adversaires"
-            placeholder="Tape pour chercher un club..."/>
-          <datalist id="clubs-adversaires">
-            {clubs
-              .filter((c) => c.id !== monEquipe?.clubId)
-              .sort((a, b) => (a.nom ?? "").localeCompare(b.nom ?? ""))
-              .map((c) => <option key={c.id} value={c.nom ?? c.id}/>)}
-          </datalist>
-          <p className="text-[10px] text-faint mt-1.5">
-            Saisis librement si l'equipe n'est pas dans la liste.
-          </p>
+          <AdversairePicker
+            clubs={tousLesClubs} monClubId={monEquipe?.clubId} suggeres={suggeres}
+            valeur={adversaire} onChange={setAdversaire} onCreer={creerClub}
+          />
         </Section>
 
         <div className="grid grid-cols-2 gap-4">
@@ -641,7 +659,7 @@ function MatchModal({
 
       <ModalFooter>
         <button className="btn" onClick={onClose}>Annuler</button>
-        <button className="btn btn-accent" onClick={save} disabled={saving}>
+        <button className="btn btn-accent" onClick={save} disabled={saving || !monEquipe}>
           <Save size={14}/> {saving ? "Sauvegarde..." : "Creer le match"}
         </button>
       </ModalFooter>

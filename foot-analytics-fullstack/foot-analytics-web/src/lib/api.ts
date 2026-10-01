@@ -16,6 +16,7 @@ import {
 } from "@/data/demo";
 import type { DynamiquePoule } from "@/lib/analyse-types";
 import type { RapportPrematch } from "@/lib/prematch-types";
+import type { SituationClub } from "@/lib/situation-types";
 import type { PlanContreRealise } from "@/lib/plan-realise-types";
 import type { FicheCoach } from "@/lib/fiche-coach-types";
 import type {
@@ -145,6 +146,9 @@ async function uploadApi<T>(path: string, fd: FormData, libelle: string): Promis
 export const api = {
   // Clubs
   clubs: () => req<Club[]>("/clubs", { fallback: DEMO_CLUBS }),
+  /** Cree un club (un adversaire absent de la base). */
+  createClub: (body: { nom: string; ville?: string }) =>
+    req<Club>("/clubs", { method: "POST", body: JSON.stringify(body) }),
   club: (id: string) =>
     req<Club | undefined>(`/clubs/${id}`, {
       fallback: DEMO_CLUBS.find((c) => c.id === id),
@@ -337,6 +341,14 @@ export const api = {
   /** Dynamique de toutes les equipes du championnat de l'equipe donnee (forme, series, sens). */
   dynamiquePoule: (equipeId: string) =>
     req<DynamiquePoule | null>(`/analyse/poule?equipeId=${equipeId}`, { fallback: null }),
+
+  /** Dispositif joue (d'apres les matchs renseignes) et dernier onze d'un club, ou d'une de ses equipes. */
+  situationClub: (clubId: string, portee: { equipeId?: string | null; saisonId?: string | null } = {}) => {
+    const qs = new URLSearchParams();
+    if (portee.equipeId) qs.set("equipeId", portee.equipeId);
+    if (portee.saisonId) qs.set("saisonId", portee.saisonId);
+    return req<SituationClub | null>(`/analyse/club/${clubId}/situation${qs.size ? `?${qs}` : ""}`, { fallback: null });
+  },
 
   /** Rapport pre-match : mon equipe contre un club adverse (match optionnel, sinon le prochain programme). */
   prematch: (equipeId: string, adversaireId: string, matchId?: string | null) => {

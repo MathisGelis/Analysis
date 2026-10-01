@@ -10,9 +10,9 @@
 // profil (Permissif/Standard/Strict/Sans profil).
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { ChevronRight, Filter, Search, X } from "lucide-react";
-import { lireParticipations, participationDuChampionnat, type FiltreChampionnat } from "@/lib/arbitres-liste";
+import { groupeArbitre, lireParticipations, participationDuChampionnat, trierArbitres, type FiltreChampionnat } from "@/lib/arbitres-liste";
 
 interface ParticipationChamp {
   saisonId: string | null;
@@ -145,7 +145,7 @@ export function ArbitresFiltrable({
 
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
-    return arbitresChamp.filter((a) => {
+    const gardes = arbitresChamp.filter((a) => {
       if (qq && !`${a.prenom ?? ""} ${a.nom}`.toLowerCase().includes(qq)) return false;
       // Filtre roles : evalue sur les stats EFFECTIVES (par champ ou globales).
       if (roles.size > 0) {
@@ -164,14 +164,13 @@ export function ArbitresFiltrable({
         if (!profils.has(p)) return false;
       }
       return true;
-    })
-    // Les plus sollicites d'abord (matchs officies, puis en principal), puis A-Z.
-    .sort((a, b) =>
-      b._stats.matchsOfficies - a._stats.matchsOfficies
-      || b._stats.matchsPrincipal - a._stats.matchsPrincipal
-      || `${a.nom} ${a.prenom ?? ""}`.localeCompare(`${b.nom} ${b.prenom ?? ""}`));
+    });
+    // Les arbitres principaux d'abord (du plus au moins de matchs au centre), puis les autres, du plus au moins sollicite.
+    return trierArbitres(gardes);
   }, [arbitresChamp, q, roles, profils]);
 
+  // Deux groupes visibles : on les annonce par un intertitre. Un seul : inutile.
+  const deuxGroupes = useMemo(() => new Set(filtered.map((a) => groupeArbitre(a._stats))).size > 1, [filtered]);
   const hasFilter = q.trim() !== "" || roles.size > 0 || profils.size > 0;
   const reset = () => { setQ(""); setRoles(new Set()); setProfils(new Set()); };
 
@@ -262,6 +261,7 @@ export function ArbitresFiltrable({
               <tr>
                 <th>Arbitre</th>
                 <th className="text-center">Roles</th>
+                <th className="text-center" title="Matchs arbitres au centre">Princ.</th>
                 <th className="text-center">Officies</th>
                 <th className="text-center">CJ donnes</th>
                 <th className="text-center">CR donnes</th>
@@ -272,14 +272,24 @@ export function ArbitresFiltrable({
               </tr>
             </thead>
             <tbody>
-              {filtered.slice(0, limite).map((a) => {
+              {filtered.slice(0, limite).map((a, i, vus) => {
                 const s = a._stats;
+                const groupe = groupeArbitre(s);
+                const nouveauGroupe = deuxGroupes && (i === 0 || groupeArbitre(vus[i - 1]._stats) !== groupe);
                 const rolesArr: string[] = [];
                 if (s.matchsPrincipal > 0) rolesArr.push("principal");
                 if (s.matchsAssistant > 0) rolesArr.push("assistant");
                 if (s.matchsAutre > 0) rolesArr.push("autre");
                 return (
-                  <tr key={a.id}>
+                  <Fragment key={a.id}>
+                  {nouveauGroupe && (
+                    <tr>
+                      <th colSpan={10} scope="colgroup" className="!bg-transparent !py-2 text-left h-section">
+                        {groupe === "principal" ? "Arbitres principaux" : "Assistants et autres roles uniquement"}
+                      </th>
+                    </tr>
+                  )}
+                  <tr>
                     <td>
                       <Link href={`/arbitres/${a.id}`} className="font-semibold hover:text-accent">
                         <span className="text-faint mr-1">{a.prenom}</span>{a.nom}
@@ -294,6 +304,7 @@ export function ArbitresFiltrable({
                         ))}
                       </div>
                     </td>
+                    <td className="text-center tabular-nums font-semibold">{s.matchsPrincipal || <span className="text-faint">—</span>}</td>
                     <td className="text-center tabular-nums">{s.matchsOfficies}</td>
                     <td className="text-center text-amber font-mono">{s.cartonsJaunesDonnes || ""}</td>
                     <td className="text-center text-danger font-mono">{s.cartonsRougesDonnes || ""}</td>
@@ -316,6 +327,7 @@ export function ArbitresFiltrable({
                       </Link>
                     </td>
                   </tr>
+                  </Fragment>
                 );
               })}
             </tbody>

@@ -17,7 +17,8 @@ import { parseDateFlexible } from "@/common/periode";
 import {
   faceAFace, Piste, pistesPrematch, profilEquipe, ProfilEquipe, Rencontre,
 } from "@/common/prematch";
-import { predireSysteme, PredictionSysteme, systemesRenseignes } from "@/common/systeme";
+import { PredictionSysteme } from "@/common/systeme";
+import { systemeDe } from "@/common/situation-equipe";
 import { Projection, projectionResultat } from "@/common/projection";
 import { AnalyseService, estMatchJoue } from "./analyse.module";
 
@@ -149,16 +150,10 @@ export class PrematchService {
     const arbitre = await this.arbitreDuMatch(match);
     const domicile = match ? match.equipeDomId === monEquipe.id || (!match.equipeDomId && match.clubDom === monClub.id) : null;
 
-    // Systeme de l'adversaire : ses matchs joues, vu de son cote, avec le dispositif quand le staff l'a renseigne.
+    // Systeme de l'adversaire : ses matchs joues, vus de son cote, avec le dispositif quand le staff l'a renseigne.
     const matchsAdv = advEquipe ? joues.filter((m) => m.equipeDomId === advEquipe.id || m.equipeExtId === advEquipe.id) : [];
-    const observations = matchsAdv.flatMap((m) => {
-      const s = systemesRenseignes(m);
-      const systeme = m.equipeDomId === advEquipe!.id ? s.dom : s.ext;
-      return systeme ? [{ date: m.date ?? null, systeme }] : [];
-    });
-    const dernierMatchAdv = [...matchsAdv].sort((a, b) => (parseDateFlexible(b.date ?? "") ?? 0) - (parseDateFlexible(a.date ?? "") ?? 0))[0];
-    const prediction = predireSysteme(observations);
-    const systemeAdverse = { prediction, observes: observations.length, matchs: matchsAdv.length, dernierMatchId: dernierMatchAdv?.id ?? null };
+    const systemeAdverse = systemeDe(matchsAdv, { clubId: advClub.id, equipeId: advEquipe?.id ?? null });
+    const prediction = systemeAdverse.prediction;
     const projection = projectionResultat({
       moi: { matchs: moi.matchs, bpm: moi.bpm, bcm: moi.bcm }, adv: { matchs: adv.matchs, bpm: adv.bpm, bcm: adv.bcm }, domicileMoi: domicile,
     });

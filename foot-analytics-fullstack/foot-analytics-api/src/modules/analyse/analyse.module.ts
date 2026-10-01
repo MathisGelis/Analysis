@@ -26,6 +26,7 @@ import {
   Match, Saison, StaffMatch,
 } from "@/entities";
 import { PrematchService } from "./prematch.service";
+import { SituationService } from "./situation.service";
 import {
   calculerTendances, dynamiqueForme, issueDe, MatchTendance, series as seriesDe, Issue, SensTendance,
   Tendances, trierChronologiquement,
@@ -906,7 +907,7 @@ function labelLigne(l: string): string {
 
 @Controller("analyse")
 class AnalyseController {
-  constructor(private svc: AnalyseService, private prematchSvc: PrematchService) {}
+  constructor(private svc: AnalyseService, private prematchSvc: PrematchService, private situationSvc: SituationService) {}
   @Get("club/:clubId")
   rapport(
     @Param("clubId") clubId: string,
@@ -914,6 +915,16 @@ class AnalyseController {
     @Query("saisonId") saisonId?: string,
   ) {
     return this.svc.rapportClub(clubId, { equipeId: equipeId || undefined, saisonId: saisonId || undefined });
+  }
+
+  /** Dispositif joue (d'apres les matchs renseignes) et dernier onze d'un club, ou de l'une de ses equipes. */
+  @Get("club/:clubId/situation")
+  situation(
+    @Param("clubId") clubId: string,
+    @Query("equipeId") equipeId?: string,
+    @Query("saisonId") saisonId?: string,
+  ) {
+    return this.situationSvc.situation(clubId, { equipeId: equipeId || null, saisonId: saisonId || null });
   }
 
   /** Dynamique de toutes les equipes du championnat de `equipeId`. */
@@ -942,7 +953,7 @@ class AnalyseController {
     ]),
   ],
   controllers: [AnalyseController],
-  providers: [AnalyseService, PrematchService],
+  providers: [AnalyseService, PrematchService, SituationService],
   exports: [AnalyseService],
 })
 export class AnalyseModule {}

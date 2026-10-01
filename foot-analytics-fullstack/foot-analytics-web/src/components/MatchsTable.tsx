@@ -30,8 +30,8 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
   // sur la saison active.
   const saisonActive = saisons.find((s) => s.actif);
   const saisonId = ownSaisonId ?? saisonActive?.id ?? "all";
-  // Equipe par defaut = equipe propre selectionnee dans la sidebar.
-  const [equipeId, setEquipeId] = useState<string>(ownEqId ?? "all");
+  // Aucun filtre par defaut : tous les matchs du championnat. L'equipe et la journee se choisissent a la demande.
+  const [equipeId, setEquipeId] = useState<string>("all");
   const [journee, setJournee] = useState<string>("all");
 
   // Pour distinguer les equipes du dropdown (qui s'appellent toutes

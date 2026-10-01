@@ -15,7 +15,9 @@ import { BarsChart, FormeStrip, Sparkline } from "@/components/Charts";
 import { FatigueBar } from "@/components/FatigueBar";
 import { plusFatigues } from "@/lib/fatigue";
 import { classeBadgeMutation } from "@/lib/mutations";
-import { Pitch } from "@/components/Pitch";
+import { Pitch, type JoueurTerrain } from "@/components/Pitch";
+import { dispositifAffiche, formationDuOnze, nomDeFamille, ordonnerPourTerrain, type DispositifAffiche } from "@/lib/dispositif-equipe";
+import type { SituationClub } from "@/lib/situation-types";
 import {
   AlertTriangle, ArrowDownRight, ArrowUpRight, Check, FileText, Printer,
   Star, Users, X,
@@ -47,6 +49,10 @@ interface Props {
    *  un rapport a sa fiche, jamais a afficher des chiffres. */
   annuaire?: Joueur[];
   rapport?: RapportScouting | null;
+  /** Dispositif joue et dernier onze, d'apres les derniers matchs (jamais le dispositif par defaut de la base). */
+  situation?: SituationClub | null;
+  /** Mon club seulement : formation de la derniere composition enregistree (onglet Tactique). */
+  planFormation?: string | null;
   isMine: boolean;
   initialTab?: Tab;
   /** Nom de la saison selectionnee (affiche en sous-titre du header). */
@@ -96,10 +102,11 @@ function JoueurName({
 }
 
 export function ClubTabs({
-  club, equipe, ligne, totalClasses, bilan, resultats, joueurs, annuaire, rapport, isMine, initialTab,
+  club, equipe, ligne, totalClasses, bilan, resultats, joueurs, annuaire, rapport, situation, planFormation, isMine, initialTab,
   saisonNom, saisonActif,
 }: Props) {
   const [tab, setTab] = useState<Tab>(initialTab ?? "overview");
+  const dispositif = dispositifAffiche(situation, isMine ? planFormation : null);
 
   // KPIs deriveables pour TOUS les clubs (pas seulement neuv)
   const cumulCJ = joueurs.reduce((s, j) => s + j.cartonsJaunes, 0);
@@ -129,8 +136,9 @@ export function ClubTabs({
               <div className="text-xs text-muted mt-2">
                 {equipe.categorie} · {equipe.division} · Poule {equipe.poule}
                 {equipe.coach && <> · Coach {equipe.coach}</>}
-                {equipe.formationDef && (
-                  <> · Dispositif <span className="text-accent font-semibold">{equipe.formationDef}</span></>
+                {dispositif && (
+                  <> · Dispositif <span className="text-accent font-semibold" title={dispositif.detail}>{dispositif.systeme}</span>
+                    {dispositif.source === "prevu" && <span className="text-faint"> (prevu)</span>}</>
                 )}
               </div>
             )}
@@ -163,14 +171,15 @@ export function ClubTabs({
       {/* ============= PANELS ============= */}
       {tab === "overview" && <OverviewPanel
         bilan={bilan} resultats={resultats} joueurs={joueurs}
-        rapport={rapport} equipe={equipe} cumulCJ={cumulCJ} cumulCR={cumulCR}
-        saisonActif={!!saisonActif}
+        rapport={rapport} cumulCJ={cumulCJ} cumulCR={cumulCR}
+        saisonActif={!!saisonActif} dispositif={dispositif} situation={situation}
       />}
       {tab === "effectif" && <EffectifPanel joueurs={joueurs} isMine={isMine} />}
       {tab === "matchs" && <MatchsPanel resultats={resultats} clubId={club.id} />}
       {tab === "scouting" && <ScoutingPanel
         club={club} equipe={equipe} bilan={bilan} resultats={resultats}
         joueurs={annuaire ?? joueurs} rapport={rapport} cumulCJ={cumulCJ} cumulCR={cumulCR}
+        situation={situation} dispositif={dispositif}
       />}
     </div>
   );
@@ -180,7 +189,7 @@ export function ClubTabs({
 /*                        PANEL : Vue d'ensemble                  */
 /* ============================================================ */
 function OverviewPanel({
-  bilan, resultats, joueurs, rapport, equipe, cumulCJ, cumulCR, saisonActif,
+  bilan, resultats, joueurs, rapport, cumulCJ, cumulCR, saisonActif, dispositif, situation,
 }: any) {
   // Les plus fatigues : ceux a menager. Sans score (pas de charge recente connue) : ecartes.
   const topFatigue = plusFatigues<Joueur>(joueurs.filter((j: Joueur) => j.matchs >= 1), 5);
@@ -213,9 +222,7 @@ function OverviewPanel({
           <Mini label="Difference" value={bilan.diff ?? bilan.bp - bilan.bc} accent={bilan.bp - bilan.bc >= 0 ? "win" : "loss"} />
           <Mini label="Cartons jaunes" value={cumulCJ} accent="amber" />
           <Mini label="Cartons rouges" value={cumulCR} accent="loss" />
-          {equipe?.formationDef && (
-            <Mini label="Dispositif" value={equipe.formationDef} accent="accent" />
-          )}
+          <Dispositif dispositif={dispositif} situation={situation} />
         </div>
       </div>
 
@@ -428,7 +435,7 @@ function MatchsPanel({ resultats, clubId }: { resultats: ResultatLigne[]; clubId
 /*                  PANEL : Rapport scouting                     */
 /* ============================================================ */
 function ScoutingPanel({
-  club, equipe, bilan, resultats, joueurs, rapport, cumulCJ, cumulCR,
+  club, bilan, resultats, joueurs, rapport, cumulCJ, cumulCR, situation, dispositif,
 }: any) {
   // Bilan dom/ext auto-derive
   const dom = resultats.filter((r: ResultatLigne) => r.lieu === "Domicile");
@@ -436,8 +443,13 @@ function ScoutingPanel({
   const bilanDom = `${dom.filter((r: any) => r.butsMarques>r.butsEncaisses).length}V/${dom.filter((r: any) => r.butsMarques===r.butsEncaisses).length}N/${dom.filter((r: any) => r.butsMarques<r.butsEncaisses).length}D`;
   const bilanExt = `${ext.filter((r: any) => r.butsMarques>r.butsEncaisses).length}V/${ext.filter((r: any) => r.butsMarques===r.butsEncaisses).length}N/${ext.filter((r: any) => r.butsMarques<r.butsEncaisses).length}D`;
 
-  const dispositif = rapport?.dispositifAttendu || equipe?.formationDef || "—";
-  const dernier11 = rapport?.dernier11 ?? [];
+  // Dernier onze et dispositif : ceux des derniers matchs (feuille et dispositifs renseignes), pas les valeurs figees
+  // d'un ancien rapport ni le dispositif par defaut de la base.
+  const onze = (situation as SituationClub | null | undefined)?.dernierOnze ?? null;
+  const formationOnze = formationDuOnze(situation);
+  const titulairesTerrain = onze ? ordonnerPourTerrain(onze.titulaires) : [];
+  const capitaine = onze?.titulaires.find((j) => j.capitaine);
+  const contreLe = onze ? resultats.find((r: ResultatLigne) => r.matchId === onze.match.id) : null;
 
   return (
     <div className="space-y-6">
@@ -463,11 +475,11 @@ function ScoutingPanel({
       {/* Dispositif + suspendus/cles */}
       <section className="grid grid-cols-12 gap-4">
         <div className="col-span-12 lg:col-span-4 panel p-5">
-          <div className="h-section mb-3">Dispositif attendu</div>
-          <div className="font-display text-4xl font-black text-accent">{dispositif}</div>
-          {rapport?.capitaine && (
+          <div className="h-section mb-3">Dispositif</div>
+          <Dispositif dispositif={dispositif} situation={situation} grand />
+          {(capitaine || rapport?.capitaine) && (
             <div className="text-xs text-muted mt-2">
-              Capitaine probable : <span className="text-ink font-semibold">{rapport.capitaine}</span>
+              Capitaine au dernier match : <span className="text-ink font-semibold">{capitaine ? `${capitaine.prenom ?? ""} ${nomDeFamille(capitaine.nom)}`.trim() : rapport.capitaine}</span>
             </div>
           )}
 
@@ -504,22 +516,45 @@ function ScoutingPanel({
           )}
         </div>
 
-        {dernier11.length > 0 ? (
+        {onze ? (
           <div className="col-span-12 lg:col-span-8">
-            <Pitch
-              formation={dispositif}
-              joueurs={dernier11.slice(0,11).map((d: any) => ({
-                numero: d.numero, nom: d.nom, capitaine: d.nom === rapport?.capitaine,
-              }))}
-              titre="Compo probable · derniere journee"
-              couleur={club.couleur}
-            />
+            {formationOnze ? (
+              <div className="mx-auto max-w-[380px]">
+              <Pitch
+                formation={formationOnze.formation}
+                joueurs={titulairesTerrain.slice(0, 11).map((j, i): JoueurTerrain => ({
+                  numero: j.numero, nom: nomDeFamille(j.nom), capitaine: j.capitaine,
+                }))}
+                titre={`Dernier onze · ${formationOnze.formation}${formationOnze.exact ? "" : " (probable)"}`}
+                couleur={club.couleur}
+              />
+              </div>
+            ) : (
+              <div className="panel p-5">
+                <div className="h-section mb-3">Dernier onze</div>
+                <ul className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+                  {titulairesTerrain.map((j) => (
+                    <li key={`${j.numero}-${j.nom}`} className="flex items-center gap-3 border-b border-line py-1.5 text-sm">
+                      <span className="badge w-10 justify-center">{j.poste ?? j.numero}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium text-ink">{`${j.prenom ?? ""} ${nomDeFamille(j.nom)}`.trim()}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-[11px] text-muted">Dispositif non renseigne : le onze est presente sans terrain plutot que d'en supposer un.</p>
+              </div>
+            )}
+            <p className="mt-2 text-[11px] text-muted">
+              Feuille du {onze.match.date ?? "dernier match"}
+              {contreLe ? <> contre <Link href={`/club/${contreLe.adversaireId}`} className="text-accent hover:underline">{contreLe.adversaire}</Link></> : null}
+              {" "}({onze.match.bp}-{onze.match.bc}, {onze.match.domicile ? "domicile" : "exterieur"}).
+              {formationOnze && !formationOnze.exact && " Dispositif probable : il n'est pas renseigne pour ce match."}
+            </p>
           </div>
         ) : (
           <div className="col-span-12 lg:col-span-8 panel p-5 flex items-center justify-center">
             <p className="text-sm text-muted text-center">
               Pas de composition recente pour ce club.<br/>
-              Importez une feuille FMI pour generer le dernier 11.
+              Importez une feuille FMI pour generer le dernier onze.
             </p>
           </div>
         )}
@@ -587,36 +622,80 @@ function ScoutingPanel({
         </section>
       )}
 
-      {/* Dernier 11 detaille */}
-      {dernier11.length > 0 && (
+      {/* Derniere composition detaillee */}
+      {onze && (
         <section className="panel p-5">
           <div className="h-section mb-3">Derniere composition</div>
           <table className="table-fm">
             <thead>
-              <tr><th>#</th><th>Joueur</th><th>Role</th></tr>
+              <tr><th>#</th><th>Joueur</th><th>Poste</th><th>Role</th></tr>
             </thead>
             <tbody>
-              {dernier11.map((d: any, i: number) => (
-                <tr key={i}>
-                  <td className="font-mono text-muted">{d.numero}</td>
-                  <td className="font-semibold">
-                    <JoueurName nom={d.nom} prenom={d.prenom} joueurs={joueurs}/>
-                  </td>
-                  <td>
-                    {d.nom === rapport?.capitaine?.split(" ")[0] ? (
-                      <span className="badge badge-amber">Capitaine</span>
-                    ) : d.numero >= 12 ? (
-                      <span className="badge">Remplacant</span>
-                    ) : (
-                      <span className="badge badge-accent">Titulaire</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {[...onze.titulaires.map((j) => ({ j, titulaire: true })), ...onze.remplacants.map((j) => ({ j, titulaire: false }))].map(({ j, titulaire }) => {
+                const label = `${j.prenom ?? ""} ${nomDeFamille(j.nom)}`.trim();
+                return (
+                  <tr key={`${titulaire ? "t" : "r"}-${j.numero}-${j.nom}`}>
+                    <td className="font-mono text-muted">{j.numero}</td>
+                    <td className="font-semibold">
+                      {j.joueurId ? <Link href={`/joueur/${j.joueurId}`} className="hover:text-accent">{label}</Link> : label}
+                    </td>
+                    <td className="text-xs text-muted">{j.poste ?? "—"}</td>
+                    <td>
+                      {j.capitaine ? <span className="badge badge-amber">Capitaine</span>
+                        : titulaire ? <span className="badge badge-accent">Titulaire</span>
+                        : j.minutes > 0 ? <span className="badge">Remplacant · {j.minutes}'</span>
+                        : <span className="badge text-faint">Banc</span>}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </section>
       )}
+    </div>
+  );
+}
+
+/**
+ * Dispositif d'une equipe : celui qu'on connait et d'ou il vient, ou l'invitation a le renseigner. Jamais un
+ * dispositif par defaut.
+ */
+function Dispositif({
+  dispositif, situation, grand = false,
+}: { dispositif: DispositifAffiche | null; situation?: SituationClub | null; grand?: boolean }) {
+  if (dispositif) {
+    const p = situation?.systeme.prediction;
+    return grand ? (
+      <div>
+        <div className="font-display text-4xl font-black text-accent">{dispositif.systeme}</div>
+        <div className="mt-1 text-xs text-muted">
+          {dispositif.source === "prevu" ? "Prevu : " : ""}{dispositif.detail}
+          {dispositif.source === "observe" && p && p.alternatives.length > 0 && (
+            <> · sinon {p.alternatives.map((a) => `${a.systeme} (${a.poids} %)`).join(", ")}</>
+          )}
+        </div>
+      </div>
+    ) : (
+      <div className="flex items-center justify-between border-b border-line/60 pb-2 last:border-0">
+        <span className="text-xs text-muted">Dispositif{dispositif.source === "prevu" ? " prevu" : ""}</span>
+        <span className="font-display font-bold tabular-nums text-accent" title={dispositif.detail}>{dispositif.systeme}</span>
+      </div>
+    );
+  }
+  const dernier = situation?.systeme.dernierMatchId;
+  const lien = dernier && (
+    <> <Link href={`/matchs/${dernier}`} className="text-accent underline underline-offset-2">Le renseigner sur le dernier match</Link>.</>
+  );
+  return grand ? (
+    <p className="text-sm text-muted">
+      Aucun dispositif renseigne{situation ? ` (${situation.systeme.matchs} match${situation.systeme.matchs > 1 ? "s" : ""} joue${situation.systeme.matchs > 1 ? "s" : ""})` : ""} :
+      la feuille de match n'en contient pas, il se saisit sur la fiche d'un match.{lien}
+    </p>
+  ) : (
+    <div className="flex items-center justify-between border-b border-line/60 pb-2 last:border-0">
+      <span className="text-xs text-muted">Dispositif</span>
+      <span className="text-xs text-faint">{lien ? <>non renseigne · {lien}</> : "non renseigne"}</span>
     </div>
   );
 }

@@ -17,7 +17,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { getOwnClubIdServer } from "@/lib/own-club";
 import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
-import { bilanDesResultats, resultatsDeLEquipe } from "@/lib/matchs-equipe";
+import { bilanDesResultats, dateLongueFr, prochainMatch, resultatsDeLEquipe } from "@/lib/matchs-equipe";
 import {
   diffButs, fenetreClassement, ligneDeLEquipe, lignesDuChampionnat,
 } from "@/lib/classement";
@@ -65,7 +65,9 @@ export default async function Dashboard() {
     : { joues: [], aVenir: [] };
   const bilan = bilanDesResultats(joues);
   const dernier = joues[joues.length - 1];
-  const prochain = aVenir[0];
+  // Le prochain match : le plus proche a partir d'aujourd'hui. Un match passe dont la feuille n'est pas encore
+  // importee n'est pas "a venir" : il est signale a part.
+  const { prochain, aRenseigner } = prochainMatch(aVenir);
   const formeRecente: Issue[] = joues.slice(-10).map((r) => r.issue);
 
   // Classement du championnat de l'equipe, et ma ligne dedans.
@@ -188,7 +190,9 @@ export default async function Dashboard() {
             <div>
               <span className="h-section">Prochaine echeance</span>
               <h2 className="mt-1 font-display text-2xl font-bold text-ink">
-                {prochain ? `Journee ${prochain.journee ?? "—"}` : "Aucun match a venir"}
+                {prochain
+                  ? (prochain.journee && prochain.journee !== "—" ? `Journee ${prochain.journee}` : (prochain.competition || "Match"))
+                  : "Aucun match a venir"}
               </h2>
             </div>
             {prochain && (
@@ -216,7 +220,8 @@ export default async function Dashboard() {
                 </div>
                 <div className="text-center">
                   <div className="font-display text-sm font-bold text-faint">VS</div>
-                  {prochain.date && <div className="mt-1 badge">{prochain.date}</div>}
+                  {prochain.date && <div className="mt-1 badge">{dateLongueFr(prochain.date)}</div>}
+                  {prochain.heure && <div className="mt-1 text-xs tabular-nums text-muted">{prochain.heure.replace(":", "h")}</div>}
                 </div>
                 <div className="flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:text-left">
                   <ClubBadge clubId={advId} size={56} />
@@ -231,10 +236,19 @@ export default async function Dashboard() {
             <div className="grid place-items-center rounded-2xl border border-dashed border-line2 py-10 text-center">
               <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-accent/10 text-accent"><MapPin size={22} /></div>
               <p className="max-w-sm text-sm text-muted">
-                Pas de match programme dans la base. Importe une feuille de match pour alimenter le calendrier.
+                Aucun match programme. Ajoute-le depuis le calendrier, ou importe une feuille de match.
               </p>
-              <Link href="/import" className="btn btn-primary mt-4 text-sm"><Upload size={14} /> Importer une feuille FMI</Link>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <Link href="/calendrier" className="btn btn-primary text-sm"><Calendar size={14} /> Ouvrir le calendrier</Link>
+                <Link href="/import" className="btn text-sm"><Upload size={14} /> Importer une feuille FMI</Link>
+              </div>
             </div>
+          )}
+          {aRenseigner.length > 0 && (
+            <p className="mt-3 text-xs text-muted">
+              {aRenseigner.length} match{aRenseigner.length > 1 ? "s" : ""} passe{aRenseigner.length > 1 ? "s" : ""} sans feuille :{" "}
+              <Link href="/matchs" className="text-accent underline underline-offset-2">importe leur feuille ou saisis le score</Link>.
+            </p>
           )}
         </div>
 

@@ -10,12 +10,13 @@ import { useOwnEquipe } from "@/lib/own-equipe-context";
 import { Modal } from "@/components/Modal";
 import { JoueurAddModal } from "@/components/JoueurAddModal";
 import type { Joueur } from "@/lib/types";
-import { Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { debug } from "@/lib/debug";
 import { postesCompacts } from "@/lib/postes";
 import { FatigueBar } from "@/components/FatigueBar";
 import { classeBadgeMutation, STATUTS_MUTATION } from "@/lib/mutations";
 import { useFeedback } from "@/lib/feedback-context";
+import { COLONNES_TRI, sensParDefaut, trierEffectif, type CleTri, type Sens } from "@/lib/tri-effectif";
 
 const POSTES = ["TOUS","GB","DD","DC","DG","MD","MO","AT","AG","MIL"];
 
@@ -28,7 +29,7 @@ export default function EffectifPage() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [posteFilter, setPosteFilter] = useState("TOUS");
-  const [sort, setSort] = useState<"matchs"|"fatigue"|"discipline"|"nom">("matchs");
+  const [tri, setTri] = useState<{ cle: CleTri; sens: Sens }>({ cle: "matchs", sens: "desc" });
   const [edit, setEdit] = useState<Joueur | null>(null);
   const [creating, setCreating] = useState(false);
   // Nom de l'equipe selectionnee (pour l'afficher dans le header de la
@@ -74,16 +75,14 @@ export default function EffectifPage() {
         j.nom.toLowerCase().includes(t) || (j.prenom ?? "").toLowerCase().includes(t));
     }
     if (posteFilter !== "TOUS") r = r.filter((j) => j.poste === posteFilter);
-    r.sort((a, b) => {
-      if (sort === "matchs") return b.matchs - a.matchs;
-      // Les plus fatigues d'abord ; sans score (pas de charge recente connue) en dernier.
-      if (sort === "fatigue") return (b.scoreFatigue ?? -1) - (a.scoreFatigue ?? -1);
-      if (sort === "discipline")
-        return (b.cartonsJaunes + b.cartonsRouges*3) - (a.cartonsJaunes + a.cartonsRouges*3);
-      return a.nom.localeCompare(b.nom);
-    });
+    r = trierEffectif(r, tri.cle, tri.sens);
     return r;
-  }, [joueurs, q, posteFilter, sort]);
+  }, [joueurs, q, posteFilter, tri]);
+
+  // Clic sur un en-tete : meme colonne = on inverse le sens ; autre colonne = son sens naturel.
+  const trierPar = useCallback((cle: CleTri) => {
+    setTri((t) => (t.cle === cle ? { cle, sens: t.sens === "asc" ? "desc" : "asc" } : { cle, sens: sensParDefaut(cle) }));
+  }, []);
 
   async function handleDelete(j: Joueur) {
     if (!(await confirmer({
@@ -138,12 +137,17 @@ export default function EffectifPage() {
           <select value={posteFilter} onChange={(e)=>setPosteFilter(e.target.value)} className="btn" aria-label="Filtrer par poste">
             {POSTES.map(p=><option key={p} value={p}>{p}</option>)}
           </select>
-          <select value={sort} onChange={(e)=>setSort(e.target.value as any)} className="btn" aria-label="Trier l'effectif">
-            <option value="matchs">Tri · Matchs</option>
-            <option value="fatigue">Tri · Fatigue</option>
-            <option value="discipline">Tri · Discipline</option>
-            <option value="nom">Tri · Nom</option>
-          </select>
+          <div className="flex items-center gap-1">
+            <select value={tri.cle} onChange={(e)=>{ const cle = e.target.value as CleTri; setTri({ cle, sens: sensParDefaut(cle) }); }}
+              className="btn" aria-label="Trier l'effectif par">
+              {COLONNES_TRI.map((c) => <option key={c.cle} value={c.cle}>Tri · {c.libelle}</option>)}
+            </select>
+            <button type="button" className="btn !p-2.5" onClick={() => setTri((t) => ({ ...t, sens: t.sens === "asc" ? "desc" : "asc" }))}
+              aria-label={tri.sens === "asc" ? "Ordre croissant, inverser" : "Ordre decroissant, inverser"}
+              title={tri.sens === "asc" ? "Croissant" : "Decroissant"}>
+              {tri.sens === "asc" ? <ArrowUp size={14}/> : <ArrowDown size={14}/>}
+            </button>
+          </div>
           <button className="btn btn-primary" onClick={()=>setCreating(true)}>
             <Plus size={14}/> Ajouter
           </button>
@@ -157,15 +161,18 @@ export default function EffectifPage() {
         <table className="table-fm table-dense">
           <thead>
             <tr>
-              <th>Joueur</th><th>Poste</th>
-              <th className="text-center">Mat.</th><th className="hidden text-center min-[1100px]:table-cell">Titu</th>
-              <th className="hidden min-[1280px]:table-cell">Minutes</th>
-              <th className="hidden min-[1440px]:table-cell">Note</th>
-              <th className="hidden lg:table-cell">Fatigue</th>
-              <th className="text-center" title="Buts">B</th>
-              <th className="text-center" title="Passes decisives">PD</th>
-              <th>CJ</th><th>CR</th>
-              <th className="hidden min-[1440px]:table-cell">Statut</th>
+              <ThTri cle="nom" tri={tri} onTri={trierPar}>Joueur</ThTri>
+              <ThTri cle="poste" tri={tri} onTri={trierPar}>Poste</ThTri>
+              <ThTri cle="matchs" tri={tri} onTri={trierPar} className="text-center" titre="Matchs joues">Mat.</ThTri>
+              <ThTri cle="titularisations" tri={tri} onTri={trierPar} className="hidden text-center min-[1100px]:table-cell" titre="Titularisations">Titu</ThTri>
+              <ThTri cle="minutes" tri={tri} onTri={trierPar} className="hidden min-[1280px]:table-cell">Minutes</ThTri>
+              <ThTri cle="note" tri={tri} onTri={trierPar} className="hidden min-[1440px]:table-cell">Note</ThTri>
+              <ThTri cle="fatigue" tri={tri} onTri={trierPar} className="hidden lg:table-cell">Fatigue</ThTri>
+              <ThTri cle="buts" tri={tri} onTri={trierPar} className="text-center" titre="Buts">B</ThTri>
+              <ThTri cle="passes" tri={tri} onTri={trierPar} className="text-center" titre="Passes decisives">PD</ThTri>
+              <ThTri cle="jaunes" tri={tri} onTri={trierPar} titre="Cartons jaunes">CJ</ThTri>
+              <ThTri cle="rouges" tri={tri} onTri={trierPar} titre="Cartons rouges">CR</ThTri>
+              <ThTri cle="statut" tri={tri} onTri={trierPar} className="hidden min-[1440px]:table-cell">Statut</ThTri>
               <th className="hidden 2xl:table-cell">Postes joues</th>
               <th className="col-fixe text-right"><span className="sr-only">Actions</span></th>
             </tr>
@@ -282,6 +289,29 @@ export default function EffectifPage() {
         </Modal>
       )}
     </div>
+  );
+}
+
+/* ---- En-tete de colonne triable : un bouton dans le <th>, l'etat est annonce par aria-sort. ---- */
+function ThTri({
+  cle, tri, onTri, children, className = "", titre,
+}: {
+  cle: CleTri; tri: { cle: CleTri; sens: Sens }; onTri: (c: CleTri) => void;
+  children: React.ReactNode; className?: string; titre?: string;
+}) {
+  const actif = tri.cle === cle;
+  const libelle = COLONNES_TRI.find((c) => c.cle === cle)?.libelle ?? "";
+  return (
+    <th className={className} aria-sort={actif ? (tri.sens === "asc" ? "ascending" : "descending") : "none"}>
+      <button type="button" onClick={() => onTri(cle)}
+        className={`group inline-flex items-center gap-1 uppercase tracking-[inherit] transition-colors hover:text-ink ${actif ? "text-ink" : ""}`}
+        title={`Trier par ${(titre ?? libelle).toLowerCase()}`}>
+        {children}
+        {actif
+          ? (tri.sens === "asc" ? <ArrowUp size={11} aria-hidden /> : <ArrowDown size={11} aria-hidden />)
+          : <ArrowDown size={11} aria-hidden className="opacity-0 transition-opacity group-hover:opacity-40 group-focus-visible:opacity-40" />}
+      </button>
+    </th>
   );
 }
 

@@ -192,8 +192,17 @@ test("tactique : composition sur l'effectif reel, regle des mutes imposee, plan 
   await expect(page.getByText("Conforme", { exact: true })).toBeVisible();
   await expect(page.getByTestId("nb-titulaires")).toHaveText("11/11");
 
-  // Quota atteint : un mute de plus est grise dans la liste des remplacants, avec sa raison.
+  // Le banc propose 3 remplacants par defaut ; le staff peut l'etendre jusqu'a 7.
+  await expect(page.getByTestId("nb-remplacants")).toHaveText("3/7");
+
+  // Quota atteint : un mute de plus est grise dans la liste des remplacants, avec sa raison. On complete le banc
+  // avec des mutes jusqu'a ce que la regle en refuse (6 mutes au plus sur la feuille).
   const ajout = page.getByLabel("Ajouter un remplacant");
+  for (let i = 0; i < 4 && (await ajout.locator("option[disabled]").count()) === 0; i++) {
+    const mute = ajout.locator("option:not([disabled])").filter({ hasText: /MUTE|HORSDELAI/ }).first();
+    if (!(await mute.count())) break;
+    await ajout.selectOption({ label: (await mute.innerText()).trim() });
+  }
   const grises = await ajout.locator("option[disabled]").allInnerTexts();
   expect(grises.length).toBeGreaterThan(0);
   expect(grises.every((t) => /regle des mutes|indisponible/.test(t))).toBe(true);
@@ -404,6 +413,179 @@ test("saison archivee : /tactique s'affiche en consultation seule", async () => 
   // Aucune ecriture possible : pas de bouton Enregistrer actif (ici l'effectif archive est vide, la page le dit).
   await expect(page.getByText("Aucun joueur dans l'effectif")).toBeVisible();
   await expect(page.locator("button:enabled", { hasText: "Enregistrer" })).toHaveCount(0);
+});
+
+test("effectif : trier par n'importe quelle colonne de stats, en cliquant son en-tete", async () => {
+  // Le parcours precedent a laisse la saison archivee : on revient sur 2026-2027, dont l'effectif est rempli.
+  await page.goto("/");
+  await ouvrirSelecteur(page);
+  await page.getByRole("button", { name: /^2026-2027/ }).click();
+  await page.goto("/effectif");
+  const ligne = page.locator("table.table-fm tbody tr");
+  await expect(ligne.first()).toBeVisible();
+  const entete = (nom: string) => page.locator("table.table-fm thead th").filter({ has: page.getByRole("button", { name: nom, exact: true }) });
+  const trier = (nom: string) => entete(nom).getByRole("button", { name: nom, exact: true }).click();
+  const noms = async () => (await ligne.locator("td:first-child a").allInnerTexts()).map((t) => t.trim());
+
+  // Un clic sur "Joueur" : A-Z ; un second : Z-A (l'etat est annonce par aria-sort).
+  await trier("Joueur");
+  await expect(entete("Joueur")).toHaveAttribute("aria-sort", "ascending");
+  const croissant = await noms();
+  expect(croissant.length).toBeGreaterThan(3);
+  await trier("Joueur");
+  await expect(entete("Joueur")).toHaveAttribute("aria-sort", "descending");
+  expect(await noms()).toEqual([...croissant].reverse());
+
+  // Une colonne de stats : buts, du plus eleve au moins eleve (celui qui en a marque passe en tete).
+  const premier = ligne.first();
+  await premier.getByRole("button", { name: "augmenter" }).first().click();       // +1 but
+  await trier("B");
+  await expect(entete("B")).toHaveAttribute("aria-sort", "descending");
+  await expect(ligne.first().locator("td").nth(7)).toContainText("1");
+  // Le selecteur propose les memes tris, y compris les colonnes masquees sur petit ecran.
+  await expect(page.getByRole("option", { name: "Tri · Passes decisives" })).toBeAttached();
+  await expect(page.getByRole("option", { name: "Tri · Minutes" })).toBeAttached();
+});
+
+test("calendrier : un match ajoute (adversaire choisi dans une liste) apparait au calendrier, puis comme prochain match du dashboard", async () => {
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  // La saison choisie est 2026-2027 : le mois suivant est toujours a venir.
+  await page.goto("/calendrier");
+  await page.getByRole("button", { name: /^[A-Z][a-z]{2,3}\.$/ }).last().click();
+  await page.getByTitle("Ajouter un match").first().click();
+
+  const modale = page.locator("div.fixed.inset-0.overflow-y-auto");
+  await expect(modale.getByRole("heading", { name: "Nouveau match" })).toBeVisible();
+  // Adversaire absent de la liste : on le cree sur place, puis il est choisi.
+  await modale.getByRole("combobox", { name: "Rechercher l'adversaire" }).fill("Olympique Test FC");
+  await modale.getByRole("button", { name: /Club absent de la liste/ }).click();
+  await expect(modale.getByTestId("adversaire-choisi")).toContainText("Olympique Test FC");
+  // "Changer" rouvre la recherche ; le club cree est desormais dans la liste.
+  await modale.getByRole("button", { name: "Changer" }).click();
+  await modale.getByRole("combobox", { name: "Rechercher l'adversaire" }).fill("olympique");
+  await modale.getByRole("option", { name: /Olympique Test FC/ }).click();
+  await modale.getByRole("button", { name: "Creer le match" }).click();
+  await expect(modale).toBeHidden();
+
+  // Au calendrier, par son nom (le club vient d'etre cree : il ne doit pas apparaitre comme un identifiant).
+  const lien = page.getByRole("link", { name: /Olympique Test FC/ });
+  await expect(lien).toBeVisible();
+  const idMatch = (await lien.getAttribute("href"))!.split("/").pop()!;
+
+  // Rattache a l'equipe et a la saison (sans quoi il serait invisible ici et sur le dashboard).
+  const match = await (await fetch(`${API_URL}/matchs/${idMatch}`, { headers: { Authorization: `Bearer ${token}` } })).json();
+  expect(match.equipeDomId ?? match.equipeExtId).toBeTruthy();
+  expect(match.saisonId).toBeTruthy();
+  expect(match.statut).toBe("prevu");
+
+  // Dashboard : c'est le prochain match, avec sa date en toutes lettres.
+  await page.goto("/");
+  const echeance = page.locator("section").filter({ hasText: "Prochaine echeance" }).first();
+  await expect(echeance).toContainText("Olympique Test FC");
+  await expect(echeance).not.toContainText("Aucun match a venir");
+  await expect(echeance).toContainText(/(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche) \d{1,2} \w+ \d{4}/);
+
+  // Page Matchs : aucun filtre n'est pre-applique.
+  await page.goto("/matchs");
+  await expect(page.locator("label").filter({ hasText: /^Equipe/ }).locator("select")).toHaveValue("all");
+  await expect(page.locator("label").filter({ hasText: /^Journee/ }).locator("select")).toHaveValue("all");
+  await expect(page.getByRole("link", { name: /Olympique Test FC/ }).first()).toBeVisible();
+
+  // Menage : la suite des parcours repart sans match a venir.
+  await fetch(`${API_URL}/matchs/${idMatch}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+});
+
+test("referent de club : cree les comptes de ses educateurs, sans rien voir ni pouvoir au-dela de son club", async ({ browser }) => {
+  const appeler = async (chemin: string, jeton: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
+    ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${jeton}`, ...(init.headers ?? {}) },
+  });
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const equipeId = (await contexte.cookies()).find((c) => c.name === "ownEquipeId")!.value;
+  const equipes: { id: string; clubId: string }[] = await (await appeler("/equipes", token)).json();
+  const clubId = equipes.find((e) => e.id === equipeId)!.clubId;
+  const autreClub = await (await appeler("/clubs", token, { method: "POST", body: JSON.stringify({ nom: "Club Voisin" }) })).json();
+  const educVoisin = await (await appeler("/utilisateurs", token, {
+    method: "POST", body: JSON.stringify({ prenom: "Vic", nom: "Voisin", role: "user", clubId: autreClub.id }),
+  })).json();
+
+  // L'administrateur nomme un referent pour le club (mot de passe change tout de suite pour pouvoir se connecter).
+  const referent = await (await appeler("/utilisateurs", token, {
+    method: "POST", body: JSON.stringify({ prenom: "Rita", nom: "Referente", role: "referent", clubId }),
+  })).json();
+  expect(referent).toMatchObject({ role: "referent", clubId, login: "RREFERENTE" });
+  const connexion = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "RREFERENTE", password: referent.initialPassword }),
+  })).json();
+  await appeler("/auth/change-password", connexion.token, {
+    method: "POST", body: JSON.stringify({ oldPassword: referent.initialPassword, newPassword: "Referent123" }),
+  });
+
+  // Session du referent, dans son propre navigateur.
+  const ctx = await browser.newContext();
+  const p = await ctx.newPage();
+  try {
+    await p.goto("/login");
+    await p.locator("input[placeholder=MLEMAIRE]").fill("RREFERENTE");
+    await p.locator("input[type=password]").fill("Referent123");
+    await p.locator("button[type=submit]").click();
+    await p.waitForURL((u) => u.pathname === "/");
+
+    // Entree dediee dans la navigation ; pas d'acces aux autres clubs (le club est impose par son jeton).
+    await p.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Mes educateurs" }).click();
+    await expect(p.getByRole("heading", { name: "Mes educateurs" })).toBeVisible();
+    await expect(p.getByText("Aucun educateur pour l'instant")).toBeVisible();
+
+    // Deux educateurs : le referent ne choisit ni role ni club, seulement les equipes (aucune coche = toutes).
+    const creer = async (prenom: string, nom: string) => {
+      await p.getByRole("button", { name: "Nouvel educateur" }).click();
+      const modale = p.locator("div.fixed.inset-0.overflow-y-auto");
+      await expect(modale.getByText("Administrateur")).toHaveCount(0);       // pas de choix de role
+      await modale.getByPlaceholder("Mathis").fill(prenom);
+      await modale.getByPlaceholder("Lemaire").fill(nom);
+      await modale.getByRole("button", { name: "Creer le compte" }).click();
+      await expect(modale.getByText("Mot de passe initial")).toBeVisible();
+      await modale.getByRole("button", { name: "OK" }).click();
+    };
+    await creer("Luc", "Durand");
+    await creer("Lea", "Moreau");
+    await expect(p.getByRole("cell", { name: "LDURAND" })).toBeVisible();
+    await expect(p.getByRole("cell", { name: "LMOREAU" })).toBeVisible();
+    await expect(p.getByRole("cell", { name: "VVOISIN" })).toHaveCount(0);          // l'educateur de l'autre club est invisible
+
+    // Cote API (jeton du referent) : seulement ses educateurs ; jamais d'admin, ni d'autre club, ni les comptes d'autrui.
+    const liste: { login: string; role: string; clubId: string }[] = await (await appeler("/utilisateurs", connexion.token)).json();
+    expect(liste.map((u) => u.login).sort()).toEqual(["LDURAND", "LMOREAU"]);
+    expect(liste.every((u) => u.role === "user" && u.clubId === clubId)).toBe(true);
+    const nouveau = (corps: object) => appeler("/utilisateurs", connexion.token, { method: "POST", body: JSON.stringify(corps) });
+    expect((await nouveau({ prenom: "Al", nom: "Pwn", role: "admin" })).status).toBe(403);
+    expect((await nouveau({ prenom: "Al", nom: "Voisin", clubId: autreClub.id })).status).toBe(403);
+    expect((await appeler(`/utilisateurs/${educVoisin.id}`, connexion.token, { method: "DELETE" })).status).toBe(404);
+    expect((await appeler(`/utilisateurs/${referent.id}`, connexion.token, { method: "PATCH", body: JSON.stringify({ role: "admin" }) })).status).toBe(404);
+
+    // L'educateur cree se connecte, rattache au club du referent, avec un mot de passe a changer.
+    const educ = await (await fetch(`${API_URL}/auth/login`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ login: "LDURAND", password: "Bienvenue1" }),
+    })).json();
+    expect(educ.user).toMatchObject({ role: "user", clubId, mustChangePassword: true });
+    expect((await appeler("/utilisateurs", educ.token)).status).toBe(403);       // un educateur ne gere aucun compte
+  } finally {
+    await ctx.close();
+    // Menage : la suite des parcours repart sans ces comptes ni ce club.
+    for (const login of ["LDURAND", "LMOREAU", "RREFERENTE", "VVOISIN"]) {
+      const tous: { id: string; login: string }[] = await (await appeler("/utilisateurs", token)).json();
+      const u = tous.find((x) => x.login === login);
+      if (u) await appeler(`/utilisateurs/${u.id}`, token, { method: "DELETE" });
+    }
+    await appeler(`/clubs/${autreClub.id}`, token, { method: "DELETE" });
+  }
 });
 
 test("recherche : Ctrl+K et / placent le curseur, fiches seulement, Entree ouvre la fiche", async () => {

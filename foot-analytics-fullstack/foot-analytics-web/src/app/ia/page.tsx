@@ -13,7 +13,7 @@
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { resolveEquipePropre } from "@/lib/resolve-equipe-propre";
-import { resultatsDeLEquipe } from "@/lib/matchs-equipe";
+import { prochainMatch, resultatsDeLEquipe } from "@/lib/matchs-equipe";
 import { ligneDuPoste } from "@/lib/composition";
 import { plusFatigues, COULEUR_NIVEAU, LIBELLE_NIVEAU, niveauFatigue } from "@/lib/fatigue";
 import { decimal } from "@/lib/tendances-format";
@@ -35,7 +35,7 @@ export default async function Predictions({ searchParams }: { searchParams?: { a
   }
 
   // Adversaire : le prochain match programme, sinon celui choisi dans la liste.
-  const prochain = resultatsDeLEquipe(matchs, maEquipe.id).aVenir[0];
+  const prochain = prochainMatch(resultatsDeLEquipe(matchs, maEquipe.id).aVenir).prochain ?? undefined;
   const prochainAdvId = prochain ? (prochain.equipeDomId === maEquipe.id ? prochain.clubExt : prochain.clubDom) : null;
   const adversaireId = searchParams?.adversaire ?? prochainAdvId;
   const adversaires = clubs
