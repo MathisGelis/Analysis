@@ -8,6 +8,7 @@ import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Match } from "@/entities";
 import { trierChronologiquement } from "@/common/tendances";
+import { Acces, AccesModule, AccesService, ContexteAcces } from "@/modules/acces/acces.module";
 
 @Injectable()
 export class StatsService {
@@ -51,18 +52,20 @@ export class StatsService {
 
 @Controller("stats")
 class StatsController {
-  constructor(private svc: StatsService) {}
-  @Get("bilan/:clubId") bilan(
+  constructor(private svc: StatsService, private acces: AccesService) {}
+  // Equipe consultable et saison ouverte ; sans precision, un compte aux saisons restreintes obtient la saison actuelle.
+  @Get("bilan/:clubId") async bilan(
+    @Acces() ctx: ContexteAcces,
     @Param("clubId") id: string,
     @Query("equipeId") equipeId?: string,
     @Query("saisonId") saisonId?: string,
   ) {
-    return this.svc.bilanClub(id, { equipeId: equipeId || undefined, saisonId: saisonId || undefined });
+    return this.svc.bilanClub(id, await this.acces.portee(ctx, { equipeId, saisonId }));
   }
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Match])],
+  imports: [AccesModule, TypeOrmModule.forFeature([Match])],
   controllers: [StatsController],
   providers: [StatsService],
 })

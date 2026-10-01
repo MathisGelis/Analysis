@@ -21,6 +21,7 @@ import { CoachsModule } from "@/modules/coachs/coachs.module";
 import { SaisonsModule } from "@/modules/saisons/saisons.module";
 import { AuthModule } from "@/modules/auth/auth.module";
 import { JwtAuthGuard } from "@/modules/auth/auth.module";
+import { AccesGuard, AccesModule } from "@/modules/acces/acces.module";
 import { UtilisateursModule } from "@/modules/utilisateurs/utilisateurs.module";
 import { BootstrapModule } from "@/modules/bootstrap/bootstrap.module";
 import { TactiquesModule } from "@/modules/tactiques/tactiques.module";
@@ -29,6 +30,7 @@ import { TactiquesModule } from "@/modules/tactiques/tactiques.module";
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
+    AccesModule,
     SeedModule,
     ClubsModule,
     EquipesModule,
@@ -54,6 +56,8 @@ import { TactiquesModule } from "@/modules/tactiques/tactiques.module";
     // Guard global : toute requete sous /api requiert un JWT valide.
     // Les routes marquees @Public() (ex: /auth/login) sont epargnees.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // Puis le perimetre du compte (role, club, equipes, saisons), lu en base : voir modules/acces.
+    { provide: APP_GUARD, useClass: AccesGuard },
   ],
 })
 export class AppModule {}

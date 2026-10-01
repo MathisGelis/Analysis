@@ -13,6 +13,7 @@ import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 import { Coach, Saison, StaffMatch } from "@/entities";
 import { FicheCoach, ficheCoach } from "@/common/fiche-coach";
+import { Acces, AccesModule, AccesService, ContexteAcces } from "@/modules/acces/acces.module";
 
 class CreateCoachDto {
   @IsString() nom: string;
@@ -83,13 +84,14 @@ export class CoachsService {
    * Fiche du coach : bilan sur la portee demandee (`saisonId`, sinon toute la carriere), bilan par saison
    * et par club, parcours de clubs, matchs. Les cumuls de la table `coachs` ne servent qu'aux cartons.
    */
-  async fiche(id: string, saisonId?: string | null): Promise<FicheCoach & {
+  async fiche(id: string, saisonId?: string | null, voitSaison: (saisonId: string | null | undefined) => boolean = () => true): Promise<FicheCoach & {
     coach: Pick<Coach, "id" | "nom" | "prenom" | "licence" | "clubId" | "cartonsJaunes" | "cartonsRouges" | "motifsTop">;
   }> {
     const c = await this.findOne(id);
     const saisons = new Map((await this.repo.manager.getRepository(Saison).find())
       .map((s) => [s.id, { id: s.id, nom: s.nom, anneeDebut: s.anneeDebut }]));
-    const fiche = ficheCoach(c.participations ?? [], saisons, saisonId || null);
+    // Les matchs des saisons fermees au compte n'entrent pas dans la fiche (ni bilan, ni parcours, ni liste de matchs).
+    const fiche = ficheCoach((c.participations ?? []).filter((p) => voitSaison(p.match?.saisonId)), saisons, saisonId || null);
     return {
       coach: {
         id: c.id, nom: c.nom, prenom: c.prenom, licence: c.licence, clubId: fiche.clubActuelId ?? c.clubId,
@@ -149,6 +151,12 @@ export class CoachsService {
   addToMatch(dto: CreateStaffMatchDto) {
     return this.joinRepo.save(this.joinRepo.create(dto));
   }
+  /** Le lien coach/match (404 s'il n'existe pas) : sert a verifier les droits sur le match avant d'y toucher. */
+  async lien(id: string) {
+    const j = await this.joinRepo.findOne({ where: { id } });
+    if (!j) throw new NotFoundException(`Lien coach-match ${id} introuvable`);
+    return j;
+  }
   async removeJoin(id: string) {
     await this.joinRepo.delete(id);
     return { ok: true, id };
@@ -157,35 +165,59 @@ export class CoachsService {
 
 @Controller("coachs")
 class CoachsController {
-  constructor(private svc: CoachsService) {}
+  constructor(private svc: CoachsService, private acces: AccesService) {}
+
+  /** Un entraineur de mon club (404 s'il n'existe pas ; 403 sinon). Un entraineur sans club ne regarde que l'admin. */
+  private async exigerCoachDuClub(ctx: ContexteAcces, id: string) {
+    const c = await this.svc.findOne(id);
+    this.acces.exigerClub(ctx, c.clubId, "Cet entraineur n'est pas de ton club.");
+    return c;
+  }
+
+  // Les entraineurs sont une donnee de championnat : lisibles par tous, hors matchs des saisons fermees au compte.
   @Get() find(@Query("clubId") clubId?: string, @Query("q") q?: string) {
     return this.svc.findAll(clubId, q);
   }
   @Get("recherche") recherche(@Query("q") q?: string) { return this.svc.rechercher(q ?? ""); }
-  @Get(":id") one(@Param("id") id: string) { return this.svc.findOne(id); }
-  // GET /coachs/:id/fiche[?saisonId=...] : bilans, parcours et matchs du coach.
-  @Get(":id/fiche") fiche(@Param("id") id: string, @Query("saisonId") saisonId?: string) {
-    return this.svc.fiche(id, saisonId);
+  @Get(":id") async one(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
+    const c = await this.svc.findOne(id);
+    return ctx.saisonsRestreintes ? { ...c, participations: (c.participations ?? []).filter((p) => ctx.voitSaison(p.match?.saisonId)) } : c;
   }
-  @Post() create(@Body() dto: CreateCoachDto) { return this.svc.create(dto); }
-  @Patch(":id") update(@Param("id") id: string, @Body() dto: UpdateCoachDto) {
+  // GET /coachs/:id/fiche[?saisonId=...] : bilans, parcours et matchs du coach.
+  @Get(":id/fiche") fiche(@Acces() ctx: ContexteAcces, @Param("id") id: string, @Query("saisonId") saisonId?: string) {
+    if (saisonId && !ctx.voitSaison(saisonId)) throw new NotFoundException(`Saison ${saisonId} introuvable`);
+    return this.svc.fiche(id, saisonId, (s) => ctx.voitSaison(s));
+  }
+  @Post() create(@Acces() ctx: ContexteAcces, @Body() dto: CreateCoachDto) {
+    this.acces.exigerClub(ctx, dto.clubId);
+    return this.svc.create(dto);
+  }
+  @Patch(":id") async update(@Acces() ctx: ContexteAcces, @Param("id") id: string, @Body() dto: UpdateCoachDto) {
+    await this.exigerCoachDuClub(ctx, id);
+    if (dto.clubId !== undefined) this.acces.exigerClub(ctx, dto.clubId);
     return this.svc.update(id, dto);
   }
-  @Delete(":id") remove(@Param("id") id: string) { return this.svc.remove(id); }
+  @Delete(":id") async remove(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
+    await this.exigerCoachDuClub(ctx, id);
+    return this.svc.remove(id);
+  }
 
-  @Get("match/:matchId") byMatch(@Param("matchId") matchId: string) {
+  @Get("match/:matchId") async byMatch(@Acces() ctx: ContexteAcces, @Param("matchId") matchId: string) {
+    await this.acces.match(ctx, matchId);
     return this.svc.listForMatch(matchId);
   }
-  @Post("link") link(@Body() dto: CreateStaffMatchDto) {
+  @Post("link") async link(@Acces() ctx: ContexteAcces, @Body() dto: CreateStaffMatchDto) {
+    await this.acces.matchGere(ctx, dto.matchId);
     return this.svc.addToMatch(dto);
   }
-  @Delete("link/:id") deleteLink(@Param("id") id: string) {
+  @Delete("link/:id") async deleteLink(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
+    await this.acces.matchGere(ctx, (await this.svc.lien(id)).matchId);
     return this.svc.removeJoin(id);
   }
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Coach, StaffMatch])],
+  imports: [AccesModule, TypeOrmModule.forFeature([Coach, StaffMatch])],
   controllers: [CoachsController],
   providers: [CoachsService],
   exports: [CoachsService],

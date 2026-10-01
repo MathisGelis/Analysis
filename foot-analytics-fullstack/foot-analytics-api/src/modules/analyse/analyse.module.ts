@@ -37,6 +37,7 @@ import {
 import { estMatchJoue } from "@/common/match-joue";
 import { parseDateFlexible } from "@/common/periode";
 import { chargerDetailsMatchs } from "@/common/details-matchs";
+import { Acces, AccesModule, AccesService, ContexteAcces } from "@/modules/acces/acces.module";
 export { estMatchJoue };
 function norm(s?: string): string {
   return (s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
@@ -907,46 +908,59 @@ function labelLigne(l: string): string {
 
 @Controller("analyse")
 class AnalyseController {
-  constructor(private svc: AnalyseService, private prematchSvc: PrematchService, private situationSvc: SituationService) {}
+  constructor(
+    private svc: AnalyseService, private prematchSvc: PrematchService, private situationSvc: SituationService,
+    private acces: AccesService,
+  ) {}
+
+  // Equipe consultable et saison ouverte ; sans precision, un compte aux saisons restreintes obtient la saison actuelle.
   @Get("club/:clubId")
-  rapport(
+  async rapport(
+    @Acces() ctx: ContexteAcces,
     @Param("clubId") clubId: string,
     @Query("equipeId") equipeId?: string,
     @Query("saisonId") saisonId?: string,
   ) {
-    return this.svc.rapportClub(clubId, { equipeId: equipeId || undefined, saisonId: saisonId || undefined });
+    return this.svc.rapportClub(clubId, await this.acces.portee(ctx, { equipeId, saisonId }));
   }
 
   /** Dispositif joue (d'apres les matchs renseignes) et dernier onze d'un club, ou de l'une de ses equipes. */
   @Get("club/:clubId/situation")
-  situation(
+  async situation(
+    @Acces() ctx: ContexteAcces,
     @Param("clubId") clubId: string,
     @Query("equipeId") equipeId?: string,
     @Query("saisonId") saisonId?: string,
   ) {
-    return this.situationSvc.situation(clubId, { equipeId: equipeId || null, saisonId: saisonId || null });
+    const portee = await this.acces.portee(ctx, { equipeId, saisonId });
+    return this.situationSvc.situation(clubId, { equipeId: portee.equipeId ?? null, saisonId: portee.saisonId ?? null });
   }
 
   /** Dynamique de toutes les equipes du championnat de `equipeId`. */
   @Get("poule")
-  poule(@Query("equipeId") equipeId: string) {
+  async poule(@Acces() ctx: ContexteAcces, @Query("equipeId") equipeId: string) {
+    await this.acces.equipe(ctx, equipeId);
     return this.svc.dynamiquePoule(equipeId);
   }
 
   /** Rapport pre-match : mon equipe contre le club `adversaireId` (match optionnel). */
   @Get("prematch")
-  prematch(
+  async prematch(
+    @Acces() ctx: ContexteAcces,
     @Query("equipeId") equipeId: string,
     @Query("adversaireId") adversaireId: string,
     @Query("matchId") matchId?: string,
   ) {
     if (!equipeId || !adversaireId) throw new BadRequestException("equipeId et adversaireId sont requis");
+    await this.acces.equipe(ctx, equipeId);
+    if (matchId) await this.acces.match(ctx, matchId);
     return this.prematchSvc.rapport(equipeId, adversaireId, matchId || null);
   }
 }
 
 @Module({
   imports: [
+    AccesModule,
     TypeOrmModule.forFeature([
       Club, Match, Joueur, Composition, EvenementMatch, Entrainement,
       Coach, StaffMatch, Equipe, LigneClassement, Saison, Arbitre,

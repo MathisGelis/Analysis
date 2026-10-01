@@ -16,6 +16,7 @@ import { cumuler, statsDuMatch, STATS_MATCH_VIDES, StatsMatch } from "@/common/s
 import { noteIndicative } from "@/common/indicateurs";
 import { parseDateFlexible } from "@/common/periode";
 import { trierChronologiquement } from "@/common/tendances";
+import { Acces, AccesModule, AccesService, ContexteAcces } from "@/modules/acces/acces.module";
 import {
   Apparition, apparitionsDesEquipes, changementDeClub, derniereApparition, derniereSaison, saisonCourte, SaisonRef,
   statutMutationDeduit, statutSaisi,
@@ -942,19 +943,22 @@ export class JoueursService {
 
 @Controller("joueurs")
 class JoueursController {
-  constructor(private svc: JoueursService) {}
+  constructor(private svc: JoueursService, private acces: AccesService) {}
 
+  // Les fiches de joueurs sont des donnees de championnat (scouting) : lisibles par tous. Ce que le staff d'un club a saisi
+  // ou calcule en prive (commentaire, fatigue, morphologie...) n'est montre que pour les joueurs de SON club.
   @Get()
-  list(@Query("clubId") clubId?: string, @Query("poste") poste?: string) {
-    return this.svc.findAll(clubId, poste);
+  async list(@Acces() ctx: ContexteAcces, @Query("clubId") clubId?: string, @Query("poste") poste?: string) {
+    return (await this.svc.findAll(clubId, poste)).map((j) => ctx.masquerPrive(j));
   }
 
   /** GET /joueurs/effectif?equipeId=... : effectif d'une equipe avec
    *  stats filtrees sur ses propres matchs (matchs, buts, cartons...)
    *  et fatigue globale. */
   @Get("effectif")
-  effectif(@Query("equipeId") equipeId: string) {
-    return this.svc.effectif(equipeId);
+  async effectif(@Acces() ctx: ContexteAcces, @Query("equipeId") equipeId: string) {
+    await this.acces.equipe(ctx, equipeId);
+    return (await this.svc.effectif(equipeId)).map((j) => ctx.masquerPrive(j));
   }
 
   // Stats joueurs du championnat (= meme saison + competition + poule
@@ -962,37 +966,41 @@ class JoueursController {
   // moins 1 match du championnat, avec leurs stats restreintes a ces
   // matchs (vs stats globales toutes saisons confondues).
   @Get("championnat")
-  championnat(@Query("equipeId") equipeId: string) {
-    return this.svc.championnat(equipeId);
+  async championnat(@Acces() ctx: ContexteAcces, @Query("equipeId") equipeId: string) {
+    await this.acces.equipe(ctx, equipeId);
+    return (await this.svc.championnat(equipeId)).map((j) => ctx.masquerPrive(j));
   }
 
   // Recherche libre par nom (pour le modal d'ajout de joueur).
   @Get("search")
-  search(@Query("q") q: string) {
-    return this.svc.search(q ?? "");
+  async search(@Acces() ctx: ContexteAcces, @Query("q") q: string) {
+    return (await this.svc.search(q ?? "")).map((j) => ctx.masquerPrive(j));
   }
 
-  // Attache un joueur existant a une equipe.
+  // Attache un joueur existant a une equipe (de mon perimetre).
   @Post("equipe/:equipeId/attach/:joueurId")
-  attach(@Param("equipeId") equipeId: string, @Param("joueurId") joueurId: string) {
-    return this.svc.attachEquipe(joueurId, equipeId);
+  async attach(@Acces() ctx: ContexteAcces, @Param("equipeId") equipeId: string, @Param("joueurId") joueurId: string) {
+    await this.acces.equipeGeree(ctx, equipeId);
+    return ctx.masquerPrive(await this.svc.attachEquipe(joueurId, equipeId));
   }
 
   // Detache un joueur d'une equipe (le joueur reste en base).
   @Delete("equipe/:equipeId/attach/:joueurId")
-  detach(@Param("equipeId") equipeId: string, @Param("joueurId") joueurId: string) {
-    return this.svc.detachEquipe(joueurId, equipeId);
+  async detach(@Acces() ctx: ContexteAcces, @Param("equipeId") equipeId: string, @Param("joueurId") joueurId: string) {
+    await this.acces.equipeGeree(ctx, equipeId);
+    return ctx.masquerPrive(await this.svc.detachEquipe(joueurId, equipeId));
   }
 
-  // Cree un nouveau joueur ET l'attache a l'equipe.
+  // Cree un nouveau joueur ET l'attache a l'equipe : il est toujours du club de l'equipe.
   @Post("equipe/:equipeId/create")
-  createDansEquipe(@Param("equipeId") equipeId: string, @Body() body: any) {
-    return this.svc.createDansEquipe(equipeId, body);
+  async createDansEquipe(@Acces() ctx: ContexteAcces, @Param("equipeId") equipeId: string, @Body() body: any) {
+    const equipe = await this.acces.equipeGeree(ctx, equipeId);
+    return this.svc.createDansEquipe(equipeId, ctx.admin ? body : { ...body, clubId: equipe.clubId });
   }
 
   @Get(":id")
-  get(@Param("id") id: string) {
-    return this.svc.findOne(id);
+  async get(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
+    return ctx.masquerPrive(await this.svc.findOne(id));
   }
 
   /** GET /joueurs/:id/numeros : { "6": 3, "8": 5 } repartition des
@@ -1003,46 +1011,56 @@ class JoueursController {
   }
 
   /** GET /joueurs/:id/matchs?saisonId=&limite= : derniers matchs joues, avec
-   *  la feuille personnelle du joueur (titulaire, minutes, buts, cartons). */
+   *  la feuille personnelle du joueur (titulaire, minutes, buts, cartons). Jamais un match d'une saison fermee. */
   @Get(":id/matchs")
-  matchs(@Param("id") id: string, @Query("saisonId") saisonId?: string, @Query("limite") limite?: string) {
-    return this.svc.matchsJoues(id, saisonId || undefined, limite ? Math.min(50, Math.max(1, parseInt(limite, 10) || 8)) : 8);
+  async matchs(
+    @Acces() ctx: ContexteAcces, @Param("id") id: string, @Query("saisonId") saisonId?: string, @Query("limite") limite?: string,
+  ) {
+    if (saisonId && !ctx.voitSaison(saisonId)) return [];
+    const lignes = await this.svc.matchsJoues(id, saisonId || undefined, limite ? Math.min(50, Math.max(1, parseInt(limite, 10) || 8)) : 8);
+    return ctx.saisonsRestreintes ? lignes.filter((l: { date: string | null }) => ctx.voitDate(l.date)) : lignes;
   }
 
   /** PUT /joueurs/:id/stats-equipe/:equipeId : buts / passes saisis a la main
    *  pour CETTE equipe (donc cette saison) ; null efface la saisie. */
   @Put(":id/stats-equipe/:equipeId")
-  definirStatEquipe(
-    @Param("id") id: string, @Param("equipeId") equipeId: string, @Body() dto: StatEquipeDto,
+  async definirStatEquipe(
+    @Acces() ctx: ContexteAcces, @Param("id") id: string, @Param("equipeId") equipeId: string, @Body() dto: StatEquipeDto,
   ) {
+    await this.acces.equipeGeree(ctx, equipeId);
     return this.svc.definirStatEquipe(id, equipeId, dto);
   }
 
   /** GET /joueurs/:id/historique : parcours du joueur par saison
-   *  (saisons / equipes / clubs ou il a evolue). */
+   *  (saisons / equipes / clubs ou il a evolue). Les saisons fermees au compte n'y figurent pas. */
   @Get(":id/historique")
-  historique(@Param("id") id: string) {
-    return this.svc.historique(id);
+  async historique(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
+    return ctx.filtrerSaison(await this.svc.historique(id), (h: { saisonId: string | null }) => h.saisonId);
   }
 
   @Post()
-  create(@Body() dto: CreateJoueurDto) {
+  create(@Acces() ctx: ContexteAcces, @Body() dto: CreateJoueurDto) {
+    // Un compte non admin ne cree des joueurs que pour son club.
+    this.acces.exigerClub(ctx, dto.clubId);
     return this.svc.create(dto);
   }
 
   @Patch(":id")
-  update(@Param("id") id: string, @Body() dto: UpdateJoueurDto) {
+  async update(@Acces() ctx: ContexteAcces, @Param("id") id: string, @Body() dto: UpdateJoueurDto) {
+    await this.acces.joueurDuClub(ctx, id);
+    if (dto.clubId !== undefined) this.acces.exigerClub(ctx, dto.clubId);          // pas de transfert vers un autre club
     return this.svc.update(id, dto);
   }
 
   @Delete(":id")
-  remove(@Param("id") id: string) {
+  async remove(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
+    await this.acces.joueurDuClub(ctx, id);
     return this.svc.remove(id);
   }
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Joueur, Composition, Match, EvenementMatch, Equipe, Saison, StatJoueurEquipe])],
+  imports: [AccesModule, TypeOrmModule.forFeature([Joueur, Composition, Match, EvenementMatch, Equipe, Saison, StatJoueurEquipe])],
   controllers: [JoueursController],
   providers: [JoueursService],
   exports: [JoueursService],

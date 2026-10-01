@@ -204,17 +204,41 @@ Trois roles : `admin`, `referent` (referent d'un club) et `user` (educateur).
   suivi ou cree a l'amorcage, `createurSupprime: true` si ce compte a disparu depuis). Il est fixe a la creation et ne
   se modifie pas.
 - **Saisons consultables** d'un educateur : `toutesSaisons` (defaut `true` : comptes existants et creations par l'API sans
-  precision) ou `toutesSaisons: false` + `saisonIds` (saisons passees visibles en plus de la saison actuelle, des
+  precision) ou `toutesSaisons: false` + `saisonIds` (saisons passees visibles en plus de la saison actuelle et des
   suivantes ; liste vide = la saison actuelle seulement). Les identifiants inconnus sont refuses (`400`). Un admin ou un
-  referent voit toujours tout. Le jeton (`toutesSaisons: false`, `saisonIds`) porte cette restriction ; elle s'applique
-  donc a la prochaine connexion du compte, et pour l'instant par la selection de saison et d'equipe du front, comme
-  `equipeIds`.
-- Le referent a acces a son club et a toutes ses equipes, comme un educateur sans restriction d'equipes. Comme pour
-  les autres comptes non admin, le club est impose par le jeton cote front ; l'API ne filtre pas encore les donnees
-  par club.
+  referent voit toujours tout.
+
+### Perimetre d'acces (filtrage cote API)
+Chaque requete authentifiee passe par `AccesGuard` (`modules/acces`) : le compte, ses equipes attribuees et ses saisons
+ouvertes sont lus **en base** a chaque appel (jamais dans le jeton) ; une restriction posee par un gestionnaire joue
+immediatement et un compte supprime perd l'acces tout de suite (`401`). La politique est dans `common/acces.ts`. Le front
+ne filtre rien : il affiche ce que l'API renvoie.
+
+| | admin | referent | educateur |
+|---|---|---|---|
+| Club | tous | le sien | le sien |
+| Equipes de son club | toutes | toutes | celles attribuees (aucune = toutes) ; une equipe attribuee l'est aussi sur les autres saisons (meme empreinte, ou meme categorie + division quand la poule change) |
+| Saisons | toutes | toutes | selon `toutesSaisons` / `saisonIds` |
+
+- **Donnees de championnat** (matchs, classements, clubs, equipes et joueurs adverses, arbitres, entraineurs, rapports de
+  scouting, analyses) : lisibles par tous les comptes connectes, **hors des saisons fermees au compte** : listes filtrees,
+  lecture par identifiant `404`, parametre `saisonId` ferme `404` (ou liste vide). Sans `saisonId` ni `equipeId`, une analyse
+  ou un bilan d'un compte restreint porte sur la saison actuelle. Pour un joueur d'un autre club, les champs prives
+  (commentaire, fatigue, morphologie...) sont retires.
+- **Donnees privees d'un club** (seances, plans de jeu, blessures, effectif saisi) et **ecritures** : limitees au club du compte
+  et, pour un educateur, a ses equipes ; une equipe d'un autre club ou non attribuee est `403` (`404` si sa saison est fermee).
+  Un match ne se programme ou ne se modifie que si l'un des deux clubs est le sien ; rien ne se deplace vers un autre club
+  ou une autre equipe.
+- **Reserve a l'administrateur** : creer, modifier, activer, supprimer une saison ; supprimer un club ; renommer ou supprimer
+  un arbitre ; `POST /seed/reset` ; les maintenances. Le referent gere les equipes et le club de son club ; tout compte peut ajouter un
+  club adverse, un arbitre, importer une feuille FMI et relancer la derivation.
+- Limite connue : les totaux cumules d'un joueur, d'un arbitre ou d'un entraineur (denormalises sur toute sa carriere) ne se
+  decoupent pas par saison et restent visibles ; tout ce qui est ventile par saison est filtre.
+- Les tests `modules/acces/acces.http.spec.ts` demarrent l'application entiere (vrais gardes, base de test) et appellent l'API
+  avec les jetons d'un admin, d'un referent et de plusieurs educateurs.
 
 ### Administration
-- `POST   /seed/reset` — vide et recree les donnees de demonstration (refuse sur Postgres).
+- `POST   /seed/reset` — vide et recree les donnees de demonstration (administrateur seulement ; refuse sur Postgres).
 
 ## Exemples
 

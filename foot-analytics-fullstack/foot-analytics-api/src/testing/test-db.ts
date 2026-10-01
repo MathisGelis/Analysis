@@ -10,7 +10,7 @@
 //   TEST_DATABASE_URL=postgres://postgres@localhost:5432/foot_test npx jest
 
 import { randomBytes } from "node:crypto";
-import { DataSource, DeepPartial, EntityTarget } from "typeorm";
+import { DataSource, DataSourceOptions, DeepPartial, EntityTarget } from "typeorm";
 import {
   OPTIONS_ENTITES, Club, Composition, Equipe, EvenementMatch, Joueur, Match, Saison,
 } from "@/entities";
@@ -25,22 +25,42 @@ export function refuserBaseHebergee(url: string): void {
   }
 }
 
-async function creerBasePostgres(url: string): Promise<DataSource> {
+/** Cree un schema Postgres jetable et renvoie les options pour s'y connecter, plus de quoi le supprimer. */
+async function schemaPostgresJetable(url: string): Promise<{ options: DataSourceOptions; supprimer: () => Promise<void> }> {
   refuserBaseHebergee(url);
   const schema = `t_${randomBytes(6).toString("hex")}`;
   const admin = new DataSource({ type: "postgres", url, extra: { max: 1 } });
   await admin.initialize();
   await admin.query(`CREATE SCHEMA "${schema}"`);
   await admin.destroy();
+  return {
+    options: { type: "postgres", url, schema, ...OPTIONS_ENTITES, synchronize: true, extra: { max: 3 } },
+    supprimer: async () => {
+      const nettoyeur = new DataSource({ type: "postgres", url, extra: { max: 1 } });
+      await nettoyeur.initialize();
+      await nettoyeur.query(`DROP SCHEMA "${schema}" CASCADE`);
+      await nettoyeur.destroy();
+    },
+  };
+}
 
-  const ds = new DataSource({
-    type: "postgres", url, schema, ...OPTIONS_ENTITES, synchronize: true, extra: { max: 3 },
-  });
+/**
+ * Options de connexion d'une base de test neuve (SQLite en memoire, ou un schema Postgres jetable), pour les tests qui
+ * demarrent l'application entiere (TypeOrmModule.forRoot) plutot que des services a la main. `supprimer` nettoie apres coup.
+ */
+export async function optionsBaseTest(): Promise<{ options: DataSourceOptions; supprimer: () => Promise<void> }> {
+  if (process.env.TEST_DATABASE_URL) return schemaPostgresJetable(process.env.TEST_DATABASE_URL);
+  return { options: { type: "sqljs", ...OPTIONS_ENTITES, synchronize: true, dropSchema: true }, supprimer: async () => undefined };
+}
+
+async function creerBasePostgres(url: string): Promise<DataSource> {
+  const { options, supprimer } = await schemaPostgresJetable(url);
+  const ds = new DataSource(options);
   await ds.initialize();
   const detruire = ds.destroy.bind(ds);
   ds.destroy = async () => {
-    await ds.query(`DROP SCHEMA "${schema}" CASCADE`);
     await detruire();
+    await supprimer();
   };
   return ds;
 }

@@ -15,10 +15,7 @@ import { ChevronDown, Check, Calendar } from "lucide-react";
 import { api } from "@/lib/api";
 import { useOwnClubId } from "@/lib/own-club-context";
 import { useOwnEquipe } from "@/lib/own-equipe-context";
-import { getCachedUser } from "@/lib/auth";
 import { debug } from "@/lib/debug";
-import { equipesDesSaisons, saisonsVisibles } from "@/lib/acces-saisons";
-import { filtrerEquipesAutorisees } from "@/lib/empreinte-equipe";
 import { selectionValide } from "@/lib/selection-equipe";
 
 export function OwnEquipeSwitcher() {
@@ -61,19 +58,10 @@ export function OwnEquipeSwitcher() {
   useEffect(() => {
     (async () => {
       const [s, e] = await Promise.all([api.saisons(), api.equipes(ownClubId)]);
-      const user = getCachedUser();
-      // Un educateur ne voit que les saisons ouvertes par son gestionnaire, et leurs equipes.
-      const saisonsOuvertes = saisonsVisibles(s, user);
-      const equipesAutorisees = equipesDesSaisons(filtrerEquipesAutorisees(e, user), saisonsOuvertes);
-      setSaisons(saisonsOuvertes);
-      setEquipes(equipesAutorisees);
-      debug("[switcher] charge", {
-        equipeIdCookie: equipeId,
-        saisonIdCookie: saisonId,
-        nbEquipesRecues: e.length,
-        nbEquipesAutorisees: equipesAutorisees.length,
-        role: user?.role ?? "unknown",
-      });
+      // L'API ne renvoie que les saisons et les equipes ouvertes au compte : la liste affichee est celle qu'elle donne.
+      setSaisons(s);
+      setEquipes(e);
+      debug("[switcher] charge", { equipeIdCookie: equipeId, saisonIdCookie: saisonId, nbEquipes: e.length });
       setBooted(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -143,17 +131,11 @@ export function OwnEquipeSwitcher() {
 
       // Reload equipes
       const e = await api.equipes(ownClubId);
-      const user = getCachedUser();
-      const equipesAutorisees = equipesDesSaisons(filtrerEquipesAutorisees(e, user), saisons);
-      debug("[reimport] api renvoie", e.length, "equipes | filtre laisse", equipesAutorisees.length);
-      if (e.length > 0 && equipesAutorisees.length === 0) {
-        // eslint-disable-next-line no-console
-        console.warn("[reimport] toutes les equipes sont filtrees par les permissions !", { user });
-      }
-      setEquipes(equipesAutorisees);
+      debug("[reimport] api renvoie", e.length, "equipes");
+      setEquipes(e);
 
       // Verifie qu'on a vraiment des equipes pour cette saison.
-      const candidates = equipesAutorisees.filter((eq: any) => eq.saisonId === sid);
+      const candidates = e.filter((eq: any) => eq.saisonId === sid);
       if (candidates.length === 0) {
         setReimportState("error");
         setReimportError(

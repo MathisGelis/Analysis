@@ -1,12 +1,13 @@
 // src/modules/clubs/clubs.module.ts
 import {
-  Body, Controller, Delete, Get, Injectable, NotFoundException, Param,
+  Body, Controller, Delete, ForbiddenException, Get, Injectable, NotFoundException, Param,
   Patch, Post, Module,
 } from "@nestjs/common";
 import { IsOptional, IsString } from "class-validator";
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Club } from "@/entities";
+import { Acces, AccesModule, AccesService, ContexteAcces } from "@/modules/acces/acces.module";
 
 class UpsertClubDto {
   @IsOptional() @IsString() id?: string;
@@ -46,18 +47,27 @@ export class ClubsService {
 
 @Controller("clubs")
 class ClubsController {
-  constructor(private svc: ClubsService) {}
+  constructor(private svc: ClubsService, private acces: AccesService) {}
   @Get() list() { return this.svc.findAll(); }
   @Get(":id") get(@Param("id") id: string) { return this.svc.findOne(id); }
+  // Tout compte peut ajouter un club adverse absent de la base (calendrier, scouting) ; modifier un club, c'est l'affaire
+  // de l'administrateur ou du referent de ce club ; le supprimer, de l'administrateur seul.
   @Post() create(@Body() dto: UpsertClubDto) { return this.svc.create(dto); }
-  @Patch(":id") update(@Param("id") id: string, @Body() dto: UpsertClubDto) {
+  @Patch(":id") update(@Acces() ctx: ContexteAcces, @Param("id") id: string, @Body() dto: UpsertClubDto) {
+    if (!ctx.admin) {
+      if (!ctx.referent) throw new ForbiddenException("Seuls l'administrateur et le referent du club modifient un club.");
+      this.acces.exigerClub(ctx, id);
+    }
     return this.svc.update(id, dto);
   }
-  @Delete(":id") remove(@Param("id") id: string) { return this.svc.remove(id); }
+  @Delete(":id") remove(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
+    this.acces.exigerAdmin(ctx);
+    return this.svc.remove(id);
+  }
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Club])],
+  imports: [AccesModule, TypeOrmModule.forFeature([Club])],
   controllers: [ClubsController],
   providers: [ClubsService],
   exports: [ClubsService],

@@ -50,12 +50,6 @@ export function equipeEquivalente(
     && (candidate.poule ?? null) === (reference.poule ?? null);
 }
 
-/** Sous-ensemble de l'utilisateur utile au filtrage (JWT decode ou User en cache). */
-export interface UtilisateurPerimetre {
-  role?: string;
-  equipeIds?: string[] | null;
-}
-
 /**
  * "Niveau" d'une equipe : club + categorie + division, SANS la poule. Une equipe
  * garde son niveau quand la poule change d'une saison a l'autre (Seniors D2 poule
@@ -65,31 +59,4 @@ export function niveauEquipe(
   e: Pick<Equipe, "clubId" | "categorie" | "division">,
 ): string | null {
   return e.categorie && e.division ? `${e.clubId}|${e.categorie}|${e.division}` : null;
-}
-
-/**
- * Filtre les equipes selon les permissions de l'utilisateur.
- *
- * - Admin, ou pas de liste d'equipes : aucun filtre.
- * - Sinon : une equipe est autorisee si son id est dans la liste, OU si elle est
- *   la meme equipe qu'une equipe autorisee sur une autre saison : meme empreinte
- *   (equipe clonee) ou meme niveau (categorie + division) quand la poule a change.
- *   Sans le niveau, l'acces se perdait des que la vraie poule (Seniors D2 poule A)
- *   remplacait le clone de l'an passe (poule C) : l'equipe disparaissait du selecteur.
- */
-export function filtrerEquipesAutorisees<T extends EquipeMin & Pick<Equipe, "division">>(
-  equipes: T[],
-  user: UtilisateurPerimetre | null | undefined,
-): T[] {
-  if (!user || user.role === "admin") return equipes;
-  if (!Array.isArray(user.equipeIds) || user.equipeIds.length === 0) return equipes;
-
-  const ids = new Set<string>(user.equipeIds);
-  const autorisees = equipes.filter((e) => ids.has(e.id));
-  const empreintes = new Set(autorisees.map(empreinteEquipe));
-  const niveaux = new Set(autorisees.map(niveauEquipe).filter((n): n is string => !!n));
-  return equipes.filter((e) => {
-    const niveau = niveauEquipe(e);
-    return ids.has(e.id) || empreintes.has(empreinteEquipe(e)) || (!!niveau && niveaux.has(niveau));
-  });
 }

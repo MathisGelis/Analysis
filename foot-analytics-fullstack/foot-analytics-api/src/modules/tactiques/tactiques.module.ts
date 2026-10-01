@@ -20,6 +20,7 @@ import { designeLeJoueur, minutesJouees } from "@/common/minutes";
 import { parseDateFlexible } from "@/common/periode";
 import { comparerPlanRealise, ComparaisonPlanRealise } from "@/common/plan-realise";
 import { formationValide, systemesRenseignes } from "@/common/systeme";
+import { Acces, AccesModule, AccesService, ContexteAcces } from "@/modules/acces/acces.module";
 
 export const NB_TITULAIRES = 11;
 export const MAX_REMPLACANTS = 7;
@@ -225,24 +226,36 @@ export class TactiquesService {
 
 @Controller("tactiques")
 class TactiquesController {
-  constructor(private svc: TactiquesService) {}
+  constructor(private svc: TactiquesService, private acces: AccesService) {}
+
+  /** Un plan de jeu est prive a l'equipe : seul le compte qui gere cette equipe y accede ; le match, s'il est cite, doit etre consultable. */
+  private async exiger(ctx: ContexteAcces, equipeId: string, matchId?: string | null) {
+    await this.acces.equipeGeree(ctx, equipeId);
+    if (matchId) await this.acces.match(ctx, matchId);
+  }
 
   // GET /tactiques?equipeId=...&matchId=... : le plan, ou null.
-  @Get() async lire(@Query("equipeId") equipeId: string, @Query("matchId") matchId?: string) {
+  @Get() async lire(@Acces() ctx: ContexteAcces, @Query("equipeId") equipeId: string, @Query("matchId") matchId?: string) {
+    await this.exiger(ctx, equipeId, matchId);
     return (await this.svc.lire(equipeId, matchId)) ?? null;
   }
   // GET /tactiques/comparaison?equipeId=...[&matchId=...] : plan prepare contre feuille de match jouee.
-  @Get("comparaison") comparer(@Query("equipeId") equipeId: string, @Query("matchId") matchId?: string) {
+  @Get("comparaison") async comparer(@Acces() ctx: ContexteAcces, @Query("equipeId") equipeId: string, @Query("matchId") matchId?: string) {
+    await this.exiger(ctx, equipeId, matchId);
     return this.svc.comparer(equipeId, matchId);
   }
-  @Put() enregistrer(@Body() dto: EnregistrerTactiqueDto) { return this.svc.enregistrer(dto); }
-  @Delete() supprimer(@Query("equipeId") equipeId: string, @Query("matchId") matchId?: string) {
+  @Put() async enregistrer(@Acces() ctx: ContexteAcces, @Body() dto: EnregistrerTactiqueDto) {
+    await this.exiger(ctx, dto.equipeId, dto.matchId);
+    return this.svc.enregistrer(dto);
+  }
+  @Delete() async supprimer(@Acces() ctx: ContexteAcces, @Query("equipeId") equipeId: string, @Query("matchId") matchId?: string) {
+    await this.exiger(ctx, equipeId, matchId);
     return this.svc.supprimer(equipeId, matchId);
   }
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Tactique, Equipe, Joueur, Match, Composition, EvenementMatch])],
+  imports: [AccesModule, TypeOrmModule.forFeature([Tactique, Equipe, Joueur, Match, Composition, EvenementMatch])],
   controllers: [TactiquesController],
   providers: [TactiquesService],
   exports: [TactiquesService],

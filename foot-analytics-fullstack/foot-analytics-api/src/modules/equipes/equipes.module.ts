@@ -7,7 +7,7 @@
 // par saison, pour garder l'historique des classements.
 
 import {
-  Body, Controller, Delete, Get, Injectable, Logger, Module, NotFoundException,
+  Body, Controller, Delete, ForbiddenException, Get, Injectable, Logger, Module, NotFoundException,
   Param, Patch, Post, Query, UseGuards,
 } from "@nestjs/common";
 import { IsOptional, IsString } from "class-validator";
@@ -17,6 +17,7 @@ import {
   Club, Entrainement, Equipe, Joueur, LigneClassement, Match, StatJoueurEquipe, Utilisateur,
 } from "@/entities";
 import { AdminGuard, AuthModule } from "../auth/auth.module";
+import { Acces, AccesModule, AccesService, ContexteAcces } from "@/modules/acces/acces.module";
 
 const minuscule = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
 
@@ -424,16 +425,33 @@ export class EquipesService {
 
 @Controller("equipes")
 class EquipesController {
-  constructor(private svc: EquipesService) {}
-  @Get() list(@Query("clubId") clubId?: string, @Query("saisonId") saisonId?: string) {
-    return this.svc.findAll({ clubId, saisonId });
+  constructor(private svc: EquipesService, private acces: AccesService) {}
+
+  /** Creer, modifier ou supprimer une equipe : l'administrateur, ou le referent du club de l'equipe. */
+  private exigerGestionnaire(ctx: ContexteAcces, clubId: string) {
+    if (ctx.admin) return;
+    if (!ctx.referent) throw new ForbiddenException("Seuls l'administrateur et le referent du club gerent les equipes.");
+    this.acces.exigerClub(ctx, clubId);
   }
-  @Get(":id") get(@Param("id") id: string) { return this.svc.findOne(id); }
-  @Post() create(@Body() dto: UpsertEquipeDto) { return this.svc.create(dto); }
-  @Patch(":id") update(@Param("id") id: string, @Body() dto: UpsertEquipeDto) {
+
+  // Un educateur ne voit pas les equipes de son club qui ne lui sont pas attribuees, ni celles des saisons fermees.
+  @Get() async list(@Acces() ctx: ContexteAcces, @Query("clubId") clubId?: string, @Query("saisonId") saisonId?: string) {
+    return (await this.svc.findAll({ clubId, saisonId })).filter((e) => ctx.voitEquipe(e));
+  }
+  @Get(":id") get(@Acces() ctx: ContexteAcces, @Param("id") id: string) { return this.acces.equipe(ctx, id); }
+  @Post() create(@Acces() ctx: ContexteAcces, @Body() dto: UpsertEquipeDto) {
+    this.exigerGestionnaire(ctx, dto.clubId);
+    return this.svc.create(dto);
+  }
+  @Patch(":id") async update(@Acces() ctx: ContexteAcces, @Param("id") id: string, @Body() dto: UpsertEquipeDto) {
+    this.exigerGestionnaire(ctx, (await this.svc.findOne(id)).clubId);
+    if (dto.clubId) this.exigerGestionnaire(ctx, dto.clubId);             // pas de transfert vers un autre club
     return this.svc.update(id, dto);
   }
-  @Delete(":id") remove(@Param("id") id: string) { return this.svc.remove(id); }
+  @Delete(":id") async remove(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
+    this.exigerGestionnaire(ctx, (await this.svc.findOne(id)).clubId);
+    return this.svc.remove(id);
+  }
 
   // Maintenance (admin) : fusionne les clones provisoires de la saison
   // precedente devenus doublons de la vraie equipe (autre poule). Simulation par
@@ -445,15 +463,17 @@ class EquipesController {
 
   // Clone toutes les equipes d'un club d'une saison vers une autre.
   // Usage : preparer la saison 2026-2027 en clonant les equipes engagees
-  // en 2025-2026 (effectif vide a remplir manuellement).
+  // en 2025-2026 (effectif vide a remplir manuellement). Admin, ou referent du club.
   @Post("clone-saison")
-  cloneSaison(@Body() body: { clubId: string; fromSaisonId: string; toSaisonId: string }) {
+  cloneSaison(@Acces() ctx: ContexteAcces, @Body() body: { clubId: string; fromSaisonId: string; toSaisonId: string }) {
+    this.exigerGestionnaire(ctx, body.clubId);
+    if (!ctx.voitSaison(body.fromSaisonId) || !ctx.voitSaison(body.toSaisonId)) throw new NotFoundException("Saison introuvable");
     return this.svc.cloneSaison(body);
   }
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Equipe]), AuthModule],
+  imports: [AccesModule, TypeOrmModule.forFeature([Equipe]), AuthModule],
   controllers: [EquipesController],
   providers: [EquipesService],
   exports: [EquipesService],

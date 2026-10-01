@@ -1,11 +1,11 @@
 // src/lib/acces-saisons.ts
 //
-// Saisons qu'un educateur peut consulter, et equipes proposees quand on lui en attribue. Fonctions pures, partagees par
-// le middleware, le selecteur de saison/equipe et le formulaire de compte.
+// Formulaire de compte : equipes proposees quand on en attribue (par niveau, sans poule) et saisons de l'historique ouvertes
+// a un educateur. Fonctions pures. Le FILTRAGE lui-meme est fait par l'API (voir api/common/acces.ts), jamais ici :
+// l'API ne renvoie a un compte que les saisons, les equipes et les donnees qui lui sont ouvertes.
 //
 // Un educateur a soit l'acces a TOUTES les saisons (comptes anterieurs a ce reglage compris), soit la saison actuelle
-// (et les suivantes) plus les saisons passees que son gestionnaire a cochees. Un administrateur et un referent de club
-// voient toujours toutes les saisons.
+// (et les suivantes) plus les saisons passees que son gestionnaire a cochees.
 
 import { empreinteEquipe, niveauEquipe } from "@/lib/empreinte-equipe";
 import type { Equipe, Saison } from "@/lib/types";
@@ -28,27 +28,9 @@ export function saisonActuelle<S extends SaisonMin>(saisons: S[]): S | null {
   return parRecence.find((s) => s.actif) ?? parRecence[0] ?? null;
 }
 
-/** Le compte voit-il toutes les saisons ? */
-export const voitToutesLesSaisons = (user: PerimetreSaisons | null | undefined): boolean =>
+/** Le compte voit-il toutes les saisons ? (un administrateur et un referent, oui toujours) */
+const voitToutesLesSaisons = (user: PerimetreSaisons | null | undefined): boolean =>
   !user || user.role === "admin" || user.role === "referent" || user.toutesSaisons !== false;
-
-/**
- * Saisons que le compte peut consulter : toutes, ou la saison actuelle, les suivantes (a venir) et les saisons passees
- * cochees. Une liste vide (aucune saison connue) ne laisse rien de cache.
- */
-export function saisonsVisibles<S extends SaisonMin>(saisons: S[], user: PerimetreSaisons | null | undefined): S[] {
-  if (voitToutesLesSaisons(user)) return saisons;
-  const actuelle = saisonActuelle(saisons);
-  if (!actuelle) return saisons;
-  const cochees = new Set(user?.saisonIds ?? []);
-  return saisons.filter((s) => s.anneeDebut >= actuelle.anneeDebut || cochees.has(s.id));
-}
-
-/** Les equipes d'une saison visible (une equipe sans saison reste visible : on ne devine pas). */
-export function equipesDesSaisons<E extends Pick<Equipe, "saisonId">>(equipes: E[], saisons: Pick<Saison, "id">[]): E[] {
-  const ids = new Set(saisons.map((s) => s.id));
-  return equipes.filter((e) => !e.saisonId || ids.has(e.saisonId));
-}
 
 /** Les saisons passees (avant l'actuelle), de la plus recente a la plus ancienne : celles qu'on peut ouvrir a un educateur. */
 export function saisonsPassees<S extends SaisonMin>(saisons: S[]): S[] {

@@ -785,6 +785,24 @@ test("comptes : equipe de la saison actuelle sans la poule, saisons de l'histori
   expect(await saisonsVues("ECOACH", "Bienvenue1")).toEqual({ passee: 1, suivante: 1 });   // actuelle + 2024-2025 choisie + saison a venir
   expect(await saisonsVues("FSEUL", "Bienvenue1")).toEqual({ passee: 0, suivante: 1 });    // l'historique reste ferme
 
+  // Et c'est l'API qui le garantit, pas le front : avec le jeton de l'educateur, la saison fermee est introuvable, ses equipes et ses
+  // matchs ne sortent pas, et les operations qui concernent tout le monde sont refusees.
+  const jetonDe = async (login: string) => (await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login, password: "Educateur123" }),
+  })).json()).token as string;
+  const lire = async (jeton: string, chemin: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
+    ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${jeton}` },
+  });
+  const fseul = await jetonDe("FSEUL");
+  expect((await (await lire(fseul, "/saisons")).json()).map((x: any) => x.nom).sort()).toEqual(["2025-2026", "2026-2027"]);
+  expect((await lire(fseul, `/saisons/${fixtures.saison2425}`)).status).toBe(404);
+  expect((await (await lire(fseul, "/equipes")).json()).some((e: any) => e.saisonId === fixtures.saison2425)).toBe(false);
+  expect((await (await lire(fseul, "/matchs")).json()).some((x: any) => x.saisonId === fixtures.saison2425)).toBe(false);
+  expect((await lire(fseul, "/saisons", { method: "POST", body: JSON.stringify({ nom: "2030-2031", anneeDebut: 2030 }) })).status).toBe(403);
+  expect((await lire(fseul, "/seed/reset", { method: "POST" })).status).toBe(403);
+  const ecoachJeton = await jetonDe("ECOACH");
+  expect((await lire(ecoachJeton, `/saisons/${fixtures.saison2425}`)).status).toBe(200);         // celle qu'on lui a ouverte
+
   // Menage : la suite des parcours repart sans ces comptes.
   for (const u of (await comptes()).filter((x) => ["ECOACH", "FSEUL"].includes(x.login))) {
     await appeler(`/utilisateurs/${u.id}`, { method: "DELETE" });

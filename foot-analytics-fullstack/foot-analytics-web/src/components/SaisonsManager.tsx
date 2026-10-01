@@ -2,11 +2,13 @@
 // src/components/SaisonsManager.tsx
 //
 // Tableau des saisons : creer, activer, lister. Les actions appellent
-// le backend puis font un refresh router.
+// le backend puis font un refresh router. Creer, activer une saison et fusionner des equipes
+// concernent tous les clubs : l'API les reserve a l'administrateur, les autres comptes ne voient que la liste.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { getCachedUser } from "@/lib/auth";
 import { grouperParChampionnat } from "@/lib/championnats";
 import { ClubBadge } from "@/components/ClubBadge";
 import { Calendar, Check, Plus, Star } from "lucide-react";
@@ -38,6 +40,9 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
     String(new Date().getFullYear()),
   );
   const [busy, setBusy] = useState(false);
+  // Le role vient du navigateur (jeton en cache) : lu apres le montage, donc sans ecart d'hydratation.
+  const [estAdmin, setEstAdmin] = useState(false);
+  useEffect(() => { setEstAdmin(getCachedUser()?.role === "admin"); }, []);
 
   const equipesParSaison = (saisonId: string) =>
     equipes.filter((e) => e.saisonId === saisonId);
@@ -66,7 +71,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
 
   return (
     <section className="space-y-4">
-      {fusionsEnAttente.length > 0 && (
+      {estAdmin && fusionsEnAttente.length > 0 && (
         <div className="panel-inset p-4 border-l-2 border-amber space-y-2" role="status">
           <div className="text-sm font-semibold text-ink">
             {fusionsEnAttente.length} equipe{fusionsEnAttente.length > 1 ? "s" : ""} provisoire
@@ -100,12 +105,14 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
             <Calendar size={11} className="text-accent"/>
             Saisons enregistrees ({saisons.length})
           </div>
-          <button
-            className="btn text-xs"
-            onClick={() => setCreating((c) => !c)}
-          >
-            <Plus size={12}/> Nouvelle saison
-          </button>
+          {estAdmin && (
+            <button
+              className="btn text-xs"
+              onClick={() => setCreating((c) => !c)}
+            >
+              <Plus size={12}/> Nouvelle saison
+            </button>
+          )}
         </div>
 
         {creating && (
@@ -178,7 +185,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
                       <span className="text-xs text-accent flex items-center justify-end gap-1">
                         <Check size={11}/> Active
                       </span>
-                    ) : (
+                    ) : estAdmin ? (
                       <button
                         className="btn text-xs"
                         disabled={busy}
@@ -186,7 +193,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
                       >
                         Activer
                       </button>
-                    )}
+                    ) : null}
                   </td>
                 </tr>
               ))}

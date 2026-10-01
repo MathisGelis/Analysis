@@ -13,6 +13,7 @@ import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Arbitre, ArbitreMatch } from "@/entities";
 import { AdminGuard, AuthModule } from "../auth/auth.module";
+import { Acces, AccesModule, AccesService, ContexteAcces } from "@/modules/acces/acces.module";
 
 const ROLES = ["principal", "assistant1", "assistant2", "4e"] as const;
 
@@ -159,6 +160,12 @@ export class ArbitresService {
   addToMatch(dto: CreateArbitreMatchDto) {
     return this.joinRepo.save(this.joinRepo.create(dto));
   }
+  /** Le lien arbitre/match (404 s'il n'existe pas) : sert a verifier les droits sur le match avant d'y toucher. */
+  async lien(id: string) {
+    const j = await this.joinRepo.findOne({ where: { id } });
+    if (!j) throw new NotFoundException(`Lien arbitre-match ${id} introuvable`);
+    return j;
+  }
   async updateJoin(id: string, dto: UpdateArbitreMatchDto) {
     const j = await this.joinRepo.findOne({ where: { id } });
     if (!j) throw new NotFoundException(`Lien arbitre-match ${id} introuvable`);
@@ -217,16 +224,45 @@ export class ArbitresService {
   }
 }
 
+/**
+ * Un arbitre sans ce qui concerne les saisons fermees au compte : le detail par saison (`participations`, JSON ou liste) et
+ * les matchs arbitres. Les totaux de carriere, denormalises, ne se decoupent pas par saison et restent.
+ */
+function sansSaisonsFermees<T extends { participations?: unknown; liensMatchs?: { match?: { saisonId?: string | null } }[] }>(
+  a: T, ctx: ContexteAcces,
+): T {
+  if (!ctx.saisonsRestreintes) return a;
+  const brut = a.participations;
+  let liste: { saisonId?: string | null }[] = [];
+  try { liste = typeof brut === "string" ? JSON.parse(brut) : Array.isArray(brut) ? brut : []; } catch { liste = []; }
+  const gardees = liste.filter((p) => ctx.voitSaison(p.saisonId));
+  const participations = typeof brut === "string" ? (gardees.length ? JSON.stringify(gardees) : null) : gardees;
+  const copie: T = { ...a, participations };
+  if (a.liensMatchs) copie.liensMatchs = a.liensMatchs.filter((l) => ctx.voitSaison(l.match?.saisonId));
+  return copie;
+}
+
 @Controller("arbitres")
 class ArbitresController {
-  constructor(private svc: ArbitresService) {}
-  @Get() find(@Query("q") q?: string) { return this.svc.findAll(q); }
-  @Get(":id") one(@Param("id") id: string) { return this.svc.findOne(id); }
+  constructor(private svc: ArbitresService, private acces: AccesService) {}
+
+  // Les arbitres sont une donnee de championnat : lisibles par tous, hors saisons fermees au compte.
+  @Get() async find(@Acces() ctx: ContexteAcces, @Query("q") q?: string) {
+    return (await this.svc.findAll(q)).map((a) => sansSaisonsFermees(a, ctx));
+  }
+  @Get(":id") async one(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
+    return sansSaisonsFermees(await this.svc.findOne(id), ctx);
+  }
+  // Un arbitre se cree depuis la fiche d'un match (tout compte) ; le renommer ou le supprimer touche tous les clubs : admin.
   @Post() create(@Body() dto: CreateArbitreDto) { return this.svc.create(dto); }
-  @Patch(":id") update(@Param("id") id: string, @Body() dto: UpdateArbitreDto) {
+  @Patch(":id") update(@Acces() ctx: ContexteAcces, @Param("id") id: string, @Body() dto: UpdateArbitreDto) {
+    this.acces.exigerAdmin(ctx);
     return this.svc.update(id, dto);
   }
-  @Delete(":id") remove(@Param("id") id: string) { return this.svc.remove(id); }
+  @Delete(":id") remove(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
+    this.acces.exigerAdmin(ctx);
+    return this.svc.remove(id);
+  }
 
   // Maintenance (admin) : simulation par defaut, ?appliquer=true pour supprimer.
   @Post("maintenance/delegues") @UseGuards(AdminGuard)
@@ -234,23 +270,27 @@ class ArbitresController {
     return this.svc.nettoyerDelegues(appliquer === "true");
   }
 
-  // Liens arbitre <-> match
-  @Get("match/:matchId") byMatch(@Param("matchId") matchId: string) {
+  // Liens arbitre <-> match : lire un match consultable ; ecrire sur un match de mon club.
+  @Get("match/:matchId") async byMatch(@Acces() ctx: ContexteAcces, @Param("matchId") matchId: string) {
+    await this.acces.match(ctx, matchId);
     return this.svc.listForMatch(matchId);
   }
-  @Post("link") link(@Body() dto: CreateArbitreMatchDto) {
+  @Post("link") async link(@Acces() ctx: ContexteAcces, @Body() dto: CreateArbitreMatchDto) {
+    await this.acces.matchGere(ctx, dto.matchId);
     return this.svc.addToMatch(dto);
   }
-  @Patch("link/:id") updateLink(@Param("id") id: string, @Body() dto: UpdateArbitreMatchDto) {
+  @Patch("link/:id") async updateLink(@Acces() ctx: ContexteAcces, @Param("id") id: string, @Body() dto: UpdateArbitreMatchDto) {
+    await this.acces.matchGere(ctx, (await this.svc.lien(id)).matchId);
     return this.svc.updateJoin(id, dto);
   }
-  @Delete("link/:id") deleteLink(@Param("id") id: string) {
+  @Delete("link/:id") async deleteLink(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
+    await this.acces.matchGere(ctx, (await this.svc.lien(id)).matchId);
     return this.svc.removeJoin(id);
   }
 }
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Arbitre, ArbitreMatch]), AuthModule],
+  imports: [AccesModule, TypeOrmModule.forFeature([Arbitre, ArbitreMatch]), AuthModule],
   controllers: [ArbitresController],
   providers: [ArbitresService],
   exports: [ArbitresService],

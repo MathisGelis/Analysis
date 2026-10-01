@@ -5,6 +5,7 @@ import {
 import { InjectRepository, TypeOrmModule } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { LigneClassement } from "@/entities";
+import { Acces, ContexteAcces } from "@/modules/acces/acces.module";
 
 @Injectable()
 export class ClassementService {
@@ -19,7 +20,8 @@ export class ClassementService {
 @Controller("classement")
 class ClassementController {
   constructor(private svc: ClassementService) {}
-  @Get() list() { return this.svc.findAll(); }
+  // Les classements des saisons fermees au compte ne sont pas renvoyes.
+  @Get() async list(@Acces() ctx: ContexteAcces) { return ctx.filtrerSaison(await this.svc.findAll(), (l) => l.saisonId); }
 }
 
 @Module({

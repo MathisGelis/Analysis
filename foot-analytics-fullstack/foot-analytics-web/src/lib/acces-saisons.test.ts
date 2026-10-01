@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  equipesDesSaisons, idsDesNiveaux, libelleNiveau, modeSaisons, niveauxAttribuables, niveauxCoches, resumeSaisons,
-  saisonActuelle, saisonsPassees, saisonsVisibles, voitToutesLesSaisons,
+  idsDesNiveaux, libelleNiveau, modeSaisons, niveauxAttribuables, niveauxCoches, resumeSaisons, saisonActuelle, saisonsPassees,
 } from "./acces-saisons";
-import { filtrerEquipesAutorisees } from "./empreinte-equipe";
 
 const S = (id: string, anneeDebut: number, actif = false) => ({ id, nom: `${anneeDebut}-${anneeDebut + 1}`, anneeDebut, actif });
 const s23 = S("s23", 2023), s24 = S("s24", 2024), s25 = S("s25", 2025), s26 = S("s26", 2026, true), s27 = S("s27", 2027);
@@ -23,42 +21,7 @@ describe("saisonActuelle", () => {
   });
 });
 
-describe("saisonsVisibles", () => {
-  const ids = (l: { id: string }[]) => l.map((s) => s.id).sort();
-
-  it("toutes les saisons : admin, referent, compte sans restriction ou ancien jeton", () => {
-    for (const user of [null, undefined, {}, { role: "user" }, { role: "user", toutesSaisons: true, saisonIds: ["s24"] },
-      { role: "admin", toutesSaisons: false }, { role: "referent", toutesSaisons: false, saisonIds: [] }]) {
-      expect(ids(saisonsVisibles(saisons, user))).toEqual(["s23", "s24", "s25", "s26", "s27"]);
-    }
-    expect(voitToutesLesSaisons({ role: "user", toutesSaisons: false })).toBe(false);
-  });
-
-  it("saison actuelle seulement : l'actuelle et les suivantes, jamais les passees", () => {
-    expect(ids(saisonsVisibles(saisons, { role: "user", toutesSaisons: false, saisonIds: [] }))).toEqual(["s26", "s27"]);
-  });
-
-  it("saisons passees cochees : en plus de l'actuelle", () => {
-    expect(ids(saisonsVisibles(saisons, { role: "user", toutesSaisons: false, saisonIds: ["s25", "s23"] }))).toEqual(["s23", "s25", "s26", "s27"]);
-  });
-
-  it("une saison cochee qui n'existe plus ne change rien ; aucune saison : rien n'est cache", () => {
-    expect(ids(saisonsVisibles(saisons, { role: "user", toutesSaisons: false, saisonIds: ["fantome"] }))).toEqual(["s26", "s27"]);
-    expect(saisonsVisibles([], { role: "user", toutesSaisons: false })).toEqual([]);
-  });
-
-  it("au passage a la saison suivante, la saison qui etait actuelle devient passee et se ferme", () => {
-    const apres = [s23, s24, s25, { ...s26, actif: false }, { ...s27, actif: true }];
-    expect(ids(saisonsVisibles(apres, { role: "user", toutesSaisons: false, saisonIds: [] }))).toEqual(["s27"]);
-  });
-});
-
-describe("equipesDesSaisons / saisonsPassees", () => {
-  it("garde les equipes des saisons visibles et celles sans saison", () => {
-    const eqs = [E("a", "s26"), E("b", "s24"), E("c", "s27"), { ...E("d", "s26"), saisonId: null }];
-    expect(equipesDesSaisons(eqs, [s26, s27]).map((e) => e.id)).toEqual(["a", "c", "d"]);
-  });
-
+describe("saisonsPassees", () => {
   it("les saisons passees, de la plus recente a la plus ancienne", () => {
     expect(saisonsPassees(saisons).map((s) => s.id)).toEqual(["s25", "s24", "s23"]);
     expect(saisonsPassees([])).toEqual([]);
@@ -123,13 +86,6 @@ describe("niveauxCoches : ce que le compte voit vraiment", () => {
   it("aucune equipe attribuee : rien de coche (le compte voit toutes les equipes du club)", () => {
     expect(niveauxCoches(niveaux, equipes, []).size).toBe(0);
     expect(idsDesNiveaux(niveaux, new Set())).toEqual([]);
-  });
-
-  it("coherent avec le filtre du selecteur : les niveaux coches sont exactement ceux que le compte voit", () => {
-    for (const attribuees of [["sen26"], ["sen25"], ["u17-26"]]) {
-      const vus = new Set(filtrerEquipesAutorisees(equipes, { role: "user", equipeIds: attribuees }).filter((e) => e.saisonId === "s26").map((e) => e.id));
-      expect(new Set(idsDesNiveaux(niveaux, niveauxCoches(niveaux, equipes, attribuees)))).toEqual(vus);
-    }
   });
 });
 

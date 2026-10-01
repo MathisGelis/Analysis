@@ -41,9 +41,6 @@ export interface JwtPayload {
   role: string;       // "admin" | "referent" | "user"
   clubId?: string;
   equipeIds?: string[];
-  /** Absents : toutes les saisons. Presents (educateur restreint) : la saison actuelle + ces saisons passees. */
-  toutesSaisons?: false;
-  saisonIds?: string[];
 }
 
 /** Construit le login canonique a partir du prenom + nom (UPPER). */
@@ -89,7 +86,6 @@ export class AuthService {
       sub: u.id, login: u.login, role: u.role,
       clubId: u.clubId ?? undefined,
       equipeIds: u.equipeIds ?? undefined,
-      ...(u.toutesSaisons === false ? { toutesSaisons: false as const, saisonIds: u.saisonIds ?? [] } : {}),
     };
     return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
   }

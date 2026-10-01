@@ -26,8 +26,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { debug } from "@/lib/debug";
 import { decoderPayloadJwt } from "@/lib/jwt";
 import { DEFAULT_OWN_CLUB_ID } from "@/lib/club-defaut";
-import { equipesDesSaisons, saisonsVisibles } from "@/lib/acces-saisons";
-import { filtrerEquipesAutorisees } from "@/lib/empreinte-equipe";
 import { selectionValide } from "@/lib/selection-equipe";
 import type { Club, Equipe, Saison } from "@/lib/types";
 
@@ -83,23 +81,21 @@ export async function middleware(req: NextRequest) {
 
   try {
     const headers = { Authorization: `Bearer ${token}` };
-    const equipesBrutes = (clubId: string) => getJson<Equipe[]>(`/equipes?clubId=${encodeURIComponent(clubId)}`, headers);
+    // L'API ne renvoie que les saisons et les equipes ouvertes au compte (voir modules/acces) : rien a filtrer ici.
+    const equipesDuClub = (clubId: string) => getJson<Equipe[]>(`/equipes?clubId=${encodeURIComponent(clubId)}`, headers);
 
     let clubId = clubJwt ?? clubCookie ?? DEFAULT_OWN_CLUB_ID;
-    const [saisonsToutes, equipesInitiales] = await Promise.all([
+    const [saisons, equipesInitiales] = await Promise.all([
       getJson<Saison[]>("/saisons", headers),
-      equipesBrutes(clubId),
+      equipesDuClub(clubId),
     ]);
-    // Un educateur ne voit que les saisons que son gestionnaire lui a ouvertes, et leurs equipes.
-    const saisons = saisonsVisibles(saisonsToutes, payload);
-    const equipesDuClub = (liste: Equipe[]) => equipesDesSaisons(filtrerEquipesAutorisees(liste, payload), saisons);
-    let equipes = equipesDuClub(equipesInitiales);
+    let equipes = equipesInitiales;
 
     // Club sans equipe (typiquement "chapo" code en dur apres un reseed) :
     // seul un admin peut etre redirige sur un autre club.
     if (equipes.length === 0 && !clubJwt) {
       for (const c of await getJson<Club[]>("/clubs", headers)) {
-        const eqs = equipesDuClub(await equipesBrutes(c.id));
+        const eqs = await equipesDuClub(c.id);
         if (eqs.length > 0) { clubId = c.id; equipes = eqs; break; }
       }
     }
