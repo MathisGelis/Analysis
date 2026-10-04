@@ -330,14 +330,21 @@ test("rapport pre-match : export PowerPoint, pages au choix (sans la page convoc
   await page.getByRole("button", { name: "Exporter en PowerPoint" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Exporter en PowerPoint" })).toBeVisible();
 
-  // Les sept pages du modele, toutes cochees au depart.
+  // Les quinze pages (sept du modele du staff + huit d'analyse), toutes cochees au depart.
   const cases = page.getByRole("checkbox");
-  await expect(cases).toHaveCount(7);
-  for (let i = 0; i < 7; i++) await expect(cases.nth(i)).toBeChecked();
+  await expect(cases).toHaveCount(15);
+  for (let i = 0; i < 15; i++) await expect(cases.nth(i)).toBeChecked();
+  await expect(page.locator("label").getByText("Analyse", { exact: true })).toHaveCount(8);
 
-  // Sans la page convocation ("Le match") : six pages.
+  // Le modele du staff seul : sept pages ; puis tout recoche.
+  await page.getByRole("button", { name: "Modele seulement" }).click();
+  await expect(page.getByRole("button", { name: /Telecharger \(7 pages sur 15\)/ })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /Nous contre eux/ })).not.toBeChecked();
+  await page.getByRole("button", { name: "Tout cocher" }).click();
+
+  // Sans la page convocation ("Le match") : quatorze pages.
   await page.getByRole("checkbox", { name: /Le match/ }).uncheck();
-  await expect(page.getByRole("button", { name: /Telecharger \(6 pages sur 7\)/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Telecharger \(14 pages sur 15\)/ })).toBeVisible();
   const [telechargement] = await Promise.all([
     page.waitForEvent("download"),
     page.getByRole("button", { name: /Telecharger/ }).click(),
@@ -345,7 +352,7 @@ test("rapport pre-match : export PowerPoint, pages au choix (sans la page convoc
   expect(telechargement.suggestedFilename()).toMatch(/^avant-match-.+\.pptx$/);
   await expect(page.getByText(/Completez les champs vides dans PowerPoint/)).toBeVisible();
 
-  // Le fichier : une archive de six diapositives, sans la page "Le match" (donc sans "Convocation"), avec l'adversaire.
+  // Le fichier : une archive de quatorze diapositives, sans la page "Le match" (donc sans "Convocation"), avec l'adversaire.
   const [diapos, convocation, adv] = execFileSync(process.env.PYTHON_BIN ?? "python3", ["-c", [
     "import sys, re, zipfile",
     "z = zipfile.ZipFile(sys.argv[1])",
@@ -353,9 +360,9 @@ test("rapport pre-match : export PowerPoint, pages au choix (sans la page convoc
     "t = ' '.join(z.read(x).decode('utf8') for x in n)",
     "print(len(n)); print('Convocation' in t); print(sys.argv[2].upper() in t.upper())",
   ].join("\n"), (await telechargement.path()) as string, adversaire.nom]).toString().trim().split("\n");
-  expect([diapos, convocation, adv]).toEqual(["6", "False", "True"]);
+  expect([diapos, convocation, adv]).toEqual(["14", "False", "True"]);
 
-  // La fenetre se ferme apres le telechargement ; rouverte, elle garde le choix (6 pages). Aucune page cochee : pas de telechargement.
+  // La fenetre se ferme apres le telechargement ; rouverte, elle garde le choix (14 pages). Aucune page cochee : pas de telechargement.
   await expect(page.getByRole("heading", { level: 2, name: "Exporter en PowerPoint" })).toHaveCount(0);
   await page.getByRole("button", { name: "Exporter en PowerPoint" }).click();
   await expect(page.getByRole("checkbox", { name: /Le match/ })).not.toBeChecked();

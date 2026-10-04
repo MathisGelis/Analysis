@@ -3,12 +3,17 @@
 // Export du rapport d'avant-match en PowerPoint : les pages proposees par le serveur et le choix de l'utilisateur.
 // Fonctions pures ; l'appel et le telechargement sont dans ExportPowerPoint.tsx.
 
-/** Une page du rapport (GET /analyse/prematch/pages). */
-export interface PageExport { id: string; titre: string; contenu: string }
+/** Une page du rapport (GET /analyse/prematch/pages). `groupe` : une page du modele du staff, ou une page d'analyse en plus. */
+export interface PageExport { id: string; titre: string; contenu: string; groupe?: "modele" | "analyse" }
 
 /** Le choix : toutes les pages au depart. */
 export function toutesLesPages(pages: PageExport[]): Set<string> {
   return new Set(pages.map((p) => p.id));
+}
+
+/** Seulement les pages d'un groupe (par exemple les sept pages du modele du staff). */
+export function pagesDuGroupe(pages: PageExport[], groupe: "modele" | "analyse"): Set<string> {
+  return new Set(pages.filter((p) => p.groupe === groupe).map((p) => p.id));
 }
 
 export function basculerPage(choix: Set<string>, id: string): Set<string> {

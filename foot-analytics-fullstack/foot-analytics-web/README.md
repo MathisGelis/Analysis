@@ -227,9 +227,12 @@ Les imports internes a une feature sont relatifs ; entre features, ils passent p
 2. Ouvrir `/club/<adv>/scouting` pour le rapport complet
 3. Composer dans `/tactique` (le onze suggere est pre-rempli)
 4. Preparer le rapport d'avant-match dans `/rapports` : lecture a l'ecran, **Imprimer / PDF**, ou **Exporter en PowerPoint**
-   (au format de la presentation du staff, **pages au choix** : par exemple sans la page convocation). Les informations
-   que le rapport ne connait pas (heure de convocation, surface du terrain, style de jeu, ambiance...) restent des champs
-   **vides** a completer dans PowerPoint ; le dispositif attendu place le onze probable sur le terrain.
+   (au format de la presentation du staff, **pages au choix** : par exemple sans la page convocation, ou le **modele
+   seul**). Le fichier compte 15 pages : les 7 du modele du staff et 8 pages d'**analyse** (comparatif et projection, forme,
+   pistes, systeme et indices, onze par poste, changements de numero, joueurs cles et discipline, face-a-face et arbitre),
+   au meme style, pour que rien du rapport ne se perde. Les informations que le rapport ne connait pas (heure de
+   convocation, surface du terrain, style de jeu, ambiance...) restent des champs **vides** a completer dans PowerPoint ;
+   le dispositif attendu place le onze probable sur le terrain.
 
 ### Compo et systeme probables
 Le systeme de jeu d'un adversaire vient des dispositifs saisis sur ses matchs **et** des numeros de maillot de ses feuilles

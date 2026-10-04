@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { basculerPage, nomFichier, pagesChoisies, resumeChoix, toutesLesPages, type PageExport } from "@/features/prematch/lib/export-pptx";
+import { basculerPage, nomFichier, pagesChoisies, pagesDuGroupe, resumeChoix, toutesLesPages, type PageExport } from "@/features/prematch/lib/export-pptx";
 
 const pages: PageExport[] = [
-  { id: "couverture", titre: "Couverture", contenu: "" }, { id: "match", titre: "Le match", contenu: "" },
-  { id: "saison", titre: "Leur saison", contenu: "" },
+  { id: "couverture", titre: "Couverture", contenu: "", groupe: "modele" }, { id: "match", titre: "Le match", contenu: "", groupe: "modele" },
+  { id: "saison", titre: "Leur saison", contenu: "", groupe: "modele" },
+];
+
+const dossier: PageExport[] = [
+  ...pages, { id: "comparatif", titre: "Nous contre eux", contenu: "", groupe: "analyse" }, { id: "onze", titre: "Onze probable", contenu: "", groupe: "analyse" },
 ];
 
 describe("choix des pages", () => {
@@ -27,6 +31,12 @@ describe("choix des pages", () => {
     const choix = toutesLesPages(pages);
     basculerPage(choix, "match");
     expect(choix.has("match")).toBe(true);
+  });
+
+  it("par groupe : le modele du staff seul, ou les pages d'analyse seules", () => {
+    expect(pagesChoisies(dossier, pagesDuGroupe(dossier, "modele"))).toEqual(["couverture", "match", "saison"]);
+    expect(pagesChoisies(dossier, pagesDuGroupe(dossier, "analyse"))).toEqual(["comparatif", "onze"]);
+    expect(pagesDuGroupe(pages, "analyse").size).toBe(0);
   });
 
   it("resume du choix", () => {
