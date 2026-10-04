@@ -384,7 +384,7 @@ describe("API : acces", () => {
       expect(pptx.statut).toBe(200);
       expect(String(pptx.corps).startsWith("PK")).toBe(true);                    // une archive zip (.pptx)
       expect((await c("GET", "/analyse/prematch/pages")).corps.map((x: any) => x.id)).toEqual(
-        ["couverture", "match", "saison", "forces", "dispositif", "ambiance", "cles"]);
+        ["couverture", "match", "saison", "comparatif", "forme", "forces", "pistes", "dispositif", "systeme", "onze", "polyvalence", "joueurs", "face", "ambiance", "cles"]);
       expect((await t.appel(p.seniors)("GET", `/analyse/poule?equipeId=${m.u20.id}`)).statut).toBe(404);
       expect((await t.appel(p.libre)("GET", `/analyse/club/${m.mions.id}?saisonId=${m.s24.id}`)).statut).toBe(200);
     });

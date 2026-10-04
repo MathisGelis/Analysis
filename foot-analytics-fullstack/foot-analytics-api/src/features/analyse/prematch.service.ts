@@ -22,7 +22,7 @@ import { parseDateFlexible, trierChronologiquement } from "@/common/dates";
 import { PredictionSysteme } from "@/features/matchs/systeme";
 import { estMatchJoue } from "@/features/matchs/match-joue";
 
-import { MatchTendance } from "./tendances";
+import { Insight, MatchTendance } from "./tendances";
 import {
   BilanLieu, bilanParLieu, faceAFace, MatchRecent, Piste, pistesPrematch, profilEquipe, ProfilEquipe, Rencontre,
 } from "./prematch";
@@ -52,18 +52,20 @@ export interface BilanSaison extends BilanLieu {
   pts: number | null; rang: number | null; source: "classement" | "matchs";
 }
 
+/** Bilan de saison, par lieu, et derniers matchs d'une equipe (les memes pour mon equipe et pour l'adversaire). */
+export interface ResumeSaison {
+  /** V-N-D, buts et points de la saison. */
+  bilan: BilanSaison;
+  /** Bilan a domicile et a l'exterieur (scores des matchs joues). */
+  lieux: { domicile: BilanLieu; exterieur: BilanLieu };
+  /** Ses cinq derniers matchs joues, le plus recent d'abord. */
+  derniersMatchs: MatchRecent[];
+}
+
 export interface RapportPrematch {
   genereLe: string;
-  monEquipe: ProfilEquipe & { equipeId: string; equipeNom: string; clubId: string; clubNom: string };
-  adversaire: ProfilEquipe & {
-    equipeId: string | null; clubId: string; clubNom: string;
-    /** V-N-D, buts et points de la saison. */
-    bilan: BilanSaison;
-    /** Bilan a domicile et a l'exterieur (scores des matchs joues). */
-    lieux: { domicile: BilanLieu; exterieur: BilanLieu };
-    /** Ses cinq derniers matchs joues, le plus recent d'abord. */
-    derniersMatchs: MatchRecent[];
-  };
+  monEquipe: ProfilEquipe & ResumeSaison & { equipeId: string; equipeNom: string; clubId: string; clubNom: string };
+  adversaire: ProfilEquipe & ResumeSaison & { equipeId: string | null; clubId: string; clubNom: string };
   championnat: { competition: string | null; poule: string | null; saisonNom: string | null; saisonActive: boolean };
   /** Le match concerne, s'il est programme ; null pour un rapport "a froid". */
   match: {
@@ -81,7 +83,7 @@ export interface RapportPrematch {
     entraineur: string | null;
     /** Fiche du coach (lien vers /coachs/:id). */
     entraineurId: string | null;
-    insights: unknown[];
+    insights: Insight[];
     compoProbable: { poste: string; numero?: number; nom: string; matchsJoues: number }[];
     joueursCles: { joueurId: string | null; nom: string; prenom?: string; poste?: string; delta: number; matchsAvec: number; titularisations: number }[];
     faiblesses: { niveau: string; titre: string; detail: string }[];
@@ -154,7 +156,11 @@ export class PrematchService {
         { rang: l?.rang ?? null, pts: l?.pts ?? null },
       );
     };
-    const moi = { ...profil(monEquipe, monClub.nom), equipeId: monEquipe.id, equipeNom: monEquipe.nom, clubId: monClub.id, clubNom: monClub.nom };
+    const matchsMoi = joues.filter((m) => m.equipeDomId === monEquipe.id || m.equipeExtId === monEquipe.id);
+    const moi = {
+      ...profil(monEquipe, monClub.nom), equipeId: monEquipe.id, equipeNom: monEquipe.nom, clubId: monClub.id, clubNom: monClub.nom,
+      ...(await this.resumeSaison(monEquipe, matchsMoi, ligneDe(monEquipe.id))),
+    };
     const matchsAdv = advEquipe ? joues.filter((m) => m.equipeDomId === advEquipe.id || m.equipeExtId === advEquipe.id) : [];
     const adv = {
       ...profil(advEquipe, advClub.nom), equipeId: advEquipe?.id ?? null, clubId: advClub.id, clubNom: advClub.nom,
@@ -174,7 +180,7 @@ export class PrematchService {
       })(),
       insights: rap.tendances.insights.slice(0, 6),
       compoProbable: rap.compoProbable,
-      joueursCles: rap.joueursCles.slice(0, 4).map((j) => ({
+      joueursCles: rap.joueursCles.slice(0, 5).map((j) => ({
         joueurId: j.joueurId, nom: j.nom, prenom: j.prenom, poste: j.poste, delta: j.delta, matchsAvec: j.matchsAvec, titularisations: j.titularisations,
       })),
       faiblesses: rap.faiblesses.filter((f) => f.niveau !== "info"),

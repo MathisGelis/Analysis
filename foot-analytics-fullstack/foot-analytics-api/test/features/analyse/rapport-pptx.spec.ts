@@ -21,12 +21,14 @@ import { AnalyseService } from "@/features/analyse/analyse.service";
 import { PrematchService, RapportPrematch } from "@/features/analyse/prematch.service";
 import { ouvrirPaquet, lire } from "@/features/analyse/pptx-xml";
 import { genererRapportPptx, lireModele } from "@/features/analyse/rapport-pptx";
-import { contenuRapport, couper, DESCRIPTION_PAGES, lirePages, PAGES_RAPPORT } from "@/features/analyse/rapport-pptx-contenu";
+import { construirePageAnalyse } from "@/features/analyse/rapport-pptx-pages";
+import { ajusterPuces, contenuRapport, couper, DESCRIPTION_PAGES, estPageModele, lirePages, PAGES_RAPPORT } from "@/features/analyse/rapport-pptx-contenu";
 
 describe("lirePages", () => {
   it("absent : toutes les pages, dans l'ordre du modele", () => {
     expect(lirePages(undefined)).toEqual([...PAGES_RAPPORT]);
-    expect(PAGES_RAPPORT).toHaveLength(7);
+    expect(PAGES_RAPPORT).toHaveLength(15);
+    expect(PAGES_RAPPORT.filter((p) => estPageModele(p))).toEqual(["couverture", "match", "saison", "forces", "dispositif", "ambiance", "cles"]);
     for (const p of PAGES_RAPPORT) expect(DESCRIPTION_PAGES[p].titre).toBeTruthy();
   });
 
@@ -164,7 +166,7 @@ describe("rapport d'avant-match PowerPoint", () => {
     ]);
     expect(x.dispositif.systeme).toBe("4-4-2");
     expect(x.dispositif.titre).toBe("Dispositif attendu : 4-4-2");
-    expect(x.dispositif.source).toMatch(/4-4-2|renseigne|numeros/);
+    expect(x.dispositif.source).toBe("Dispositifs saisis + numéros (80 %)");
     // Le dernier match (le plus lourd) a VENET en 10 et MOREAU en 9 : c'est ce que le onze probable reprend.
     expect(x.dispositif.noms).toMatchObject({ 1: "ROUX", 5: "BOURGEOIS BIDDI", 9: "MOREAU", 10: "VENET" });
     expect(x.dispositif.surveiller[0]).toMatchObject({ titre: "VENET — Milieu", numero: "10" });
@@ -189,10 +191,74 @@ describe("rapport d'avant-match PowerPoint", () => {
     expect(x.saison).toEqual({
       classement: "", points: "", vnd: "", bp: "", bc: "", derniers: [], domicile: ["", "", ""], exterieur: ["", "", ""], jaunes: "", rouges: "", buteur: "",
     });
-    expect(x.forces).toEqual({ forces: [], faiblesses: [], exploiter: "", taille: 1300 });
+    expect(x.forces).toEqual({ forces: [], faiblesses: [], exploiter: "", taille: 1300, espaceAvant: 1000 });
     expect(x.dispositif).toEqual({ systeme: null, titre: "Dispositif attendu : ", source: "", noms: {}, surveiller: [] });
     expect(x.ambiance).toEqual({ publicAmbiance: "", confrontations: [""], arbitrage: "", infos: "" });
-    expect(x.cles).toEqual({ cles: ["", "", ""], message: "" });
+    expect(x.cles).toEqual({ cles: ["", "", ""], message: "", taille: expect.any(Number) });
+  });
+
+  it("contenu d'analyse : comparatif, forme, systeme, onze, polyvalence, joueurs, face-a-face, rien d'invente", async () => {
+    const c = await saisonComplete();
+    const x = contenuRapport(await svc.rapport(c.eMoi.id, c.adv.id));
+
+    expect(x.comparatif.nous).toBe("OL Sud");
+    expect(x.comparatif.eux).toBe("Adverse FC");
+    expect(x.comparatif.lignes[0]).toEqual({ libelle: "Classement", nous: "7e", eux: "5e", meilleur: "eux" });
+    expect(x.comparatif.lignes.find((l) => l.libelle === "Points")).toMatchObject({ nous: "8", eux: "10", meilleur: "eux" });
+    expect(x.comparatif.lignes.find((l) => l.libelle === "Buts marqués / match")).toMatchObject({ nous: "—", eux: "1,50", meilleur: null });
+    expect(x.comparatif.projection).toBeNull();
+    expect(x.comparatif.noteProjection).toMatch(/0 pour nous, 6 pour eux/);
+
+    expect(x.forme.eux.pastilles).toEqual(["N", "D", "V", "D", "V"]);
+    expect(x.forme.eux.serie).toMatch(/^3 /);
+    expect(x.forme.nous.pastilles).toEqual([]);
+    expect(x.forme.derniersEux[0]).toEqual({ issue: "V", libelle: "J6  Tiers AS", score: "2 - 1 · Ext" });
+    expect(x.forme.constats.length).toBeGreaterThan(0);
+    expect(x.forme.constats.length).toBeLessThanOrEqual(6);
+
+    expect(x.pistes.length).toBeGreaterThan(0);
+    expect(x.pistes.every((p) => p.titre && p.detail)).toBe(true);
+
+    expect(x.systeme).toMatchObject({ systeme: "4-4-2", confiance: 80, fiabilite: "fiabilité moyenne", structure: "défense à 4 · 2 attaquants", exploitable: true, feuilles: 6 });
+    expect(x.systeme.source).toBe("Dispositifs renseignés + numéros de maillot");
+    expect(x.systeme.indices.length).toBeGreaterThan(0);
+    expect(x.systeme.alternatives.every((a) => a.systeme !== "4-4-2")).toBe(true);
+
+    expect(x.onze.lignes).toHaveLength(11);
+    expect(x.onze.lignes[0]).toMatchObject({ numero: 1, code: "GB", libelle: "Gardien", joueur: "Marc ROUX", origine: "numero", titularisations: "6 au n°1" });
+    expect(x.onze.lignes[1]).toMatchObject({ numero: 2, code: "DD", joueur: "Hugo BONNET", autres: "Tom LEBLANC (3)" });
+    expect(x.polyvalence.joueurs.map((j) => j.nom).sort()).toEqual(["Baptiste VENET", "Hugo BONNET", "Mael MOREAU", "Tom LEBLANC"]);
+    expect(x.polyvalence.joueurs.find((j) => j.nom === "Baptiste VENET")).toMatchObject({ titularisations: 6, numeros: "10 (3) · 9 (3)", postes: "MO / BU" });
+    expect(x.polyvalence.autres).toBe(7);
+
+    expect(x.joueurs.kpi).toMatchObject({ danger: expect.stringMatching(/^\d+$/), changements: "0,0" });
+    expect(x.joueurs.buteurs[0]).toEqual({ nom: "Baptiste VENET", buts: 9 });
+    expect(x.joueurs.avertis[0]).toMatchObject({ jaunes: 6, rouges: 0 });
+    expect(x.joueurs.discipline).toBe("6 jaunes · 0 rouge · 1,0 jaune par match · 0 % des cartons après la 75e");
+
+    expect(x.face).toMatchObject({ bilan: "1-0-1", joues: 2, buts: "4 marqués, 2 encaissés", arbitreSaisi: "MARTIN Paul" });
+    expect(x.face.rencontres.map((r) => [r.issue, r.score, r.lieu, r.date])).toEqual([["D", "1 - 2", "chez eux", "15/03/2025"], ["V", "3 - 0", "chez nous", "10/09/2024"]]);
+    expect(x.face.arbitre).toEqual({ nom: "Paul MARTIN", profil: "strict", matchs: "12 matchs", cartonsParMatch: "4,3", cartons: "50 jaunes · 2 rouges", motifs: [] });
+  });
+
+  it("contenu d'analyse a froid : tout est vide ou absent", async () => {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse FC");
+    const s = await f.saison("2025-2026", 2025, { actif: true });
+    const eMoi = await f.equipe({ clubId: moi.id, nom: "Seniors 2", categorie: "Seniors", saisonId: s.id });
+    const x = contenuRapport(await svc.rapport(eMoi.id, adv.id));
+
+    expect(x.comparatif.projection).toBeNull();
+    expect(x.comparatif.lignes.find((l) => l.libelle === "Classement")).toMatchObject({ nous: "—", eux: "—", meilleur: null });
+    expect(x.forme.nous.pastilles).toEqual([]);
+    expect(x.forme.derniersEux).toEqual([]);
+    expect(x.forme.constats).toEqual([]);
+    expect(x.pistes).toEqual([]);
+    expect(x.systeme).toMatchObject({ systeme: null, confiance: 0, fiabilite: "", structure: "", alternatives: [], exploitable: false });
+    expect(x.onze.lignes).toEqual([]);
+    expect(x.polyvalence).toMatchObject({ joueurs: [], autres: 0, exploitable: false });
+    expect(x.joueurs).toMatchObject({ kpi: null, cles: [], buteurs: [], avertis: [], discipline: "" });
+    expect(x.face).toEqual({ bilan: "", joues: 0, buts: "", rencontres: [], arbitre: null, arbitreSaisi: "" });
   });
 
   describe("fichier", () => {
@@ -202,13 +268,13 @@ describe("rapport d'avant-match PowerPoint", () => {
       rapport = await svc.rapport(c.eMoi.id, c.adv.id);
     });
 
-    it("sept pages, remplies : texte du rapport, plus aucun [champ] du modele, onze place selon le dispositif", () => {
+    it("quinze pages, remplies : texte du rapport, plus aucun [champ] du modele, onze place selon le dispositif", () => {
       const fichier = genererRapportPptx(lireModele(), contenuRapport(rapport), PAGES_RAPPORT);
       exporter("rapport-complet.pptx", fichier);
       const p = ouvrirPaquet(fichier);
 
       const diapos = [...p.keys()].filter((k) => /^ppt\/slides\/slide\d+\.xml$/.test(k));
-      expect(diapos).toHaveLength(7);
+      expect(diapos).toHaveLength(15);
       const toutes = diapos.map((k) => strFromU8(p.get(k)!));
       const tous = toutes.flatMap(textes);
       expect(tous.filter((t) => /\[[^\]]*\]/.test(t))).toEqual([]);          // plus aucun champ-exemple du modele
@@ -218,6 +284,123 @@ describe("rapport d'avant-match PowerPoint", () => {
       const page5 = textes(lire(p, "ppt/slides/slide5.xml"));
       expect(page5).toEqual(expect.arrayContaining(["ROUX", "BOURGEOIS B.", "VENET", "MOREAU"]));
       expect(strFromU8(p.get("ppt/slides/slide5.xml")!)).not.toMatch(/undefined|NaN|\[object/);
+    });
+
+    /** Les fichiers de diapositives dans l'ordre de la presentation. */
+    const ordre = (p: ReturnType<typeof ouvrirPaquet>) => {
+      const rels = lire(p, "ppt/_rels/presentation.xml.rels");
+      const cible = new Map([...rels.matchAll(/<Relationship [^>]*>/g)].map((m) => [/Id="([^"]+)"/.exec(m[0])![1], /Target="slides\/(slide\d+\.xml)"/.exec(m[0])?.[1]]));
+      return [...lire(p, "ppt/presentation.xml").matchAll(/<p:sldId [^>]*r:id="([^"]+)"/g)].map((m) => cible.get(m[1]));
+    };
+
+    it("pages d'analyse : intercalees dans l'ordre du dossier, au style du modele, numerotees, sans champ vide inventé", () => {
+      const fichier = genererRapportPptx(lireModele(), contenuRapport(rapport), PAGES_RAPPORT);
+      const p = ouvrirPaquet(fichier);
+      const fichiers = ordre(p) as string[];
+      expect(fichiers).toHaveLength(15);
+
+      // Les pages du modele gardent leur fichier ; les huit nouvelles s'inserent a leur place.
+      expect(fichiers.slice(0, 3)).toEqual(["slide1.xml", "slide2.xml", "slide3.xml"]);
+      expect(fichiers[5]).toBe("slide4.xml");      // forces & faiblesses, apres comparatif et forme
+      expect(fichiers[7]).toBe("slide5.xml");      // dispositif, apres les pistes
+      expect(fichiers.slice(-2)).toEqual(["slide6.xml", "slide7.xml"]);
+      expect(fichiers.filter((f) => !/^slide[1-7]\.xml$/.test(f))).toHaveLength(8);
+
+      const xml = (f: string) => lire(p, `ppt/slides/${f}`);
+      const t = (f: string) => textes(xml(f));
+      expect(t(fichiers[3])).toEqual(expect.arrayContaining(["Nous contre eux", "OL Sud", "Adverse FC", "7e", "5e", "En vert : la meilleure valeur de chaque ligne."]));
+      expect(t(fichiers[4])).toEqual(expect.arrayContaining(["Forme &amp; dynamique", "LEURS 5 DERNIERS MATCHS", "J6  Tiers AS", "2 - 1 · Ext", "CE QUE DISENT LES MATCHS"]));
+      expect(t(fichiers[6])).toEqual(expect.arrayContaining(["Pistes pour le match"]));
+      expect(t(fichiers[8])).toEqual(expect.arrayContaining(["Pourquoi ce système ?", "4-4-2", "Confiance 80 %  ·  fiabilité moyenne", "défense à 4 · 2 attaquants"]));
+      expect(t(fichiers[9])).toEqual(expect.arrayContaining(["Onze probable par poste", "Marc ROUX", "6 au n°1", "Tom LEBLANC (3)"]));
+      expect(t(fichiers[10])).toEqual(expect.arrayContaining(["Changements de numéro", "Baptiste VENET", "10 (3) · 9 (3)", "MO / BU"]));
+      expect(t(fichiers[11])).toEqual(expect.arrayContaining(["Joueurs clés &amp; discipline", "Baptiste VENET", "9"]));
+      expect(t(fichiers[12])).toEqual(expect.arrayContaining(["Face-à-face &amp; arbitre", "1-0-1", "Paul MARTIN", "12 matchs", "50 jaunes · 2 rouges"]));
+
+      // Numerotation : la page N du dossier porte N, avec le meme pied de page partout.
+      fichiers.forEach((f, i) => {
+        // La couverture (premiere) et la page de cloture (derniere, sombre) n'ont pas de pied de page.
+        if (i > 0 && i < 14) {
+          expect(t(f)).toContain(String(i + 1));
+          expect(t(f)).toContain("OL SUD SENIORS 2  ·  PRÉSENTATION ADVERSAIRE");
+        }
+        expect(xml(f)).not.toMatch(/undefined|NaN|\[object/);
+      });
+    });
+
+    it("pages d'analyse seules : aucun reste du modele, juste les icones citees, ordre demande respecte", () => {
+      const fichier = genererRapportPptx(lireModele(), contenuRapport(rapport), ["onze", "comparatif"]);
+      exporter("rapport-2-pages-analyse.pptx", fichier);
+      const p = ouvrirPaquet(fichier);
+      const fichiers = ordre(p) as string[];
+      expect(fichiers).toHaveLength(2);
+      // Ordre du dossier, pas de la demande : le comparatif precede le onze.
+      expect(textes(lire(p, `ppt/slides/${fichiers[0]}`))).toContain("Nous contre eux");
+      expect(textes(lire(p, `ppt/slides/${fichiers[1]}`))).toContain("Onze probable par poste");
+      expect([...p.keys()].some((k) => k.startsWith("ppt/slides/") && strFromU8(p.get(k) ?? new Uint8Array()).includes("Convocation"))).toBe(false);
+      const citees = new Set([...p.keys()].filter((k) => k.endsWith(".rels")).flatMap((k) => [...strFromU8(p.get(k)!).matchAll(/\.\.\/media\/([^"]+)"/g)].map((m) => `ppt/media/${m[1]}`)));
+      expect([...p.keys()].filter((k) => k.startsWith("ppt/media/")).sort()).toEqual([...citees].sort());
+      expect(citees.size).toBe(2);      // la balance (comparatif) et le terrain (onze)
+    });
+
+    it("pages d'analyse a froid : un message clair a la place des tableaux, jamais de page cassee", async () => {
+      const moi = await f.club("Autre Club");
+      const adv = await f.club("Inconnu FC");
+      const s = await f.saison("2023-2024", 2023);
+      const e = await f.equipe({ clubId: moi.id, nom: "Seniors", categorie: "Seniors", saisonId: s.id });
+      const froid = contenuRapport(await svc.rapport(e.id, adv.id));
+      const analyses = PAGES_RAPPORT.filter((x) => !estPageModele(x));
+      const fichier = genererRapportPptx(lireModele(), froid, analyses);
+      exporter("rapport-analyse-a-froid.pptx", fichier);
+      const p = ouvrirPaquet(fichier);
+      const tout = (ordre(p) as string[]).flatMap((f) => textes(lire(p, `ppt/slides/${f}`)));
+      expect(tout).toEqual(expect.arrayContaining([
+        expect.stringMatching(/Pas assez de matchs joués pour projeter/),
+        expect.stringMatching(/dégager des pistes fiables/),
+        expect.stringMatching(/Aucune feuille de match de cette équipe/),
+      ]));
+      expect(tout.join(" ")).not.toMatch(/undefined|NaN|\[object/);
+    });
+
+    it("pages d'analyse chargees au maximum : tout est ecrit, rien n'est coupe", () => {
+      const base = contenuRapport(rapport);
+      const longue = "Defense permeable : Adverse FC encaisse 2,1 buts par match, dont beaucoup sur coups de pied arretes : travailler les corners";
+      const contenu = {
+        ...base,
+        comparatif: { ...base.comparatif, projection: { victoire: 46, nul: 27, defaite: 27, score: "2 – 1", probaScore: 12, butsNous: "1,8", butsEux: "1,2", matchs: 7, lieu: "à domicile" }, noteProjection: "" },
+        forme: {
+          ...base.forme,
+          nous: { ...base.forme.eux, club: "OL Sud Seniors 2 Longue Equipe" },
+          constats: Array.from({ length: 6 }, (_, i) => ({ ton: (["positif", "negatif", "neutre"] as const)[i % 3], titre: `Constat ${i + 1}`, detail: longue })),
+        },
+        pistes: Array.from({ length: 10 }, (_, i) => ({ ton: (["atout", "vigilance", "info"] as const)[i % 3], importance: 1 + (i % 3), titre: `Piste ${i + 1}`, detail: longue })),
+        joueurs: {
+          ...base.joueurs,
+          cles: Array.from({ length: 5 }, (_, i) => ({ nom: `Léo DE LA FONTAINE ${i}`, poste: "MC", titularisations: "8 / 9", impact: "+0,85 pt/match" })),
+          buteurs: Array.from({ length: 5 }, (_, i) => ({ nom: `Buteur ${i + 1}`, buts: 9 - i })),
+          avertis: Array.from({ length: 5 }, (_, i) => ({ nom: `AVERTI ${i + 1}`, jaunes: 5 - i, rouges: i % 2 })),
+        },
+        polyvalence: { ...base.polyvalence, joueurs: Array.from({ length: 10 }, (_, i) => ({ nom: `Joueur Polyvalent ${i + 1}`, titularisations: 9, numeros: "2 (4) · 4 (3) · 5 (2)", postes: "DD / DCD / DCG" })) },
+        face: { ...base.face, rencontres: Array.from({ length: 6 }, (_, i) => ({ issue: (["V", "N", "D"] as const)[i % 3], score: `${i} - 1`, lieu: "chez nous", date: `0${i + 1}/09/2024` })), arbitre: { nom: "Paul MARTIN", profil: "strict", matchs: "12 matchs", cartonsParMatch: "4,3", cartons: "50 jaunes · 2 rouges", motifs: ["Antisportif", "Contestation", "Jeu dangereux"] } },
+      };
+      const fichier = genererRapportPptx(lireModele(), contenu, PAGES_RAPPORT.filter((x) => !estPageModele(x)));
+      exporter("rapport-analyse-charge.pptx", fichier);
+      const p = ouvrirPaquet(fichier);
+      const tout = (ordre(p) as string[]).flatMap((f) => textes(lire(p, `ppt/slides/${f}`)));
+      expect(tout.filter((t) => t === longue)).toHaveLength(16);       // 6 constats + 10 pistes, en entier
+      expect(tout).toEqual(expect.arrayContaining(["46 %", "2 – 1", "Léo DE LA FONTAINE 4", "Joueur Polyvalent 10", "Buteur 5", "Jeu dangereux"]));
+      expect(tout.join(" ")).not.toMatch(/undefined|NaN|\[object|\.\.\./);
+    });
+
+    it("construirePageAnalyse : une page, ses images (icone en rId2) et un pied de page a son numero", () => {
+      const modele = strFromU8(ouvrirPaquet(lireModele()).get("ppt/slides/slide2.xml")!);
+      const { xml, images } = construirePageAnalyse("comparatif", contenuRapport(rapport), 4, modele);
+      expect(images).toHaveLength(1);
+      expect(images[0]).toMatch(/^image\d+\.png$/);
+      expect(xml).toContain('r:embed="rId2"');
+      expect(textes(xml)).toEqual(expect.arrayContaining(["COMPARATIF", "Nous contre eux", "4", "OL SUD SENIORS 2  ·  PRÉSENTATION ADVERSAIRE"]));
+      const ids = [...xml.matchAll(/<p:cNvPr\b[^>]*?\sid="(\d+)"/g)].map((m) => m[1]);
+      expect(new Set(ids).size).toBe(ids.length);      // aucun identifiant de forme en double
     });
 
     it("pages au choix : les autres disparaissent avec leurs notes et leurs images, les pieds de page sont renumerotes", () => {
@@ -255,16 +438,19 @@ describe("rapport d'avant-match PowerPoint", () => {
     it("quatre puces par colonne : police reduite pour tenir dans la carte, texte et 'a exploiter' ecrits", () => {
       const base = contenuRapport(rapport);
       const longue = "Defense permeable : Adverse FC encaisse 2,1 buts par match : chercher les situations de but et les centres";
+      // Ce que `contenuRapport` ecrit pour quatre puces longues : la police la plus grande qui tient dans la carte.
+      const puces = ajusterPuces([[longue, longue, longue, longue], [longue, "Attaque en panne", "Moins a l'aise a l'exterieur", "Serie difficile"]]);
+      expect(puces.taille).toBeLessThan(1300);
       const contenu = {
         ...base,
-        forces: { forces: [longue, longue, longue, longue], faiblesses: [longue, "Attaque en panne", "Moins a l'aise a l'exterieur", "Serie difficile"], exploiter: "Jouer vite dans le dos des lateraux", taille: 1100 },
+        forces: { forces: puces.colonnes[0], faiblesses: puces.colonnes[1], exploiter: "Jouer vite dans le dos des lateraux", taille: puces.taille, espaceAvant: puces.espaceAvant },
       };
       const fichier = genererRapportPptx(lireModele(), contenu, ["forces"]);
       exporter("rapport-forces-4-puces.pptx", fichier);
       const xml = lire(ouvrirPaquet(fichier), "ppt/slides/slide4.xml");
       expect(textes(xml)).toEqual(expect.arrayContaining([longue, "Attaque en panne", "Jouer vite dans le dos des lateraux"]));
       expect(xml.match(/<a:p>/g)!.length).toBeGreaterThanOrEqual(8);
-      expect(xml).toContain('sz="1100"');
+      expect(xml).toContain(`sz="${puces.taille}"`);
     });
 
     it("systeme inconnu mais onze lu dans les numeros : les noms sont ecrits sur la disposition du modele, le titre reste vide", () => {

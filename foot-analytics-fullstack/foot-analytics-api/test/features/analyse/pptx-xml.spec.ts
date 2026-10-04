@@ -1,8 +1,8 @@
 import { strFromU8, strToU8, zipSync } from "fflate";
 
 import {
-  ajouterForme, colorer, couleurDe, definirTexte, dupliquer, ecrireCellule, ecrireTexte, fermerPaquet, forme, lire, modifierForme,
-  ouvrirPaquet, positionner, purgerImages, retirerDiapositive, retirerForme, trouverForme,
+  ajouterDiapositive, ajouterForme, colorer, couleurDe, definirTexte, dupliquer, ecrireCellule, ecrireTexte, fermerPaquet, forme, lire, modifierForme,
+  ordonnerDiapositives, ouvrirPaquet, positionner, purgerImages, retirerDiapositive, retirerForme, squeletteDiapositive, trouverForme,
 } from "@/features/analyse/pptx-xml";
 
 const RUN = (t: string, b = 0) => `<a:r><a:rPr b="${b}" lang="en-US" sz="1300"/><a:t>${t}</a:t></a:r>`;
@@ -167,5 +167,64 @@ describe("paquet et diapositives", () => {
 
   it("diapositive inconnue : erreur franche", () => {
     expect(() => retirerDiapositive(ouvrirPaquet(zipSync(fichiers)), 9)).toThrow(/absente de la presentation/);
+  });
+});
+
+describe("formes a l'attribut id apres d'autres (image du modele)", () => {
+  const pic = `<p:pic><p:nvPicPr><p:cNvPr descr="Icone" id="12" name="Image"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill/><p:spPr/></p:pic>`;
+
+  it("retrouve et retire une image dont `descr` precede `id`, sans confondre 12 et 120", () => {
+    const xml = SLIDE(pic, SP(120, PARA(0, RUN("x"))));
+    expect(forme(xml, 12).startsWith("<p:pic>")).toBe(true);
+    expect(retirerForme(xml, 12)).toBe(SLIDE(SP(120, PARA(0, RUN("x")))));
+    expect(trouverForme(xml, 1)).toBeNull();
+  });
+});
+
+describe("ajout et ordre des diapositives", () => {
+  const TYPE = "application/vnd.openxmlformats-officedocument.presentationml.slide+xml";
+  const modele = `<?xml version="1.0"?><p:sld xmlns:p="p" xmlns:a="a"><p:cSld><p:bg/><p:spTree><p:nvGrpSpPr><p:cNvPr id="36" name="Shape 36"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm/></p:grpSpPr>`
+    + `<p:sp><p:nvSpPr><p:cNvPr id="50" name="Forme"/></p:nvSpPr></p:sp></p:spTree></p:cSld><p:clrMapOvr/></p:sld>`;
+  const fichiers = () => ({
+    "[Content_Types].xml": strToU8(`<Types><Override ContentType="${TYPE}" PartName="/ppt/slides/slide1.xml"/><Override ContentType="${TYPE}" PartName="/ppt/slides/slide3.xml"/></Types>`),
+    "ppt/presentation.xml": strToU8(`<p:presentation><p:sldIdLst><p:sldId id="256" r:id="rId6"/><p:sldId id="259" r:id="rId9"/></p:sldIdLst></p:presentation>`),
+    "ppt/_rels/presentation.xml.rels": strToU8(`<Relationships><Relationship Id="rId6" Type="t/slide" Target="slides/slide1.xml"/><Relationship Id="rId9" Type="t/slide" Target="slides/slide3.xml"/></Relationships>`),
+    "ppt/slides/slide1.xml": strToU8("<p:sld/>"), "ppt/slides/slide3.xml": strToU8("<p:sld/>"),
+    "ppt/slides/_rels/slide1.xml.rels": strToU8(`<Relationships><Relationship Id="rId1" Type="t/layout" Target="../slideLayouts/slideLayout2.xml"/></Relationships>`),
+  });
+
+  it("le squelette garde l'enveloppe du modele et renumerote le groupe racine a 1", () => {
+    const { debut, fin } = squeletteDiapositive(modele);
+    expect(debut.startsWith('<?xml version="1.0"?><p:sld')).toBe(true);
+    expect(debut).toContain('<p:cNvPr id="1" name="Shape 1"/>');
+    expect(debut.endsWith("</p:grpSpPr>")).toBe(true);
+    expect(debut).not.toContain('id="50"');
+    expect(fin).toBe("</p:spTree></p:cSld><p:clrMapOvr/></p:sld>");
+    expect(() => squeletteDiapositive("<p:sld/>")).toThrow(/sans arbre de formes/);
+  });
+
+  it("ajoute une diapositive : fichier suivant le plus grand numero, disposition, images, type, relation et identifiant", () => {
+    const p = ouvrirPaquet(zipSync(fichiers()));
+    const n = ajouterDiapositive(p, "<p:sld>neuve</p:sld>", ["image2.png", "image5.png"]);
+    expect(n).toBe(4);
+    expect(lire(p, "ppt/slides/slide4.xml")).toBe("<p:sld>neuve</p:sld>");
+    const rels = lire(p, "ppt/slides/_rels/slide4.xml.rels");
+    expect(rels).toContain('Id="rId1"');
+    expect(rels).toContain('Target="../slideLayouts/slideLayout2.xml"');
+    expect(rels).toContain('Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image2.png"');
+    expect(rels).toContain('Id="rId3"');
+    expect(lire(p, "[Content_Types].xml")).toContain(`<Override ContentType="${TYPE}" PartName="/ppt/slides/slide4.xml"/>`);
+    expect(lire(p, "ppt/_rels/presentation.xml.rels")).toContain('Id="rId10"');
+    expect(lire(p, "ppt/_rels/presentation.xml.rels")).toContain('Target="slides/slide4.xml"');
+    expect(lire(p, "ppt/presentation.xml")).toContain('<p:sldId id="260" r:id="rId10"/>');
+    expect(ajouterDiapositive(p, "<p:sld/>")).toBe(5);
+  });
+
+  it("ordonne les diapositives selon les numeros de fichier demandes", () => {
+    const p = ouvrirPaquet(zipSync(fichiers()));
+    ajouterDiapositive(p, "<p:sld/>");
+    ordonnerDiapositives(p, [4, 1, 3]);
+    expect([...lire(p, "ppt/presentation.xml").matchAll(/r:id="(rId\d+)"/g)].map((m) => m[1])).toEqual(["rId10", "rId6", "rId9"]);
+    expect(() => ordonnerDiapositives(p, [1, 8])).toThrow(/Diapositive 8 absente/);
   });
 });

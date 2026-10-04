@@ -10,10 +10,11 @@ import { join } from "node:path";
 
 import { placesDe } from "./disposition-onze";
 import {
-  ecrireCellule, ecrireTexte, couleurDe, colorer, dupliquer, ecrire, fermerPaquet, forme, lire, modifierForme, ouvrirPaquet,
-  Paquet, positionner, purgerImages, retirerDiapositive, retirerForme, ajouterForme, echapper,
+  ajouterDiapositive, ecrireCellule, ecrireTexte, couleurDe, colorer, dupliquer, ecrire, fermerPaquet, forme, lire, modifierForme,
+  ordonnerDiapositives, ouvrirPaquet, Paquet, positionner, purgerImages, retirerDiapositive, retirerForme, ajouterForme, echapper,
 } from "./pptx-xml";
-import { ContenuRapport, PAGES_RAPPORT, PageRapport } from "./rapport-pptx-contenu";
+import { ContenuRapport, estPageModele, PAGES_MODELE, PAGES_RAPPORT, PageModele, PageRapport } from "./rapport-pptx-contenu";
+import { construirePageAnalyse } from "./rapport-pptx-pages";
 
 /** Le modele du staff ; copie dans dist avec le reste (assets de nest-cli.json). */
 export const CHEMIN_MODELE = join(__dirname, "modele", "rapport-avant-match.pptx");
@@ -24,17 +25,17 @@ export function lireModele(): Uint8Array {
 }
 
 /** Numero de la diapositive du modele pour chaque page. */
-const DIAPOSITIVE: Readonly<Record<PageRapport, number>> = {
+const DIAPOSITIVE: Readonly<Record<PageModele, number>> = {
   couverture: 1, match: 2, saison: 3, forces: 4, dispositif: 5, ambiance: 6, cles: 7,
 };
 
 /** Formes du pied de page (equipe, numero de page) des diapositives qui en ont un. */
-const PIED: Readonly<Partial<Record<PageRapport, { libelle: number; numero: number }>>> = {
+const PIED: Readonly<Partial<Record<PageModele, { libelle: number; numero: number }>>> = {
   match: { libelle: 71, numero: 72 }, saison: { libelle: 119, numero: 120 }, forces: { libelle: 142, numero: 143 },
   dispositif: { libelle: 197, numero: 198 }, ambiance: { libelle: 228, numero: 229 },
 };
 
-const chemin = (page: PageRapport) => `ppt/slides/slide${DIAPOSITIVE[page]}.xml`;
+const chemin = (page: PageModele) => `ppt/slides/slide${DIAPOSITIVE[page]}.xml`;
 
 /* -------------------------------------- terrain (page 5) -------------------------------------- */
 
@@ -154,8 +155,8 @@ function saison(xml: string, c: ContenuRapport["saison"]): string {
 }
 
 function forces(xml: string, c: ContenuRapport["forces"]): string {
-  // Le modele a trois puces d'une ligne en 13 pt : plus il y a de puces, plus la police diminue pour que la liste tienne dans la carte.
-  const options = { taille: c.taille };
+  // Le modele a trois puces d'une ligne en 13 pt : la police diminue avec la longueur du texte pour que tout tienne dans la carte.
+  const options = { taille: c.taille, espaceAvant: c.espaceAvant };
   let r = ecrireTexte(xml, 134, c.forces, options);
   r = ecrireTexte(r, 139, c.faiblesses, options);
   return ecrireTexte(r, 141, [["À EXPLOITER   ", c.exploiter]]);
@@ -197,11 +198,11 @@ function ambiance(xml: string, c: ContenuRapport["ambiance"]): string {
 
 function cles(xml: string, c: ContenuRapport["cles"]): string {
   let r = xml;
-  c.cles.forEach((texte, i) => { r = ecrireTexte(r, [240, 243, 246][i], [texte]); });
+  c.cles.forEach((texte, i) => { r = ecrireTexte(r, [240, 243, 246][i], [texte], { taille: c.taille }); });
   return ecrireTexte(r, 247, [c.message]);
 }
 
-const REMPLIR: Readonly<Record<PageRapport, (xml: string, c: ContenuRapport) => string>> = {
+const REMPLIR: Readonly<Record<PageModele, (xml: string, c: ContenuRapport) => string>> = {
   couverture: (xml, c) => couverture(xml, c.couverture),
   match: (xml, c) => match(xml, c.match),
   saison: (xml, c) => saison(xml, c.saison),
@@ -213,17 +214,30 @@ const REMPLIR: Readonly<Record<PageRapport, (xml: string, c: ContenuRapport) => 
 
 /* ----------------------------------------- assemblage ----------------------------------------- */
 
-/** Remplit le modele avec `contenu` et ne garde que `pages` (dans l'ordre du modele), pieds de page renumerotes. */
+/**
+ * Remplit le modele avec `contenu` et ne garde que `pages` : les pages du modele (retirees si elles ne sont pas voulues) et
+ * les pages d'analyse ajoutees dans son style, dans l'ordre de PAGES_RAPPORT, pieds de page renumerotes.
+ */
 export function genererRapportPptx(modele: Uint8Array, contenu: ContenuRapport, pages: readonly PageRapport[]): Uint8Array {
   const gardees = PAGES_RAPPORT.filter((p) => pages.includes(p));
   if (gardees.length === 0) throw new Error("Aucune page a produire");
   const paquet: Paquet = ouvrirPaquet(modele);
+  // L'enveloppe des pages d'analyse vient d'une diapositive du modele : a lire avant d'en retirer.
+  const enveloppe = lire(paquet, "ppt/slides/slide2.xml");
 
-  // D'abord la structure (retrait des pages), ensuite le contenu des pages qui restent.
-  for (const p of PAGES_RAPPORT) if (!gardees.includes(p)) retirerDiapositive(paquet, DIAPOSITIVE[p]);
+  // D'abord la structure (pages ajoutees, pages retirees, ordre), ensuite le contenu des pages du modele. Les pages
+  // d'analyse s'ajoutent avant les retraits : une nouvelle page copie la disposition d'une page du modele encore presente.
+  const ordre = gardees.map((page, i) => {
+    if (estPageModele(page)) return DIAPOSITIVE[page];
+    const { xml, images } = construirePageAnalyse(page, contenu, i + 1, enveloppe);
+    return ajouterDiapositive(paquet, xml, images);
+  });
+  for (const p of PAGES_MODELE) if (!gardees.includes(p)) retirerDiapositive(paquet, DIAPOSITIVE[p]);
+  ordonnerDiapositives(paquet, ordre);
   purgerImages(paquet);
 
   gardees.forEach((page, i) => {
+    if (!estPageModele(page)) return;
     let xml = REMPLIR[page](lire(paquet, chemin(page)), contenu);
     const pied = PIED[page];
     if (pied) {

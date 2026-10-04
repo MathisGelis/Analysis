@@ -177,12 +177,42 @@ Toutes les routes sont prefixees par `/api`.
   disent les numeros de maillot) et dernier onze (feuille du dernier match joue)
 - `GET    /analyse/prematch?equipeId=&adversaireId=&matchId=` : rapport pre-match (aussi : bilan de saison, derniers matchs,
   buteurs, systeme probable et onze probable de l'adversaire)
-- `GET    /analyse/prematch/pages` : les 7 pages du rapport PowerPoint (`id`, `titre`, `contenu`), pour proposer le choix
+- `GET    /analyse/prematch/pages` : les 15 pages du rapport PowerPoint (`id`, `titre`, `contenu`, `groupe`), dans l'ordre du
+  dossier, pour proposer le choix. `groupe` : `modele` (les 7 pages du modele du staff) ou `analyse` (8 pages ajoutees, au
+  meme style, pour les statistiques que le modele n'a pas la place d'accueillir)
 - `GET    /analyse/prematch/export?equipeId=&adversaireId=&matchId=&pages=` : le rapport d'avant-match **en PowerPoint**
   (`.pptx`, au format du modele `src/features/analyse/modele/rapport-avant-match.pptx`). `pages` : liste separee par des
-  virgules parmi `couverture, match, saison, forces, dispositif, ambiance, cles` (toutes par defaut ; une page inconnue ou
-  aucune page : `400`). Memes regles d'acces que le rapport. Une information inconnue (heure de convocation, surface du
-  terrain, style de jeu...) donne un **champ vide** a completer dans PowerPoint, jamais une valeur inventee.
+  virgules parmi `couverture, match, saison, comparatif, forme, forces, pistes, dispositif, systeme, onze, polyvalence,
+  joueurs, face, ambiance, cles` (toutes par defaut, toujours dans cet ordre ; une page inconnue ou aucune page : `400`).
+  Memes regles d'acces que le rapport. Une information inconnue (heure de convocation, surface du terrain, style de
+  jeu...) donne un **champ vide** a completer dans PowerPoint, jamais une valeur inventee.
+
+### Rapport PowerPoint : le modele du staff, plus les pages d'analyse
+Les 7 pages du modele (couverture, match, saison, forces, dispositif, ambiance, cles) gardent sa mise en page : le fichier
+est le modele lui-meme, dont on remplit les formes. Le rapport pre-match sait toutefois bien plus que ces pages ne
+peuvent en porter ; **rien n'est retire de la presentation** : les statistiques sans place dans le modele ont leur propre
+page, construite dans le meme style (palette, Arial, cartes arrondies, rond d'en-tete et pied de page du modele) :
+
+| Page | Contenu |
+|---|---|
+| `comparatif` | tableau chiffre nous / eux (classement, points, buts, domicile / exterieur, dynamique, serie) + projection du resultat (victoire / nul / defaite, score probable, buts attendus) |
+| `forme` | forme des deux equipes, leurs 5 derniers matchs, constats chiffres (dynamique, domicile / exterieur, matchs serres, fin de match) |
+| `pistes` | toutes les pistes pour le match (atout / vigilance / info, importance), en entier |
+| `systeme` | systeme probable, confiance, alternatives et **tous les indices** tires des numeros de maillot |
+| `onze` | onze probable poste par poste (numero, joueur, titularisations, autres joueurs au meme numero) |
+| `polyvalence` | joueurs qui changent de numero (donc de poste), numeros portes et postes |
+| `joueurs` | danger, stabilite du onze, fatigue, changements, joueurs cles (impact en points par match), buteurs, sanctions et discipline |
+| `face` | face-a-face (bilan, rencontres) et arbitre (profil, cartons, motifs) |
+
+Sur les pages du modele, rien n'est coupe non plus : forces, faiblesses et trois cles s'ecrivent en entier, la police
+s'adaptant a la place (jamais sous 9 pt ; au-dela, le texte est abrege sur la page du modele mais reste complet sur la
+page `pistes`). Les textes ecrits par l'application (en-tetes, libelles) portent leurs accents ; les phrases calculees par
+l'API (pistes, constats, indices) restent en ASCII comme le reste de l'API.
+
+Code : `pptx-xml.ts` (operations OOXML sur l'archive : formes, texte, cellules, ajout / retrait / ordre des diapositives),
+`pptx-formes.ts` (constructeurs de formes au style du modele), `rapport-pptx-analyse.ts` (contenu des pages d'analyse, pur),
+`rapport-pptx-pages.ts` (mise en page des 8 pages), `rapport-pptx-contenu.ts` (contenu des 15 pages) et `rapport-pptx.ts`
+(assemblage : pages au choix, pieds de page renumerotes).
 
 ### Compo et systeme probables : les numeros de maillot
 La FMI ne donne pas le dispositif, mais les numeros portent une information (convention du staff : 1 gardien, 2 DD, 3 DG,

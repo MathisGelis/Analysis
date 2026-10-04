@@ -43,7 +43,8 @@ const CONTENEURS = ["p:sp", "p:graphicFrame", "p:pic", "p:cxnSp"] as const;
 
 /** Debut et fin de la forme d'identifiant `id` (`<p:sp>`, `<p:graphicFrame>`, `<p:pic>` ou `<p:cxnSp>` complets), ou null. */
 export function trouverForme(xml: string, id: number): { debut: number; fin: number } | null {
-  const repere = xml.indexOf(`<p:cNvPr id="${id}" `);
+  // L'identifiant n'est pas toujours le premier attribut (`<p:cNvPr descr="..." id="38" ...>` sur une image).
+  const repere = new RegExp(`<p:cNvPr\\b[^>]*?\\sid="${id}"[\\s/>]`).exec(xml)?.index ?? -1;
   if (repere < 0) return null;
   let debut = -1;
   let balise = "";
@@ -122,11 +123,14 @@ export type ParagrapheTexte = string | string[];
 export interface OptionsTexte {
   /** Taille de police, en centiemes de point (1100 = 11 pt), a la place de celle du modele. */
   taille?: number;
+  /** Espace avant chaque paragraphe a partir du deuxieme, en centiemes de point, a la place de celui du modele. */
+  espaceAvant?: number;
 }
 
 function remplirParagraphe(modele: string, textes: string[], options: OptionsTexte): string {
   let p = modele.replace(/lang="en-US"/g, 'lang="fr-FR"');
   if (options.taille) p = p.replace(/\bsz="\d+"/g, `sz="${options.taille}"`).replace(/<a:buSzPts val="\d+"\/>/g, `<a:buSzPts val="${options.taille}"/>`);
+  if (options.espaceAvant !== undefined) p = p.replace(/<a:spcBef><a:spcPts val="(\d+)"\/><\/a:spcBef>/, (m, v) => (+v > 0 ? `<a:spcBef><a:spcPts val="${options.espaceAvant}"/></a:spcBef>` : m));
   const runs = p.match(/<a:r>[\s\S]*?<\/a:r>/g) ?? [];
   if (runs.length === 0) {
     // Paragraphe du modele sans segment : on en cree un, avant la fin de paragraphe.
@@ -222,4 +226,68 @@ export function purgerImages(paquet: Paquet): void {
     for (const m of strFromU8(contenu).matchAll(/Target="\.\.\/media\/([^"]+)"/g)) citees.add(`ppt/media/${m[1]}`);
   }
   for (const nom of [...paquet.keys()]) if (nom.startsWith("ppt/media/") && !citees.has(nom)) paquet.delete(nom);
+}
+
+/* ----------------------------------- nouvelles diapositives ----------------------------------- */
+
+const REL_SLIDE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide";
+const REL_LAYOUT = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout";
+const REL_IMAGE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
+const TYPE_SLIDE = "application/vnd.openxmlformats-officedocument.presentationml.slide+xml";
+
+const numerosDiapositives = (paquet: Paquet) =>
+  [...paquet.keys()].map((k) => /^ppt\/slides\/slide(\d+)\.xml$/.exec(k)?.[1]).filter((n): n is string => !!n).map(Number);
+
+/** Squelette d'une diapositive du modele : tout ce qui entoure ses formes (espaces de noms, fond, groupe racine, fin). */
+export function squeletteDiapositive(xml: string): { debut: string; fin: string } {
+  const finGroupe = xml.indexOf("</p:grpSpPr>");
+  const finArbre = xml.lastIndexOf("</p:spTree>");
+  if (finGroupe < 0 || finArbre < 0) throw new Error("Diapositive du modele sans arbre de formes");
+  // Le groupe racine porte l'identifiant 1 : les formes d'une page neuve numerotent a partir de 2.
+  const debut = xml.slice(0, finGroupe + "</p:grpSpPr>".length).replace(/<p:cNvPr id="\d+" name="Shape \d+"\/>/, '<p:cNvPr id="1" name="Shape 1"/>');
+  return { debut, fin: xml.slice(finArbre) };
+}
+
+/**
+ * Ajoute une diapositive au modele (meme disposition que les autres), apres les existantes. `images` : les fichiers de
+ * `ppt/media/` qu'elle cite, dans l'ordre : le premier est `rId2`, le deuxieme `rId3`... (`rId1` est la disposition).
+ * Renvoie son numero. L'ordre dans la presentation se regle ensuite avec `ordonnerDiapositives`.
+ */
+export function ajouterDiapositive(paquet: Paquet, xml: string, images: string[] = []): number {
+  const numero = Math.max(0, ...numerosDiapositives(paquet)) + 1;
+  const rels1 = lire(paquet, "ppt/slides/_rels/slide1.xml.rels");
+  const disposition = /Target="(\.\.\/slideLayouts\/[^"]+)"/.exec(rels1)?.[1];
+  if (!disposition) throw new Error("Disposition de diapositive introuvable dans le modele");
+  const rels = [`<Relationship Id="rId1" Type="${REL_LAYOUT}" Target="${disposition}"/>`,
+    ...images.map((img, i) => `<Relationship Id="rId${i + 2}" Type="${REL_IMAGE}" Target="../media/${img}"/>`)].join("");
+  ecrire(paquet, `ppt/slides/slide${numero}.xml`, xml);
+  ecrire(paquet, `ppt/slides/_rels/slide${numero}.xml.rels`,
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>`);
+
+  ecrire(paquet, TYPES, lire(paquet, TYPES).replace("</Types>", `<Override ContentType="${TYPE_SLIDE}" PartName="/ppt/slides/slide${numero}.xml"/></Types>`));
+
+  const relsPres = lire(paquet, RELS_PRESENTATION);
+  const rId = `rId${Math.max(0, ...[...relsPres.matchAll(/Id="rId(\d+)"/g)].map((m) => +m[1])) + 1}`;
+  ecrire(paquet, RELS_PRESENTATION, relsPres.replace("</Relationships>", `<Relationship Id="${rId}" Type="${REL_SLIDE}" Target="slides/slide${numero}.xml"/></Relationships>`));
+  const pres = lire(paquet, PRESENTATION);
+  const idMax = Math.max(255, ...[...pres.matchAll(/<p:sldId id="(\d+)"/g)].map((m) => +m[1]));
+  ecrire(paquet, PRESENTATION, pres.replace("</p:sldIdLst>", `<p:sldId id="${idMax + 1}" r:id="${rId}"/></p:sldIdLst>`));
+  return numero;
+}
+
+/** Fixe l'ordre des diapositives de la presentation (les numeros de fichier `slideN.xml`, du premier au dernier). */
+export function ordonnerDiapositives(paquet: Paquet, ordre: number[]): void {
+  const rels = lire(paquet, RELS_PRESENTATION);
+  const rIdDe = (n: number) => new RegExp(`<Relationship [^>]*Id="([^"]+)"[^>]*Target="slides/slide${n}\\.xml"`).exec(rels)?.[1]
+    ?? new RegExp(`<Relationship [^>]*Target="slides/slide${n}\\.xml"[^>]*Id="([^"]+)"`).exec(rels)?.[1];
+  const pres = lire(paquet, PRESENTATION);
+  const entrees = [...pres.matchAll(/<p:sldId [^>]*\/>/g)].map((m) => m[0]);
+  const parRId = new Map(entrees.map((e) => [/r:id="([^"]+)"/.exec(e)![1], e]));
+  const liste = ordre.map((n) => {
+    const rId = rIdDe(n);
+    const entree = rId && parRId.get(rId);
+    if (!entree) throw new Error(`Diapositive ${n} absente de la presentation`);
+    return entree;
+  });
+  ecrire(paquet, PRESENTATION, pres.replace(/<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/, `<p:sldIdLst>${liste.join("")}</p:sldIdLst>`));
 }

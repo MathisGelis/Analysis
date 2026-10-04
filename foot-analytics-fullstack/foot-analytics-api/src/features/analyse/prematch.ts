@@ -134,7 +134,7 @@ export interface EntreePistes {
   } | null;
 }
 
-const LIBELLE_SERIE: Record<TypeSerie, string> = {
+export const LIBELLE_SERIE: Record<TypeSerie, string> = {
   victoires: "victoires de suite", invaincu: "matchs sans defaite", defaites: "defaites de suite",
   sans_victoire: "matchs sans victoire", sans_encaisser: "matchs sans encaisser",
   sans_marquer: "matchs sans marquer", marque: "matchs avec un but marque",
