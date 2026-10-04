@@ -437,8 +437,8 @@ test("systeme de jeu : saisi sur la fiche du match, repris par la prediction et 
   await page.goto(`/rapports/prematch/${match.clubDom}`);
   const section = page.locator("section", { has: page.getByRole("heading", { name: "Systeme de jeu probable" }) });
   await expect(section.getByText("4-3-3").first()).toBeVisible();
-  await expect(section.getByText("Dispositifs renseignes")).toBeVisible();
-  await expect(section.getByText("Onze probable")).toBeVisible();
+  await expect(section.getByText("Dispositifs renseignes", { exact: true })).toBeVisible();
+  await expect(section.getByText("Onze probable", { exact: true }).first()).toBeVisible();
 
   // Page Predictions : elle s'affiche, sans exemple fictif.
   await page.goto("/ia");
