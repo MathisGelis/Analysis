@@ -23,6 +23,8 @@ import { ClubBadge } from "@/features/clubs/components/ClubBadge";
 import { Pitch, type JoueurTerrain } from "@/shared/ui/Pitch";
 import { FatigueBar } from "@/features/joueurs/components/FatigueBar";
 
+import { joueursSurTerrain, libellesPostes } from "../lib/onze-terrain";
+import type { PosteProbable } from "../lib/numeros-types";
 import { PistesMatch } from "./PistesMatch";
 import { SystemeProbable } from "./SystemeProbable";
 
@@ -147,11 +149,12 @@ export default async function Predictions({ searchParams }: { searchParams?: Pro
             <div className="col-span-12 space-y-4 lg:col-span-7">
               <div className="panel p-5">
                 <div className="h-section mb-3 flex items-center gap-1.5"><Brain size={11} className="text-accent" /> Systeme de jeu probable de {r.adversaire.clubNom}</div>
-                <SystemeProbable donnees={r.systemeAdverse} adversaire={r.adversaire.clubNom} />
+                <SystemeProbable donnees={r.systemeAdverse} numeros={r.numeros} adversaire={r.adversaire.clubNom} />
               </div>
               <div className="panel p-5">
                 <div className="h-section mb-3 flex items-center gap-1.5"><Users size={11} className="text-accent" /> Onze probable</div>
-                <OnzeProbable compo={r.analyse?.compoProbable ?? []} systeme={r.systemeAdverse.prediction?.systeme ?? null} matchsAnalyses={r.analyse?.matchsAnalyses ?? 0} />
+                <OnzeProbable compo={r.analyse?.compoProbable ?? []} systeme={r.systemeAdverse.probable?.systeme ?? null} matchsAnalyses={r.analyse?.matchsAnalyses ?? 0}
+                  parNumero={r.systemeAdverse.probable && r.numeros?.onze.length ? { onze: r.numeros.onze, disposition: r.systemeAdverse.probable.disposition, feuilles: r.numeros.matchs } : null} />
               </div>
             </div>
           </section>
@@ -187,14 +190,29 @@ function Proba({ label, valeur, couleur }: { label: string; valeur: number; coul
 }
 
 /**
- * Le onze le plus utilise par l'adversaire. Sur le terrain quand son systeme est connu (joueurs ranges de la
- * defense a l'attaque d'apres leur poste, selon les lignes du systeme) ; sinon en liste, sans inventer de dispositif.
+ * Le onze probable de l'adversaire. Quand son systeme est connu et que ses numeros de maillot sont lisibles : un joueur
+ * par poste sur le terrain, place selon le systeme (`parNumero`). Sinon : les joueurs ranges de la defense a l'attaque
+ * d'apres leur poste (terrain si le systeme est connu), ou en liste, sans inventer de dispositif.
  */
-function OnzeProbable({ compo, systeme, matchsAnalyses }: {
+function OnzeProbable({ compo, systeme, matchsAnalyses, parNumero }: {
   compo: { poste: string; numero?: number; nom: string; matchsJoues: number }[]; systeme: string | null; matchsAnalyses: number;
+  parNumero: { onze: PosteProbable[]; disposition: number[][]; feuilles: number } | null;
 }) {
   if (compo.length === 0) {
     return <p className="text-sm text-muted">Aucune feuille de match de cet adversaire n'a ete analysee sur la saison : pas de onze probable.</p>;
+  }
+  if (systeme && parNumero) {
+    return (
+      <>
+        <div className="mx-auto max-w-[360px]">
+          <Pitch formation={systeme} couleur="rgb(var(--sky))" titre={`Onze probable · ${systeme}`}
+            joueurs={joueursSurTerrain(parNumero.onze, parNumero.disposition)} libellesPostes={libellesPostes(parNumero.onze, parNumero.disposition)} />
+        </div>
+        <p className="mt-3 text-[11px] text-muted">
+          Un joueur par numero de maillot (1 gardien, 2 DD, 3 DG, 4 DCD, 5 DCG, 6 MDC, 7 AG, 8 MC, 9 BU, 10 MO, 11 AD), d'apres ses {parNumero.feuilles} dernieres feuilles.
+        </p>
+      </>
+    );
   }
   const ordre = { GB: 0, DEF: 1, MIL: 2, ATT: 3 } as const;
   const tries = [...compo].sort((a, b) => ordre[ligneDuPoste(a.poste) ?? "MIL"] - ordre[ligneDuPoste(b.poste) ?? "MIL"]);

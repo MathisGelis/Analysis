@@ -15,8 +15,11 @@ import { decimal } from "@/features/analyse/lib/tendances-format";
 import { COULEUR_NIVEAU, LIBELLE_NIVEAU, niveauFatigue } from "@/features/joueurs/lib/fatigue";
 import { ClubBadge } from "@/features/clubs/components/ClubBadge";
 import { InsightsGrid } from "@/features/analyse/components/InsightsGrid";
+import { Pitch } from "@/shared/ui/Pitch";
 
+import { joueursSurTerrain, libellesPostes } from "../lib/onze-terrain";
 import { BoutonImprimer } from "./BoutonImprimer";
+import { ExportPowerPoint } from "./ExportPowerPoint";
 import { PistesMatch } from "./PistesMatch";
 import { ComparatifEquipes } from "./ComparatifEquipes";
 import { SystemeProbable } from "./SystemeProbable";
@@ -40,7 +43,7 @@ export default async function RapportPrematch({
     return <Vide titre="C'est votre propre club">Choisissez un club adverse pour preparer le match.</Vide>;
   }
 
-  const r = await api.prematch(maEquipe.id, adversaireClubId, matchDemande ?? null);
+  const [r, pagesExport] = await Promise.all([api.prematch(maEquipe.id, adversaireClubId, matchDemande ?? null), api.pagesPrematch()]);
   if (!r) notFound();
 
   const { monEquipe: moi, adversaire: adv, analyse: a, arbitre, match, faceAFace: face } = r;
@@ -56,7 +59,10 @@ export default async function RapportPrematch({
         <Link href="/rapports" className="flex items-center gap-1 text-xs text-muted hover:text-ink">
           <ArrowLeft size={12} /> Retour rapports
         </Link>
-        <BoutonImprimer />
+        <div className="flex items-center gap-2">
+          <ExportPowerPoint equipeId={maEquipe.id} adversaireId={adversaireClubId} matchId={match?.id ?? null} pages={pagesExport} />
+          <BoutonImprimer />
+        </div>
       </div>
 
       {/* En-tete : l'affiche du match */}
@@ -143,10 +149,21 @@ export default async function RapportPrematch({
         )}
       </Section>
 
-      {/* Systeme de jeu probable : d'apres ce que le staff a renseigne */}
+      {/* Systeme de jeu probable : dispositifs renseignes et numeros de maillot */}
       <Section titre="Systeme de jeu probable" icone={<Crosshair size={11} className="text-accent" />}
-        aide="d'apres les dispositifs renseignes sur ses matchs : la feuille de match n'en contient pas">
-        <SystemeProbable donnees={r.systemeAdverse} adversaire={adv.clubNom} />
+        aide="dispositifs renseignes sur ses matchs et changements de numero de maillot : la feuille de match ne donne pas le dispositif">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-12">
+          <div className={r.systemeAdverse.probable && r.numeros?.onze.length ? "md:col-span-7" : "md:col-span-12"}>
+            <SystemeProbable donnees={r.systemeAdverse} numeros={r.numeros} adversaire={adv.clubNom} />
+          </div>
+          {r.systemeAdverse.probable && r.numeros && r.numeros.onze.length > 0 && (
+            <div className="mx-auto w-full max-w-[300px] md:col-span-5">
+              <Pitch formation={r.systemeAdverse.probable.systeme} couleur="rgb(var(--sky))" titre="Onze probable"
+                joueurs={joueursSurTerrain(r.numeros.onze, r.systemeAdverse.probable.disposition)}
+                libellesPostes={libellesPostes(r.numeros.onze, r.systemeAdverse.probable.disposition)} />
+            </div>
+          )}
+        </div>
       </Section>
 
       {/* Adversaire */}
@@ -167,12 +184,14 @@ export default async function RapportPrematch({
           </Section>
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <Section titre="Onze probable" icone={<Users size={11} className="text-accent" />} aide="titulaires les plus utilises, par poste">
+            <Section titre="Onze probable" icone={<Users size={11} className="text-accent" />}
+              aide={r.numeros?.fiabilite.exploitable ? `un joueur par numero de maillot, sur ses ${r.numeros.matchs} dernieres feuilles` : "titulaires les plus utilises, par poste"}>
               {a.compoProbable.length === 0 ? <Note>Composition non disponible.</Note> : (
                 <ul className="divide-y divide-line">
-                  {a.compoProbable.map((j) => (
+                  {[...a.compoProbable].sort((x, y) => (x.numero ?? 99) - (y.numero ?? 99)).map((j) => (
                     <li key={`${j.poste}-${j.nom}`} className="flex items-center gap-3 py-1.5 text-sm">
-                      <span className="badge w-10 justify-center">{j.poste}</span>
+                      <span className="w-6 text-right font-mono text-xs text-faint">{j.numero ?? ""}</span>
+                      <span className="badge w-12 justify-center">{j.poste}</span>
                       <span className="min-w-0 flex-1 truncate font-medium text-ink">{j.nom}</span>
                       <span className="text-xs tabular-nums text-faint">{j.matchsJoues} titu.</span>
                     </li>

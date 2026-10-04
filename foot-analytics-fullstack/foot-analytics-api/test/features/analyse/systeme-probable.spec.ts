@@ -10,8 +10,12 @@ function feuille(matchId: string, date: string, numeros: Record<string, number> 
 }
 const saison = (...c: Record<string, number>[]) => c.flatMap((x, i) => feuille(`m${i + 1}`, `${String(1 + 7 * i).padStart(2, "0")}/09/2025`, x));
 
-const deuxAttaquants = analyserNumeros(saison({ p9: 10, p10: 9 }, {}, { p9: 10, p10: 9 }, {}, { p9: 10, p10: 9 }, {}));   // pointe vers 4-4-2
+// Un lateral qui passe dans l'axe (defense a 4) ET un attaquant tantot 9 tantot 10 (deux attaquants) : seul le 4-4-2 les reunit.
+const echange = { p2: 4, p4: 2, p9: 10, p10: 9 };
+const deuxAttaquants = analyserNumeros(saison(echange, {}, echange, {}, echange, {}));   // pointe vers 4-4-2
 const sansIndice = analyserNumeros(saison({}, {}, {}));
+// Des changements trop minces ou contradictoires : des indices, mais aucun systeme.
+const sansSysteme = analyserNumeros(saison({ p9: 10, p10: 9 }, {}, { p9: 10, p10: 9 }, {}, { p9: 10, p10: 9 }, {}));
 
 const saisi = (systeme: string, observations: number, confiance = 100, alternatives: PredictionSysteme["alternatives"] = []): PredictionSysteme => ({
   systeme, confiance, observations, fiabilite: observations >= 5 ? "bonne" : observations >= 3 ? "moyenne" : "faible", alternatives,
@@ -34,6 +38,16 @@ describe("fusionnerSystemes", () => {
     expect(r.disposition).toEqual([[2, 4, 5, 3], [6, 8, 10], [7, 9, 11]]);       // ou se placent les numeros dans un 4-3-3
   });
 
+  it("des indices qui ne tranchent pas (deux attaquants seuls : 4-4-2, 3-5-2 ou 5-3-2) : pas de systeme", () => {
+    expect(sansSysteme.indices.length).toBeGreaterThan(0);
+    expect(sansSysteme.systeme).toBeNull();
+    expect(fusionnerSystemes(null, sansSysteme)).toBeNull();
+  });
+
+  it("des indices qui ne tranchent pas, mais un dispositif saisi : le dispositif saisi seul, sans les numeros", () => {
+    expect(fusionnerSystemes(saisi("4-3-3", 3, 100), sansSysteme)).toMatchObject({ systeme: "4-3-3", source: "renseigne", matchsNumeros: 6 });
+  });
+
   it("numeros seuls : une estimation prudente, jamais 'bonne', plafonnee, avec ses indices", () => {
     const r = fusionnerSystemes(null, deuxAttaquants)!;
     expect(r.systeme).toBe("4-4-2");
@@ -42,10 +56,11 @@ describe("fusionnerSystemes", () => {
     expect(r.matchsNumeros).toBe(6);
     expect(["faible", "moyenne"]).toContain(r.fiabilite);
     expect(r.confiance).toBeLessThanOrEqual(70);
-    expect(r.alternatives.map((a) => a.systeme)).toEqual(["3-5-2", "5-3-2"]);
+    expect(r.alternatives.map((a) => a.systeme)).toEqual(["4-3-3", "4-2-3-1", "3-5-2", "5-3-2"]);
     expect(r.disposition).toEqual([[2, 4, 5, 3], [7, 6, 8, 11], [9, 10]]);
     expect(r.indices[0]).toMatch(/Deduit des changements de numero sur 6 feuilles : aucun dispositif renseigne/);
     expect(r.indices.some((i) => /deux attaquants/.test(i))).toBe(true);
+    expect(r.indices.some((i) => /defense a 4/.test(i))).toBe(true);
   });
 
   it("les deux concordent : le systeme saisi, plus de confiance qu'avec le seul poids des numeros, fiabilite du staff", () => {
@@ -55,14 +70,21 @@ describe("fusionnerSystemes", () => {
     expect(r.indices[1]).toBe("Les changements de numero vont dans le meme sens.");
   });
 
-  it("les deux divergent : le dispositif saisi garde la tete, la confiance baisse, la fiabilite aussi, la divergence est dite", () => {
-    const r = fusionnerSystemes(saisi("4-3-3", 3, 100), deuxAttaquants)!;
-    expect(r.systeme).toBe("4-3-3");
+  it("les deux divergent (un systeme que les numeros ne soutiennent pas) : le dispositif saisi garde la tete, la confiance baisse, la fiabilite aussi, la divergence est dite", () => {
+    const r = fusionnerSystemes(saisi("3-4-3", 3, 100), deuxAttaquants)!;
+    expect(r.systeme).toBe("3-4-3");
     expect(r.source).toBe("mixte");
     expect(r.confiance).toBeLessThan(100);
     expect(r.fiabilite).toBe("faible");          // "moyenne" (3 matchs) abaissee d'un cran
     expect(r.indices[1]).toBe("Les changements de numero ne confirment pas ce systeme (ils pointent vers 4-4-2).");
     expect(r.alternatives.map((a) => a.systeme)).toContain("4-4-2");
+  });
+
+  it("un systeme saisi que les numeros soutiennent sans etre leur premier choix (4-3-3 : defense a 4) : compatible, fiabilite gardee", () => {
+    const r = fusionnerSystemes(saisi("4-3-3", 5, 100), deuxAttaquants)!;
+    expect(r.systeme).toBe("4-3-3");
+    expect(r.fiabilite).toBe("bonne");
+    expect(r.indices[1]).toBe("Les changements de numero sont compatibles (mais pointent plutot vers 4-4-2).");
   });
 
   it("dispositif saisi compatible avec les numeros sans etre leur premier choix : verdict nuance, fiabilite gardee", () => {
@@ -72,7 +94,7 @@ describe("fusionnerSystemes", () => {
     expect(r.indices[1]).toBe("Les changements de numero sont compatibles (mais pointent plutot vers 4-4-2).");
   });
 
-  it("une seule observation saisie ne l'emporte pas sur des numeros nets", () => {
+  it("une seule observation saisie pese moitie : les numeros nets font de 4-4-2 la premiere alternative", () => {
     const r = fusionnerSystemes(saisi("4-3-3", 1, 100), deuxAttaquants)!;
     expect(r.systeme).toBe("4-3-3");          // le dispositif saisi pese 50 % (1 match)
     expect(r.alternatives[0].systeme).toBe("4-4-2");

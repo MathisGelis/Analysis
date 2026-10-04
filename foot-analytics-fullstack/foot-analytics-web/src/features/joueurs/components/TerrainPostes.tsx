@@ -5,13 +5,13 @@
 // couleur depend du nombre d'apparitions a ce poste, et le chiffre
 // au centre du pastille indique le total.
 //
-// Convention numero -> poste :
-//   1  Gardien (GK)
+// Convention numero -> poste (celle du staff, voir foot-analytics-api/src/features/matchs/numeros-postes.ts) :
+//   1  Gardien (GB)
 //   2  Defenseur droit (DD)
 //   3  Defenseur gauche (DG)
 //   4  Defenseur central droit (DCD)
 //   5  Defenseur central gauche (DCG)
-//   6  Milieu defensif (MD)
+//   6  Milieu defensif (MDC)
 //   7  Ailier gauche (AG)
 //   8  Milieu central (MC)
 //   9  Buteur (BU)
@@ -32,12 +32,12 @@ interface Props {
 // les positions par numero comme une 4-3-3 standard.
 // Convention : recevant attaque vers le haut.
 const POSTES: Record<number, { x: number; y: number; label: string }> = {
-  1:  { x: 50,  y: 124, label: "GK"  },
+  1:  { x: 50,  y: 124, label: "GB"  },
   2:  { x: 82,  y: 100, label: "DD"  },
   3:  { x: 18,  y: 100, label: "DG"  },
   4:  { x: 62,  y: 102, label: "DCD" },
   5:  { x: 38,  y: 102, label: "DCG" },
-  6:  { x: 50,  y: 78,  label: "MD"  },
+  6:  { x: 50,  y: 78,  label: "MDC" },
   7:  { x: 16,  y: 40,  label: "AG"  },
   8:  { x: 36,  y: 62,  label: "MC"  },
   9:  { x: 50,  y: 22,  label: "BU"  },

@@ -16,6 +16,7 @@ import {
 } from "@/shared/data/demo";
 import type { DynamiquePoule } from "@/features/analyse/lib/analyse-types";
 import type { RapportPrematch } from "@/features/prematch/lib/prematch-types";
+import { nomFichier, type PageExport } from "@/features/prematch/lib/export-pptx";
 import type { SituationClub } from "@/features/analyse/lib/situation-types";
 import type { PlanContreRealise } from "@/features/tactique/lib/plan-realise-types";
 import type { FicheCoach } from "@/features/coachs/lib/fiche-coach-types";
@@ -369,6 +370,19 @@ export const api = {
     const qs = new URLSearchParams({ equipeId, adversaireId });
     if (matchId) qs.set("matchId", matchId);
     return req<RapportPrematch | null>(`/analyse/prematch?${qs}`, { fallback: null });
+  },
+
+  /** Les pages du rapport d'avant-match en PowerPoint (pour proposer le choix) ; vide si l'API ne repond pas. */
+  pagesPrematch: () => req<PageExport[]>("/analyse/prematch/pages", { fallback: [] }),
+
+  /** Rapport pre-match en PowerPoint (`.pptx`), limite aux pages `pages` : le fichier et le nom que propose le serveur. */
+  exporterPrematch: async (equipeId: string, adversaireId: string, matchId: string | null, pages: string[]) => {
+    const qs = new URLSearchParams({ equipeId, adversaireId, pages: pages.join(",") });
+    if (matchId) qs.set("matchId", matchId);
+    const chemin = `/analyse/prematch/export?${qs}`;
+    const res = await fetchApi(chemin);
+    if (!res.ok) throw new ApiError(res.status, chemin, await res.json().catch(() => null));
+    return { fichier: await res.blob(), nom: nomFichier(res.headers.get("Content-Disposition")) };
   },
 
   /* ---- Saisons ---- */

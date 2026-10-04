@@ -153,7 +153,7 @@ export function contenuRapport(r: RapportPrematch): ContenuRapport {
       : probable.source === "numeros"
         ? `Deduit des numeros, ${pluriel(probable.matchsNumeros, "feuille")} (${probable.confiance} %) : a confirmer`
         : `Dispositifs saisis + numeros (${probable.confiance} %)`
-    : "";
+    : Object.keys(noms).length > 0 ? "Systeme inconnu : onze lu dans les numeros de maillot" : "";
 
   const joueurs = a ? joueursASurveiller(r) : [];
 

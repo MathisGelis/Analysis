@@ -104,9 +104,11 @@ describe("rapport d'avant-match PowerPoint", () => {
       });
       const cote = dom ? "dom" : "ext";
       for (const [numero, nom, prenom] of equipe) {
-        // Mael MOREAU et Baptiste VENET echangent leur numero (9 / 10) un match sur deux : deux attaquants.
-        const echange = i % 2 === 1 && (numero === 9 || numero === 10);
-        await f.compo({ matchId: m.id, cote, nom, prenom, numero: echange ? 19 - numero : numero });
+        // Mael MOREAU et Baptiste VENET echangent leur numero (9 / 10) un match sur deux : deux attaquants ; Tom LEBLANC
+        // et Hugo BONNET (2 / 4) aussi : un lateral qui passe dans l'axe, donc une defense a 4. Seul le 4-4-2 les reunit.
+        const echange9 = i % 2 === 1 && (numero === 9 || numero === 10);
+        const echange2 = i % 2 === 1 && (numero === 2 || numero === 4);
+        await f.compo({ matchId: m.id, cote, nom, prenom, numero: echange9 ? 19 - numero : echange2 ? 6 - numero : numero });
       }
       await f.compo({ matchId: m.id, cote, nom: "BANC", prenom: "Un", numero: 12, titulaire: false, minutes: 0 });
       for (const [minute, joueur] of [[20, "VENET Baptiste"], [60, "VENET Baptiste"], [75, "MOREAU Mael"]] as const) {
@@ -263,6 +265,15 @@ describe("rapport d'avant-match PowerPoint", () => {
       expect(textes(xml)).toEqual(expect.arrayContaining([longue, "Attaque en panne", "Jouer vite dans le dos des lateraux"]));
       expect(xml.match(/<a:p>/g)!.length).toBeGreaterThanOrEqual(8);
       expect(xml).toContain('sz="1100"');
+    });
+
+    it("systeme inconnu mais onze lu dans les numeros : les noms sont ecrits sur la disposition du modele, le titre reste vide", () => {
+      const base = contenuRapport(rapport);
+      const contenu = { ...base, dispositif: { ...base.dispositif, systeme: null, titre: "Dispositif attendu : ", source: "Systeme inconnu : onze lu dans les numeros de maillot" } };
+      const xml = lire(ouvrirPaquet(genererRapportPptx(lireModele(), contenu, ["dispositif"])), "ppt/slides/slide5.xml");
+      expect(textes(xml)).toEqual(expect.arrayContaining(["Dispositif attendu : ", "ROUX", "VENET", "Systeme inconnu : onze lu dans les numeros de maillot"]));
+      // Les ronds restent la ou le modele les met (le 9 en haut de l'attaque, a x = 4059936).
+      expect(xml).toMatch(/<p:cNvPr id="177"[\s\S]*?<a:off x="4059936" y="2185416"\/>/);
     });
 
     it("pas de match joue : les lignes 'derniers matchs' disparaissent avec leurs traits, les champs de saison restent vides", async () => {

@@ -58,8 +58,8 @@ Fair-play, Import FMI (upload reel vers le parseur du backend).
 | **Scouting** | Liste des rapports, rapport Neuville complet (= remplace l'Excel Chaponnay) |
 | **Analytics** | xG vs G, heatmaps off/def, tendances |
 | **Calendrier** | Vue mois janvier 2026, matchs + entrainements |
-| **IA** | Predictions resultat, compo adverse, risque blessure, suggestions tactiques |
-| **Rapports** | Modeles pre/post match + bilan periodique, liste rapports |
+| **IA** | Predictions resultat, compo adverse (lue dans les numeros de maillot), systeme probable, risque blessure, suggestions tactiques |
+| **Rapports** | Rapport pre-match (imprimable en PDF et **exportable en PowerPoint**, pages au choix), rapport d'equipe, bilan periodique |
 | **Import FMI** | Drag&drop PDF, simulation pipeline parser → base |
 
 ---
@@ -226,7 +226,16 @@ Les imports internes a une feature sont relatifs ; entre features, ils passent p
 1. Verifier `/medical` pour confirmer l'effectif disponible
 2. Ouvrir `/club/<adv>/scouting` pour le rapport complet
 3. Composer dans `/tactique` (le onze suggere est pre-rempli)
-4. Generer un PDF pre-match dans `/rapports`
+4. Preparer le rapport d'avant-match dans `/rapports` : lecture a l'ecran, **Imprimer / PDF**, ou **Exporter en PowerPoint**
+   (au format de la presentation du staff, **pages au choix** : par exemple sans la page convocation). Les informations
+   que le rapport ne connait pas (heure de convocation, surface du terrain, style de jeu, ambiance...) restent des champs
+   **vides** a completer dans PowerPoint ; le dispositif attendu place le onze probable sur le terrain.
+
+### Compo et systeme probables
+Le systeme de jeu d'un adversaire vient des dispositifs saisis sur ses matchs **et** des numeros de maillot de ses feuilles
+(1 gardien, 2 DD, 3 DG, 4 DCD, 5 DCG, 6 MDC, 7 AG, 8 MC, 9 BU, 10 MO, 11 AD) : un joueur qui passe du 2 au 4 dit une
+defense a 4, un attaquant 9 puis 10 deux attaquants... Chaque estimation dit d'ou elle vient, sa confiance et ses indices ;
+un dispositif saisi pese toujours plus que les numeros.
 
 ### Apres un match
 1. Le coach uploade la FMI dans `/import`

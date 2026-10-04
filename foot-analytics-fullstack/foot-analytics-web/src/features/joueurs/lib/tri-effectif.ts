@@ -35,7 +35,7 @@ export function sensParDefaut(cle: CleTri): Sens {
 }
 
 /** Ordre des postes sur le terrain, du gardien aux attaquants ; un poste inconnu passe apres. */
-const RANG_POSTE = ["GB", "DD", "DC", "DG", "MD", "MIL", "MO", "MG", "AD", "AT", "AG"];
+const RANG_POSTE = ["GB", "DD", "DC", "DG", "MD", "MC", "MIL", "MO", "MG", "AD", "AT", "AG"];
 const rangPoste = (p: string | undefined) => {
   const i = RANG_POSTE.indexOf((p ?? "").toUpperCase());
   return i < 0 ? RANG_POSTE.length : i;

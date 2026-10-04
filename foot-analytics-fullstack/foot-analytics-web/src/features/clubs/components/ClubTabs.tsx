@@ -667,13 +667,13 @@ function Dispositif({
   dispositif, situation, grand = false,
 }: { dispositif: DispositifAffiche | null; situation?: SituationClub | null; grand?: boolean }) {
   if (dispositif) {
-    const p = situation?.systeme.prediction;
+    const p = situation?.systeme.probable;
     return grand ? (
       <div>
         <div className="font-display text-4xl font-black text-accent">{dispositif.systeme}</div>
         <div className="mt-1 text-xs text-muted">
           {dispositif.source === "prevu" ? "Prevu : " : ""}{dispositif.detail}
-          {dispositif.source === "observe" && p && p.alternatives.length > 0 && (
+          {dispositif.source !== "prevu" && p && p.alternatives.length > 0 && (
             <> · sinon {p.alternatives.map((a) => `${a.systeme} (${a.poids} %)`).join(", ")}</>
           )}
         </div>

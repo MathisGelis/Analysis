@@ -11,8 +11,10 @@
 //    dit deux attaquants ; un 9 qui alterne avec un 7 ou un 11 dit trois attaquants, etc. (table `REGLES`).
 //
 // Rien n'est invente : sans changement de numero, pas de systeme (seulement les postes) ; si les numeros ne sont pas
-// ceux de la convention (numeros de saison, plus de 25 % des titulaires hors 1-11), on ne deduit rien. Chaque
-// estimation cite ses indices et sa confiance, plafonnee : un numero n'est pas un dispositif saisi par le staff.
+// ceux de la convention (numeros de saison, plus de 25 % des titulaires hors 1-11), on ne deduit rien. Des indices qui se
+// contredisent (sur les feuilles reelles, les numeros bougent beaucoup : remplacements d'urgence, numeros donnes sans
+// logique de poste) ne donnent pas de systeme : seulement ce qui ressort nettement (une defense a 4, deux attaquants...).
+// Chaque estimation cite ses indices et sa confiance, plafonnee : un numero n'est pas un dispositif saisi par le staff.
 // Fonctions pures.
 
 import { trierChronologiquement } from "@/common/dates";
@@ -122,6 +124,14 @@ const FORCE_MAX_JOUEUR = 1.5;
 const FORCE_MAX_REGLE = 3;
 /** Force totale a partir de laquelle les preuves sont jugees suffisantes. */
 const FORCE_SUFFISANTE = 3;
+/** Preuves minimales (0 a 1) pour avancer quoi que ce soit (une defense a 4, deux attaquants...) : en dessous, un changement isole ne dit rien. */
+const PREUVES_MINIMALES = 0.5;
+/** Preuves minimales pour retenir un SYSTEME entier (4-4-2...), plus exigeant que pour une ligne. */
+const PREUVES_SYSTEME = 2 / 3;
+/** Avance minimale du systeme en tete sur le suivant (en part de son score) : en dessous, les indices se contredisent. */
+const AVANCE_MINIMALE = 0.25;
+/** Un changement vu une seule fois (remplacement d'urgence ?) pese moitie moins qu'un changement qui se repete. */
+const FACTEUR_CHANGEMENT_ISOLE = 0.5;
 
 /* ------------------------------------------- types ------------------------------------------- */
 
@@ -264,15 +274,20 @@ export function analyserNumeros(lignes: LigneFeuille[], fenetre = FENETRE_NUMERO
   const notes: string[] = [];
   const { indices, scores, preuves } = evaluerRegles(cumuls);
   const systeme = estimerSysteme(scores, preuves);
+  const structure = structureDe(preuves >= PREUVES_MINIMALES ? { distribution: distributionDe(scores) } : null);
   if (indices.length === 0) {
     notes.push(n < 2
       ? "Une seule feuille : aucun changement de numero a observer, le systeme ne peut pas etre deduit des numeros."
       : "Aucun changement de numero chez les titulaires : les numeros donnent les postes, pas le systeme.");
+  } else if (!systeme) {
+    notes.push(preuves < PREUVES_MINIMALES
+      ? "Peu de changements de numero (surtout isoles) : pas assez pour en deduire un systeme."
+      : "Les changements de numero se contredisent ou ne tranchent pas : aucun systeme n'en est deduit.");
   }
 
   return {
     matchs: n, fiabilite, profils, onze: onzeParPoste(cumuls), indices: indices.slice(0, 6),
-    systeme, structure: structureDe(systeme), notes,
+    systeme, structure, notes,
   };
 }
 
@@ -331,7 +346,9 @@ function evaluerRegles(cumuls: Map<string, Cumul>): {
     for (const regle of REGLES) {
       const paires = regle.paires.map(([a, b]) => {
         const pa = c.parNumero.get(a), pb = c.parNumero.get(b);
-        return pa && pb ? { a, b, pa, pb, force: Math.min(pa.poids, pb.poids) } : null;
+        // Un changement qui se repete (chaque numero porte au moins deux fois) compte plein ; un changement isole, moitie.
+        const regulier = pa && pb && Math.min(pa.fois, pb.fois) >= 2;
+        return pa && pb ? { a, b, pa, pb, force: Math.min(pa.poids, pb.poids) * (regulier ? 1 : FACTEUR_CHANGEMENT_ISOLE) } : null;
       }).filter((p): p is NonNullable<typeof p> => p !== null);
       if (paires.length === 0) continue;
       const force = Math.min(FORCE_MAX_JOUEUR, paires.reduce((s, p) => s + p.force, 0));
@@ -366,19 +383,34 @@ function evaluerRegles(cumuls: Map<string, Cumul>): {
   return { indices: retenus, scores, preuves: Math.min(1, preuvesTotales / FORCE_SUFFISANTE) };
 }
 
-function estimerSysteme(scores: Map<FormationNumeros, number>, preuves: number): EstimationNumeros | null {
+/** Poids de chaque systeme soutenu par au moins un indice, en %, du plus au moins probable. */
+function distributionDe(scores: Map<FormationNumeros, number>): { systeme: string; poids: number }[] {
   const total = [...scores.values()].reduce((s, x) => s + x, 0);
-  if (total <= 0) return null;
+  if (total <= 0) return [];
   // A egalite : l'ordre de FORMATIONS_NUMEROS (les plus courantes d'abord).
+  return FORMATIONS_NUMEROS.filter((f) => (scores.get(f) ?? 0) > 0)
+    .map((f) => ({ systeme: f as string, score: scores.get(f)! }))
+    .sort((a, b) => b.score - a.score)
+    .map((c) => ({ systeme: c.systeme, poids: Math.round((c.score / total) * 100) }));
+}
+
+/**
+ * Le systeme en tete, s'il y a assez de preuves ET s'il devance nettement le suivant ; sinon null (indices trop minces
+ * ou contradictoires). Sa confiance : sa part face au suivant, plafonnee, d'autant plus basse que les preuves sont minces.
+ */
+function estimerSysteme(scores: Map<FormationNumeros, number>, preuves: number): EstimationNumeros | null {
   const classes = FORMATIONS_NUMEROS.filter((f) => (scores.get(f) ?? 0) > 0)
     .map((f) => ({ systeme: f as string, score: scores.get(f)! }))
     .sort((a, b) => b.score - a.score);
-  const distribution = classes.map((c) => ({ systeme: c.systeme, poids: Math.round((c.score / total) * 100) }));
-  const part = classes[0].score / total;
-  const confiance = Math.round(PLAFOND_CONFIANCE_NUMEROS * part * preuves);
+  if (classes.length === 0 || preuves < PREUVES_SYSTEME) return null;
+  const [premier, second] = [classes[0].score, classes[1]?.score ?? 0];
+  const avance = (premier - second) / premier;
+  if (avance < AVANCE_MINIMALE) return null;
   return {
-    systeme: classes[0].systeme, confiance, fiabilite: preuves >= 1 && part >= 0.5 ? "moyenne" : "faible",
-    distribution, preuves: +preuves.toFixed(2),
+    systeme: classes[0].systeme,
+    confiance: Math.round(PLAFOND_CONFIANCE_NUMEROS * (premier / (premier + second)) * preuves),
+    fiabilite: preuves >= 1 && avance >= 0.5 ? "moyenne" : "faible",
+    distribution: distributionDe(scores), preuves: +preuves.toFixed(2),
   };
 }
 

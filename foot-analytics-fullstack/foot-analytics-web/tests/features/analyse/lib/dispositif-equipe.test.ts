@@ -4,12 +4,20 @@ import { dispositifAffiche, formationDuOnze, nomDeFamille, ordonnerPourTerrain }
 import type { JoueurOnze, SituationClub } from "@/features/analyse/lib/situation-types";
 
 const match = (formation: string | null) => ({ id: "m", date: "01/10/2025", journee: null, domicile: true, adversaireId: "a", bp: 1, bc: 0, issue: "V" as const, formation });
-const situation = (prediction: SituationClub["systeme"]["prediction"], onze: SituationClub["dernierOnze"] = null): SituationClub => ({
+type Probable = NonNullable<SituationClub["systeme"]["probable"]>;
+const situation = (probable: Probable | null, onze: SituationClub["dernierOnze"] = null): SituationClub => ({
   clubId: "c", equipeId: "e", saisonId: "s",
-  systeme: { prediction, observes: prediction?.observations ?? 0, matchs: 5, dernierMatchId: "m" },
+  systeme: {
+    prediction: probable && probable.source !== "numeros"
+      ? { systeme: probable.systeme, confiance: probable.confiance, observations: probable.observations, fiabilite: probable.fiabilite, alternatives: [] } : null,
+    observes: probable?.observations ?? 0, matchs: 5, dernierMatchId: "m", probable,
+  },
   dernierMatch: match(null), dernierOnze: onze,
 });
-const pred = (systeme: string, observations = 3) => ({ systeme, confiance: 60, observations, fiabilite: "moyenne" as const, alternatives: [] });
+const pred = (systeme: string, observations = 3, source: Probable["source"] = "renseigne", matchsNumeros = 0): Probable => ({
+  systeme, confiance: 60, fiabilite: "moyenne", source, observations, matchsNumeros, alternatives: [], indices: [],
+  structure: { defense: null, attaque: null }, disposition: [[2, 4, 5, 3], [7, 6, 8, 11], [9, 10]],
+});
 const j = (numero: number, poste: string | null = null): JoueurOnze => ({
   numero, nom: `J${numero}`, prenom: null, licence: null, joueurId: null, poste, capitaine: false, minutes: 90,
 });
@@ -20,7 +28,19 @@ describe("dispositifAffiche", () => {
     expect(dispositifAffiche(situation(pred("4-3-3", 1)))!.detail).toBe("d'apres 1 match renseigne");
   });
 
-  it("l'observe prime sur le prevu ; sans observation, le prevu (mon equipe) ; sinon rien", () => {
+  it("deduit des numeros de maillot quand rien n'est renseigne : dit d'ou ca vient et que c'est a confirmer", () => {
+    expect(dispositifAffiche(situation(pred("4-4-2", 0, "numeros", 6)))).toEqual({
+      systeme: "4-4-2", source: "numeros", detail: "deduit des numeros de maillot sur 6 feuilles (a confirmer)",
+    });
+  });
+
+  it("dispositifs renseignes recoupes par les numeros", () => {
+    expect(dispositifAffiche(situation(pred("4-3-3", 3, "mixte", 6)))).toEqual({
+      systeme: "4-3-3", source: "mixte", detail: "d'apres 3 matchs renseignes, recoupes par les numeros de maillot",
+    });
+  });
+
+  it("le probable prime sur le prevu ; sans probable, le prevu (mon equipe) ; sinon rien", () => {
     expect(dispositifAffiche(situation(pred("4-3-3")), "3-5-2")!.systeme).toBe("4-3-3");
     expect(dispositifAffiche(situation(null), "3-5-2")).toMatchObject({ systeme: "3-5-2", source: "prevu" });
     expect(dispositifAffiche(situation(null), "  ")).toBeNull();
@@ -44,6 +64,11 @@ describe("ordonnerPourTerrain", () => {
   it("gardien, defense, milieu, attaque d'apres le poste de la fiche", () => {
     const l = [j(9, "AT"), j(5, "MD"), j(1, "GB"), j(3, "DC"), j(7, "AG")];
     expect(ordonnerPourTerrain(l).map((x) => x.numero)).toEqual([1, 3, 5, 7, 9]);
+  });
+
+  it("poste inconnu : le numero de maillot place le joueur selon la convention (7 et 11 ailiers = attaque, 8 et 10 milieu)", () => {
+    const l = [j(11), j(8), j(6), j(7), j(10), j(9)];
+    expect(ordonnerPourTerrain(l).map((x) => x.numero)).toEqual([6, 8, 10, 7, 9, 11]);
   });
 
   it("poste inconnu : repli sur le numero de maillot, sans melanger les postes connus", () => {

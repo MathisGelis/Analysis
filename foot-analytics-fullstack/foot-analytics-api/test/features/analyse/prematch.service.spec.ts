@@ -218,34 +218,56 @@ describe("PrematchService.rapport", () => {
       expect(r.pistes.some((x) => x.titre === "Systeme probable : 4-3-3")).toBe(true);
     });
 
-    it("sans dispositif renseigne, le systeme se lit dans les changements de numero (BU puis MO : deux attaquants)", async () => {
-      const c = await contexte();
-      // L'attaquant AVANT porte le 9 puis le 10 d'un match a l'autre ; un gardien et un milieu fixes complettent la feuille.
+    /**
+     * Quatre matchs de l'adversaire ; sur chacun, un lateral (DEFA / DEFB, 2 et 4) et un attaquant (AVANT / MENEUR, 9 et 10)
+     * echangent leur numero un match sur deux : une defense a 4 et deux attaquants, seul le 4-4-2 les reunit.
+     */
+    async function matchsAvecNumeros(c: Awaited<ReturnType<typeof contexte>>, extra: object = {}) {
       for (const [i, date] of ["07/09/2025", "14/09/2025", "21/09/2025", "28/09/2025"].entries()) {
-        const m = await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, date, 1, 0);
+        const m = await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, date, 1, 0, extra);
+        const echange = i % 2 === 1;
         await f.compo({ matchId: m.id, cote: "dom", nom: "GARDIEN", prenom: "Gil", numero: 1 });
-        await f.compo({ matchId: m.id, cote: "dom", nom: "AVANT", prenom: "Leo", numero: i % 2 ? 10 : 9 });
+        await f.compo({ matchId: m.id, cote: "dom", nom: "DEFA", prenom: "Ali", numero: echange ? 4 : 2 });
+        await f.compo({ matchId: m.id, cote: "dom", nom: "DEFB", prenom: "Ben", numero: echange ? 2 : 4 });
+        await f.compo({ matchId: m.id, cote: "dom", nom: "AVANT", prenom: "Leo", numero: echange ? 10 : 9 });
+        await f.compo({ matchId: m.id, cote: "dom", nom: "MENEUR", prenom: "Tom", numero: echange ? 9 : 10 });
       }
+    }
+
+    it("sans dispositif renseigne, le systeme se lit dans les changements de numero (defense a 4 et deux attaquants : 4-4-2)", async () => {
+      const c = await contexte();
+      await matchsAvecNumeros(c);
 
       const r = await svc.rapport(c.eMoi.id, c.adv.id);
 
       expect(r.systemeAdverse.prediction).toBeNull();
       expect(r.systemeAdverse.probable).toMatchObject({ systeme: "4-4-2", source: "numeros", observations: 0, matchsNumeros: 4 });
       expect(r.systemeAdverse.probable!.confiance).toBeLessThanOrEqual(70);
-      expect(r.numeros!.indices[0].texte).toMatch(/AVANT/);
+      expect(r.systemeAdverse.probable!.disposition).toEqual([[2, 4, 5, 3], [7, 6, 8, 11], [9, 10]]);
+      expect(r.numeros!.indices.map((i) => i.regle)).toEqual(expect.arrayContaining(["lateral-axe", "deux-attaquants"]));
       expect(r.pistes.find((x) => x.titre === "Systeme probable : 4-4-2")!.detail).toMatch(/changements de numero sur 4 feuilles/);
-      // Les numeros donnent aussi le onze : le gardien au 1, l'attaquant a son numero le plus recent / frequent.
+      // Les numeros donnent aussi le onze : le gardien au 1.
       expect(r.analyse!.compoProbable).toEqual(expect.arrayContaining([
         expect.objectContaining({ numero: 1, poste: "GB", nom: "Gil GARDIEN" }),
       ]));
     });
 
-    it("dispositif renseigne ET numeros : les deux sont fusionnes, le dispositif saisi gardant la tete", async () => {
+    it("des changements de numero qui ne tranchent pas : pas de systeme, mais les indices et les notes", async () => {
       const c = await contexte();
       for (const [i, date] of ["07/09/2025", "14/09/2025", "21/09/2025", "28/09/2025"].entries()) {
-        const m = await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, date, 1, 0, { formationDom: "4-3-3" });
+        const m = await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, date, 1, 0);
         await f.compo({ matchId: m.id, cote: "dom", nom: "AVANT", prenom: "Leo", numero: i % 2 ? 10 : 9 });
+        await f.compo({ matchId: m.id, cote: "dom", nom: "MENEUR", prenom: "Tom", numero: i % 2 ? 9 : 10 });
       }
+      const r = await svc.rapport(c.eMoi.id, c.adv.id);
+      expect(r.systemeAdverse.probable).toBeNull();
+      expect(r.numeros!.structure.attaque).toEqual({ attaquants: 2, part: 100 });
+      expect(r.numeros!.notes.join(" ")).toMatch(/ne tranchent pas/);
+    });
+
+    it("dispositif renseigne ET numeros : les deux sont fusionnes, le dispositif saisi gardant la tete", async () => {
+      const c = await contexte();
+      await matchsAvecNumeros(c, { formationDom: "4-3-3" });
 
       const r = await svc.rapport(c.eMoi.id, c.adv.id);
 

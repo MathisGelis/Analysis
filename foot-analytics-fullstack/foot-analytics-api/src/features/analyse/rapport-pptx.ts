@@ -168,9 +168,11 @@ const SURVEILLER = [
 
 function dispositif(xml: string, c: ContenuRapport["dispositif"]): string {
   let r = ecrireTexte(xml, 152, [c.titre]);
-  if (c.systeme) {
-    r = placerOnze(r, c.systeme, c.noms);
-    // Comment lire le systeme : d'ou il vient et avec quelle confiance (a gauche, en face de "Sens de leur attaque").
+  // Les noms se lisent dans les numeros, donc valent meme quand le systeme est inconnu : on les ecrit alors sur la
+  // disposition du modele (un 4-4-2), a deplacer dans PowerPoint ; le titre reste vide.
+  if (c.systeme || Object.keys(c.noms).length > 0) {
+    r = placerOnze(r, c.systeme ?? "4-4-2", c.noms);
+    // Comment lire le dispositif : d'ou il vient et avec quelle confiance (a gauche, en face de "Sens de leur attaque").
     if (c.source) {
       const legende = dupliquer(r, 181, NOM_ID0 + 20, "Origine du dispositif")
         .replace('algn="r"', 'algn="l"').replace('<a:t>Sens de leur attaque  →</a:t>', `<a:t>${echapper(c.source)}</a:t>`);

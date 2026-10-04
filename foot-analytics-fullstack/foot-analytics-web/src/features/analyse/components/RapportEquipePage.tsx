@@ -380,6 +380,11 @@ export default async function RapportEquipe({
             <Users size={11} className="text-accent"/>
             Compo probable ({rapport.compoProbable.length}/11)
           </div>
+          {rapport.numeros?.fiabilite?.exploitable && (
+            <p className="-mt-1.5 mb-3 text-[11px] text-faint">
+              Un joueur par numero de maillot (1 gardien, 2 DD, 3 DG, 4 DCD, 5 DCG, 6 MDC, 7 AG, 8 MC, 9 BU, 10 MO, 11 AD), sur les {rapport.numeros.matchs} dernieres feuilles.
+            </p>
+          )}
           {rapport.compoProbable.length === 0 ? (
             <p className="text-sm text-muted py-4 text-center">
               Aucun joueur recurrent — trop peu de matchs pour deduire une compo.
@@ -402,13 +407,22 @@ export default async function RapportEquipe({
                     <td className="text-right tabular-nums">
                       {c.matchsJoues}
                       <span className="text-faint text-[10px]">
-                        /{rapport.matchsAnalyses}
+                        /{rapport.compoProbableSur ?? rapport.matchsAnalyses}
                       </span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          )}
+          {rapport.numeros && (rapport.numeros.indices.length > 0 || rapport.numeros.notes.length > 0) && (
+            <div className="mt-4 border-t border-line pt-3">
+              <div className="stat-label mb-1.5">Ce que disent les numeros</div>
+              <ul className="space-y-1 text-xs leading-relaxed text-muted">
+                {rapport.numeros.indices.slice(0, 4).map((i: any) => <li key={i.texte}>{i.texte}</li>)}
+                {rapport.numeros.notes.map((n: string) => <li key={n} className="text-faint">{n}</li>)}
+              </ul>
+            </div>
           )}
         </div>
 

@@ -191,8 +191,12 @@ en tire :
 - le **onze probable par poste** : un joueur par numero d'apres les 10 dernieres feuilles (les recentes pesent plus) ;
 - le **systeme**, d'apres les **changements de numero** d'un joueur : un 2 qui devient 4 (DD vers DC) dit une defense a 4, un
   attaquant tantot 9 tantot 10 dit deux attaquants, un 9 qui alterne avec un 7 ou un 11 trois attaquants... (table `REGLES`).
-  Des numeros stables (1 a 11 dans 96 % des feuilles) donnent les postes mais pas le systeme. Chaque estimation cite ses
-  indices, sa confiance est plafonnee a 70 %, et si les numeros sont ceux de la saison (hors 1-11) rien n'est deduit.
+  Des numeros stables (1 a 11 dans 96 % des feuilles) donnent les postes mais pas le systeme. Un changement vu une fois
+  (remplacement d'urgence) pese moitie moins qu'un changement qui se repete, les recents pesent plus. Sur les feuilles
+  reelles les numeros bougent beaucoup et se contredisent souvent : **un systeme n'est retenu que si les preuves sont
+  suffisantes et si le premier devance nettement le suivant** ; sinon seules ressortent les lignes nettes (« defense a 4 »,
+  « deux attaquants ») et les indices. Chaque estimation cite ses indices, sa confiance est plafonnee a 70 %, et si les
+  numeros sont ceux de la saison (hors 1-11) rien n'est deduit.
 
 `features/analyse/systeme-probable.ts` les fusionne avec les dispositifs saisis (le staff prime, les numeros confirment,
 completent ou contredisent) ; `disposition-onze.ts` dit ou se placent les numeros dans chaque dispositif.

@@ -97,58 +97,87 @@ describe("analyserNumeros : postes", () => {
 });
 
 describe("analyserNumeros : systeme d'apres les changements de numero", () => {
-  it("un lateral qui passe dans l'axe (2 puis 4) : defense a 4 (DD -> DC)", () => {
+  /** p2 et p4 (DD, DCD), puis p9 et p10 (BU, MO) echangent leur numero un match sur deux. */
+  const echanges = (nb: number, ...qui: ("lateral" | "attaque" | "ailiers")[]): Record<string, number>[] =>
+    Array.from({ length: nb }, (_, i): Record<string, number> => {
+      if (i % 2 !== 0) return {};
+      return {
+        ...(qui.includes("lateral") ? { p2: 4, p4: 2 } : {}),
+        ...(qui.includes("attaque") ? { p9: 10, p10: 9 } : {}),
+        ...(qui.includes("ailiers") ? { p9: 11, p11: 9 } : {}),
+      };
+    });
+
+  it("un lateral qui passe dans l'axe (2 puis 4) : defense a 4 (DD -> DC), sans pretendre connaitre le milieu ni l'attaque", () => {
     // p2 est 2 trois fois et 4 deux fois ; p4 prend le 2 les deux fois ou p2 est 4.
     const a = analyserNumeros(saison({ p2: 4, p4: 2 }, {}, { p2: 4, p4: 2 }, {}, {}));
     const indice = a.indices.find((i) => i.regle === "lateral-axe");
     expect(indice).toBeDefined();
     expect(indice!.texte).toMatch(/Joueur 2 porte le 2 \(3 fois\) et le 4 \(2 fois\) : un lateral qui passe dans l'axe \(DD\/DG vers DC\) : defense a 4/);
-    expect(a.systeme).not.toBeNull();
-    expect(["4-4-2", "4-3-3", "4-2-3-1"]).toContain(a.systeme!.systeme);
     expect(a.structure.defense).toEqual({ lignes: 4, part: 100 });
-    // La defense a 4 est lue ; l'attaque, non (trois systemes a egalite : aucune valeur ne domine).
-    expect(a.structure.attaque).toBeNull();
+    expect(a.structure.attaque).toBeNull();                       // trois systemes a 4 derriere, 1, 2 ou 3 devant : rien d'affirme
+    expect(a.systeme).toBeNull();                                  // ... donc pas de systeme : 4-4-2, 4-3-3 et 4-2-3-1 sont a egalite
+    expect(a.notes.join(" ")).toMatch(/ne tranchent pas/);
   });
 
-  it("un attaquant tantot 9 tantot 10 : deux attaquants (4-4-2)", () => {
-    const a = analyserNumeros(saison({ p9: 10, p10: 9 }, {}, { p9: 10, p10: 9 }, {}, { p9: 10, p10: 9 }, {}));
+  it("un attaquant tantot 9 tantot 10 : deux attaquants (le milieu reste a deduire)", () => {
+    const a = analyserNumeros(saison(...echanges(6, "attaque")));
     expect(a.indices.some((i) => i.regle === "deux-attaquants")).toBe(true);
-    expect(a.systeme!.systeme).toBe("4-4-2");
-    expect(a.structure.attaque).toMatchObject({ attaquants: 2 });
-    expect(a.systeme!.distribution.map((d) => d.systeme)).toEqual(["4-4-2", "3-5-2", "5-3-2"]);
+    expect(a.structure.attaque).toEqual({ attaquants: 2, part: 100 });
+    expect(a.structure.defense).toBeNull();                        // 4-4-2, 3-5-2 et 5-3-2 : la defense n'est pas lue
+    expect(a.systeme).toBeNull();
   });
 
-  it("un avant-centre qui alterne avec un ailier (9 et 11, 7 et 9) : trois attaquants (4-3-3)", () => {
+  it("un avant-centre qui alterne avec un ailier (9 et 11, 7 et 9) : trois attaquants", () => {
     const a = analyserNumeros(saison({ p9: 11, p11: 9 }, {}, { p9: 7, p7: 9 }, {}, { p9: 11, p11: 9 }, {}));
     expect(a.indices.some((i) => i.regle === "trois-attaquants")).toBe(true);
-    expect(a.systeme!.systeme).toBe("4-3-3");
-    expect(a.structure.attaque).toMatchObject({ attaquants: 3, part: 100 });
+    expect(a.structure.attaque).toEqual({ attaquants: 3, part: 100 });
   });
 
-  it("un lateral qui monte (2 et 7) : piston, defense a 3 ou 5", () => {
+  it("un lateral qui monte (2 et 7) : piston, defense a 3 ou 5, pas de valeur retenue", () => {
     const a = analyserNumeros(saison({ p2: 7, p7: 2 }, {}, { p2: 7, p7: 2 }, {}));
     expect(a.indices.some((i) => i.regle === "lateral-piston")).toBe(true);
-    expect(a.systeme!.distribution.map((d) => d.systeme)).toEqual(["3-5-2", "3-4-3", "5-3-2", "5-4-1"]);
-    expect(a.structure.defense).toBeNull();      // 3 ou 5 : aucune valeur ne domine
+    expect(a.systeme).toBeNull();
+    expect(a.structure.defense).toBeNull();                        // 3 ou 5 : aucune valeur ne domine
   });
 
-  it("les indices se cumulent : lateral dans l'axe + deux attaquants -> 4-4-2 en tete", () => {
-    const a = analyserNumeros(saison({ p2: 4, p4: 2, p9: 10, p10: 9 }, {}, { p2: 4, p4: 2, p9: 10, p10: 9 }, {}, {}));
-    expect(a.systeme!.systeme).toBe("4-4-2");
+  it("les indices se cumulent : lateral dans l'axe + deux attaquants -> 4-4-2, seul systeme soutenu par les deux", () => {
+    const a = analyserNumeros(saison(...echanges(5, "lateral", "attaque")));
+    expect(a.systeme).toMatchObject({ systeme: "4-4-2", fiabilite: "moyenne" });
+    expect(a.systeme!.distribution.map((d) => d.systeme)).toEqual(["4-4-2", "4-3-3", "4-2-3-1", "3-5-2", "5-3-2"]);
+    expect(a.systeme!.confiance).toBeGreaterThan(30);
     expect(a.structure.defense).toMatchObject({ lignes: 4 });
     expect(a.structure.attaque).toMatchObject({ attaquants: 2 });
   });
 
-  it("la confiance reste plafonnee et d'autant plus basse que les indices sont minces", () => {
-    const mince = analyserNumeros(saison({}, {}, {}, {}, { p9: 10, p10: 9 })).systeme!;     // un seul changement, tout recent
-    const epais = analyserNumeros(saison(
-      { p9: 10, p10: 9, p2: 4, p4: 2 }, {}, { p9: 10, p10: 9, p2: 4, p4: 2 }, {}, { p9: 10, p10: 9, p2: 4, p4: 2 }, {},
-    )).systeme!;
-    expect(mince.preuves).toBeLessThan(1);
-    expect(mince.fiabilite).toBe("faible");
-    expect(mince.confiance).toBeLessThanOrEqual(PLAFOND_CONFIANCE_NUMEROS);
-    expect(epais.confiance).toBeGreaterThanOrEqual(mince.confiance);
-    expect(epais.confiance).toBeLessThanOrEqual(PLAFOND_CONFIANCE_NUMEROS);
+  it("des indices contradictoires ne donnent aucun systeme : une defense a 4 ET des pistons autant l'un que l'autre", () => {
+    const a = analyserNumeros(saison(
+      ...Array.from({ length: 6 }, (_, i): Record<string, number> => (i % 2 ? {} : { p2: 4, p4: 2, p3: 7, p7: 3 })),
+    ));
+    expect(a.indices.map((i) => i.regle)).toEqual(expect.arrayContaining(["lateral-axe", "lateral-piston"]));
+    expect(a.systeme).toBeNull();
+    expect(a.notes.join(" ")).toMatch(/ne tranchent pas/);
+  });
+
+  it("la confiance reste plafonnee et d'autant plus basse que les preuves sont minces : un changement isole ne dit rien", () => {
+    const isole = analyserNumeros(saison({}, {}, {}, {}, { p9: 10, p10: 9 }));         // un seul changement, tout recent
+    expect(isole.systeme).toBeNull();
+    expect(isole.structure).toEqual({ defense: null, attaque: null });
+    expect(isole.notes.join(" ")).toMatch(/Peu de changements de numero/);
+
+    const epais = analyserNumeros(saison(...echanges(6, "lateral", "attaque", "ailiers"))).systeme;
+    const net = analyserNumeros(saison(...echanges(6, "lateral", "attaque"))).systeme!;
+    expect(net.preuves).toBe(1);
+    expect(net.confiance).toBeLessThanOrEqual(PLAFOND_CONFIANCE_NUMEROS);
+    expect(net.confiance).toBeGreaterThan(30);
+    expect(epais === null || epais.confiance <= PLAFOND_CONFIANCE_NUMEROS).toBe(true);
+  });
+
+  it("un changement qui se repete pese plus qu'un changement isole (remplacement d'urgence)", () => {
+    // p9 porte le 10 une seule fois, au dernier match : isole ; puis trois fois, un match sur deux : repete.
+    const isole = analyserNumeros(saison({}, {}, {}, {}, {}, { p9: 10 })).indices[0];
+    const repete = analyserNumeros(saison({}, { p9: 10 }, {}, { p9: 10 }, {}, { p9: 10 })).indices[0];
+    expect(repete.force).toBeGreaterThan(isole.force);
   });
 
   it("un changement recent pese plus qu'un changement ancien", () => {
@@ -158,8 +187,9 @@ describe("analyserNumeros : systeme d'apres les changements de numero", () => {
   });
 
   it("un joueur n'emporte pas la decision a lui seul : sa force est plafonnee", () => {
-    const lignes = saison(...Array.from({ length: 6 }, () => ({ p2: 4, p3: 5, p4: 2, p5: 3 })));
+    const lignes = saison(...Array.from({ length: 6 }, (_, i): Record<string, number> => (i % 2 ? {} : { p2: 4, p3: 5, p4: 2, p5: 3 })));
     const a = analyserNumeros(lignes);
+    expect(a.indices.length).toBeGreaterThan(0);
     expect(a.indices.every((i) => i.force <= 1.5)).toBe(true);
   });
 

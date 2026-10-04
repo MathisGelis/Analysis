@@ -77,20 +77,25 @@ describe("SituationService.situation", () => {
     expect(autre.dernierOnze).toBeNull();
   });
 
-  it("dispositif probable : les dispositifs renseignes, completes par les changements de numero de MES feuilles", async () => {
+  it("dispositif probable : lu dans les changements de numero de MES feuilles quand rien n'est renseigne", async () => {
     const c = await contexte();
-    // Mon attaquant porte le 9 puis le 10 ; l'adversaire (cote visiteur) porte d'autres numeros qui ne comptent pas.
+    // Mes lateraux (2 / 4) et mes attaquants (9 / 10) echangent leur numero un match sur deux ; l'adversaire (cote visiteur)
+    // porte d'autres numeros qui ne comptent pas.
     for (const [i, date] of ["07/09/2025", "14/09/2025", "21/09/2025", "28/09/2025"].entries()) {
       const m = await c.jouer(c.seniors, date);
-      await f.compo({ matchId: m.id, cote: "dom", nom: "AVANT", prenom: "Leo", numero: i % 2 ? 10 : 9 });
-      await f.compo({ matchId: m.id, cote: "ext", nom: "ADVERSE", prenom: "Zed", numero: i % 2 ? 4 : 2 });
+      const echange = i % 2 === 1;
+      await f.compo({ matchId: m.id, cote: "dom", nom: "DEFA", prenom: "Ali", numero: echange ? 4 : 2 });
+      await f.compo({ matchId: m.id, cote: "dom", nom: "DEFB", prenom: "Ben", numero: echange ? 2 : 4 });
+      await f.compo({ matchId: m.id, cote: "dom", nom: "AVANT", prenom: "Leo", numero: echange ? 10 : 9 });
+      await f.compo({ matchId: m.id, cote: "dom", nom: "MENEUR", prenom: "Tom", numero: echange ? 9 : 10 });
+      await f.compo({ matchId: m.id, cote: "ext", nom: "ADVERSE", prenom: "Zed", numero: echange ? 4 : 2 });
     }
 
     const r = await svc.situation(c.moi.id, { equipeId: c.seniors.id });
 
     expect(r.systeme.prediction).toBeNull();                       // rien de saisi
     expect(r.systeme.probable).toMatchObject({ systeme: "4-4-2", source: "numeros", matchsNumeros: 4, observations: 0 });
-    expect(r.systeme.probable!.indices.join(" ")).toMatch(/AVANT|Leo/);
+    expect(r.systeme.probable!.indices.join(" ")).toMatch(/DEFA|Ali/);
     expect(r.systeme.probable!.indices.join(" ")).not.toMatch(/ADVERSE|Zed/);
   });
 

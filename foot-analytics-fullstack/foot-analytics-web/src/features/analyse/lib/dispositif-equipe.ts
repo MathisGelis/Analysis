@@ -13,18 +13,23 @@ import type { JoueurOnze, SituationClub } from "./situation-types";
 
 export interface DispositifAffiche {
   systeme: string;
-  source: "observe" | "prevu";
+  /** observe : dispositifs renseignes ; numeros : deduit des numeros de maillot ; mixte : les deux ; prevu : plan enregistre. */
+  source: "observe" | "numeros" | "mixte" | "prevu";
   /** Phrase courte qui dit d'ou vient l'information. */
   detail: string;
 }
 
+const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? "s" : ""}`;
+
 export function dispositifAffiche(
   situation: SituationClub | null | undefined, planFormation?: string | null,
 ): DispositifAffiche | null {
-  const p = situation?.systeme.prediction;
+  const p = situation?.systeme.probable;
   if (p) {
-    const n = p.observations;
-    return { systeme: p.systeme, source: "observe", detail: `d'apres ${n} match${n > 1 ? "s" : ""} renseigne${n > 1 ? "s" : ""}` };
+    const saisis = `d'apres ${pluriel(p.observations, "match")} renseigne${p.observations > 1 ? "s" : ""}`;
+    if (p.source === "renseigne") return { systeme: p.systeme, source: "observe", detail: saisis };
+    if (p.source === "mixte") return { systeme: p.systeme, source: "mixte", detail: `${saisis}, recoupes par les numeros de maillot` };
+    return { systeme: p.systeme, source: "numeros", detail: `deduit des numeros de maillot sur ${pluriel(p.matchsNumeros, "feuille")} (a confirmer)` };
   }
   if (planFormation && planFormation.trim()) {
     return { systeme: planFormation.trim(), source: "prevu", detail: "prevu dans la derniere composition enregistree" };
@@ -37,20 +42,22 @@ export function formationDuOnze(situation: SituationClub | null | undefined): { 
   const onze = situation?.dernierOnze;
   if (!onze) return null;
   if (onze.match.formation) return { formation: onze.match.formation, exact: true };
-  const probable = situation?.systeme.prediction?.systeme;
+  const probable = situation?.systeme.probable?.systeme;
   return probable ? { formation: probable, exact: false } : null;
 }
 
 const RANG: Record<Ligne, number> = { GB: 0, DEF: 1, MIL: 2, ATT: 3 };
 
-/** Ligne d'un joueur : son poste connu, sinon, pour le seul rangement, son numero de maillot (1 gardien, 2-5, 6-8, 9-11). */
+/**
+ * Ligne d'un joueur : son poste connu, sinon, pour le seul rangement, son numero de maillot selon la convention du staff
+ * (1 gardien, 2 a 5 defense, 6 / 8 / 10 milieu, 7 / 9 / 11 attaque).
+ */
 function ligneDe(j: Pick<JoueurOnze, "poste" | "numero">): Ligne {
   const d = ligneDuPoste(j.poste);
   if (d) return d;
   if (j.numero === 1) return "GB";
   if (j.numero <= 5) return "DEF";
-  if (j.numero <= 8) return "MIL";
-  return "ATT";
+  return [6, 8, 10].includes(j.numero) ? "MIL" : "ATT";
 }
 
 /**

@@ -17,7 +17,7 @@ import { Select } from "@/shared/ui/Select";
 import { optionsSimples } from "@/shared/lib/selecteur";
 import type { Joueur } from "@/shared/lib/types";
 
-const POSTES = ["GB", "DD", "DC", "DG", "MD", "MO", "AT", "AG", "MIL"];
+const POSTES = ["GB", "DD", "DC", "DG", "MD", "MC", "MO", "AT", "AG", "AD", "MIL"];
 const STATUTS_MINE = ["Pas mutation", "Mutation", "Mutation hors delai"];
 const STATUTS_OTHERS = ["Non connu", "Pas mutation", "Mutation", "Mutation hors delai"];
 const PIEDS = ["droit", "gauche", "ambidextre"];

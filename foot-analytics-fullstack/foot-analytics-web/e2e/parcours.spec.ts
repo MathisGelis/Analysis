@@ -316,6 +316,55 @@ test("rapport pre-match : un clic depuis /rapports, rapport lisible, imprimable 
   await expect(page.getByText(/introuvable|n'existe pas|404/i).first()).toBeVisible();
 });
 
+test("rapport pre-match : export PowerPoint, pages au choix (sans la page convocation), champs inconnus laisses vides", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : l'adversaire vient de la FMI importee");
+
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const clubs: { id: string; nom: string }[] = await (await fetch(`${API_URL}/clubs`, { headers: { Authorization: `Bearer ${token}` } })).json();
+  const adversaire = clubs.find((c) => c.nom !== "OL Sud E2E")!;
+
+  await page.goto(`/rapports/prematch/${adversaire.id}`);
+  await page.getByRole("button", { name: "Exporter en PowerPoint" }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "Exporter en PowerPoint" })).toBeVisible();
+
+  // Les sept pages du modele, toutes cochees au depart.
+  const cases = page.getByRole("checkbox");
+  await expect(cases).toHaveCount(7);
+  for (let i = 0; i < 7; i++) await expect(cases.nth(i)).toBeChecked();
+
+  // Sans la page convocation ("Le match") : six pages.
+  await page.getByRole("checkbox", { name: /Le match/ }).uncheck();
+  await expect(page.getByRole("button", { name: /Telecharger \(6 pages sur 7\)/ })).toBeVisible();
+  const [telechargement] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: /Telecharger/ }).click(),
+  ]);
+  expect(telechargement.suggestedFilename()).toMatch(/^avant-match-.+\.pptx$/);
+  await expect(page.getByText(/Completez les champs vides dans PowerPoint/)).toBeVisible();
+
+  // Le fichier : une archive de six diapositives, sans la page "Le match" (donc sans "Convocation"), avec l'adversaire.
+  const [diapos, convocation, adv] = execFileSync(process.env.PYTHON_BIN ?? "python3", ["-c", [
+    "import sys, re, zipfile",
+    "z = zipfile.ZipFile(sys.argv[1])",
+    "n = [x for x in z.namelist() if re.match(r'ppt/slides/slide\\d+\\.xml$', x)]",
+    "t = ' '.join(z.read(x).decode('utf8') for x in n)",
+    "print(len(n)); print('Convocation' in t); print(sys.argv[2].upper() in t.upper())",
+  ].join("\n"), (await telechargement.path()) as string, adversaire.nom]).toString().trim().split("\n");
+  expect([diapos, convocation, adv]).toEqual(["6", "False", "True"]);
+
+  // La fenetre se ferme apres le telechargement ; rouverte, elle garde le choix (6 pages). Aucune page cochee : pas de telechargement.
+  await expect(page.getByRole("heading", { level: 2, name: "Exporter en PowerPoint" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Exporter en PowerPoint" }).click();
+  await expect(page.getByRole("checkbox", { name: /Le match/ })).not.toBeChecked();
+  await page.getByRole("button", { name: "Tout decocher" }).click();
+  await expect(page.getByRole("button", { name: /Telecharger/ })).toBeDisabled();
+  await page.getByRole("button", { name: "Annuler" }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "Exporter en PowerPoint" })).toHaveCount(0);
+});
+
 test("entraineur : cliquable depuis la feuille de match, fiche avec bilan par saison et parcours", async () => {
   test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : les entraineurs viennent de la FMI importee");
 
@@ -378,6 +427,18 @@ test("systeme de jeu : saisi sur la fiche du match, repris par la prediction et 
   const rapport = await get(`/analyse/prematch?equipeId=${moi.id}&adversaireId=${match.clubDom}`);
   expect(rapport.systemeAdverse.prediction).toMatchObject({ systeme: "4-3-3", observations: 1, fiabilite: "faible" });
   expect(rapport.systemeAdverse.matchs).toBe(1);
+  // Un seul match : les numeros ne montrent aucun changement, le systeme probable est celui qui a ete saisi,
+  // et les numeros 1 a 11 de la feuille donnent le onze par poste (gardien au 1).
+  expect(rapport.systemeAdverse.probable).toMatchObject({ systeme: "4-3-3", source: "renseigne", observations: 1 });
+  expect(rapport.numeros.onze).toHaveLength(11);
+  expect(rapport.numeros.onze[0]).toMatchObject({ numero: 1, poste: "GB", origine: "numero" });
+
+  // Rapport pre-match : le systeme saisi, d'ou il vient, et le onze place sur le terrain.
+  await page.goto(`/rapports/prematch/${match.clubDom}`);
+  const section = page.locator("section", { has: page.getByRole("heading", { name: "Systeme de jeu probable" }) });
+  await expect(section.getByText("4-3-3").first()).toBeVisible();
+  await expect(section.getByText("Dispositifs renseignes")).toBeVisible();
+  await expect(section.getByText("Onze probable")).toBeVisible();
 
   // Page Predictions : elle s'affiche, sans exemple fictif.
   await page.goto("/ia");

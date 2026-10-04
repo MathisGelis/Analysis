@@ -22,7 +22,7 @@ import { COLONNES_TRI, sensParDefaut, trierEffectif, type CleTri, type Sens } fr
 import { JoueurAddModal } from "./JoueurAddModal";
 import { FatigueBar } from "./FatigueBar";
 
-const POSTES = ["TOUS","GB","DD","DC","DG","MD","MO","AT","AG","MIL"];
+const POSTES = ["TOUS","GB","DD","DC","DG","MD","MC","MO","AT","AG","AD","MIL"];
 const OPTIONS_POSTES_FILTRE = optionsSimples(POSTES);
 const OPTIONS_POSTES = optionsSimples(POSTES.filter((p) => p !== "TOUS"));
 const OPTIONS_TRI = COLONNES_TRI.map((c) => ({ valeur: c.cle, libelle: `Tri · ${c.libelle}` }));
