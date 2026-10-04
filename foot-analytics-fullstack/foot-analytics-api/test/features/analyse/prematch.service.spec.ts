@@ -101,6 +101,56 @@ describe("PrematchService.rapport", () => {
     expect(r.faceAFace.bilan.joues).toBe(0);
   });
 
+  it("bilan de saison de l'adversaire : sa ligne de classement, sinon ses matchs ; lieux et cinq derniers matchs", async () => {
+    const c = await contexte();
+    // Adverse : 4 matchs joues (V 3-0 dom, N 1-1 ext, D 0-2 ext, V 2-1 dom), le premier contre un tiers, le plus recent en dernier.
+    await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, "07/09/2025", 3, 0);
+    await c.jouer(c.tiers, c.adv, c.eTiers, c.eAdv, "14/09/2025", 1, 1);
+    await c.jouer(c.tiers, c.adv, c.eTiers, c.eAdv, "21/09/2025", 2, 0);
+    await c.jouer(c.adv, c.moi, c.eAdv, c.eMoi, "28/09/2025", 2, 1);
+
+    const sans = (await svc.rapport(c.eMoi.id, c.adv.id)).adversaire;
+    expect(sans.bilan).toEqual({ joues: 4, v: 2, n: 1, d: 1, bp: 6, bc: 4, pts: null, rang: null, source: "matchs" });
+    expect(sans.lieux.domicile).toEqual({ joues: 2, v: 2, n: 0, d: 0, bp: 5, bc: 1 });
+    expect(sans.lieux.exterieur).toEqual({ joues: 2, v: 0, n: 1, d: 1, bp: 1, bc: 3 });
+    expect(sans.derniersMatchs.map((m) => [m.date, m.adversaire, m.domicile, m.bp, m.bc, m.issue])).toEqual([
+      ["28/09/2025", "OL Sud", true, 2, 1, "V"], ["21/09/2025", "Tiers AS", false, 0, 2, "D"],
+      ["14/09/2025", "Tiers AS", false, 1, 1, "N"], ["07/09/2025", "Tiers AS", true, 3, 0, "V"],
+    ]);
+
+    // Avec une ligne de classement : ses valeurs font foi (elle couvre des matchs que la base n'a pas).
+    await ds.getRepository(LigneClassement).save({ clubId: c.adv.id, equipeId: c.eAdv.id, saisonId: c.s.id, rang: 5, joues: 7, v: 4, n: 0, d: 3, bp: 14, bc: 9, pts: 12 } as any);
+    const avec = (await svc.rapport(c.eMoi.id, c.adv.id)).adversaire;
+    expect(avec.bilan).toEqual({ joues: 7, v: 4, n: 0, d: 3, bp: 14, bc: 9, pts: 12, rang: 5, source: "classement" });
+    expect(avec.lieux.domicile.joues).toBe(2);              // les lieux restent ceux des matchs connus
+  });
+
+  it("meilleurs buteurs de l'adversaire : ses buts seulement, hors contre son camp, au nom de la feuille", async () => {
+    const c = await contexte();
+    const m1 = await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, "07/09/2025", 3, 1);
+    const m2 = await c.jouer(c.tiers, c.adv, c.eTiers, c.eAdv, "14/09/2025", 1, 2);
+    await f.compo({ matchId: m1.id, cote: "dom", nom: "AVANT", prenom: "Leo", numero: 9 });
+    await f.compo({ matchId: m1.id, cote: "dom", nom: "MENEUR", prenom: "Tom", numero: 10 });
+    await f.compo({ matchId: m2.id, cote: "ext", nom: "AVANT", prenom: "Leo", numero: 9 });
+    for (const [m, joueur, equipe, sousType] of [
+      [m1, "AVANT Leo", "dom", "normal"], [m1, "AVANT Leo", "dom", "normal"], [m1, "TIERS Zed", "ext", "normal"],
+      [m2, "AVANT Leo", "ext", "normal"], [m2, "AVANT Leo", "ext", "csc"], [m2, "MENEUR Tom", "ext", "normal"],
+    ] as const) await f.evenement({ matchId: m.id, type: "but", sousType, joueur, equipe, minute: 30 });
+
+    const r = await svc.rapport(c.eMoi.id, c.adv.id);
+
+    expect(r.analyse!.buteurs).toEqual([{ nom: "Leo AVANT", buts: 3 }, { nom: "Tom MENEUR", buts: 1 }]);
+  });
+
+  it("match programme : arbitre designe repris tel qu'il est saisi, meme sans profil connu", async () => {
+    const c = await contexte();
+    const iso = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+    await c.jouer(c.moi, c.adv, c.eMoi, c.eAdv, iso, 0, 0, { statut: "prevu", arbitre: "  MARTIN Paul " });
+    const r = await svc.rapport(c.eMoi.id, c.adv.id);
+    expect(r.match!.arbitre).toBe("MARTIN Paul");
+    expect(r.arbitre).toBeNull();
+  });
+
   it("face-a-face : rencontres jouees entre les deux clubs, de mon point de vue, recentes d'abord", async () => {
     const c = await contexte();
     await c.jouer(c.moi, c.adv, c.eMoi, c.eAdv, "10/09/2025", 3, 1);

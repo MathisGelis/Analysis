@@ -172,8 +172,30 @@ Toutes les routes sont prefixees par `/api`.
 - `GET    /classement`
 - `GET    /stats/bilan/:clubId?equipeId=&saisonId=` (sans parametre : toutes equipes et saisons melangees)
 - `GET    /analyse/club/:clubId?equipeId=&saisonId=` : rapport d'analyse d'equipe, meme perimetre
-- `GET    /analyse/club/:clubId/situation?equipeId=&saisonId=` : dispositif joue (d'apres les seuls matchs dont le staff a
-  renseigne le dispositif, jamais une valeur par defaut) et dernier onze (feuille du dernier match joue)
+- `GET    /analyse/club/:clubId/situation?equipeId=&saisonId=` : dispositif joue (`systeme.prediction` : d'apres les seuls
+  matchs dont le staff a renseigne le dispositif, jamais une valeur par defaut ; `systeme.probable` : fusionne avec ce que
+  disent les numeros de maillot) et dernier onze (feuille du dernier match joue)
+- `GET    /analyse/prematch?equipeId=&adversaireId=&matchId=` : rapport pre-match (aussi : bilan de saison, derniers matchs,
+  buteurs, systeme probable et onze probable de l'adversaire)
+- `GET    /analyse/prematch/pages` : les 7 pages du rapport PowerPoint (`id`, `titre`, `contenu`), pour proposer le choix
+- `GET    /analyse/prematch/export?equipeId=&adversaireId=&matchId=&pages=` : le rapport d'avant-match **en PowerPoint**
+  (`.pptx`, au format du modele `src/features/analyse/modele/rapport-avant-match.pptx`). `pages` : liste separee par des
+  virgules parmi `couverture, match, saison, forces, dispositif, ambiance, cles` (toutes par defaut ; une page inconnue ou
+  aucune page : `400`). Memes regles d'acces que le rapport. Une information inconnue (heure de convocation, surface du
+  terrain, style de jeu...) donne un **champ vide** a completer dans PowerPoint, jamais une valeur inventee.
+
+### Compo et systeme probables : les numeros de maillot
+La FMI ne donne pas le dispositif, mais les numeros portent une information (convention du staff : 1 gardien, 2 DD, 3 DG,
+4 DCD, 5 DCG, 6 MDC, 7 AG, 8 MC, 9 BU, 10 MO, 11 AD ; `features/matchs/numeros-postes.ts`). `features/analyse/compo-numeros.ts`
+en tire :
+- le **onze probable par poste** : un joueur par numero d'apres les 10 dernieres feuilles (les recentes pesent plus) ;
+- le **systeme**, d'apres les **changements de numero** d'un joueur : un 2 qui devient 4 (DD vers DC) dit une defense a 4, un
+  attaquant tantot 9 tantot 10 dit deux attaquants, un 9 qui alterne avec un 7 ou un 11 trois attaquants... (table `REGLES`).
+  Des numeros stables (1 a 11 dans 96 % des feuilles) donnent les postes mais pas le systeme. Chaque estimation cite ses
+  indices, sa confiance est plafonnee a 70 %, et si les numeros sont ceux de la saison (hors 1-11) rien n'est deduit.
+
+`features/analyse/systeme-probable.ts` les fusionne avec les dispositifs saisis (le staff prime, les numeros confirment,
+completent ou contredisent) ; `disposition-onze.ts` dit ou se placent les numeros dans chaque dispositif.
 
 ### Import FMI
 - `POST   /fmi/import` — multipart/form-data, champ `file` (PDF).
@@ -294,7 +316,7 @@ foot-analytics-api/
 │       ├── joueurs/              # joueurs, stats par equipe, fatigue, parcours et statut de mutation
 │       ├── entrainements/  blessures/  tactiques/
 │       ├── arbitres/  coachs/  scouting/  classement/  stats/
-│       ├── analyse/              # tendances, rapport d'equipe, rapport pre-match, situation
+│       ├── analyse/              # tendances, rapport d'equipe, rapport pre-match (+ export PowerPoint, modele/), situation, numeros de maillot
 │       ├── fmi/                  # import des feuilles de match (appelle parser/parse_fmi.py)
 │       ├── derivation/           # recalcul des effectifs, classements et cumuls apres import
 │       └── seed/                 # donnees de demonstration

@@ -18,15 +18,17 @@ import { Equipe } from "@/features/equipes/equipe.entity";
 import { LigneClassement } from "@/features/classement/ligne-classement.entity";
 import { Match } from "@/features/matchs/match.entity";
 import { Saison } from "@/features/saisons/saison.entity";
-import { parseDateFlexible } from "@/common/dates";
+import { parseDateFlexible, trierChronologiquement } from "@/common/dates";
 import { PredictionSysteme } from "@/features/matchs/systeme";
 import { estMatchJoue } from "@/features/matchs/match-joue";
 
 import { MatchTendance } from "./tendances";
 import {
-  faceAFace, Piste, pistesPrematch, profilEquipe, ProfilEquipe, Rencontre,
+  BilanLieu, bilanParLieu, faceAFace, MatchRecent, Piste, pistesPrematch, profilEquipe, ProfilEquipe, Rencontre,
 } from "./prematch";
 import { AnalyseNumeros } from "./compo-numeros";
+import { contenuRapport, PageRapport } from "./rapport-pptx-contenu";
+import { genererRapportPptx, lireModele } from "./rapport-pptx";
 import { fusionnerSystemes, SystemeProbable } from "./systeme-probable";
 import { systemeDe } from "./situation-equipe";
 import { Projection, projectionResultat } from "./projection";
@@ -45,13 +47,30 @@ function versTendance(m: Match, equipeId: string): MatchTendance {
   };
 }
 
+/** Bilan de saison d'une equipe : la ligne du classement quand elle existe, sinon le cumul de ses matchs joues. */
+export interface BilanSaison extends BilanLieu {
+  pts: number | null; rang: number | null; source: "classement" | "matchs";
+}
+
 export interface RapportPrematch {
   genereLe: string;
   monEquipe: ProfilEquipe & { equipeId: string; equipeNom: string; clubId: string; clubNom: string };
-  adversaire: ProfilEquipe & { equipeId: string | null; clubId: string; clubNom: string };
+  adversaire: ProfilEquipe & {
+    equipeId: string | null; clubId: string; clubNom: string;
+    /** V-N-D, buts et points de la saison. */
+    bilan: BilanSaison;
+    /** Bilan a domicile et a l'exterieur (scores des matchs joues). */
+    lieux: { domicile: BilanLieu; exterieur: BilanLieu };
+    /** Ses cinq derniers matchs joues, le plus recent d'abord. */
+    derniersMatchs: MatchRecent[];
+  };
   championnat: { competition: string | null; poule: string | null; saisonNom: string | null; saisonActive: boolean };
   /** Le match concerne, s'il est programme ; null pour un rapport "a froid". */
-  match: { id: string; date: string | null; heure: string | null; journee: string | null; terrain: string | null; domicile: boolean } | null;
+  match: {
+    id: string; date: string | null; heure: string | null; journee: string | null; terrain: string | null; domicile: boolean;
+    /** Arbitre designe tel qu'il est saisi, meme sans profil connu. */
+    arbitre: string | null;
+  } | null;
   faceAFace: ReturnType<typeof faceAFace>;
   /** Rapport detaille de l'adversaire ; null s'aucun de ses matchs n'a ete analyse. */
   analyse: null | {
@@ -67,6 +86,8 @@ export interface RapportPrematch {
     joueursCles: { joueurId: string | null; nom: string; prenom?: string; poste?: string; delta: number; matchsAvec: number; titularisations: number }[];
     faiblesses: { niveau: string; titre: string; detail: string }[];
     avertis: { nom: string; jaunes: number; rouges: number }[];
+    /** Ses meilleurs buteurs sur le perimetre (hors contre son camp). */
+    buteurs: { nom: string; buts: number }[];
     discipline: { jaunes: number; rouges: number; jaunesParMatch: number; partFinDeMatch: number | null };
     changementsMoyenne: number;
   };
@@ -134,7 +155,11 @@ export class PrematchService {
       );
     };
     const moi = { ...profil(monEquipe, monClub.nom), equipeId: monEquipe.id, equipeNom: monEquipe.nom, clubId: monClub.id, clubNom: monClub.nom };
-    const adv = { ...profil(advEquipe, advClub.nom), equipeId: advEquipe?.id ?? null, clubId: advClub.id, clubNom: advClub.nom };
+    const matchsAdv = advEquipe ? joues.filter((m) => m.equipeDomId === advEquipe.id || m.equipeExtId === advEquipe.id) : [];
+    const adv = {
+      ...profil(advEquipe, advClub.nom), equipeId: advEquipe?.id ?? null, clubId: advClub.id, clubNom: advClub.nom,
+      ...(await this.resumeSaison(advEquipe, matchsAdv, ligneDe(advEquipe?.id))),
+    };
 
     const face = await this.historiqueFace(monEquipe, advClub.id);
 
@@ -154,6 +179,7 @@ export class PrematchService {
       })),
       faiblesses: rap.faiblesses.filter((f) => f.niveau !== "info"),
       avertis: rap.avertis,
+      buteurs: rap.buteurs,
       discipline: {
         jaunes: rap.tendances.discipline.jaunes, rouges: rap.tendances.discipline.rouges,
         jaunesParMatch: rap.tendances.discipline.jaunesParMatch, partFinDeMatch: rap.tendances.discipline.partFinDeMatch,
@@ -165,7 +191,6 @@ export class PrematchService {
     const domicile = match ? match.equipeDomId === monEquipe.id || (!match.equipeDomId && match.clubDom === monClub.id) : null;
 
     // Systeme de l'adversaire : ses matchs joues, vus de son cote, avec le dispositif quand le staff l'a renseigne.
-    const matchsAdv = advEquipe ? joues.filter((m) => m.equipeDomId === advEquipe.id || m.equipeExtId === advEquipe.id) : [];
     const situation = systemeDe(matchsAdv, { clubId: advClub.id, equipeId: advEquipe?.id ?? null });
     const numeros = rap.matchsAnalyses === 0 ? null : rap.numeros;
     const probable = fusionnerSystemes(situation.prediction, numeros);
@@ -200,10 +225,38 @@ export class PrematchService {
       championnat: { competition: monEquipe.competitionLibelle ?? null, poule: monEquipe.poule ?? null, saisonNom: saison?.nom ?? null, saisonActive: !!saison?.actif },
       match: match ? {
         id: match.id, date: match.date ?? null, heure: match.heure ?? null, journee: match.journee ?? null,
-        terrain: match.terrain ?? null, domicile: !!domicile,
+        terrain: match.terrain ?? null, domicile: !!domicile, arbitre: match.arbitre?.trim() || null,
       } : null,
       faceAFace: face, analyse, arbitre, systemeAdverse, numeros, projection, pistes,
     };
+  }
+
+  /** Bilan de saison, bilan par lieu et derniers matchs d'une equipe, d'apres sa ligne de classement et ses matchs joues. */
+  private async resumeSaison(equipe: Equipe | null, matchs: Match[], ligne?: LigneClassement) {
+    const vus = equipe ? matchs.map((m) => versTendance(m, equipe.id)) : [];
+    const { total, domicile, exterieur } = bilanParLieu(vus);
+    const bilan: BilanSaison = ligne
+      ? { joues: ligne.joues, v: ligne.v, n: ligne.n, d: ligne.d, bp: ligne.bp, bc: ligne.bc, pts: ligne.pts, rang: ligne.rang, source: "classement" }
+      : { ...total, pts: null, rang: null, source: "matchs" };
+    const recents = trierChronologiquement(vus).slice(-5).reverse();
+    const ids = [...new Set(recents.map((m) => m.adversaireId).filter((x): x is string => !!x))];
+    const noms = new Map((ids.length ? await this.clubs.find({ where: { id: In(ids) } }) : []).map((c) => [c.id, c.nom]));
+    const derniersMatchs: MatchRecent[] = recents.map((m) => ({
+      matchId: m.matchId, date: m.date, journee: m.journee, adversaire: (m.adversaireId && noms.get(m.adversaireId)) || "",
+      domicile: m.domicile, bp: m.bp, bc: m.bc, issue: m.bp > m.bc ? "V" : m.bp === m.bc ? "N" : "D",
+    }));
+    return { bilan, lieux: { domicile, exterieur }, derniersMatchs };
+  }
+
+  /** Le rapport pre-match au format de la presentation du staff (PowerPoint), limite aux `pages` demandees. */
+  async exporterPptx(
+    equipeId: string, adversaireClubId: string, matchId: string | null, pages: readonly PageRapport[],
+  ): Promise<{ fichier: Uint8Array; nom: string }> {
+    const rapport = await this.rapport(equipeId, adversaireClubId, matchId);
+    const fichier = genererRapportPptx(lireModele(), contenuRapport(rapport), pages);
+    const adversaire = rapport.adversaire.clubNom.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const date = (rapport.match?.date ?? "").replace(/[^0-9A-Za-z]+/g, "-").replace(/^-|-$/g, "");
+    return { fichier, nom: `avant-match-${adversaire || "adversaire"}${date ? `-${date}` : ""}.pptx` };
   }
 
   /** Match designe, ou a defaut le prochain match programme entre les deux clubs pour mon equipe. */

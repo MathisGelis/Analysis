@@ -408,6 +408,24 @@ export class AnalyseService {
       compoProbableSur = infos.length;
     }
 
+    /* ============ Buteurs ============ */
+    // Les buts marques par l'equipe (hors contre son camp), par joueur ; le nom est celui de la feuille ("Prenom NOM").
+    const nomFeuille = new Map<string, string>();
+    for (const info of infos) {
+      for (const c of [...info.titulaires, ...info.bancs]) nomFeuille.set(norm(`${c.nom} ${c.prenom ?? ""}`), `${c.prenom ?? ""} ${c.nom}`.trim());
+    }
+    const butsParJoueur = new Map<string, { nom: string; buts: number }>();
+    for (const info of infos) {
+      for (const e of info.m.evenements ?? []) {
+        if (e.type !== "but" || e.sousType === "csc" || e.equipe !== (info.dom ? "dom" : "ext") || !e.joueur) continue;
+        const cle = norm(e.joueur);
+        const cur = butsParJoueur.get(cle) ?? { nom: nomFeuille.get(cle) ?? e.joueur.trim(), buts: 0 };
+        cur.buts++;
+        butsParJoueur.set(cle, cur);
+      }
+    }
+    const buteurs = [...butsParJoueur.values()].sort((a, b) => b.buts - a.buts || a.nom.localeCompare(b.nom)).slice(0, 5);
+
     /* ============ Partnerships ============ */
     // Pour chaque match, on identifie un trio defense (3 DEF), un duo
     // milieu axial, une attaque. On agrege les resultats des trios.
@@ -720,6 +738,7 @@ export class AnalyseService {
       compoProbable,
       compoProbableSur,
       numeros,
+      buteurs,
       partnerships,
       changementsMoy,
       avertis,

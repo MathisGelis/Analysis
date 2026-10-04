@@ -54,6 +54,32 @@ export function profilEquipe(nom: string, matchs: MatchTendance[], ligne?: { ran
   };
 }
 
+/* ------------------------------- bilan de saison (rapport) ------------------------------ */
+
+export interface BilanLieu { joues: number; v: number; n: number; d: number; bp: number; bc: number }
+
+const bilanVide = (): BilanLieu => ({ joues: 0, v: 0, n: 0, d: 0, bp: 0, bc: 0 });
+
+function cumuler(b: BilanLieu, m: Pick<MatchTendance, "bp" | "bc">): void {
+  b.joues++; b.bp += m.bp; b.bc += m.bc;
+  if (m.bp > m.bc) b.v++; else if (m.bp === m.bc) b.n++; else b.d++;
+}
+
+/** Bilan complet, a domicile et a l'exterieur, a partir des scores des matchs joues. */
+export function bilanParLieu(matchs: Pick<MatchTendance, "domicile" | "bp" | "bc">[]): { total: BilanLieu; domicile: BilanLieu; exterieur: BilanLieu } {
+  const total = bilanVide(), domicile = bilanVide(), exterieur = bilanVide();
+  for (const m of matchs) { cumuler(total, m); cumuler(m.domicile ? domicile : exterieur, m); }
+  return { total, domicile, exterieur };
+}
+
+/** Un match recent vu d'une equipe, pour la page "3 derniers matchs" du rapport. */
+export interface MatchRecent {
+  matchId: string; date: string | null; journee: string | null;
+  /** Nom du club affronte. */
+  adversaire: string;
+  domicile: boolean; bp: number; bc: number; issue: Issue;
+}
+
 /* ----------------------------------- face-a-face ----------------------------------- */
 
 export interface Rencontre {

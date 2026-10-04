@@ -38,6 +38,8 @@ export interface RapportEquipe {
   compoProbableSur: number;
   // Ce que disent les numeros de maillot : postes, polyvalence, indices de systeme (changements de numero).
   numeros: AnalyseNumeros;
+  // Meilleurs buteurs de l'equipe sur le perimetre (hors contre son camp), du plus au moins prolifique.
+  buteurs: { nom: string; buts: number }[];
   // Partnerships (combinaisons recurrentes)
   partnerships: Partnership[];
   // Minute moyenne des changements

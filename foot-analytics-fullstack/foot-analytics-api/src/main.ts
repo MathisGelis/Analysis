@@ -36,6 +36,8 @@ async function bootstrap() {
       }
     },
     credentials: true,
+    // Le front lit le nom du fichier propose par l'export PowerPoint.
+    exposedHeaders: ["Content-Disposition"],
   });
 
   // Validation automatique des DTO (class-validator)

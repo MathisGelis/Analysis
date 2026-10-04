@@ -31,6 +31,7 @@ describe("fusionnerSystemes", () => {
     });
     expect(r.indices).toEqual(["Dispositif renseigne par le staff sur 4 matchs."]);
     expect(r.structure.defense).toEqual({ lignes: 4, part: 100 });
+    expect(r.disposition).toEqual([[2, 4, 5, 3], [6, 8, 10], [7, 9, 11]]);       // ou se placent les numeros dans un 4-3-3
   });
 
   it("numeros seuls : une estimation prudente, jamais 'bonne', plafonnee, avec ses indices", () => {
@@ -42,6 +43,7 @@ describe("fusionnerSystemes", () => {
     expect(["faible", "moyenne"]).toContain(r.fiabilite);
     expect(r.confiance).toBeLessThanOrEqual(70);
     expect(r.alternatives.map((a) => a.systeme)).toEqual(["3-5-2", "5-3-2"]);
+    expect(r.disposition).toEqual([[2, 4, 5, 3], [7, 6, 8, 11], [9, 10]]);
     expect(r.indices[0]).toMatch(/Deduit des changements de numero sur 6 feuilles : aucun dispositif renseigne/);
     expect(r.indices.some((i) => /deux attaquants/.test(i))).toBe(true);
   });

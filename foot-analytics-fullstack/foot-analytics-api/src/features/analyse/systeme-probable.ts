@@ -8,6 +8,7 @@
 import { PredictionSysteme } from "@/features/matchs/systeme";
 
 import { AnalyseNumeros, structureDe, StructureNumeros } from "./compo-numeros";
+import { Disposition, dispositionDe } from "./disposition-onze";
 
 export type Fiabilite = "faible" | "moyenne" | "bonne";
 
@@ -25,6 +26,8 @@ export interface SystemeProbable {
   /** Pourquoi ce systeme, en phrases. */
   indices: string[];
   structure: StructureNumeros;
+  /** Ou se placent les numeros 1 a 11 dans ce systeme (voir disposition-onze.ts), pour dessiner le onze sur un terrain. */
+  disposition: Disposition;
 }
 
 const NIVEAUX: Fiabilite[] = ["faible", "moyenne", "bonne"];
@@ -49,6 +52,7 @@ export function fusionnerSystemes(manuel: PredictionSysteme | null, numeros: Ana
       observations: m.observations, matchsNumeros, alternatives: m.alternatives,
       indices: [`Dispositif renseigne par le staff sur ${m.observations} match${m.observations > 1 ? "s" : ""}.`],
       structure: structureDe({ distribution: [{ systeme: m.systeme, poids: m.confiance }, ...m.alternatives.map((a) => ({ systeme: a.systeme, poids: a.poids }))] }),
+      disposition: dispositionDe(m.systeme),
     };
   }
 
@@ -62,6 +66,7 @@ export function fusionnerSystemes(manuel: PredictionSysteme | null, numeros: Ana
         ...indicesNumeros,
       ],
       structure: numeros!.structure,
+      disposition: dispositionDe(est.systeme),
     };
   }
 
@@ -96,5 +101,6 @@ export function fusionnerSystemes(manuel: PredictionSysteme | null, numeros: Ana
       verdict, ...indicesNumeros,
     ],
     structure: structureDe({ distribution: norme }),
+    disposition: dispositionDe(tete.systeme),
   };
 }

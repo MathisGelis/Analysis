@@ -372,6 +372,19 @@ describe("API : acces", () => {
       expect((await c("GET", `/analyse/poule?equipeId=${m.sen26.id}`)).statut).toBe(200);
       expect((await c("GET", `/analyse/prematch?equipeId=${m.sen25.id}&adversaireId=${m.mions.id}`)).statut).toBe(404);
       expect((await c("GET", `/analyse/prematch?equipeId=${m.sen26.id}&adversaireId=${m.mions.id}&matchId=${m.m24.id}`)).statut).toBe(404);
+      // Export PowerPoint : memes regles que le rapport lui-meme (equipe attribuee, match d'une saison ouverte), et pages validees.
+      const export_ = "/analyse/prematch/export";
+      expect((await c("GET", `${export_}?equipeId=${m.sen25.id}&adversaireId=${m.mions.id}`)).statut).toBe(404);
+      expect((await c("GET", `${export_}?equipeId=${m.sen26.id}&adversaireId=${m.mions.id}&matchId=${m.m24.id}`)).statut).toBe(404);
+      expect((await c("GET", `${export_}?equipeId=${m.sen26.id}&adversaireId=${m.mions.id}&pages=nimporte`)).statut).toBe(400);
+      expect((await c("GET", `${export_}?equipeId=${m.sen26.id}`)).statut).toBe(400);
+      expect((await t.appel(p.seniors)("GET", `${export_}?equipeId=${m.u20.id}&adversaireId=${m.mions.id}`)).statut).toBe(404);
+      expect((await t.appel()("GET", `${export_}?equipeId=${m.sen26.id}&adversaireId=${m.mions.id}`)).statut).toBe(401);
+      const pptx = await c("GET", `${export_}?equipeId=${m.sen26.id}&adversaireId=${m.mions.id}&pages=couverture,cles`);
+      expect(pptx.statut).toBe(200);
+      expect(String(pptx.corps).startsWith("PK")).toBe(true);                    // une archive zip (.pptx)
+      expect((await c("GET", "/analyse/prematch/pages")).corps.map((x: any) => x.id)).toEqual(
+        ["couverture", "match", "saison", "forces", "dispositif", "ambiance", "cles"]);
       expect((await t.appel(p.seniors)("GET", `/analyse/poule?equipeId=${m.u20.id}`)).statut).toBe(404);
       expect((await t.appel(p.libre)("GET", `/analyse/club/${m.mions.id}?saisonId=${m.s24.id}`)).statut).toBe(200);
     });
