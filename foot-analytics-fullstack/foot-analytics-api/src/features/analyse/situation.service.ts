@@ -15,9 +15,14 @@ import { Match } from "@/features/matchs/match.entity";
 import { estMatchJoue } from "@/features/matchs/match-joue";
 import { normaliser } from "@/common/fuzzy";
 
+import { analyserNumeros, lignesDeFeuille } from "./compo-numeros";
 import {
   coteDe, DernierMatch, plusRecentsDAbord, SituationSysteme, systemeDe, versDernierMatch,
 } from "./situation-equipe";
+import { fusionnerSystemes, SystemeProbable } from "./systeme-probable";
+
+/** Taille des lots d'identifiants (SQLite limite le nombre de variables d'une requete). */
+const TAILLE_LOT = 500;
 
 export interface JoueurOnze {
   numero: number; nom: string; prenom: string | null; licence: string | null;
@@ -28,7 +33,11 @@ export interface JoueurOnze {
 
 export interface SituationClub {
   clubId: string; equipeId: string | null; saisonId: string | null;
-  systeme: SituationSysteme;
+  /**
+   * `prediction` : d'apres les dispositifs renseignes seuls ; `probable` : fusionnee avec ce que disent les numeros de
+   * maillot (features/analyse/systeme-probable.ts), c'est ce qu'il faut afficher.
+   */
+  systeme: SituationSysteme & { probable: SystemeProbable | null };
   /** Le dernier match joue (dispositif renseigne ou non). */
   dernierMatch: DernierMatch | null;
   /** Le dernier match dont la feuille donne les titulaires, avec le onze et le banc. */
@@ -77,12 +86,28 @@ export class SituationService {
       break;
     }
 
+    const systeme = systemeDe(joues, cible);
+    const numeros = analyserNumeros(await this.lignesDeFeuilles(joues, cible));
     return {
       clubId, equipeId: cible.equipeId, saisonId,
-      systeme: systemeDe(joues, cible),
+      systeme: { ...systeme, probable: fusionnerSystemes(systeme.prediction, numeros) },
       dernierMatch: recents[0] ? versDernierMatch(recents[0], cible) : null,
       dernierOnze,
     };
+  }
+
+  /** Les lignes de feuille de la cible sur ces matchs (deux requetes par lot de 500 matchs au plus). */
+  private async lignesDeFeuilles(joues: Match[], cible: { clubId: string; equipeId: string | null }) {
+    const lignes: ReturnType<typeof lignesDeFeuille> = [];
+    for (let i = 0; i < joues.length; i += TAILLE_LOT) {
+      const lot = joues.slice(i, i + TAILLE_LOT);
+      const compos = await this.compos.find({ where: { matchId: In(lot.map((m) => m.id)) } });
+      for (const m of lot) {
+        const cote = coteDe(m, cible);
+        lignes.push(...lignesDeFeuille(m, compos.filter((c) => c.matchId === m.id && c.cote === cote)));
+      }
+    }
+    return lignes;
   }
 
   /** Fiche de chaque ligne de feuille : par licence, sinon par nom (et initiale du prenom) dans le club. */

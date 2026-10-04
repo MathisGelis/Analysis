@@ -1,5 +1,6 @@
 // src/features/analyse/analyse.types.ts
 
+import { AnalyseNumeros } from "./compo-numeros";
 import { Issue, SensTendance, Tendances } from "./tendances";
 
 /* ---------- types de sortie (consommes tels quels cote front) ---------- */
@@ -30,8 +31,13 @@ export interface RapportEquipe {
   };
   // Faiblesses identifiees
   faiblesses: Faiblesse[];
-  // Compo probable
+  // Compo probable : un joueur par numero de maillot (poste : voir features/matchs/numeros-postes.ts) quand les numeros
+  // sont exploitables, sinon les 11 titulaires les plus utilises. `compoProbableSur` : le nombre de matchs sur lequel
+  // portent les titularisations (les feuilles recentes pour les numeros, tous les matchs analyses sinon).
   compoProbable: { poste: string; numero?: number; nom: string; matchsJoues: number }[];
+  compoProbableSur: number;
+  // Ce que disent les numeros de maillot : postes, polyvalence, indices de systeme (changements de numero).
+  numeros: AnalyseNumeros;
   // Partnerships (combinaisons recurrentes)
   partnerships: Partnership[];
   // Minute moyenne des changements

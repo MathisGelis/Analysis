@@ -168,6 +168,57 @@ describe("PrematchService.rapport", () => {
       expect(r.pistes.some((x) => x.titre === "Systeme probable : 4-3-3")).toBe(true);
     });
 
+    it("sans dispositif renseigne, le systeme se lit dans les changements de numero (BU puis MO : deux attaquants)", async () => {
+      const c = await contexte();
+      // L'attaquant AVANT porte le 9 puis le 10 d'un match a l'autre ; un gardien et un milieu fixes complettent la feuille.
+      for (const [i, date] of ["07/09/2025", "14/09/2025", "21/09/2025", "28/09/2025"].entries()) {
+        const m = await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, date, 1, 0);
+        await f.compo({ matchId: m.id, cote: "dom", nom: "GARDIEN", prenom: "Gil", numero: 1 });
+        await f.compo({ matchId: m.id, cote: "dom", nom: "AVANT", prenom: "Leo", numero: i % 2 ? 10 : 9 });
+      }
+
+      const r = await svc.rapport(c.eMoi.id, c.adv.id);
+
+      expect(r.systemeAdverse.prediction).toBeNull();
+      expect(r.systemeAdverse.probable).toMatchObject({ systeme: "4-4-2", source: "numeros", observations: 0, matchsNumeros: 4 });
+      expect(r.systemeAdverse.probable!.confiance).toBeLessThanOrEqual(70);
+      expect(r.numeros!.indices[0].texte).toMatch(/AVANT/);
+      expect(r.pistes.find((x) => x.titre === "Systeme probable : 4-4-2")!.detail).toMatch(/changements de numero sur 4 feuilles/);
+      // Les numeros donnent aussi le onze : le gardien au 1, l'attaquant a son numero le plus recent / frequent.
+      expect(r.analyse!.compoProbable).toEqual(expect.arrayContaining([
+        expect.objectContaining({ numero: 1, poste: "GB", nom: "Gil GARDIEN" }),
+      ]));
+    });
+
+    it("dispositif renseigne ET numeros : les deux sont fusionnes, le dispositif saisi gardant la tete", async () => {
+      const c = await contexte();
+      for (const [i, date] of ["07/09/2025", "14/09/2025", "21/09/2025", "28/09/2025"].entries()) {
+        const m = await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, date, 1, 0, { formationDom: "4-3-3" });
+        await f.compo({ matchId: m.id, cote: "dom", nom: "AVANT", prenom: "Leo", numero: i % 2 ? 10 : 9 });
+      }
+
+      const r = await svc.rapport(c.eMoi.id, c.adv.id);
+
+      expect(r.systemeAdverse.prediction).toMatchObject({ systeme: "4-3-3", observations: 4 });
+      expect(r.systemeAdverse.probable).toMatchObject({ systeme: "4-3-3", source: "mixte", observations: 4, matchsNumeros: 4 });
+      expect(r.systemeAdverse.probable!.alternatives.map((a) => a.systeme)).toContain("4-4-2");
+    });
+
+    it("numeros de saison (hors 1-11) : aucun systeme ni poste deduits des numeros", async () => {
+      const c = await contexte();
+      for (const [i, date] of ["07/09/2025", "14/09/2025", "21/09/2025"].entries()) {
+        const m = await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, date, 1, 0);
+        await f.compo({ matchId: m.id, cote: "dom", nom: "AVANT", prenom: "Leo", numero: i % 2 ? 19 : 29 });
+      }
+
+      const r = await svc.rapport(c.eMoi.id, c.adv.id);
+
+      expect(r.systemeAdverse.probable).toBeNull();
+      expect(r.numeros!.fiabilite.exploitable).toBe(false);
+      expect(r.numeros!.notes[0]).toMatch(/Numeros peu fiables/);
+      expect(r.analyse!.compoProbable).toHaveLength(1);       // repli : les titulaires les plus utilises
+    });
+
     it("le couple 4-4-2 / 4-2-3-1 ecrit en dur par l'ancien import n'est jamais une observation", async () => {
       const c = await contexte();
       for (const [i, date] of ["07/09/2025", "14/09/2025", "21/09/2025"].entries()) {

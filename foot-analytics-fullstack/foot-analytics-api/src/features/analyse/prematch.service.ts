@@ -26,6 +26,8 @@ import { MatchTendance } from "./tendances";
 import {
   faceAFace, Piste, pistesPrematch, profilEquipe, ProfilEquipe, Rencontre,
 } from "./prematch";
+import { AnalyseNumeros } from "./compo-numeros";
+import { fusionnerSystemes, SystemeProbable } from "./systeme-probable";
 import { systemeDe } from "./situation-equipe";
 import { Projection, projectionResultat } from "./projection";
 import { AnalyseService } from "./analyse.service";
@@ -70,10 +72,16 @@ export interface RapportPrematch {
   };
   arbitre: null | { nom: string; profil: string | null; matchsPrincipal: number; cartonsJaunes: number; cartonsRouges: number; cartonsParMatch: number; motifsTop: string | null };
   /**
-   * Systeme de jeu probable de l'adversaire d'apres les dispositifs RENSEIGNES sur ses matchs (la FMI n'en contient
-   * aucun). `observes` sur `matchs` joues : c'est la base de la prediction ; `dernierMatchId` : ou en saisir d'autres.
+   * Systeme de jeu de l'adversaire. `prediction` : d'apres les dispositifs RENSEIGNES sur ses matchs (la FMI n'en
+   * contient aucun), `observes` sur `matchs` joues ; `probable` : cette prediction fusionnee avec ce que disent les
+   * numeros de maillot (voir systeme-probable.ts), c'est ce qu'il faut afficher ; `dernierMatchId` : ou saisir un dispositif.
    */
-  systemeAdverse: { prediction: PredictionSysteme | null; observes: number; matchs: number; dernierMatchId: string | null };
+  systemeAdverse: {
+    prediction: PredictionSysteme | null; observes: number; matchs: number; dernierMatchId: string | null;
+    probable: SystemeProbable | null;
+  };
+  /** Lecture des numeros de maillot de l'adversaire (postes, polyvalence, indices) ; null s'aucun de ses matchs n'a ete analyse. */
+  numeros: AnalyseNumeros | null;
   /** Projection de resultat (modele de Poisson sur les moyennes de buts) ; null si l'echantillon est trop petit. */
   projection: Projection | null;
   pistes: Piste[];
@@ -158,8 +166,10 @@ export class PrematchService {
 
     // Systeme de l'adversaire : ses matchs joues, vus de son cote, avec le dispositif quand le staff l'a renseigne.
     const matchsAdv = advEquipe ? joues.filter((m) => m.equipeDomId === advEquipe.id || m.equipeExtId === advEquipe.id) : [];
-    const systemeAdverse = systemeDe(matchsAdv, { clubId: advClub.id, equipeId: advEquipe?.id ?? null });
-    const prediction = systemeAdverse.prediction;
+    const situation = systemeDe(matchsAdv, { clubId: advClub.id, equipeId: advEquipe?.id ?? null });
+    const numeros = rap.matchsAnalyses === 0 ? null : rap.numeros;
+    const probable = fusionnerSystemes(situation.prediction, numeros);
+    const systemeAdverse = { ...situation, probable };
     const projection = projectionResultat({
       moi: { matchs: moi.matchs, bpm: moi.bpm, bcm: moi.bcm }, adv: { matchs: adv.matchs, bpm: adv.bpm, bcm: adv.bcm }, domicileMoi: domicile,
     });
@@ -174,7 +184,10 @@ export class PrematchService {
         faiblesses: rap.faiblesses,
       } : null,
       arbitre: arbitre ? { nom: arbitre.nom, profil: arbitre.profil, matchsPrincipal: arbitre.matchsPrincipal, cartonsParMatch: arbitre.cartonsParMatch } : null,
-      systeme: prediction && { systeme: prediction.systeme, confiance: prediction.confiance, observations: prediction.observations, fiabilite: prediction.fiabilite },
+      systeme: probable && {
+        systeme: probable.systeme, confiance: probable.confiance, observations: probable.observations, fiabilite: probable.fiabilite,
+        source: probable.source, matchsNumeros: probable.matchsNumeros,
+      },
       faceAFace: {
         joues: face.bilan.joues, v: face.bilan.v, n: face.bilan.n, d: face.bilan.d,
         derniere: face.rencontres[0] ? { bp: face.rencontres[0].bp, bc: face.rencontres[0].bc, domicile: face.rencontres[0].domicile, issue: face.rencontres[0].issue } : null,
@@ -189,7 +202,7 @@ export class PrematchService {
         id: match.id, date: match.date ?? null, heure: match.heure ?? null, journee: match.journee ?? null,
         terrain: match.terrain ?? null, domicile: !!domicile,
       } : null,
-      faceAFace: face, analyse, arbitre, systemeAdverse, projection, pistes,
+      faceAFace: face, analyse, arbitre, systemeAdverse, numeros, projection, pistes,
     };
   }
 

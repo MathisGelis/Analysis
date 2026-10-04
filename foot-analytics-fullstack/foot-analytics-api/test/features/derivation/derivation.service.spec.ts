@@ -159,7 +159,7 @@ describe("DerivationService - cartons et arbitres", () => {
       const mions = await f.club("Mions");
       const ol = await f.club("OL Sud");
       const adv = await f.club("Adverse");
-      const jouer = async (club: Club, saison: Saison, date: string, joueur: { nom: string; prenom: string; licence?: string }) => {
+      const jouer = async (club: Club, saison: Saison, date: string, joueur: { nom: string; prenom: string; licence?: string; numero?: number }) => {
         const m = await f.match({ clubDom: club.id, clubExt: adv.id, saisonId: saison.id, date, scoreDom: 1, scoreExt: 0, statut: "joue" });
         await f.compo({ matchId: m.id, cote: "dom", ...joueur });
         return m;
@@ -184,6 +184,22 @@ describe("DerivationService - cartons et arbitres", () => {
         expect((await fiche("GUEDES")).clubId).toBe(c.ol.id);
       },
     );
+
+    it("poste de la fiche infere du numero le plus porte, selon la convention du staff (7 AG, 8 MC, 11 AD...)", async () => {
+      const c = await contexte();
+      const attendus: [string, number, string][] = [
+        ["GARDE", 1, "GB"], ["LATD", 2, "DD"], ["LATG", 3, "DG"], ["AXIALD", 4, "DC"], ["AXIALG", 5, "DC"], ["PIVOT", 6, "MD"],
+        ["AILG", 7, "AG"], ["RELAYEUR", 8, "MC"], ["BUTEUR", 9, "AT"], ["MENEUR", 10, "MO"], ["AILD", 11, "AD"],
+      ];
+      for (const [nom, numero] of attendus) await c.jouer(c.ol, c.s26, "06/09/2026", { nom, prenom: "Jo", licence: `L${numero}`, numero });
+      // Un titulaire en 14 n'a pas de poste lisible : milieu par defaut, comme avant.
+      await c.jouer(c.ol, c.s26, "13/09/2026", { nom: "REMPLACANT", prenom: "Jo", licence: "L14", numero: 14 });
+
+      await svc.recomputeJoueurs();
+
+      for (const [nom, , poste] of attendus) expect((await fiche(nom)).poste).toBe(poste);
+      expect((await fiche("REMPLACANT")).poste).toBe("MIL");
+    });
 
     it("la fiche creee sur l'ancien club est reparee au recalcul suivant", async () => {
       const c = await contexte();

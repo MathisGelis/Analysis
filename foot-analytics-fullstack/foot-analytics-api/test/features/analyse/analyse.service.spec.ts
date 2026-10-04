@@ -115,6 +115,31 @@ describe("AnalyseService.rapportClub", () => {
     expect(r.impacts.map((i) => i.nom)).toEqual(["ABEL", "ZED"]);
   });
 
+  it("compo probable : un joueur par numero de maillot (postes 1 a 11), lu sur les feuilles recentes", async () => {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse");
+    const s = await f.saison("2025-2026", 2025);
+    const eq = await f.equipe({ clubId: moi.id, nom: "Seniors", categorie: "Seniors", saisonId: s.id });
+    const advEq = await f.equipe({ clubId: adv.id, nom: "Adverse", categorie: "Seniors", saisonId: s.id });
+    for (const date of ["07/09/2025", "14/09/2025", "21/09/2025"]) {
+      const m = await f.match({ clubDom: moi.id, clubExt: adv.id, equipeDomId: eq.id, equipeExtId: advEq.id, saisonId: s.id, date, scoreDom: 1, scoreExt: 0 });
+      for (let numero = 1; numero <= 11; numero++) {
+        await f.compo({ matchId: m.id, cote: "dom", nom: `JOUEUR${numero}`, prenom: "Jo", numero });
+      }
+    }
+
+    const r = await svc.rapportClub(moi.id, { equipeId: eq.id });
+
+    expect(r.compoProbableSur).toBe(3);
+    expect(r.compoProbable.map((c) => [c.numero, c.poste, c.nom, c.matchsJoues])).toEqual([
+      [1, "GB", "Jo JOUEUR1", 3], [2, "DD", "Jo JOUEUR2", 3], [3, "DG", "Jo JOUEUR3", 3], [4, "DCD", "Jo JOUEUR4", 3],
+      [5, "DCG", "Jo JOUEUR5", 3], [6, "MDC", "Jo JOUEUR6", 3], [7, "AG", "Jo JOUEUR7", 3], [8, "MC", "Jo JOUEUR8", 3],
+      [9, "BU", "Jo JOUEUR9", 3], [10, "MO", "Jo JOUEUR10", 3], [11, "AD", "Jo JOUEUR11", 3],
+    ]);
+    expect(r.numeros.fiabilite).toMatchObject({ exploitable: true, part: 1 });
+    expect(r.numeros.systeme).toBeNull();                        // aucun changement de numero : pas de systeme
+  });
+
   it("equipe sans match : rapport vide, sans planter", async () => {
     const c = await contexte();
     const vide = await f.equipe({ clubId: c.moi.id, nom: "Seniors 2", categorie: "Seniors", saisonId: c.s26.id });
@@ -171,9 +196,10 @@ describe("AnalyseService.rapportClub", () => {
     it("perimetre : equipe, saison, poule ; fatigue des joueurs seulement sur la saison active", async () => {
       const actif = await saisonEnDeuxTemps(true);
       // Trois titulaires types avec une fatigue connue (30, 50, 70) et un quatrieme sans donnee (ignore).
-      for (const [nom, fatigue] of [["ALPHA", 30], ["BRAVO", 50], ["CHARLIE", 70], ["DELTA", null]] as const) {
+      // Un numero par joueur (2 a 5) : la compo probable se lit dans les numeros de maillot.
+      for (const [i, [nom, fatigue]] of ([["ALPHA", 30], ["BRAVO", 50], ["CHARLIE", 70], ["DELTA", null]] as const).entries()) {
         await f.joueur({ nom, prenom: "Jo", clubId: actif.moi.id, ...(fatigue === null ? {} : { scoreFatigue: fatigue }) });
-        for (const m of actif.matchs.slice(0, 4)) await f.compo({ matchId: m.id, cote: "dom", nom, prenom: "Jo" });
+        for (const m of actif.matchs.slice(0, 4)) await f.compo({ matchId: m.id, cote: "dom", nom, prenom: "Jo", numero: i + 2 });
       }
       const r1 = await svc.rapportClub(actif.moi.id, { equipeId: actif.eq.id });
       expect(r1.perimetre).toMatchObject({ equipeNom: "Seniors D2 Poule C", saisonNom: "2025-2026", saisonActive: true, poule: "C" });

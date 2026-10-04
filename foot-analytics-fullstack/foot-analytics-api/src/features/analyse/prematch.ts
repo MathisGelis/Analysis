@@ -100,8 +100,12 @@ export interface EntreePistes {
   } | null;
   arbitre: { nom: string; profil: string | null; matchsPrincipal: number; cartonsParMatch: number } | null;
   faceAFace: { joues: number; v: number; n: number; d: number; derniere?: { bp: number; bc: number; domicile: boolean; issue: Issue } | null };
-  /** Systeme de jeu probable de l'adversaire (voir features/matchs/systeme.ts) ; null sans match renseigne. */
-  systeme?: { systeme: string; confiance: number; observations: number; fiabilite: "faible" | "moyenne" | "bonne" } | null;
+  /** Systeme de jeu probable de l'adversaire (voir features/analyse/systeme-probable.ts) ; null sans dispositif ni indice. */
+  systeme?: {
+    systeme: string; confiance: number; observations: number; fiabilite: "faible" | "moyenne" | "bonne";
+    /** Dispositifs saisis, changements de numero, ou les deux. Absent : dispositifs saisis. */
+    source?: "renseigne" | "numeros" | "mixte"; matchsNumeros?: number;
+  } | null;
 }
 
 const LIBELLE_SERIE: Record<TypeSerie, string> = {
@@ -132,12 +136,15 @@ export function pistesPrematch(e: EntreePistes): Piste[] {
     else if (adv.bpm < 1.0) add("atout", 2, "Attaque en panne", `${adv.nom} ne marque que ${fr(adv.bpm)} but par match.`);
   }
 
-  // -- Systeme de jeu probable : seulement ce que le staff a renseigne --
+  // -- Systeme de jeu probable : ce que le staff a renseigne et/ou ce que disent les changements de numero --
   if (e.systeme) {
-    const { systeme, confiance, observations, fiabilite } = e.systeme;
-    add("info", 2, `Systeme probable : ${systeme}`, observations === 1
-      ? `Vu sur le seul match renseigne de ${adv.nom} : a confirmer.`
-      : `Retenu sur ${observations} matchs renseignes de ${adv.nom} (${confiance} % du poids)${fiabilite === "faible" ? ", echantillon mince" : ""}.`);
+    const { systeme, confiance, observations, fiabilite, source = "renseigne", matchsNumeros = 0 } = e.systeme;
+    const mince = fiabilite === "faible" ? ", echantillon mince" : "";
+    add("info", 2, `Systeme probable : ${systeme}`, source === "numeros"
+      ? `Deduit des changements de numero sur ${matchsNumeros} feuille${matchsNumeros > 1 ? "s" : ""} de ${adv.nom} (aucun dispositif renseigne, ${confiance} % de confiance) : a confirmer.`
+      : observations === 1
+        ? `Vu sur le seul match renseigne de ${adv.nom}${source === "mixte" ? ", recoupe par les numeros de maillot" : ""} : a confirmer.`
+        : `Retenu sur ${observations} matchs renseignes de ${adv.nom} (${confiance} % du poids)${source === "mixte" ? ", recoupes par les numeros de maillot" : ""}${mince}.`);
   }
 
   // -- Le lieu du match --

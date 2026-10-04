@@ -37,13 +37,9 @@ import { noteIndicative } from "@/features/joueurs/indicateurs";
 import { champsFatigue, Effort, RPE_MATCH } from "@/features/joueurs/fatigue";
 import { anneeDebutPourDate, nomSaison } from "@/common/saison-date";
 import { doublonsProgrammes } from "@/features/matchs/programme";
+import { posteFiche } from "@/features/matchs/numeros-postes";
 
 import { compterMotifs, resumeMotifs } from "./motifs";
-
-const POSTE_BY_NUM: Record<number, string> = {
-  1: "GB", 2: "DD", 3: "DG", 4: "DC", 5: "DC",
-  6: "MD", 7: "MD", 8: "MO", 9: "AT", 10: "MO", 11: "AG",
-};
 
 // Cache de normalisation : `norm()` est appelee des milliers de fois
 // sur les memes strings (noms de joueurs, surnames d'events). Cacher
@@ -515,7 +511,7 @@ export class DerivationService {
       const numeros = Object.entries(a.numeroCounts).sort((x, y) => y[1] - x[1]);
       const numeroFavori = numeros.length ? +numeros[0][0] : null;
       const postes = numeros.map(([n, c]) => `${n} (${c})`).join(" / ");
-      const posteInfere = numeroFavori != null ? POSTE_BY_NUM[numeroFavori] ?? "MIL" : "MIL";
+      const posteInfere = posteFiche(numeroFavori) ?? "MIL";
       const noteMoyenne = noteIndicative(a.matchs, a.cr);
 
       const found =

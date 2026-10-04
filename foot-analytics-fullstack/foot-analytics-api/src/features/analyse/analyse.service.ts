@@ -35,6 +35,7 @@ import { estMatchJoue } from "@/features/matchs/match-joue";
 import { parseDateFlexible, trierChronologiquement } from "@/common/dates";
 import { chargerDetailsMatchs } from "@/features/matchs/details-matchs";
 
+import { analyserNumeros, lignesDeFeuille } from "./compo-numeros";
 import { calculerTendances, dynamiqueForme, issueDe, MatchTendance, series as seriesDe } from "./tendances";
 import { RapportEquipe, ImpactJoueur, Faiblesse, Partnership, DynamiqueEquipe } from "./analyse.types";
 
@@ -370,31 +371,42 @@ export class AnalyseService {
     faiblesses.sort((a, b) => rangNiveau[a.niveau] - rangNiveau[b.niveau]);
 
     /* ============ Compo probable ============ */
-    // Pour chaque poste theorique, prendre le joueur qui y a ete le plus
-    // souvent titulaire.
+    // D'abord les NUMEROS de maillot (1 = GB ... 11 = AD) : un joueur par poste d'apres les feuilles recentes, et le
+    // systeme que lisent les changements de numero (features/analyse/compo-numeros.ts). Si les numeros ne sont pas ceux
+    // de la convention (numeros de saison), repli sur les 11 titulaires les plus utilises, tous postes confondus.
     type PosteScore = { poste: string; numero?: number; nom: string; matchsJoues: number };
-    const titsParJoueur = new Map<string, { poste: string; numero?: number; nom: string; titularisations: number }>();
-    for (const info of infos) {
-      for (const c of info.titulaires) {
-        const k = norm(`${c.nom}-${c.prenom ?? ""}`);
-        const j = joueurs.find(
-          (j) => norm(j.nom) === norm(c.nom) && (c.prenom ? norm(j.prenom) === norm(c.prenom) : true),
-        );
-        const cur = titsParJoueur.get(k) ?? {
-          poste: j?.poste ?? "MIL",
-          numero: j?.numeroFavori ?? c.numero, nom: `${c.prenom ?? ""} ${c.nom}`.trim(),
-          titularisations: 0,
-        };
-        cur.titularisations++;
-        titsParJoueur.set(k, cur);
+    const numeros = analyserNumeros(infos.flatMap((i) => lignesDeFeuille(i.m, i.titulaires)));
+    let compoProbable: PosteScore[];
+    let compoProbableSur: number;
+    if (numeros.fiabilite.exploitable) {
+      const titu = new Map(numeros.profils.map((p) => [p.joueur, p.titularisations]));
+      compoProbable = numeros.onze.flatMap((p) => p.joueur && p.nom
+        ? [{ poste: p.poste, numero: p.numero, nom: p.nom, matchsJoues: titu.get(p.joueur) ?? 0 }] : []);
+      compoProbableSur = numeros.matchs;
+    } else {
+      const titsParJoueur = new Map<string, { poste: string; numero?: number; nom: string; titularisations: number }>();
+      for (const info of infos) {
+        for (const c of info.titulaires) {
+          const k = norm(`${c.nom}-${c.prenom ?? ""}`);
+          const j = joueurs.find(
+            (j) => norm(j.nom) === norm(c.nom) && (c.prenom ? norm(j.prenom) === norm(c.prenom) : true),
+          );
+          const cur = titsParJoueur.get(k) ?? {
+            poste: j?.poste ?? "MIL",
+            numero: j?.numeroFavori ?? c.numero, nom: `${c.prenom ?? ""} ${c.nom}`.trim(),
+            titularisations: 0,
+          };
+          cur.titularisations++;
+          titsParJoueur.set(k, cur);
+        }
       }
+      compoProbable = [...titsParJoueur.values()]
+        // A egalite, l'ordre alphabetique : jamais l'ordre de lecture de la base, qui differe d'un moteur a l'autre.
+        .sort((a, b) => b.titularisations - a.titularisations || a.nom.localeCompare(b.nom))
+        .slice(0, 11)
+        .map((j) => ({ poste: j.poste, numero: j.numero, nom: j.nom, matchsJoues: j.titularisations }));
+      compoProbableSur = infos.length;
     }
-    // On prend les 11 plus titularises tous postes confondus (simplification).
-    const compoProbable: PosteScore[] = [...titsParJoueur.values()]
-      // A egalite, l'ordre alphabetique : jamais l'ordre de lecture de la base, qui differe d'un moteur a l'autre.
-      .sort((a, b) => b.titularisations - a.titularisations || a.nom.localeCompare(b.nom))
-      .slice(0, 11)
-      .map((j) => ({ poste: j.poste, numero: j.numero, nom: j.nom, matchsJoues: j.titularisations }));
 
     /* ============ Partnerships ============ */
     // Pour chaque match, on identifie un trio defense (3 DEF), un duo
@@ -706,6 +718,8 @@ export class AnalyseService {
       stabilite: { global: stabGlobal, parLigne: stabPerLigne },
       faiblesses,
       compoProbable,
+      compoProbableSur,
+      numeros,
       partnerships,
       changementsMoy,
       avertis,
