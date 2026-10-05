@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/shared/lib/api";
 import { getCachedUser, type User } from "@/features/auth/lib/auth";
+import { AdminOnglets } from "@/shared/ui/AdminOnglets";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
 import {
@@ -96,6 +97,8 @@ export default function AdminUtilisateurs() {
           <Plus size={14}/> {estReferent ? "Nouvel educateur" : "Nouveau compte"}
         </button>
       </header>
+
+      {!estReferent && <AdminOnglets />}
 
       <section className="panel p-5">
         {loading ? (

@@ -72,7 +72,10 @@ export interface RapportPrematch {
     entraineur: string | null;
     entraineurId: string | null;
     insights: Insight[];
-    compoProbable: { poste: string; numero?: number; nom: string; matchsJoues: number }[];
+    compoProbable: { poste: string; numero?: number; nom: string; matchsJoues: number; proba?: number }[];
+    /** "modele" : compo predite par le modele de l'IA actif (`proba` : sa chance de commencer) ; "regles" : moteur a regles. */
+    compoProbableSource: "modele" | "regles";
+    compoProbableModele: string | null;
     joueursCles: { joueurId: string | null; nom: string; prenom?: string; poste?: string; delta: number; matchsAvec: number; titularisations: number }[];
     faiblesses: { niveau: string; titre: string; detail: string }[];
     avertis: { nom: string; jaunes: number; rouges: number }[];

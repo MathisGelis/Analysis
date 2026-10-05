@@ -185,7 +185,9 @@ export default async function RapportPrematch({
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <Section titre="Onze probable" icone={<Users size={11} className="text-accent" />}
-              aide={r.numeros?.fiabilite.exploitable ? `un joueur par numero de maillot, sur ses ${r.numeros.matchs} dernieres feuilles` : "titulaires les plus utilises, par poste"}>
+              aide={a.compoProbableSource === "modele"
+                ? `predit par l'IA (${a.compoProbableModele ?? "modele actif"}) : la chance de chaque joueur de commencer`
+                : r.numeros?.fiabilite.exploitable ? `un joueur par numero de maillot, sur ses ${r.numeros.matchs} dernieres feuilles` : "titulaires les plus utilises, par poste"}>
               {a.compoProbable.length === 0 ? <Note>Composition non disponible.</Note> : (
                 <ul className="divide-y divide-line">
                   {[...a.compoProbable].sort((x, y) => (x.numero ?? 99) - (y.numero ?? 99)).map((j) => (
@@ -193,6 +195,7 @@ export default async function RapportPrematch({
                       <span className="w-6 text-right font-mono text-xs text-faint">{j.numero ?? ""}</span>
                       <span className="badge w-12 justify-center">{j.poste}</span>
                       <span className="min-w-0 flex-1 truncate font-medium text-ink">{j.nom}</span>
+                      {typeof j.proba === "number" && <span className="text-xs font-semibold tabular-nums text-ink" title="Chance de commencer le match, d'apres l'IA">{Math.round(j.proba * 100)} %</span>}
                       <span className="text-xs tabular-nums text-faint">{j.matchsJoues} titu.</span>
                     </li>
                   ))}

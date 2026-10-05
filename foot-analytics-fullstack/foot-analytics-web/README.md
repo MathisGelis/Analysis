@@ -198,6 +198,7 @@ foot-analytics-web/
 │   ├── features/
 │   │   ├── shell/                # coquille : barre laterale, barre du haut, theme, navigation
 │   │   ├── auth/  comptes/       # connexion, jeton ; gestion des comptes (page admin)
+│   │   ├── ia/                   # espace admin de l'IA : entrainement, courbe d'apprentissage, poids appris, modeles
 │   │   ├── equipes/              # club et equipe actifs (contextes, cookies, empreintes, resolution)
 │   │   ├── saisons/  clubs/  classement/
 │   │   ├── joueurs/              # effectif, fiche joueur, fatigue, parcours, mutations de club
@@ -239,6 +240,14 @@ Le systeme de jeu d'un adversaire vient des dispositifs saisis sur ses matchs **
 (1 gardien, 2 DD, 3 DG, 4 DCD, 5 DCG, 6 MDC, 7 AG, 8 MC, 9 BU, 10 MO, 11 AD) : un joueur qui passe du 2 au 4 dit une
 defense a 4, un attaquant 9 puis 10 deux attaquants... Chaque estimation dit d'ou elle vient, sa confiance et ses indices ;
 un dispositif saisi pese toujours plus que les numeros.
+
+### Entrainer l'IA (administrateur)
+Dans **Administration > IA** (`/admin/ia`) : *Lancer un entrainement* fait rejouer a l'IA toutes les feuilles de match de la base,
+semaine apres semaine (elle predit chaque semaine avant de la decouvrir, note ses erreurs, se corrige). L'ecran montre la
+progression, puis le resultat : precision des compos **comparee a trois methodes simples**, **courbe d'apprentissage**, poids
+appris (ce qui pese dans sa decision, avec le point de depart), justesse de ses probabilites, ses pires compositions et les
+joueurs difficiles a lire. *Activer ce modele* fait predire la compo probable des rapports (avec la chance de chaque joueur de
+commencer) ; *Revenir au moteur a regles* l'annule. L'ecran dit si l'IA fait mieux, pareil ou moins bien que le meilleur repere.
 
 ### Apres un match
 1. Le coach uploade la FMI dans `/import`

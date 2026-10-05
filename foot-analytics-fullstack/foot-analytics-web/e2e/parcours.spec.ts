@@ -35,6 +35,18 @@ async function choisir(declencheur: Locator, libelle: string | RegExp) {
   await declencheur.page().getByRole("option", { name: libelle, exact: typeof libelle === "string" }).click();
 }
 
+/**
+ * Clique un lien jusqu'a ce que la page change d'URL. Juste apres un chargement, un clic sur un lien Next est parfois perdu
+ * (la page se rafraichit pour reparer la selection d'equipe / de saison pendant l'hydratation) : on reclique, sans pour
+ * autant masquer un vrai lien casse (l'echec survient apres 20 s).
+ */
+async function cliquerJusquaNavigation(lien: Locator, url: RegExp) {
+  await expect(async () => {
+    await lien.click();
+    await expect(lien.page()).toHaveURL(url, { timeout: 2_500 });
+  }).toPass({ timeout: 20_000 });
+}
+
 /** Le bouton du selecteur de saison / equipe, en bas a gauche de la barre laterale. */
 const selecteur = (page: Page) => page.locator("aside button.panel-inset, nav button.panel-inset").first();
 
@@ -268,7 +280,7 @@ test("import FMI : la feuille est importee puis consultable", async () => {
 
 test("rapport d'equipe : sans match analyse sur la saison, la page l'explique sans planter ni inventer de tendance", async () => {
   await page.goto("/rapports");
-  await page.getByRole("link", { name: /Mon equipe/ }).click();
+  await cliquerJusquaNavigation(page.getByRole("link", { name: /Mon equipe/ }), /\/rapports\/equipe\//);
 
   await expect(page.getByRole("heading", { level: 1, name: /OL Sud E2E/ })).toBeVisible();
   await expect(page.getByText("Pas encore de match analyse")).toBeVisible();
@@ -387,13 +399,10 @@ test("entraineur : cliquable depuis la feuille de match, fiche avec bilan par sa
   const { id, nom } = staff[0].coach;
 
   await page.goto(`/matchs/${match.id}`);
-  await page.getByRole("link", { name: new RegExp(nom) }).first().click();
-
-  await expect(page).toHaveURL(new RegExp(`/coachs/${id}`));
+  await cliquerJusquaNavigation(page.getByRole("link", { name: new RegExp(nom) }).first(), new RegExp(`/coachs/${id}`));
   await expect(page.getByRole("heading", { level: 1, name: new RegExp(nom) })).toBeVisible();
   // Portee : la saison choisie par defaut, la carriere complete au clic.
-  await page.getByRole("navigation", { name: "Portee de la fiche" }).getByRole("link", { name: "Carriere complete" }).click();
-  await expect(page).toHaveURL(/portee=carriere/);
+  await cliquerJusquaNavigation(page.getByRole("navigation", { name: "Portee de la fiche" }).getByRole("link", { name: "Carriere complete" }), /portee=carriere/);
   await expect(page.getByRole("heading", { name: "Saison par saison" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Parcours" })).toBeVisible();
   await expect(page.getByText("1 match", { exact: false }).first()).toBeVisible();
@@ -453,6 +462,30 @@ test("systeme de jeu : saisi sur la fiche du match, repris par la prediction et 
   await expect(page.getByText("Chaponnay")).toHaveCount(0);
 });
 
+test("IA (administrateur) : onglet de l'administration, entrainement lance depuis l'ecran, echec explique faute de donnees", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : l'entrainement lit les feuilles de match importees");
+
+  await page.goto("/admin/utilisateurs");
+  await page.getByRole("navigation", { name: "Administration" }).getByRole("link", { name: "IA" }).click();
+  await expect(page).toHaveURL(/\/admin\/ia$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Intelligence artificielle" })).toBeVisible();
+  await expect(page.getByTestId("modele-actif")).toContainText("Aucun modele actif");
+  await expect(page.getByTestId("donnees-disponibles")).toContainText(/\d+ matchs? joues?/);
+  await expect(page.getByTestId("ia-vide")).toBeVisible();
+
+  await page.getByRole("button", { name: /Lancer un entrainement/ }).first().click();
+  await expect(page.getByRole("heading", { level: 2, name: "Lancer un entrainement" })).toBeVisible();
+  await page.getByRole("button", { name: "Lancer l'entrainement" }).click();
+
+  // La base de test ne compte qu'une feuille : l'IA ne peut pas apprendre en predisant la semaine suivante. Le serveur
+  // l'explique (au lieu d'une erreur technique), l'historique le garde, et aucun modele n'est cree.
+  await expect(page.getByTestId("dernier-echec")).toContainText(/au moins deux semaines/);
+  await expect(page.getByTestId("historique-ia")).toContainText("Echec");
+  await expect(page.getByTestId("modele-actif")).toContainText("Aucun modele actif");
+  await expect(page.getByTestId("resultat-ia")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Lancer un entrainement/ }).first()).toBeEnabled();
+});
+
 test("accessibilite : aucune violation axe sur les pages principales, en theme nuit et jour", async () => {
   test.setTimeout(180_000);
   const axe = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
@@ -465,7 +498,7 @@ test("accessibilite : aucune violation axe sur les pages principales, en theme n
     headers: { Authorization: `Bearer ${token}` },
   })).json();
   const adversaire = clubs.find((c) => c.nom !== "OL Sud E2E");
-  const pages = ["/", "/rapports", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical", "/ia",
+  const pages = ["/", "/rapports", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical", "/ia", "/admin/ia",
     ...(adversaire ? [`/rapports/prematch/${adversaire.id}`] : [])];
 
   const violations: string[] = [];

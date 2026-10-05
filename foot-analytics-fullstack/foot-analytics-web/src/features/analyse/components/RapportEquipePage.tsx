@@ -380,7 +380,12 @@ export default async function RapportEquipe({
             <Users size={11} className="text-accent"/>
             Compo probable ({rapport.compoProbable.length}/11)
           </div>
-          {rapport.numeros?.fiabilite?.exploitable && (
+          {rapport.compoProbableSource === "modele" ? (
+            <p className="-mt-1.5 mb-3 text-[11px] text-faint">
+              Predite par le modele de l'IA ({rapport.compoProbableModele ?? "modele actif"}), d'apres les {rapport.compoProbableSur} dernieres feuilles :
+              la colonne Chance est sa probabilite que le joueur commence le prochain match.
+            </p>
+          ) : rapport.numeros?.fiabilite?.exploitable && (
             <p className="-mt-1.5 mb-3 text-[11px] text-faint">
               Un joueur par numero de maillot (1 gardien, 2 DD, 3 DG, 4 DCD, 5 DCG, 6 MDC, 7 AG, 8 MC, 9 BU, 10 MO, 11 AD), sur les {rapport.numeros.matchs} dernieres feuilles.
             </p>
@@ -393,7 +398,9 @@ export default async function RapportEquipe({
             <table className="table-fm">
               <thead>
                 <tr>
-                  <th>#</th><th>Joueur</th><th>Poste</th><th className="text-right">Titularisations</th>
+                  <th>#</th><th>Joueur</th><th>Poste</th>
+                  {rapport.compoProbableSource === "modele" && <th className="text-right">Chance</th>}
+                  <th className="text-right">Titularisations</th>
                 </tr>
               </thead>
               <tbody>
@@ -404,6 +411,7 @@ export default async function RapportEquipe({
                     <td className="font-mono text-muted">{c.numero ?? "—"}</td>
                     <td className="font-semibold">{c.nom}</td>
                     <td><span className="badge">{c.poste}</span></td>
+                    {rapport.compoProbableSource === "modele" && <td className="text-right font-semibold tabular-nums">{typeof c.proba === "number" ? `${Math.round(c.proba * 100)} %` : "—"}</td>}
                     <td className="text-right tabular-nums">
                       {c.matchsJoues}
                       <span className="text-faint text-[10px]">

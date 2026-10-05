@@ -20,6 +20,7 @@ import { nomFichier, type PageExport } from "@/features/prematch/lib/export-pptx
 import type { SituationClub } from "@/features/analyse/lib/situation-types";
 import type { PlanContreRealise } from "@/features/tactique/lib/plan-realise-types";
 import type { FicheCoach } from "@/features/coachs/lib/fiche-coach-types";
+import type { EntrainementDetail, EntrainementResume, EtatIa, ModeleListe } from "@/features/ia/lib/ia-types";
 
 import type {
   Club, HistoriqueSaison, Joueur, LigneClassement, Match, MatchJoue, RapportScouting, TactiquePlan,
@@ -384,6 +385,20 @@ export const api = {
     if (!res.ok) throw new ApiError(res.status, chemin, await res.json().catch(() => null));
     return { fichier: await res.blob(), nom: nomFichier(res.headers.get("Content-Disposition")) };
   },
+
+  /* ---- IA : entrainement et modeles de prediction (administrateur) ---- */
+  iaEtat: () => req<EtatIa>("/ia/etat"),
+  iaEntrainements: () => req<EntrainementResume[]>("/ia/entrainements"),
+  iaEntrainement: (id: string) => req<EntrainementDetail>(`/ia/entrainements/${id}`),
+  /** Progression et statut sans le resultat detaille : fait pour etre interroge chaque seconde. */
+  iaResume: (id: string) => req<EntrainementResume>(`/ia/entrainements/${id}/resume`),
+  iaLancer: (body: { optimiser?: boolean; saisonIds?: string[] }) =>
+    req<EntrainementResume>("/ia/entrainements", { method: "POST", body: JSON.stringify(body) }),
+  iaAnnuler: (id: string) => req<EntrainementResume>(`/ia/entrainements/${id}/annuler`, { method: "POST" }),
+  iaModeles: () => req<ModeleListe[]>("/ia/modeles"),
+  iaActiver: (id: string) => req<void>(`/ia/modeles/${id}/activer`, { method: "POST" }),
+  iaDesactiver: () => req<void>("/ia/modeles/desactiver", { method: "POST" }),
+  iaSupprimerModele: (id: string) => req<void>(`/ia/modeles/${id}`, { method: "DELETE" }),
 
   /* ---- Saisons ---- */
   saisons: () => req<any[]>("/saisons", { fallback: [] }),
