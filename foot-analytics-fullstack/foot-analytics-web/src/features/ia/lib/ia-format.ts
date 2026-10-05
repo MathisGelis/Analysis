@@ -3,7 +3,8 @@
 // Mise en forme et lecture des resultats de l'IA pour l'ecran admin. Fonctions pures.
 
 import type {
-  Caracteristique, EntrainementResume, ErreurFeuille, Hyper, Mesure, Methode, NotesParMethode, Poids, PointCourbe, ResultatEntrainement, StatutEntrainement,
+  Caracteristique, Decision, EntrainementResume, ErreurFeuille, Hyper, Mesure, Methode, NotesParMethode, PlanningIa, Poids, PointCourbe,
+  ResultatEntrainement, StatutEntrainement,
 } from "./ia-types";
 
 const nf = (d: number) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -175,4 +176,48 @@ export function coupuresDeCourbe(courbe: readonly Pick<PointCourbe, "libelle">[]
     if (avant !== null && apres !== null && (apres - avant) / 86_400_000 > jours) coupures.push(i);
   }
   return coupures;
+}
+
+/* ------------------------------------------ reentrainement automatique ------------------------------------------ */
+
+const JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"] as const;
+const MOIS_LONGS = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"] as const;
+
+/** "chaque mercredi a 5 h (heure de Paris)". */
+export const texteFrequence = (p: Pick<PlanningIa, "jour" | "heure">): string => `chaque ${JOURS[p.jour] ?? "semaine"} a ${p.heure} h (heure de Paris)`;
+
+/** "mercredi 8 octobre, 5 h" : un instant ISO, lu a l'heure de Paris quel que soit le fuseau du navigateur. */
+export function datePassage(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return "—";
+  const parties = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" }).formatToParts(t);
+  const v = (type: string) => Number(parties.find((x) => x.type === type)!.value);
+  const jour = JOURS[new Date(Date.UTC(v("year"), v("month") - 1, v("day"))).getUTCDay()];
+  const heure = v("minute") === 0 ? `${v("hour")} h` : `${v("hour")} h ${String(v("minute")).padStart(2, "0")}`;
+  return `${jour} ${v("day")} ${MOIS_LONGS[v("month") - 1]}, ${heure}`;
+}
+
+export type TonDecision = "ok" | "non" | "neutre";
+
+/**
+ * Le verdict d'un entrainement face au modele actif, en un mot pour l'historique. `appliquee` : le modele actif a ete remplace ;
+ * un lancement manuel n'applique jamais, il donne seulement son avis (c'est a l'administrateur d'activer).
+ */
+export function badgeDecision(d: Decision | null | undefined): { texte: string; ton: TonDecision } | null {
+  if (!d) return null;
+  if (d.appliquee) return { texte: "Remplace l'actif", ton: "ok" };
+  if (d.action === "remplace") return { texte: "Au moins aussi bon que l'actif", ton: "ok" };
+  if (d.action === "conserve") return { texte: "Non retenu", ton: "non" };
+  if (d.action === "sans_actif") return { texte: "Non active", ton: "neutre" };
+  return { texte: "Inchange", ton: "neutre" };
+}
+
+/** Le dernier entrainement automatique, en une phrase pour le panneau du planning. */
+export function resumeDernierAuto(dernier: EntrainementResume | null | undefined): string | null {
+  if (!dernier) return null;
+  const quand = dateHeure(dernier.creeLe);
+  if (dernier.statut === "en_cours") return `En cours depuis le ${quand}.`;
+  if (dernier.statut === "echec" || dernier.statut === "annule") return `${LIBELLE_STATUT[dernier.statut]} le ${quand} : ${dernier.message ?? "sans precision"}`;
+  return `${quand} : ${dernier.decision?.raison ?? "termine."}`;
 }

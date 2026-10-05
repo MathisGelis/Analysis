@@ -169,7 +169,7 @@ describe("erreurs", () => {
 describe("dernierReussi", () => {
   const run = (id: string, statut: EntrainementResume["statut"], modele: boolean): EntrainementResume => ({
     id, statut, progression: 100, message: null, options: { optimiser: true, saisonIds: null }, lancePar: null, modeleId: modele ? `m-${id}` : null,
-    termineLe: null, creeLe: "2026-10-05T10:00:00.000Z",
+    termineLe: null, creeLe: "2026-10-05T10:00:00.000Z", declencheur: "manuel", decision: null,
     modele: modele ? { id: `m-${id}`, nom: "Modele", actif: false, resume: {} as never } : null,
   });
 

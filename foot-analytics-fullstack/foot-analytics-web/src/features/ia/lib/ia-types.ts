@@ -62,6 +62,8 @@ export interface PoidsIa {
   titularisation: Poids;
   numeros: Poids;
   systeme: Poids | null;
+  /** Le dispositif appris sert en direct s'il a fait au moins aussi bien que le moteur a regles (absent : non verifie). */
+  systemeRetenu?: boolean;
   frequencesSysteme: Record<string, number>;
 }
 
@@ -72,6 +74,7 @@ export interface ResumeDonnees {
   equipes: number;
   premiere: string | null;
   derniere: string | null;
+  derniereSemaine: number | null;
   saisons: string[];
   ecartes: { sansDate: number; sansFeuille: number; feuilleIncomplete: number; horsSaison: number };
 }
@@ -87,6 +90,7 @@ export interface ResultatEntrainement {
   nouveaux: number | null;
   sansHistorique: number;
   systeme: ResumeSysteme | null;
+  comparaison: ComparaisonActif | null;
   calibration: BandeCalibration[];
   pires: ErreurFeuille[];
   difficiles: JoueurDifficile[];
@@ -108,9 +112,40 @@ export interface ResumeModele {
   reference: Exclude<Methode, "modele"> | null;
   perte: number | null;
   systemeAppris: boolean;
+  /** Le dispositif appris sert en direct avec ce modele. */
+  systemeRetenu: boolean;
+  derniereSemaine: number | null;
 }
 
 export type StatutEntrainement = "en_cours" | "termine" | "echec" | "annule";
+/** manuel : lance par un administrateur ; auto : le reentrainement hebdomadaire. */
+export type Declencheur = "manuel" | "auto";
+
+export interface MesureComparaison { onze: number | null; postes: number | null; perte: number | null }
+
+/** Le nouveau modele face au modele actif, sur les semaines posterieures a celles que l'actif avait vues. */
+export interface ComparaisonActif {
+  actif: { id: string; nom: string };
+  depuis: string;
+  semaines: number;
+  feuilles: number;
+  nouveau: MesureComparaison;
+  ancien: MesureComparaison;
+}
+
+/**
+ * remplace : au moins aussi bon que l'actif ; conserve : l'actif reste (moins bon, ou comparaison impossible) ;
+ * sans_actif : aucun modele actif ; inchange : rien de nouveau.
+ */
+export type ActionDecision = "remplace" | "conserve" | "sans_actif" | "inchange";
+
+export interface Decision {
+  action: ActionDecision;
+  raison: string;
+  /** Vrai : le modele actif a ete remplace (seulement pour un entrainement automatique). */
+  appliquee: boolean;
+  comparaison: ComparaisonActif | null;
+}
 
 export interface ModeleListe { id: string; nom: string; entrainementId: string; resume: ResumeModele; actif: boolean; creeLe: string }
 
@@ -124,6 +159,8 @@ export interface EntrainementResume {
   modeleId: string | null;
   termineLe: string | null;
   creeLe: string;
+  declencheur: Declencheur;
+  decision: Decision | null;
   modele: { id: string; nom: string; actif: boolean; resume: ResumeModele } | null;
 }
 
@@ -135,9 +172,23 @@ export interface EntrainementDetail extends EntrainementResume {
   catalogue: { titularisation: Caracteristique[]; numeros: Caracteristique[]; systeme: Caracteristique[] };
 }
 
+/** Le reentrainement automatique : chaque semaine, a `jour` (0 = dimanche) et `heure`, heure de `fuseau`. */
+export interface PlanningIa {
+  actif: boolean;
+  depuis: string;
+  /** Le planificateur tourne-t-il sur ce serveur ? */
+  operationnel: boolean;
+  jour: number;
+  heure: number;
+  fuseau: string;
+  prochain: string | null;
+  dernier: EntrainementResume | null;
+}
+
 export interface EtatIa {
   actif: ModeleListe | null;
   enCours: EntrainementResume | null;
   dernier: EntrainementResume | null;
+  planning: PlanningIa;
   donnees: { matchsJoues: number; saisons: { id: string; nom: string; matchs: number }[] };
 }

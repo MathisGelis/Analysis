@@ -9,7 +9,7 @@ import { useState } from "react";
 import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
 
 import {
-  dureeFr, ecartPoints, LIBELLE_METHODE, LIBELLE_METHODE_COURT, libelleHyper, lignesDePoids, meilleureReference, METHODES, nombre, pct, verdict,
+  badgeDecision, dureeFr, ecartPoints, LIBELLE_METHODE, LIBELLE_METHODE_COURT, libelleHyper, lignesDePoids, meilleureReference, METHODES, nombre, pct, verdict,
 } from "@/features/ia/lib/ia-format";
 import type { EntrainementDetail, Mesure, Methode } from "@/features/ia/lib/ia-types";
 
@@ -35,6 +35,38 @@ function Bloc({ titre, aide, children, testid }: { titre: string; aide?: string;
       {aide && <p className="mt-1 max-w-3xl text-xs text-muted">{aide}</p>}
       <div className="mt-4">{children}</div>
     </section>
+  );
+}
+
+/** Le nouveau modele face au modele actif d'alors : la regle de securite du reentrainement automatique. */
+function FaceAuModeleActif({ detail }: { detail: EntrainementDetail }) {
+  const d = detail.decision!;
+  const b = badgeDecision(d)!;
+  const c = d.comparaison;
+  return (
+    <Bloc titre="Face au modele actif" testid="decision-ia"
+      aide="Un nouveau modele ne remplace l'actif que s'il fait au moins aussi bien sur des semaines que l'actif n'avait pas vues : le nouveau les a predites en marche avant, l'actif avec ses reglages figes.">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`badge text-[10px] ${b.ton === "ok" ? "badge-accent" : b.ton === "non" ? "badge-amber" : ""}`}>{b.texte}</span>
+        <span className="badge text-[10px]">{detail.declencheur === "auto" ? "Reentrainement automatique" : "Lancement manuel"}</span>
+      </div>
+      <p className="mt-2 text-sm text-ink" data-testid="decision-raison">{d.raison}</p>
+      {detail.declencheur === "manuel" && d.action === "remplace" && !d.appliquee && (
+        <p className="mt-1 text-xs text-muted">Un lancement manuel n'active jamais le modele : c'est a vous de l'activer.</p>
+      )}
+      {c && (
+        <div className="mt-3 overflow-x-auto">
+          <table className="table-fm">
+            <thead><tr><th>Modele</th><th className="text-right">Titulaires predits</th><th className="text-right">Postes exacts</th><th className="text-right">Perte (plus bas = mieux)</th></tr></thead>
+            <tbody>
+              <tr className="is-mine"><td className="font-semibold text-ink">Nouveau modele</td><td className="text-right font-mono">{pct(c.nouveau.onze)}</td><td className="text-right font-mono">{pct(c.nouveau.postes)}</td><td className="text-right font-mono">{nombre(c.nouveau.perte, 3)}</td></tr>
+              <tr><td className="text-muted">{c.actif.nom} (actif)</td><td className="text-right font-mono text-muted">{pct(c.ancien.onze)}</td><td className="text-right font-mono text-muted">{pct(c.ancien.postes)}</td><td className="text-right font-mono text-muted">{nombre(c.ancien.perte, 3)}</td></tr>
+            </tbody>
+          </table>
+          <p className="mt-2 text-xs text-faint">{c.feuilles} feuilles sur {c.semaines} semaine{c.semaines > 1 ? "s" : ""}, a partir de la {c.depuis.charAt(0).toLowerCase() + c.depuis.slice(1)}.</p>
+        </div>
+      )}
+    </Bloc>
   );
 }
 
@@ -86,6 +118,8 @@ export function ResultatIa({ detail }: { detail: EntrainementDetail }) {
         <Tuile testid="kpi-nouveaux" label="Joueurs jamais vus" valeur={pct(r.nouveaux)}
           aide="des titulaires reels etaient inconnus de leur equipe : imprevisibles" />
       </div>
+
+      {detail.decision && <FaceAuModeleActif detail={detail} />}
 
       <Bloc titre="Comparaison avec des methodes simples" testid="comparaison-ia"
         aide="Sur exactement les memes matchs. 'Titulaires' : part des 11 titulaires reels predits. 'Postes' : part des 11 couples (numero, joueur) exacts.">
@@ -173,6 +207,11 @@ export function ResultatIa({ detail }: { detail: EntrainementDetail }) {
               </tbody>
             </table>
             <p className="mt-2 text-xs text-faint">Sur {r.systeme.n} matchs dont le dispositif est saisi.</p>
+            <p className="mt-1 text-xs" data-testid="systeme-retenu">
+              {r.poids.systemeRetenu
+                ? <span className="text-win">Retenu : a fait au moins aussi bien que le moteur a regles, il choisit le dispositif probable quand ce modele est actif.</span>
+                : <span className="text-amber">Non retenu : pas assez de dispositifs saisis, ou moins bon que le moteur a regles. Le dispositif probable reste calcule par le moteur a regles.</span>}
+            </p>
           </div>
         ) : (
           <p className="text-sm text-muted">Aucun dispositif saisi par le staff sur les matchs de la base : le modele de dispositif n'a rien pu apprendre. Saisissez les dispositifs sur les fiches de match pour l'entrainer.</p>

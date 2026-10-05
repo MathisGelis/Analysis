@@ -7,19 +7,22 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Brain, CircleCheck, Play, Power, Square, Trash2 } from "lucide-react";
+import { Brain, CalendarClock, CircleCheck, Play, Power, Square, Trash2 } from "lucide-react";
 
 import { getCachedUser } from "@/features/auth/lib/auth";
 import { api, messageApi } from "@/shared/lib/api";
 import { useFeedback } from "@/shared/lib/feedback-context";
 import { AdminOnglets } from "@/shared/ui/AdminOnglets";
-import { dateHeure, dernierReussi, LIBELLE_STATUT, pct } from "@/features/ia/lib/ia-format";
+import {
+  badgeDecision, dateHeure, datePassage, dernierReussi, LIBELLE_STATUT, pct, resumeDernierAuto, texteFrequence, type TonDecision,
+} from "@/features/ia/lib/ia-format";
 import type { EntrainementDetail, EntrainementResume, EtatIa, StatutEntrainement } from "@/features/ia/lib/ia-types";
 
 import { LancerEntrainementModale } from "./LancerEntrainementModale";
 import { ResultatIa } from "./ResultatIa";
 
 const BADGE: Record<StatutEntrainement, string> = { en_cours: "badge-sky", termine: "", echec: "badge-danger", annule: "badge-amber" };
+const BADGE_DECISION: Record<TonDecision, string> = { ok: "badge-accent", non: "badge-amber", neutre: "" };
 
 export default function IaPage() {
   const { notifier, confirmer } = useFeedback();
@@ -126,6 +129,14 @@ export default function IaPage() {
     catch (e) { notifier.erreur(`Desactivation impossible : ${messageApi(e)}`); }
   }
 
+  async function basculerPlanning(actif: boolean) {
+    try {
+      const planning = await api.iaDefinirPlanning(actif);
+      setEtat((e) => (e ? { ...e, planning } : e));
+      notifier.succes(actif ? "Reentrainement automatique active." : "Reentrainement automatique suspendu.");
+    } catch (e) { notifier.erreur(`Changement impossible : ${messageApi(e)}`); }
+  }
+
   async function supprimer(id: string, nom: string) {
     const ok = await confirmer({ titre: `Supprimer ${nom} ?`, message: "Le resultat de son entrainement reste consultable.", libelleConfirmer: "Supprimer", danger: true });
     if (!ok) return;
@@ -188,6 +199,34 @@ export default function IaPage() {
                 {etat.donnees.saisons.filter((s) => s.matchs > 0).map((s) => <li key={s.id}>{s.nom} : {s.matchs}</li>)}
               </ul>
               <p className="mt-2 text-xs text-faint">Chaque match donne deux feuilles d'equipe. Plus il y a de saisons importees, mieux l'IA apprend.</p>
+            </div>
+          </section>
+
+          <section className="panel p-5" aria-label="Reentrainement automatique" data-testid="planning-ia">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="h-section flex items-center gap-2"><CalendarClock size={11} className="text-accent" aria-hidden /> Reentrainement automatique</div>
+                <p className="mt-2 text-sm text-ink">
+                  {etat.planning.actif
+                    ? <>Actif : l'IA se reentraine {texteFrequence(etat.planning)}. Prochain passage : <strong>{datePassage(etat.planning.prochain)}</strong>.</>
+                    : "Suspendu : l'IA ne se reentraine que quand vous lancez un entrainement."}
+                </p>
+                <p className="mt-1 max-w-3xl text-xs text-muted">
+                  Le nouveau modele ne remplace le modele actif que s'il fait au moins aussi bien, sur les semaines que l'actif n'avait pas encore vues.
+                  Sinon il reste dans l'historique des modeles, et l'actif continue. Sans modele actif, il n'est jamais active tout seul.
+                </p>
+                {resumeDernierAuto(etat.planning.dernier) && (
+                  <p className="mt-2 text-xs text-muted" data-testid="planning-dernier"><span className="text-faint">Dernier passage : </span>{resumeDernierAuto(etat.planning.dernier)}</p>
+                )}
+                {!etat.planning.operationnel && (
+                  <p role="status" className="mt-2 text-xs text-amber" data-testid="planning-inactif">
+                    Le planificateur ne tourne pas sur ce serveur (il demarre en production, ou avec IA_PLANIFICATEUR=on) : aucun entrainement automatique n'aura lieu ici.
+                  </p>
+                )}
+              </div>
+              <button type="button" className="btn text-sm" onClick={() => basculerPlanning(!etat.planning.actif)} aria-pressed={etat.planning.actif}>
+                <Power size={14} aria-hidden /> {etat.planning.actif ? "Suspendre" : "Reactiver"}
+              </button>
             </div>
           </section>
 
@@ -256,13 +295,19 @@ export default function IaPage() {
               <h2 className="font-display text-lg font-bold text-ink">Historique</h2>
               <div className="mt-3 overflow-x-auto">
                 <table className="table-fm">
-                  <thead><tr><th>Date</th><th>Statut</th><th>Modele</th><th className="text-right">Titulaires predits</th><th className="text-right">Meilleur repere</th><th><span className="sr-only">Actions</span></th></tr></thead>
+                  <thead><tr><th>Date</th><th>Statut</th><th>Modele</th><th>Face a l'actif</th><th className="text-right">Titulaires predits</th><th className="text-right">Meilleur repere</th><th><span className="sr-only">Actions</span></th></tr></thead>
                   <tbody>
                     {liste.map((e) => (
                       <tr key={e.id} className={detail?.id === e.id ? "is-mine" : ""}>
-                        <td className="whitespace-nowrap text-sm">{dateHeure(e.creeLe)}</td>
+                        <td className="whitespace-nowrap text-sm">{dateHeure(e.creeLe)}{e.declencheur === "auto" && <span className="badge ml-2 text-[10px]" title="Reentrainement automatique">Auto</span>}</td>
                         <td><span className={`badge text-[10px] ${BADGE[e.statut]}`}>{LIBELLE_STATUT[e.statut]}</span></td>
                         <td className="text-sm">{e.modele ? <>{e.modele.nom}{e.modele.actif && <span className="badge badge-accent ml-2 text-[10px]">Actif</span>}</> : <span className="text-faint">—</span>}</td>
+                        <td className="text-sm">
+                          {(() => {
+                            const b = badgeDecision(e.decision);
+                            return b ? <span className={`badge text-[10px] ${BADGE_DECISION[b.ton]}`} title={e.decision?.raison}>{b.texte}</span> : <span className="text-faint">—</span>;
+                          })()}
+                        </td>
                         <td className="text-right font-mono text-sm">{e.modele ? pct(e.modele.resume.onze) : "—"}</td>
                         <td className="text-right font-mono text-sm text-muted">{e.modele ? pct(e.modele.resume.referenceOnze) : "—"}</td>
                         <td className="text-right">

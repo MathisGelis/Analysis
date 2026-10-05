@@ -27,9 +27,11 @@ export function dispositifAffiche(
   const p = situation?.systeme.probable;
   if (p) {
     const saisis = `d'apres ${pluriel(p.observations, "match")} renseigne${p.observations > 1 ? "s" : ""}`;
-    if (p.source === "renseigne") return { systeme: p.systeme, source: "observe", detail: saisis };
-    if (p.source === "mixte") return { systeme: p.systeme, source: "mixte", detail: `${saisis}, recoupes par les numeros de maillot` };
-    return { systeme: p.systeme, source: "numeros", detail: `deduit des numeros de maillot sur ${pluriel(p.matchsNumeros, "feuille")} (a confirmer)` };
+    // Choisi par le modele de l'IA actif : on le dit, la preuve (dispositifs saisis, numeros) reste celle des donnees.
+    const parIa = p.modele ? `, choisi par l'IA (${p.modele.nom})` : "";
+    if (p.source === "renseigne") return { systeme: p.systeme, source: "observe", detail: `${saisis}${parIa}` };
+    if (p.source === "mixte") return { systeme: p.systeme, source: "mixte", detail: `${saisis}, recoupes par les numeros de maillot${parIa}` };
+    return { systeme: p.systeme, source: "numeros", detail: `deduit des numeros de maillot sur ${pluriel(p.matchsNumeros, "feuille")} (a confirmer)${parIa}` };
   }
   if (planFormation && planFormation.trim()) {
     return { systeme: planFormation.trim(), source: "prevu", detail: "prevu dans la derniere composition enregistree" };

@@ -20,7 +20,7 @@ import { nomFichier, type PageExport } from "@/features/prematch/lib/export-pptx
 import type { SituationClub } from "@/features/analyse/lib/situation-types";
 import type { PlanContreRealise } from "@/features/tactique/lib/plan-realise-types";
 import type { FicheCoach } from "@/features/coachs/lib/fiche-coach-types";
-import type { EntrainementDetail, EntrainementResume, EtatIa, ModeleListe } from "@/features/ia/lib/ia-types";
+import type { EntrainementDetail, EntrainementResume, EtatIa, ModeleListe, PlanningIa } from "@/features/ia/lib/ia-types";
 
 import type {
   Club, HistoriqueSaison, Joueur, LigneClassement, Match, MatchJoue, RapportScouting, TactiquePlan,
@@ -31,10 +31,20 @@ export const API_URL =
 
 type Json = Record<string, any>;
 
+/** La raison donnee par l'API dans le corps d'une erreur Nest ({ message: "..." } ou { message: ["...", "..."] }), sinon "". */
+function raisonApi(corps: any): string {
+  const m = corps?.message;
+  return Array.isArray(m) ? m.join(" ; ") : typeof m === "string" ? m : "";
+}
+
 /**
  * Erreur HTTP de l'API. `corps` contient le JSON renvoye par Nest quand il y
  * en a un (ex. { code: "BLESSURE_CHEVAUCHANTE", conflits: [...] } sur un 409),
  * pour que l'UI puisse reagir autrement que par un message generique.
+ *
+ * Le `message` est la RAISON donnee par l'API ("Ce match ne concerne pas ton club.") : tout ecran qui affiche
+ * `e.message` explique donc un refus au lieu d'un "API 403 sur /matchs/..." muet. Faute de raison, le message
+ * technique reste (statut + chemin, aussi disponibles en `statut` et `chemin`).
  */
 export class ApiError extends Error {
   constructor(
@@ -42,7 +52,7 @@ export class ApiError extends Error {
     readonly chemin: string,
     readonly corps: any = null,
   ) {
-    super(`API ${statut} sur ${chemin}`);
+    super(raisonApi(corps) || `API ${statut} sur ${chemin}`);
     this.name = "ApiError";
   }
 }
@@ -53,8 +63,7 @@ export class ApiError extends Error {
  */
 export function messageApi(e: unknown, defaut = "Erreur"): string {
   if (e instanceof ApiError) {
-    const m = e.corps?.message;
-    const texte = Array.isArray(m) ? m.join(" ; ") : typeof m === "string" ? m : "";
+    const texte = raisonApi(e.corps);
     if (texte) return texte;
   }
   return (e as Error)?.message || defaut;
@@ -289,6 +298,9 @@ export const api = {
 
   updateMatch: (id: string, body: Json) =>
     req<Match>(`/matchs/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  /** Saisir les systemes de jeu d'un match ("" efface) : ouvert a tous pour un dispositif vide, voir `Match.droits`. */
+  updateDispositifs: (id: string, body: { formationDom?: string; formationExt?: string }) =>
+    req<Match>(`/matchs/${id}/dispositifs`, { method: "PATCH", body: JSON.stringify(body) }),
   createMatch: (body: Json) =>
     req<Match>("/matchs", { method: "POST", body: JSON.stringify(body) }),
 
@@ -399,6 +411,8 @@ export const api = {
   iaActiver: (id: string) => req<void>(`/ia/modeles/${id}/activer`, { method: "POST" }),
   iaDesactiver: () => req<void>("/ia/modeles/desactiver", { method: "POST" }),
   iaSupprimerModele: (id: string) => req<void>(`/ia/modeles/${id}`, { method: "DELETE" }),
+  /** Active ou suspend le reentrainement automatique du mercredi. */
+  iaDefinirPlanning: (actif: boolean) => req<PlanningIa>("/ia/planning", { method: "PUT", body: JSON.stringify({ actif }) }),
 
   /* ---- Saisons ---- */
   saisons: () => req<any[]>("/saisons", { fallback: [] }),

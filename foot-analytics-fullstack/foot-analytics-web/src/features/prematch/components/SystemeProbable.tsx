@@ -79,6 +79,7 @@ export function SystemeProbable({
           <div className="flex flex-wrap items-center gap-2">
             <span className={`badge ${f.classe}`}>{f.libelle}</span>
             <span className="badge badge-sky">{SOURCE[p.source]}</span>
+            {p.modele && <span className="badge badge-accent" title="Le dispositif est choisi par le modele de l'IA actif">Predit par l'IA ({p.modele.nom})</span>}
             <span>{p.confiance} % · {base}</span>
           </div>
           {structure && <div className="text-ink">Les numeros disent : {structure}</div>}

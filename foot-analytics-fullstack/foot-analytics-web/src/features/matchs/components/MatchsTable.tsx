@@ -217,7 +217,7 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
                   <td className="text-right">
                     <div className="inline-flex items-center gap-1">
                       <Link href={`/matchs/${m.id}`} className="btn text-xs">Detail</Link>
-                      <DeleteMatchButton matchId={m.id} label={`J${m.journee} ${m.scoreDom}-${m.scoreExt}`}/>
+                      {m.modifiable !== false && <DeleteMatchButton matchId={m.id} label={`J${m.journee} ${m.scoreDom}-${m.scoreExt}`}/>}
                     </div>
                   </td>
                 </tr>

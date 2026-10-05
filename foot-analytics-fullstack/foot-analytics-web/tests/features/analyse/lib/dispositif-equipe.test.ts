@@ -40,6 +40,12 @@ describe("dispositifAffiche", () => {
     });
   });
 
+  it("choisi par le modele de l'IA actif : le dit, sans changer la preuve", () => {
+    const parIa = { ...pred("4-3-3", 4), modele: { nom: "Modele n°2" } };
+    expect(dispositifAffiche(situation(parIa))).toEqual({ systeme: "4-3-3", source: "observe", detail: "d'apres 4 matchs renseignes, choisi par l'IA (Modele n°2)" });
+    expect(dispositifAffiche(situation({ ...pred("4-3-3", 3, "mixte", 6), modele: { nom: "Modele n°2" } }))!.detail).toMatch(/recoupes par les numeros de maillot, choisi par l'IA/);
+  });
+
   it("le probable prime sur le prevu ; sans probable, le prevu (mon equipe) ; sinon rien", () => {
     expect(dispositifAffiche(situation(pred("4-3-3")), "3-5-2")!.systeme).toBe("4-3-3");
     expect(dispositifAffiche(situation(null), "3-5-2")).toMatchObject({ systeme: "3-5-2", source: "prevu" });

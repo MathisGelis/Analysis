@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { api } from "@/shared/lib/api";
+import { api, messageApi } from "@/shared/lib/api";
 import { FORMATIONS } from "@/features/tactique/lib/composition";
 import { useFeedback } from "@/shared/lib/feedback-context";
 import { Select } from "@/shared/ui/Select";
@@ -17,8 +17,12 @@ import { optionsSimples } from "@/shared/lib/selecteur";
 const NON_RENSEIGNE = "";
 
 export function SystemeMatch({
-  matchId, cote, valeur, equipe,
-}: { matchId: string; cote: "dom" | "ext"; valeur: string | null; equipe: string }) {
+  matchId, cote, valeur, equipe, verrouille = false,
+}: {
+  matchId: string; cote: "dom" | "ext"; valeur: string | null; equipe: string;
+  /** Dispositif deja saisi sur un match qu'on ne gere pas : on le lit, on ne le corrige pas (l'API le refuserait). */
+  verrouille?: boolean;
+}) {
   const router = useRouter();
   const { notifier } = useFeedback();
   const [enCours, setEnCours] = useState(false);
@@ -29,14 +33,23 @@ export function SystemeMatch({
   async function changer(nouvelle: string) {
     setEnCours(true);
     try {
-      await api.updateMatch(matchId, { [cote === "dom" ? "formationDom" : "formationExt"]: nouvelle });
+      await api.updateDispositifs(matchId, { [cote === "dom" ? "formationDom" : "formationExt"]: nouvelle });
       notifier.succes(nouvelle ? `Systeme de ${equipe} : ${nouvelle}.` : `Systeme de ${equipe} efface.`);
       router.refresh();
     } catch (e) {
-      notifier.erreur(`Enregistrement impossible : ${(e as Error).message}`);
+      notifier.erreur(`Enregistrement impossible : ${messageApi(e)}`);
     } finally {
       setEnCours(false);
     }
+  }
+
+  if (verrouille && valeur) {
+    return (
+      <div className="flex items-center gap-2 text-xs">
+        <span className="min-w-0 flex-1 truncate text-muted">{equipe}</span>
+        <span className="badge font-mono" title="Deja renseigne : seul un club du match ou un administrateur peut le modifier.">{valeur}</span>
+      </div>
+    );
   }
 
   return (

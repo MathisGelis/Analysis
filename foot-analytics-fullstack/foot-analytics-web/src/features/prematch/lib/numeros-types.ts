@@ -64,6 +64,8 @@ export interface SystemeProbableDonnees {
   matchsNumeros: number;
   alternatives: { systeme: string; poids: number }[];
   indices: string[];
+  /** Present quand le dispositif a ete choisi par le modele de l'IA actif plutot que par le moteur a regles. */
+  modele?: { nom: string };
   structure: StructureNumeros;
   /** Ou se placent les numeros 1 a 11 (les lignes, du defenseur a l'attaquant, gardien exclu). */
   disposition: number[][];

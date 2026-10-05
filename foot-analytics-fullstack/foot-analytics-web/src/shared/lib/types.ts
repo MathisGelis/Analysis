@@ -220,6 +220,13 @@ export interface Match {
   // Forme renvoyee par le backend : liste plate avec un champ `cote`.
   compositions?: (CompoLigne & { cote?: "dom" | "ext" })[];
   evenements?: EvenementMatch[];
+  /** Liste des matchs : le compte peut-il modifier ou supprimer celui-ci ? (absent : on ne sait pas, on propose) */
+  modifiable?: boolean;
+  /**
+   * Detail d'un match : ce que le compte peut en faire. `dispositifs: "renseigner"` = un dispositif encore vide peut
+   * etre saisi, un dispositif deja saisi ne se corrige pas (match d'un autre club ou d'une equipe non attribuee).
+   */
+  droits?: { modifier: boolean; dispositifs: "libre" | "renseigner" };
 }
 
 export interface MatchResultat {

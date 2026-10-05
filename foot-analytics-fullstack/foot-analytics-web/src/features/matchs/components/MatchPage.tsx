@@ -36,6 +36,8 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     api.coachsForMatch(matchId),
   ]);
   const peutNoter = match.clubDom === ownClubId || match.clubExt === ownClubId;
+  // Match d'un autre club (ou d'une equipe qui ne m'est pas attribuee) : les dispositifs deja saisis sont en lecture.
+  const verrouille = match.droits?.dispositifs === "renseigner";
   // Match de mon club pas encore joue : on propose le rapport de preparation contre l'adversaire.
   const statut: string = (match as any).statut ?? "joue";
   const aPreparer = peutNoter && ["prevu", "a_venir"].includes(statut);
@@ -106,7 +108,8 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
               <Target size={12}/> Rapport pre-match
             </Link>
           )}
-          <MatchActions match={match}/>
+          {/* Modifier / supprimer : seulement si l'API l'autorise (un match d'un autre club se consulte, il ne se modifie pas). */}
+          {match.droits?.modifier !== false && <MatchActions match={match}/>}
         </div>
       </div>
 
@@ -203,11 +206,12 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
             <h2 id="systemes-match" className="h-section">Systemes de jeu</h2>
             <span className="text-[11px] text-faint">
               renseignes par le staff : la feuille de match n'en contient pas. Ils servent a predire le systeme du prochain adversaire.
+              {verrouille && " Sur ce match, tu peux renseigner un systeme vide ; un systeme deja saisi ne se corrige que depuis un club du match."}
             </span>
           </div>
           <div className="mt-3 grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
-            <SystemeMatch matchId={m.id} cote="dom" valeur={m.formationDom ?? null} equipe={dom.nom} />
-            <SystemeMatch matchId={m.id} cote="ext" valeur={m.formationExt ?? null} equipe={ext.nom} />
+            <SystemeMatch matchId={m.id} cote="dom" valeur={m.formationDom ?? null} equipe={dom.nom} verrouille={verrouille} />
+            <SystemeMatch matchId={m.id} cote="ext" valeur={m.formationExt ?? null} equipe={ext.nom} verrouille={verrouille} />
           </div>
         </section>
       )}

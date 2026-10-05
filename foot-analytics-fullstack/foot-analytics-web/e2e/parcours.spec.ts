@@ -81,7 +81,7 @@ test("connexion : refus d'un mauvais mot de passe puis acces, equipe choisie d'o
   await page.getByPlaceholder("MLEMAIRE").fill("AADMIN");
   await page.locator("input[type=password]").fill("pas-le-bon");
   await page.getByRole("button", { name: "Se connecter" }).click();
-  await expect(page.getByText(/API 401|Erreur de connexion|incorrect/i)).toBeVisible();
+  await expect(page.getByText("Login ou mot de passe invalide")).toBeVisible();
 
   await page.locator("input[type=password]").fill(MOT_DE_PASSE);
   await page.getByRole("button", { name: "Se connecter" }).click();
@@ -462,6 +462,80 @@ test("systeme de jeu : saisi sur la fiche du match, repris par la prediction et 
   await expect(page.getByText("Chaponnay")).toHaveCount(0);
 });
 
+test("systeme de jeu : un educateur d'un autre club renseigne un systeme vide, jamais un systeme deja saisi, et le refus est explique", async ({ browser }) => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : le match vient de la FMI importee");
+
+  const appeler = (jeton: string, chemin: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
+    ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${jeton}`, ...(init.headers ?? {}) },
+  });
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const [match] = await (await appeler(token, "/matchs")).json();
+  // Le match de la feuille FMI : le systeme du recevant a ete saisi par l'administrateur (test precedent), celui du visiteur est vide.
+  expect(match).toMatchObject({ formationDom: "4-3-3" });
+  expect(match.formationExt ?? null).toBeNull();
+
+  // Un educateur d'un club qui n'est pas dans ce match.
+  const tiers = await (await appeler(token, "/clubs", { method: "POST", body: JSON.stringify({ nom: "Club Tiers" }) })).json();
+  const educ = await (await appeler(token, "/utilisateurs", { method: "POST", body: JSON.stringify({ prenom: "Tom", nom: "Tiers", role: "user", clubId: tiers.id }) })).json();
+  const connexion = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login: educ.login, password: educ.initialPassword }),
+  })).json();
+  await appeler(connexion.token, "/auth/change-password", { method: "POST", body: JSON.stringify({ oldPassword: educ.initialPassword, newPassword: "Tiers12345" }) });
+  const jeton = (await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login: educ.login, password: "Tiers12345" }),
+  })).json()).token;
+
+  const ctx = await browser.newContext();
+  const a = await ctx.newPage();
+  const b = await ctx.newPage();
+  try {
+    await a.goto("/login");
+    await a.locator("input[placeholder=MLEMAIRE]").fill(educ.login);
+    await a.locator("input[type=password]").fill("Tiers12345");
+    await a.locator("button[type=submit]").click();
+    await a.waitForURL((u) => u.pathname === "/");
+
+    // Match d'un autre club : on le consulte, on ne le modifie pas (ni bouton Modifier, ni Supprimer).
+    await a.goto(`/matchs/${match.id}`);
+    await expect(a.getByRole("heading", { level: 2, name: "Systemes de jeu" })).toBeVisible();
+    await expect(a.getByRole("button", { name: "Modifier" })).toHaveCount(0);
+    await expect(a.getByRole("button", { name: "Supprimer" })).toHaveCount(0);
+    // Le systeme deja saisi se lit (non modifiable) ; le systeme vide se renseigne.
+    const sections = a.locator("section", { has: a.getByRole("heading", { name: "Systemes de jeu" }) });
+    await expect(sections.getByText("4-3-3", { exact: true })).toBeVisible();
+    await expect(a.getByRole("combobox", { name: /^Systeme de jeu de / })).toHaveCount(1);
+
+    // Deuxieme onglet, meme compte : il renseigne le systeme du visiteur.
+    await b.goto(`/matchs/${match.id}`);
+    await choisir(b.getByRole("combobox", { name: /^Systeme de jeu de / }), "3-5-2");
+    await expect(b.getByText(/Systeme de .* : 3-5-2\./)).toBeVisible();
+
+    // Premier onglet, reste ouvert sur l'ancien etat : corriger ce systeme est refuse, et la raison est dite
+    // (au lieu d'un "API 403 sur /matchs/..." muet).
+    await choisir(a.getByRole("combobox", { name: /^Systeme de jeu de / }), "4-4-2");
+    await expect(a.getByText(/Enregistrement impossible : Le dispositif de l'equipe visiteuse est deja renseigne \(3-5-2\)/)).toBeVisible();
+    await a.reload();
+    await expect(a.getByRole("combobox", { name: /^Systeme de jeu de / })).toHaveCount(0);
+    await expect(sections.getByText("3-5-2", { exact: true })).toBeVisible();
+
+    // Cote API : corriger ou effacer est refuse avec sa raison ; modifier le match lui-meme aussi, et la liste le dit.
+    const corrige = await appeler(jeton, `/matchs/${match.id}/dispositifs`, { method: "PATCH", body: JSON.stringify({ formationDom: "" }) });
+    expect(corrige.status).toBe(403);
+    expect((await corrige.json()).message).toMatch(/deja renseigne \(4-3-3\)/);
+    const modifie = await appeler(jeton, `/matchs/${match.id}`, { method: "PATCH", body: JSON.stringify({ terrain: "Chez moi" }) });
+    expect(modifie.status).toBe(403);
+    expect((await modifie.json()).message).toBe("Ce match ne concerne pas ton club.");
+    const liste: { id: string; modifiable: boolean }[] = await (await appeler(jeton, "/matchs")).json();
+    expect(liste.find((x) => x.id === match.id)!.modifiable).toBe(false);
+    expect((await (await appeler(token, `/matchs/${match.id}`)).json()).formationExt).toBe("3-5-2");
+  } finally {
+    await ctx.close();
+  }
+});
+
 test("IA (administrateur) : onglet de l'administration, entrainement lance depuis l'ecran, echec explique faute de donnees", async () => {
   test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : l'entrainement lit les feuilles de match importees");
 
@@ -472,6 +546,21 @@ test("IA (administrateur) : onglet de l'administration, entrainement lance depui
   await expect(page.getByTestId("modele-actif")).toContainText("Aucun modele actif");
   await expect(page.getByTestId("donnees-disponibles")).toContainText(/\d+ matchs? joues?/);
   await expect(page.getByTestId("ia-vide")).toBeVisible();
+
+  // Reentrainement automatique : actif par defaut, chaque mercredi a 5 h, le prochain passage est annonce. Le planificateur
+  // ne tourne pas dans l'API de test (il demarre en production) : l'ecran le dit.
+  const planning = page.getByTestId("planning-ia");
+  await expect(planning).toContainText("chaque mercredi a 5 h (heure de Paris)");
+  await expect(planning).toContainText(/Prochain passage : mercredi \d+ \w+, 5 h/);
+  await expect(planning).toContainText("Sans modele actif, il n'est jamais active tout seul");
+  await expect(page.getByTestId("planning-inactif")).toContainText("IA_PLANIFICATEUR=on");
+  await planning.getByRole("button", { name: "Suspendre" }).click();
+  await expect(planning).toContainText("Suspendu");
+  await expect(planning).not.toContainText("Prochain passage");
+  await page.reload();
+  await expect(page.getByTestId("planning-ia")).toContainText("Suspendu");                  // le reglage survit au rechargement
+  await page.getByTestId("planning-ia").getByRole("button", { name: "Reactiver" }).click();
+  await expect(page.getByTestId("planning-ia")).toContainText(/Prochain passage : mercredi/);
 
   await page.getByRole("button", { name: /Lancer un entrainement/ }).first().click();
   await expect(page.getByRole("heading", { level: 2, name: "Lancer un entrainement" })).toBeVisible();

@@ -249,6 +249,21 @@ appris (ce qui pese dans sa decision, avec le point de depart), justesse de ses 
 joueurs difficiles a lire. *Activer ce modele* fait predire la compo probable des rapports (avec la chance de chaque joueur de
 commencer) ; *Revenir au moteur a regles* l'annule. L'ecran dit si l'IA fait mieux, pareil ou moins bien que le meilleur repere.
 
+**Reentrainement automatique** : chaque mercredi a 5 h (heure de Paris), l'IA se reentraine seule sur toutes les feuilles. Le
+panneau « Reentrainement automatique » donne le prochain passage, le dernier et son verdict, et permet de le suspendre ou de le
+reactiver. Le nouveau modele ne remplace le modele actif que s'il fait **au moins aussi bien** sur des semaines que l'actif n'avait pas
+vues ; sinon il reste dans l'historique (badge « Non retenu », la raison au survol), et le bloc *Face au modele actif* de son
+resultat montre la comparaison. Sans modele actif, aucun modele n'est active tout seul. Un lancement manuel donne le meme avis
+mais n'active jamais. Quand le modele actif a appris les dispositifs (et fait au moins aussi bien que les regles), il choisit le
+systeme probable des rapports et de la fiche club (« Predit par l'IA »).
+
+### Saisir le systeme de jeu d'un match
+Sur la fiche d'un match joue, « Systemes de jeu » : le staff choisit le dispositif de chaque equipe (la FMI n'en contient aucun).
+On peut le **renseigner sur n'importe quel match**, y compris ceux des adversaires, tant qu'il est vide ; un dispositif deja
+saisi se lit et ne se corrige que depuis un match de son club (ou par l'administrateur). Les boutons Modifier / Supprimer d'un
+match n'apparaissent que si l'API les autorise (`droits`, `modifiable`) ; un refus de l'API s'affiche avec sa raison
+(`ApiError.message`), jamais un « API 403 sur /matchs/... » muet.
+
 ### Apres un match
 1. Le coach uploade la FMI dans `/import`
 2. Le parser extrait automatiquement : compos, cartons, remplacements, blessures
