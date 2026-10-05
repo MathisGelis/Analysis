@@ -231,6 +231,49 @@ en tire :
 `features/analyse/systeme-probable.ts` les fusionne avec les dispositifs saisis (le staff prime, les numeros confirment,
 completent ou contredisent) ; `disposition-onze.ts` dit ou se placent les numeros dans chaque dispositif.
 
+### IA : entrainer un modele de prediction des compos (administrateur)
+Le moteur a regles ci-dessus a des reglages fixes. L'**IA** (`features/ia/`) apprend les siens en **rejouant toutes les feuilles
+de match de la base dans l'ordre des dates**, comme si elle avait ete utilisee en direct pendant toute la periode :
+
+1. les feuilles sont triees par date et regroupees **par semaine** (un week-end de championnat = une etape) ; chaque match
+   donne deux feuilles d'equipe, et une equipe garde son identite d'une saison a l'autre (club + categorie, et division
+   quand un club aligne plusieurs equipes : la poule change d'une saison a l'autre) ;
+2. etape apres etape, l'IA **predit les onze de toutes les rencontres de la semaine** avec ce qu'elle sait (les feuilles
+   strictement anterieures de l'equipe) et ce qu'elle a appris (les semaines strictement anterieures), **compare a la
+   realite, note ses erreurs**, decouvre la semaine, puis **reajuste ses poids** sur tout ce qu'elle a vu ;
+3. aucune fuite d'information : changer l'avenir ne change rien au passe (test dedie). Le score final est celui qu'aurait eu
+   le modele s'il avait ete utilise en direct.
+
+Le modele (`ia-modele.ts`) est fait de trois petits modeles lineaires, regularises vers les reglages du moteur a regles
+(avec peu de donnees il reste proche de l'heuristique, avec beaucoup les donnees l'emportent) et ajustes par la methode de
+Newton amortie (`ia-maths.ts`, sans dependance ni alea : deux entrainements identiques donnent le meme resultat) :
+- **titularisation** : la probabilite qu'un joueur connu de l'equipe commence le prochain match (regression logistique sur
+  15 indices : taux de titularisation recent, dernier match, banc, absences, titulaire habituel d'un poste...). Le onze
+  predit est celui des 11 plus probables, avec un seul gardien ;
+- **numeros** : quel numero (donc quel poste) chaque titulaire porte (logit conditionnel, puis assignation optimale) ;
+- **dispositif** : appris seulement sur les matchs dont le staff a **saisi** le dispositif (jamais le couple invente par
+  l'ancien import), parmi les dispositifs courants et ceux de l'equipe.
+
+Il est toujours compare, **sur les memes matchs**, a trois methodes simples : le meme onze que le dernier match, le moteur a
+regles actuel et les 11 joueurs les plus souvent titulaires. Metriques : part des 11 titulaires predits, part des 11 couples
+(numero, joueur) exacts, onzes parfaits, perte logarithmique et calibration des probabilites, joueurs jamais vus (nouveaux,
+imprevisibles), pires compositions et joueurs les plus difficiles a lire. Les reglages (longueur de l'historique, prudence,
+oubli) sont choisis en essayant 8 combinaisons en mode leger puis en rejouant la gagnante en entier.
+
+L'entrainement est un **job en arriere-plan** (un seul a la fois, progression interrogeable, annulable ; un redemarrage du
+serveur le marque interrompu). Tout est range dans `ia_entrainements` (resultat complet) et `ia_modeles` (poids, un seul
+actif). **Activer** un modele fait predire la compo probable des rapports (`compoProbableSource: "modele"`, probabilite par
+joueur) ; sans modele actif, ou apres desactivation, c'est le moteur a regles.
+
+- `GET    /ia/etat` : modele actif, entrainement en cours, dernier entrainement, matchs disponibles par saison
+- `POST   /ia/entrainements` `{ optimiser?, saisonIds? }` : lance un entrainement (`201`, `409` s'il y en a deja un)
+- `GET    /ia/entrainements` · `GET /ia/entrainements/:id` (resultat complet, poids de depart, vocabulaire) · `GET /ia/entrainements/:id/resume` (progression) · `POST /ia/entrainements/:id/annuler`
+- `GET    /ia/modeles` · `POST /ia/modeles/:id/activer` · `POST /ia/modeles/desactiver` · `DELETE /ia/modeles/:id` (pas le modele actif)
+
+Toutes ces routes sont reservees a l'administrateur (`403` pour les autres, d'apres le contexte d'acces lu en base). Avec peu de
+matchs (la base d'exemple n'en compte que 138), l'IA fait a peu pres jeu egal avec les methodes simples : elle devient utile
+quand les saisons s'accumulent ; l'ecran admin (`/admin/ia`) dit honnetement si elle fait mieux, pareil ou moins bien.
+
 ### Import FMI
 - `POST   /fmi/import` — multipart/form-data, champ `file` (PDF).
   Execute le parseur, cree le match + compositions + evenements.
@@ -351,6 +394,7 @@ foot-analytics-api/
 │       ├── entrainements/  blessures/  tactiques/
 │       ├── arbitres/  coachs/  scouting/  classement/  stats/
 │       ├── analyse/              # tendances, rapport d'equipe, rapport pre-match (+ export PowerPoint, modele/), situation, numeros de maillot
+│       ├── ia/                   # IA : entrainement du modele de prediction des compos (marche avant), modeles actifs, routes admin
 │       ├── fmi/                  # import des feuilles de match (appelle parser/parse_fmi.py)
 │       ├── derivation/           # recalcul des effectifs, classements et cumuls apres import
 │       └── seed/                 # donnees de demonstration

@@ -16,7 +16,7 @@
 // saison), `saisonId` a une saison. Un rapport de "Seniors D2 2025-2026" ne doit
 // pas etre pollue par les U20 ou par la saison suivante.
 
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, IsNull, Repository } from "typeorm";
 
@@ -34,6 +34,9 @@ import { StaffMatch } from "@/features/coachs/staff-match.entity";
 import { estMatchJoue } from "@/features/matchs/match-joue";
 import { parseDateFlexible, trierChronologiquement } from "@/common/dates";
 import { chargerDetailsMatchs } from "@/features/matchs/details-matchs";
+import { IaService } from "@/features/ia/ia.service";
+import { compoProbableDuModele } from "@/features/ia/ia-live";
+import { posteDuNumero } from "@/features/matchs/numeros-postes";
 
 import { analyserNumeros, lignesDeFeuille } from "./compo-numeros";
 import { calculerTendances, dynamiqueForme, issueDe, MatchTendance, series as seriesDe } from "./tendances";
@@ -82,6 +85,8 @@ export class AnalyseService {
     @InjectRepository(Equipe) private equipesRepo: Repository<Equipe>,
     @InjectRepository(LigneClassement) private classementRepo: Repository<LigneClassement>,
     @InjectRepository(Saison) private saisonsRepo: Repository<Saison>,
+    // Le modele de l'IA actif (absent : le moteur a regles seul, comme avant).
+    @Optional() private readonly ia?: IaService,
   ) {}
 
   async rapportClub(
@@ -374,11 +379,20 @@ export class AnalyseService {
     // D'abord les NUMEROS de maillot (1 = GB ... 11 = AD) : un joueur par poste d'apres les feuilles recentes, et le
     // systeme que lisent les changements de numero (features/analyse/compo-numeros.ts). Si les numeros ne sont pas ceux
     // de la convention (numeros de saison), repli sur les 11 titulaires les plus utilises, tous postes confondus.
-    type PosteScore = { poste: string; numero?: number; nom: string; matchsJoues: number };
+    type PosteScore = { poste: string; numero?: number; nom: string; matchsJoues: number; proba?: number };
     const numeros = analyserNumeros(infos.flatMap((i) => lignesDeFeuille(i.m, i.titulaires)));
+    // Un modele de l'IA actif (features/ia) prime : probabilite de titularisation par joueur, apprise sur toutes les feuilles.
+    const modeleIa = this.ia ? await this.ia.modeleActif() : null;
+    const parModele = modeleIa ? compoProbableDuModele(modeleIa.poids, infos, saisonId) : null;
     let compoProbable: PosteScore[];
     let compoProbableSur: number;
-    if (numeros.fiabilite.exploitable) {
+    if (parModele) {
+      compoProbable = parModele.titulaires.map((t) => ({
+        poste: posteDuNumero(t.numero) ?? joueurs.find((j) => norm(`${j.prenom ?? ""} ${j.nom}`.trim()) === norm(t.nom))?.poste ?? "MIL",
+        numero: t.numero ?? undefined, nom: t.nom, matchsJoues: t.titularisations, proba: t.proba,
+      }));
+      compoProbableSur = parModele.sur;
+    } else if (numeros.fiabilite.exploitable) {
       const titu = new Map(numeros.profils.map((p) => [p.joueur, p.titularisations]));
       compoProbable = numeros.onze.flatMap((p) => p.joueur && p.nom
         ? [{ poste: p.poste, numero: p.numero, nom: p.nom, matchsJoues: titu.get(p.joueur) ?? 0 }] : []);
@@ -737,6 +751,8 @@ export class AnalyseService {
       faiblesses,
       compoProbable,
       compoProbableSur,
+      compoProbableSource: parModele ? "modele" : "regles",
+      compoProbableModele: parModele ? modeleIa!.nom : null,
       numeros,
       buteurs,
       partnerships,

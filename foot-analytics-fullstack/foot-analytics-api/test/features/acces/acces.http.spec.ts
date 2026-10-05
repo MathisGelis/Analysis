@@ -469,6 +469,41 @@ describe("API : acces", () => {
       expect((await t.appel(p.admin)("DELETE", `/clubs/${cree.corps.id}`)).statut).toBe(200);
     });
 
+    it("IA (entrainement, modeles) : administrateur seulement ; l'admin entraine, suit, active puis retire un modele par l'API", async () => {
+      const p = await profils();
+      const routes: [string, string][] = [
+        ["GET", "/ia/etat"], ["GET", "/ia/entrainements"], ["POST", "/ia/entrainements"], ["GET", "/ia/entrainements/x"],
+        ["GET", "/ia/entrainements/x/resume"], ["POST", "/ia/entrainements/x/annuler"], ["GET", "/ia/modeles"],
+        ["POST", "/ia/modeles/desactiver"], ["POST", "/ia/modeles/x/activer"], ["DELETE", "/ia/modeles/x"],
+      ];
+      for (const [methode, chemin] of routes) {
+        for (const c of [p.referent, p.libre, p.restreint, p.seniors]) expect([methode, chemin, (await t.appel(c)(methode, chemin)).statut]).toEqual([methode, chemin, 403]);
+        expect([methode, chemin, (await t.appel(undefined)(methode, chemin)).statut]).toEqual([methode, chemin, 401]);
+      }
+
+      const admin = t.appel(p.admin);
+      expect((await admin("GET", "/ia/etat")).corps).toMatchObject({ actif: null, enCours: null, dernier: null, donnees: { matchsJoues: expect.any(Number) } });
+      expect((await admin("GET", "/ia/entrainements/inconnu")).statut).toBe(404);
+      expect((await admin("POST", "/ia/modeles/inconnu/activer")).statut).toBe(404);
+      expect((await admin("POST", "/ia/entrainements", { optimiser: "oui" })).statut).toBe(400);          // validation du corps
+
+      // Le monde du test compte peu de matchs : l'entrainement se termine en echec explique (donnees insuffisantes).
+      const lance = await admin("POST", "/ia/entrainements", { optimiser: false });
+      expect(lance.statut).toBe(201);
+      expect(lance.corps).toMatchObject({ statut: "en_cours", options: { optimiser: false, saisonIds: null } });
+      let resume = (await admin("GET", `/ia/entrainements/${lance.corps.id}/resume`)).corps;
+      for (let i = 0; i < 100 && resume.statut === "en_cours"; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        resume = (await admin("GET", `/ia/entrainements/${lance.corps.id}/resume`)).corps;
+      }
+      expect(resume.statut).toBe("echec");
+      expect(resume.message).toMatch(/au moins deux semaines/);
+      expect((await admin("GET", `/ia/entrainements/${lance.corps.id}`)).corps).toMatchObject({ statut: "echec", resultat: null, catalogue: { titularisation: expect.any(Array) } });
+      expect((await admin("GET", "/ia/entrainements")).corps.map((e: { id: string }) => e.id)).toEqual([lance.corps.id]);
+      expect((await admin("GET", "/ia/modeles")).corps).toEqual([]);
+      expect((await admin("POST", "/ia/modeles/desactiver")).statut).toBe(204);
+    });
+
     it("reinitialisation de la base (seed) : administrateur seulement", async () => {
       const p = await profils();
       for (const c of [p.referent, p.libre, p.restreint]) expect((await t.appel(c)("POST", "/seed/reset")).statut).toBe(403);

@@ -34,8 +34,12 @@ export interface RapportEquipe {
   // Compo probable : un joueur par numero de maillot (poste : voir features/matchs/numeros-postes.ts) quand les numeros
   // sont exploitables, sinon les 11 titulaires les plus utilises. `compoProbableSur` : le nombre de matchs sur lequel
   // portent les titularisations (les feuilles recentes pour les numeros, tous les matchs analyses sinon).
-  compoProbable: { poste: string; numero?: number; nom: string; matchsJoues: number }[];
+  // `proba` : la chance de titularisation que lui donne le modele de l'IA, present seulement quand un modele est actif.
+  compoProbable: { poste: string; numero?: number; nom: string; matchsJoues: number; proba?: number }[];
   compoProbableSur: number;
+  // D'ou vient la compo : "modele" (modele de l'IA actif, voir features/ia) ou "regles" (moteur a regles) ; `compoProbableModele` : son nom.
+  compoProbableSource: "modele" | "regles";
+  compoProbableModele: string | null;
   // Ce que disent les numeros de maillot : postes, polyvalence, indices de systeme (changements de numero).
   numeros: AnalyseNumeros;
   // Meilleurs buteurs de l'equipe sur le perimetre (hors contre son camp), du plus au moins prolifique.

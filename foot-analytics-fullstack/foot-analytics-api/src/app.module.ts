@@ -26,6 +26,7 @@ import { AccesGuard } from "@/features/acces/acces.guard";
 import { AccesModule } from "@/features/acces/acces.module";
 import { UtilisateursModule } from "@/features/utilisateurs/utilisateurs.module";
 import { TactiquesModule } from "@/features/tactiques/tactiques.module";
+import { IaModule } from "@/features/ia/ia.module";
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { TactiquesModule } from "@/features/tactiques/tactiques.module";
     AuthModule,
     UtilisateursModule,
     TactiquesModule,
+    IaModule,
   ],
   providers: [
     // Guard global : toute requete sous /api requiert un JWT valide.

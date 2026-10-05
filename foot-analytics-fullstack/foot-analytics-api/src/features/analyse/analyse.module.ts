@@ -16,6 +16,7 @@ import { Match } from "@/features/matchs/match.entity";
 import { Saison } from "@/features/saisons/saison.entity";
 import { StaffMatch } from "@/features/coachs/staff-match.entity";
 import { AccesModule } from "@/features/acces/acces.module";
+import { IaModule } from "@/features/ia/ia.module";
 
 import { PrematchService } from "./prematch.service";
 import { SituationService } from "./situation.service";
@@ -25,6 +26,7 @@ import { AnalyseController } from "./analyse.controller";
 @Module({
   imports: [
     AccesModule,
+    IaModule,
     TypeOrmModule.forFeature([
       Club, Match, Joueur, Composition, EvenementMatch, Entrainement,
       Coach, StaffMatch, Equipe, LigneClassement, Saison, Arbitre,

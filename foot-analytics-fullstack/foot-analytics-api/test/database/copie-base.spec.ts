@@ -21,7 +21,7 @@ describe("ordreDeCopie / tailleDeLot / convertirValeur", () => {
     avant("clubs", "equipes"); avant("saisons", "equipes"); avant("clubs", "joueurs");
     avant("matchs", "compositions"); avant("matchs", "evenements_match");
     avant("arbitres", "arbitres_matchs"); avant("coachs", "staff_matchs");
-    expect(ordre).toHaveLength(18);
+    expect(ordre).toHaveLength(20);
     await ds.destroy();
   });
 

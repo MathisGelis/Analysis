@@ -84,7 +84,10 @@ export interface RapportPrematch {
     /** Fiche du coach (lien vers /coachs/:id). */
     entraineurId: string | null;
     insights: Insight[];
-    compoProbable: { poste: string; numero?: number; nom: string; matchsJoues: number }[];
+    compoProbable: { poste: string; numero?: number; nom: string; matchsJoues: number; proba?: number }[];
+    /** "modele" : la compo vient du modele de l'IA actif ; "regles" : du moteur a regles. */
+    compoProbableSource: "modele" | "regles";
+    compoProbableModele: string | null;
     joueursCles: { joueurId: string | null; nom: string; prenom?: string; poste?: string; delta: number; matchsAvec: number; titularisations: number }[];
     faiblesses: { niveau: string; titre: string; detail: string }[];
     avertis: { nom: string; jaunes: number; rouges: number }[];
@@ -180,6 +183,8 @@ export class PrematchService {
       })(),
       insights: rap.tendances.insights.slice(0, 6),
       compoProbable: rap.compoProbable,
+      compoProbableSource: rap.compoProbableSource,
+      compoProbableModele: rap.compoProbableModele,
       joueursCles: rap.joueursCles.slice(0, 5).map((j) => ({
         joueurId: j.joueurId, nom: j.nom, prenom: j.prenom, poste: j.poste, delta: j.delta, matchsAvec: j.matchsAvec, titularisations: j.titularisations,
       })),
