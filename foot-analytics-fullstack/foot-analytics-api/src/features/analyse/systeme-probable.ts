@@ -25,6 +25,8 @@ export interface SystemeProbable {
   alternatives: { systeme: string; poids: number }[];
   /** Pourquoi ce systeme, en phrases. */
   indices: string[];
+  /** Present quand le dispositif a ete choisi par le modele de l'IA actif (features/ia) plutot que par le moteur a regles. */
+  modele?: { nom: string };
   structure: StructureNumeros;
   /** Ou se placent les numeros 1 a 11 dans ce systeme (voir disposition-onze.ts), pour dessiner le onze sur un terrain. */
   disposition: Disposition;

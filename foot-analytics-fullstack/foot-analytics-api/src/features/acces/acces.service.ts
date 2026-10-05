@@ -105,22 +105,39 @@ export class AccesService {
     const mienDom = ctx.gereClub(m.clubDom);
     const mienExt = ctx.gereClub(m.clubExt);
     if (!mienDom && !mienExt) throw new ForbiddenException("Ce match ne concerne pas ton club.");
-    await this.exigerEquipesDuMatch(ctx, m, mienDom, mienExt);
+    await this.exigerEquipesDuMatch(ctx, m);
     return m;
   }
 
-  /** Les equipes de MON cote d'un match doivent etre de mon perimetre (educateur limite a certaines equipes). */
+  /** Les equipes citees par ces matchs, par identifiant (une seule requete). */
+  private async equipesDesMatchs(matchs: Pick<Match, "equipeDomId" | "equipeExtId">[]): Promise<Map<string, Equipe>> {
+    const ids = [...new Set(matchs.flatMap((m) => [m.equipeDomId, m.equipeExtId]).filter((x): x is string => !!x))];
+    return new Map((ids.length ? await this.equipes.find({ where: { id: In(ids) } }) : []).map((e) => [e.id, e]));
+  }
+
+  /**
+   * Le meme verdict que `matchGere`, en booleen : le front sait ainsi s'il faut proposer de modifier ou de supprimer
+   * le match, au lieu de laisser cliquer sur un bouton que l'API refusera.
+   */
+  async peutModifierMatch(ctx: ContexteAcces, m: Match): Promise<boolean> {
+    if (ctx.admin) return true;
+    return ctx.peutModifierMatch(m, await this.equipesDesMatchs([m]));
+  }
+
+  /** Les identifiants des matchs que le compte peut modifier, pour une liste entiere (une seule requete d'equipes). */
+  async matchsModifiables(ctx: ContexteAcces, matchs: Match[]): Promise<Set<string>> {
+    if (ctx.admin) return new Set(matchs.map((m) => m.id));
+    const equipes = await this.equipesDesMatchs(matchs);
+    return new Set(matchs.filter((m) => ctx.peutModifierMatch(m, equipes)).map((m) => m.id));
+  }
+
+  /** Les equipes de MON cote d'un match doivent etre de mon perimetre : 403 sinon. */
   async exigerEquipesDuMatch(
     ctx: ContexteAcces,
     m: Pick<Match, "equipeDomId" | "equipeExtId" | "clubDom" | "clubExt">,
-    mienDom = ctx.gereClub(m.clubDom),
-    mienExt = ctx.gereClub(m.clubExt),
   ): Promise<void> {
-    if (ctx.admin) return;
-    const ids = [mienDom ? m.equipeDomId : null, mienExt ? m.equipeExtId : null].filter((x): x is string => !!x);
-    if (ids.length === 0) return;
-    for (const e of await this.equipes.find({ where: { id: In(ids) } })) {
-      if (!ctx.gereEquipe(e)) throw new ForbiddenException("Cette equipe n'est pas dans ton perimetre.");
+    if (!ctx.equipesDuMatchGerees(m, await this.equipesDesMatchs([m]))) {
+      throw new ForbiddenException("Cette equipe n'est pas dans ton perimetre : ce match concerne une equipe de ton club qui ne t'est pas attribuee.");
     }
   }
 

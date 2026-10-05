@@ -50,3 +50,9 @@ export class UpdateMatchDto {
   @IsOptional() @IsArray() compositions?: any[];
   @IsOptional() @IsArray() evenements?: any[];
 }
+
+/** Saisie des seuls dispositifs d'un match ("" pour effacer) : voir `refusSaisieDispositifs` pour qui peut quoi. */
+export class DispositifsMatchDto {
+  @IsOptional() @IsString() formationDom?: string;
+  @IsOptional() @IsString() formationExt?: string;
+}

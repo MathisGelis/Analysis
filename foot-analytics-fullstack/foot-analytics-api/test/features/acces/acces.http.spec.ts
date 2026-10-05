@@ -184,6 +184,79 @@ describe("API : acces", () => {
     });
   });
 
+  describe("dispositifs (systeme de jeu)", () => {
+    const dispositifs = (c: { jeton: string }, id: string, corps: Record<string, string>) => t.appel(c)("PATCH", `/matchs/${id}/dispositifs`, corps);
+    async function matchEtranger(extra: Record<string, unknown> = {}) {
+      const autre = await t.f.club("Bron");
+      return t.f.match({ clubDom: m.mions.id, clubExt: autre.id, saisonId: m.s26.id, date: "2026-10-18", statut: "joue", ...extra } as any);
+    }
+
+    it("mon match : renseigner, corriger et effacer, sans limite", async () => {
+      const p = await profils();
+      const a = t.appel(p.libre);
+      expect((await dispositifs(p.libre, m.m26.id, { formationDom: "4-3-3", formationExt: "4-4-2" })).corps).toMatchObject({ formationDom: "4-3-3", formationExt: "4-4-2" });
+      expect((await dispositifs(p.libre, m.m26.id, { formationDom: "3-5-2" })).corps.formationDom).toBe("3-5-2");
+      expect((await dispositifs(p.libre, m.m26.id, { formationExt: "" })).corps.formationExt).toBeNull();
+      expect((await a("GET", `/matchs/${m.m26.id}`)).corps).toMatchObject({ formationDom: "3-5-2", droits: { modifier: true, dispositifs: "libre" } });
+    });
+
+    it("le match d'un autre club : on renseigne un dispositif vide (releve d'un adversaire), jamais une correction", async () => {
+      const p = await profils();
+      const etranger = await matchEtranger();
+      expect((await dispositifs(p.libre, etranger.id, { formationDom: "4-3-3" })).statut).toBe(200);
+      expect((await dispositifs(p.libre, etranger.id, { formationDom: "4-3-3", formationExt: "5-3-2" })).statut).toBe(200);      // meme valeur + un cote vide
+      const corrige = await dispositifs(p.libre, etranger.id, { formationDom: "4-4-2" });
+      expect(corrige.statut).toBe(403);
+      expect(corrige.corps.message).toMatch(/deja renseigne \(4-3-3\)/);                                                     // une raison, pas un 403 muet
+      expect((await dispositifs(p.libre, etranger.id, { formationDom: "" })).statut).toBe(403);
+      expect((await t.appel(p.libre)("GET", `/matchs/${etranger.id}`)).corps.formationDom).toBe("4-3-3");
+      // L'admin, lui, corrige.
+      expect((await dispositifs(p.admin, etranger.id, { formationDom: "4-4-2" })).statut).toBe(200);
+    });
+
+    it("la modification generale du match reste limitee a mon club : seuls les dispositifs sont ouverts", async () => {
+      const p = await profils();
+      const etranger = await matchEtranger();
+      expect((await t.appel(p.libre)("PATCH", `/matchs/${etranger.id}`, { formationDom: "4-3-3" })).statut).toBe(403);
+      // Rien d'autre que les dispositifs ne passe par cette route : un score glisse dans la requete est ignore.
+      expect((await dispositifs(p.libre, etranger.id, { formationDom: "4-3-3", scoreDom: 9 } as any)).corps).toMatchObject({ formationDom: "4-3-3", scoreDom: etranger.scoreDom });
+      expect((await t.appel(p.libre)("GET", `/matchs/${etranger.id}`)).corps.droits).toEqual({ modifier: false, dispositifs: "renseigner" });
+    });
+
+    it("un educateur limite a Seniors D2 : sur l'equipe U20 de son club, il renseigne mais ne corrige pas", async () => {
+      const p = await profils();
+      expect((await dispositifs(p.seniors, m.mU20.id, { formationDom: "4-3-3" })).statut).toBe(200);
+      expect((await dispositifs(p.seniors, m.mU20.id, { formationDom: "4-4-2" })).statut).toBe(403);
+      expect((await t.appel(p.seniors)("GET", `/matchs/${m.mU20.id}`)).corps.droits.modifier).toBe(false);
+      expect((await t.appel(p.seniors)("GET", `/matchs/${m.m26.id}`)).corps.droits.modifier).toBe(true);
+      expect((await dispositifs(p.referent, m.mU20.id, { formationDom: "4-4-2" })).statut).toBe(200);                      // referent : toutes les equipes
+    });
+
+    it("saison fermee : introuvable (404) ; dispositif impossible : 400 avec la raison", async () => {
+      const p = await profils();
+      expect((await dispositifs(p.courant, m.m24.id, { formationDom: "4-3-3" })).statut).toBe(404);
+      const invalide = await dispositifs(p.libre, (await matchEtranger()).id, { formationDom: "9-9" });
+      expect(invalide.statut).toBe(400);
+      expect(invalide.corps.message).toMatch(/Dispositif invalide/);
+    });
+
+    it("la liste des matchs dit lesquels je peux modifier ou supprimer", async () => {
+      const p = await profils();
+      const etranger = await matchEtranger();
+      const modifiables = async (c: { jeton: string }) => {
+        const l = (await t.appel(c)("GET", "/matchs")).corps as { id: string; modifiable: boolean }[];
+        return Object.fromEntries(l.map((x) => [x.id, x.modifiable]));
+      };
+      expect(await modifiables(p.libre)).toMatchObject({ [m.m26.id]: true, [m.mU20.id]: true, [etranger.id]: false });
+      expect(await modifiables(p.seniors)).toMatchObject({ [m.m26.id]: true, [m.mU20.id]: false, [etranger.id]: false });
+      expect(await modifiables(p.admin)).toMatchObject({ [m.m26.id]: true, [etranger.id]: true });
+    });
+
+    it("sans jeton : 401", async () => {
+      expect((await t.appel()("PATCH", `/matchs/${m.m26.id}/dispositifs`, { formationDom: "4-3-3" })).statut).toBe(401);
+    });
+  });
+
   describe("joueurs", () => {
     it("fiches : les champs prives (commentaire, fatigue, morphologie) ne sortent que pour mon club ; l'admin voit tout", async () => {
       const p = await profils();

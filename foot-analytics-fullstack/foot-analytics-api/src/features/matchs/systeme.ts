@@ -42,6 +42,28 @@ export function systemesRenseignes(m: AvecFormations): { dom: string | null; ext
   return { dom: lire(m.formationDom), ext: lire(m.formationExt) };
 }
 
+/**
+ * Qui peut saisir un dispositif. Les dispositifs sont des observations de championnat (on les releve aussi sur les matchs
+ * des adversaires, c'est ce qui alimente la prediction de leur systeme) : tout compte peut RENSEIGNER un dispositif
+ * encore vide, sur n'importe quel match d'une saison qui lui est ouverte. Corriger ou effacer un dispositif deja saisi
+ * est reserve a ceux qui gerent le match (un des deux clubs, l'equipe attribuee) et a l'administrateur : `libre`.
+ * Renvoie la raison du refus, ou null si la saisie est permise.
+ */
+export function refusSaisieDispositifs(
+  actuels: AvecFormations, demande: AvecFormations, libre: boolean,
+): string | null {
+  if (libre) return null;
+  const courants = systemesRenseignes(actuels);
+  for (const [cle, cote, equipe] of [["formationDom", "dom", "recevante"], ["formationExt", "ext", "visiteuse"]] as const) {
+    if (demande[cle] === undefined) continue;
+    const actuel = courants[cote];
+    if (actuel !== null && normaliserFormation(demande[cle]) !== actuel) {
+      return `Le dispositif de l'equipe ${equipe} est deja renseigne (${actuel}) : seul un club du match ou un administrateur peut le modifier.`;
+    }
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 //  Prediction
 // ---------------------------------------------------------------------------

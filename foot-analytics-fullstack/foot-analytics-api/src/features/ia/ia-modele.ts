@@ -83,6 +83,11 @@ export interface PoidsIa {
   numeros: Poids;
   /** null tant qu'aucun dispositif saisi n'a permis d'apprendre. */
   systeme: Poids | null;
+  /**
+   * Le modele de dispositif ne sert en direct que s'il a fait AU MOINS AUSSI BIEN que le moteur a regles, sur les memes
+   * matchs, pendant l'entrainement. Absent (ancien modele) : non verifie, donc non retenu.
+   */
+  systemeRetenu?: boolean;
   /** Dispositifs deja vus (effectifs), pour la frequence generale du systeme. */
   frequencesSysteme: Record<string, number>;
 }

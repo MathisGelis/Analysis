@@ -1,5 +1,5 @@
 import {
-  estFormationInventee, formationValide, normaliserFormation, ObservationSysteme, predireSysteme, systemesRenseignes,
+  estFormationInventee, formationValide, normaliserFormation, ObservationSysteme, predireSysteme, refusSaisieDispositifs, systemesRenseignes,
 } from "@/features/matchs/systeme";
 
 describe("formationValide / normaliserFormation", () => {
@@ -83,5 +83,35 @@ describe("predireSysteme", () => {
   it("fiabilite selon le nombre de matchs : faible, moyenne, bonne", () => {
     const n = (k: number) => predireSysteme(Array.from({ length: k }, (_, i) => ({ date: `0${i + 1}/09/2025`, systeme: "4-4-2" })))!.fiabilite;
     expect([n(1), n(2), n(3), n(4), n(5), n(8)]).toEqual(["faible", "faible", "moyenne", "moyenne", "bonne", "bonne"]);
+  });
+});
+
+describe("refusSaisieDispositifs : qui peut saisir un dispositif", () => {
+  const vide = { formationDom: null, formationExt: null };
+
+  it("celui qui gere le match (libre) fait ce qu'il veut : renseigner, corriger, effacer", () => {
+    expect(refusSaisieDispositifs({ formationDom: "4-3-3", formationExt: "4-4-2" }, { formationDom: "3-5-2", formationExt: "" }, true)).toBeNull();
+  });
+
+  it("les autres peuvent renseigner un dispositif encore vide, d'un cote ou des deux", () => {
+    expect(refusSaisieDispositifs(vide, { formationDom: "4-3-3" }, false)).toBeNull();
+    expect(refusSaisieDispositifs(vide, { formationDom: "4-3-3", formationExt: "4-4-2" }, false)).toBeNull();
+    expect(refusSaisieDispositifs(vide, { formationDom: "" }, false)).toBeNull();     // effacer du vide : rien a perdre
+  });
+
+  it("ils ne corrigent ni n'effacent un dispositif deja saisi, et la raison dit lequel", () => {
+    const saisi = { formationDom: "4-3-3", formationExt: null };
+    expect(refusSaisieDispositifs(saisi, { formationDom: "4-4-2" }, false)).toMatch(/recevante.*deja renseigne \(4-3-3\)/);
+    expect(refusSaisieDispositifs(saisi, { formationDom: "" }, false)).toMatch(/recevante/);
+    expect(refusSaisieDispositifs({ formationDom: null, formationExt: "3-5-2" }, { formationExt: "4-4-2" }, false)).toMatch(/visiteuse.*\(3-5-2\)/);
+  });
+
+  it("redire la meme valeur n'est pas une correction ; un cote non touche n'est pas juge", () => {
+    expect(refusSaisieDispositifs({ formationDom: "4-3-3", formationExt: "3-5-2" }, { formationDom: " 4 - 3 - 3 " }, false)).toBeNull();
+    expect(refusSaisieDispositifs({ formationDom: "4-3-3", formationExt: null }, { formationExt: "4-4-2" }, false)).toBeNull();
+  });
+
+  it("le couple invente par l'ancien import compte pour vide : on peut le remplacer", () => {
+    expect(refusSaisieDispositifs({ formationDom: "4-4-2", formationExt: "4-2-3-1" }, { formationDom: "4-3-3", formationExt: "5-3-2" }, false)).toBeNull();
   });
 });

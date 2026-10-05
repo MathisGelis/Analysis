@@ -49,6 +49,7 @@ pip install -r parser/requirements.txt
 | `PYTHON_BIN` | `python3` | Binaire Python pour le parseur |
 | `FMI_PARSER_PATH` | `parser/parse_fmi.py` | Script de parsing |
 | `AUTO_SEED` | `true` (SQLite) · `false` (Postgres) | Peuple la base de demo si elle est vide au demarrage |
+| `IA_PLANIFICATEUR` | `on` en production, `off` sinon | `on` / `off` : le reentrainement automatique de l'IA (chaque mercredi a 5 h, voir « IA ») tourne-t-il sur ce serveur ? Jamais pendant les tests |
 | `LOG_LEVEL` | `log` | `fatal`, `error`, `warn`, `log`, `debug`, `verbose` : `debug` active les traces de diagnostic (clone de saison, effectif, attache) |
 
 ### Passer sur Supabase / Postgres
@@ -146,8 +147,16 @@ Toutes les routes sont prefixees par `/api`.
     (les FMI n'ont pas toujours les buteurs) ; `null` efface et revient au calcul depuis les feuilles.
 
 ### Matchs (avec compositions + evenements imbriques)
-- `GET    /matchs?clubId=` · `GET /matchs/:id`
-- `POST   /matchs` · `PATCH /matchs/:id` · `DELETE /matchs/:id`
+- `GET    /matchs?clubId=` · `GET /matchs/:id`. La liste porte `modifiable` (le compte peut-il modifier ou supprimer ce match ?),
+  le detail porte `droits: { modifier, dispositifs }` : le front ne propose pas ce que l'API refuserait
+- `POST   /matchs` · `PATCH /matchs/:id` · `DELETE /matchs/:id` : un des deux clubs du match est le mien (et l'equipe de mon cote m'est attribuee)
+- `PATCH  /matchs/:id/dispositifs` `{ formationDom?, formationExt? }` (`""` efface) : le **systeme de jeu**, saisi par le staff
+  (la FMI n'en contient aucun). Plus ouvert que la modification : on releve aussi les systemes des matchs des adversaires (c'est
+  ce qui alimente la prediction de leur systeme). Tout compte peut **renseigner un dispositif encore vide** sur un match d'une
+  saison qui lui est ouverte ; **corriger ou effacer un dispositif deja saisi** est reserve a ceux qui gerent le match (un des
+  deux clubs, l'equipe attribuee) et a l'administrateur. Un refus dit pourquoi (`403` « Le dispositif de l'equipe visiteuse est
+  deja renseigne (3-5-2) : ... »), jamais un `403` muet ; un dispositif invalide est `400`. Rien d'autre que les dispositifs
+  ne passe par cette route
 
 ### Entrainements (la charge `duree x intensite / 10` est calculee serveur)
 - `GET    /entrainements?equipeId=` · `GET /entrainements/:id`
@@ -261,14 +270,46 @@ imprevisibles), pires compositions et joueurs les plus difficiles a lire. Les re
 oubli) sont choisis en essayant 8 combinaisons en mode leger puis en rejouant la gagnante en entier.
 
 L'entrainement est un **job en arriere-plan** (un seul a la fois, progression interrogeable, annulable ; un redemarrage du
-serveur le marque interrompu). Tout est range dans `ia_entrainements` (resultat complet) et `ia_modeles` (poids, un seul
-actif). **Activer** un modele fait predire la compo probable des rapports (`compoProbableSource: "modele"`, probabilite par
-joueur) ; sans modele actif, ou apres desactivation, c'est le moteur a regles.
+serveur le marque interrompu des qu'il ne donne plus signe de vie depuis 3 minutes, ce qui laisse un autre serveur faire tourner
+le sien). Tout est range dans `ia_entrainements` (resultat complet) et `ia_modeles` (poids, un seul actif). **Activer** un modele
+fait predire par lui la compo probable des rapports (`compoProbableSource: "modele"`, probabilite par joueur) et, si son modele de
+dispositif est retenu (voir plus bas), le systeme probable ; sans modele actif, ou apres desactivation, c'est le moteur a regles.
 
-- `GET    /ia/etat` : modele actif, entrainement en cours, dernier entrainement, matchs disponibles par saison
+#### Reentrainement automatique, chaque mercredi
+Chaque **mercredi a 5 h (heure de Paris)**, l'IA se reentraine sur toutes les feuilles de la base (`ia-planning.ts`,
+`ia-planificateur.ts`) : un controle toutes les 10 minutes, une fois par semaine au plus. Si le serveur etait eteint le mercredi,
+l'entrainement est fait des qu'il redemarre ; un entrainement automatique interrompu par un arret du serveur est repris ; activer
+le planning un jeudi ne declenche rien tout de suite (le premier passage est le mercredi suivant). Il tourne en production, ou avec
+`IA_PLANIFICATEUR=on` ; l'administrateur le suspend ou le reactive depuis l'ecran admin (`PUT /ia/planning`).
+
+**Regle de securite** (`ia-decision.ts`) : le nouveau modele ne **remplace le modele actif que s'il fait au moins aussi bien**.
+La comparaison porte sur les semaines posterieures a la derniere vue par le modele actif : des matchs que l'actif n'avait jamais
+vus, que le nouveau a predits en marche avant (poids appris sur le passe) et l'actif avec ses poids figes, sur le meme historique :
+meme matchs, aucune fuite. Critere : la part des 11 titulaires predits ; a egalite, la perte logarithmique (probabilites mieux
+calibrees). Sinon le modele est **quand meme garde dans l'historique** des modeles (non actif) avec la raison du refus :
+
+| decision | quand |
+|---|---|
+| `remplace` | au moins aussi bon que l'actif (au moins 10 feuilles comparees) : il devient actif |
+| `conserve` | moins bon, ou moins de 10 feuilles posterieures a ce que l'actif avait vu (comparaison impossible) : l'actif reste |
+| `sans_actif` | aucun modele actif : le nouveau est range dans l'historique, jamais active tout seul (un modele desactive a la main le reste) |
+
+Un lancement manuel recoit le meme avis (`decision`, `appliquee: false`) mais n'active jamais : c'est l'administrateur qui decide.
+Les dispositifs saisis apres coup sur d'anciens matchs sont appris a chaque reentrainement ; ils ne changent le modele actif
+qu'avec les matchs de la semaine suivante, quand la comparaison a de quoi se faire.
+
+#### Le dispositif en direct
+Le modele de dispositif n'est utilise en direct (rapport d'equipe, rapport pre-match et PPTX, fiche club) que s'il a **appris**
+(au moins 8 dispositifs saisis) **et fait au moins aussi bien que le moteur a regles sur les memes matchs** pendant
+l'entrainement (`poids.systemeRetenu`) ; un modele non verifie ne remplace jamais le moteur. Il **choisit** alors le dispositif
+et sa probabilite (`systemeProbable.modele`), la preuve (dispositifs saisis, numeros de maillot, fiabilite) reste celle des
+donnees ; sans aucune preuve, pas de systeme : il ne devine jamais a partir de rien.
+
+- `GET    /ia/etat` : modele actif, entrainement en cours, dernier entrainement, matchs disponibles par saison, planning
 - `POST   /ia/entrainements` `{ optimiser?, saisonIds? }` : lance un entrainement (`201`, `409` s'il y en a deja un)
-- `GET    /ia/entrainements` · `GET /ia/entrainements/:id` (resultat complet, poids de depart, vocabulaire) · `GET /ia/entrainements/:id/resume` (progression) · `POST /ia/entrainements/:id/annuler`
+- `GET    /ia/entrainements` · `GET /ia/entrainements/:id` (resultat complet, decision, poids de depart, vocabulaire) · `GET /ia/entrainements/:id/resume` (progression) · `POST /ia/entrainements/:id/annuler`
 - `GET    /ia/modeles` · `POST /ia/modeles/:id/activer` · `POST /ia/modeles/desactiver` · `DELETE /ia/modeles/:id` (pas le modele actif)
+- `GET    /ia/planning` · `PUT /ia/planning` `{ actif }` : reentrainement automatique (actif ou non, prochain passage, dernier passage et son verdict)
 
 Toutes ces routes sont reservees a l'administrateur (`403` pour les autres, d'apres le contexte d'acces lu en base). Avec peu de
 matchs (la base d'exemple n'en compte que 138), l'IA fait a peu pres jeu egal avec les methodes simples : elle devient utile
@@ -327,7 +368,9 @@ ne filtre rien : il affiche ce que l'API renvoie.
 - **Donnees privees d'un club** (seances, plans de jeu, blessures, effectif saisi) et **ecritures** : limitees au club du compte
   et, pour un educateur, a ses equipes ; une equipe d'un autre club ou non attribuee est `403` (`404` si sa saison est fermee).
   Un match ne se programme ou ne se modifie que si l'un des deux clubs est le sien ; rien ne se deplace vers un autre club
-  ou une autre equipe.
+  ou une autre equipe. Exception, volontaire : les **systemes de jeu** (`PATCH /matchs/:id/dispositifs`) se renseignent sur
+  n'importe quel match d'une saison ouverte tant qu'ils sont vides ; un systeme deja saisi ne se corrige que sur un match que
+  l'on gere.
 - **Reserve a l'administrateur** : creer, modifier, activer, supprimer une saison ; supprimer un club ; renommer ou supprimer
   un arbitre ; `POST /seed/reset` ; les maintenances. Le referent gere les equipes et le club de son club ; tout compte peut ajouter un
   club adverse, un arbitre, importer une feuille FMI et relancer la derivation.
@@ -394,7 +437,7 @@ foot-analytics-api/
 │       ├── entrainements/  blessures/  tactiques/
 │       ├── arbitres/  coachs/  scouting/  classement/  stats/
 │       ├── analyse/              # tendances, rapport d'equipe, rapport pre-match (+ export PowerPoint, modele/), situation, numeros de maillot
-│       ├── ia/                   # IA : entrainement du modele de prediction des compos (marche avant), modeles actifs, routes admin
+│       ├── ia/                   # IA : entrainement (marche avant), modeles actifs, reentrainement du mercredi et sa regle de securite, dispositif en direct
 │       ├── fmi/                  # import des feuilles de match (appelle parser/parse_fmi.py)
 │       ├── derivation/           # recalcul des effectifs, classements et cumuls apres import
 │       └── seed/                 # donnees de demonstration

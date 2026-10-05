@@ -62,6 +62,8 @@ export interface ResumeDonnees {
   equipes: number;
   premiere: string | null;
   derniere: string | null;
+  /** Lundi (ms UTC) de la derniere semaine de matchs : tout ce qui est apres est "nouveau" pour ce jeu de donnees. */
+  derniereSemaine: number | null;
   saisons: string[];
   /** Ce qui n'a pas pu servir, et pourquoi. */
   ecartes: { sansDate: number; sansFeuille: number; feuilleIncomplete: number; horsSaison: number };
@@ -192,6 +194,7 @@ export function construireJeuDonnees(entrees: EntreesDonnees): JeuDonnees {
     resume: {
       matchsLus, feuilles: feuilles.length, etapes: etapes.length, equipes: new Set(feuilles.map((f) => f.equipe)).size,
       premiere: feuilles[0]?.date ?? null, derniere: feuilles[feuilles.length - 1]?.date ?? null,
+      derniereSemaine: etapes[etapes.length - 1]?.debut ?? null,
       saisons: [...new Set(feuilles.map((f) => f.saisonId).filter((s): s is string => !!s))],
       ecartes,
     },

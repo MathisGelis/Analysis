@@ -11,13 +11,15 @@ import { Saison } from "@/features/saisons/saison.entity";
 
 import { IaEntrainement } from "./ia-entrainement.entity";
 import { IaModele } from "./ia-modele.entity";
+import { IaPlanificateur } from "./ia-planificateur";
+import { IaReglage } from "./ia-reglage.entity";
 import { IaController } from "./ia.controller";
 import { IaService } from "./ia.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Match, Equipe, Club, Composition, Saison, IaEntrainement, IaModele])],
+  imports: [TypeOrmModule.forFeature([Match, Equipe, Club, Composition, Saison, IaEntrainement, IaModele, IaReglage])],
   controllers: [IaController],
-  providers: [IaService],
+  providers: [IaService, IaPlanificateur],
   exports: [IaService],
 })
 export class IaModule {}

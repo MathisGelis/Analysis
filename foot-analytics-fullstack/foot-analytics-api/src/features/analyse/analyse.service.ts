@@ -35,7 +35,7 @@ import { estMatchJoue } from "@/features/matchs/match-joue";
 import { parseDateFlexible, trierChronologiquement } from "@/common/dates";
 import { chargerDetailsMatchs } from "@/features/matchs/details-matchs";
 import { IaService } from "@/features/ia/ia.service";
-import { compoProbableDuModele } from "@/features/ia/ia-live";
+import { compoProbableDuModele, systemeDuModele } from "@/features/ia/ia-live";
 import { posteDuNumero } from "@/features/matchs/numeros-postes";
 
 import { analyserNumeros, lignesDeFeuille } from "./compo-numeros";
@@ -384,6 +384,8 @@ export class AnalyseService {
     // Un modele de l'IA actif (features/ia) prime : probabilite de titularisation par joueur, apprise sur toutes les feuilles.
     const modeleIa = this.ia ? await this.ia.modeleActif() : null;
     const parModele = modeleIa ? compoProbableDuModele(modeleIa.poids, infos, saisonId) : null;
+    // Et, si ce modele a appris les dispositifs (et fait au moins aussi bien que le moteur), le dispositif probable.
+    const systemeParModele = modeleIa ? systemeDuModele(modeleIa.poids, infos) : null;
     let compoProbable: PosteScore[];
     let compoProbableSur: number;
     if (parModele) {
@@ -753,6 +755,7 @@ export class AnalyseService {
       compoProbableSur,
       compoProbableSource: parModele ? "modele" : "regles",
       compoProbableModele: parModele ? modeleIa!.nom : null,
+      systemeModele: systemeParModele ? { ...systemeParModele, nom: modeleIa!.nom } : null,
       numeros,
       buteurs,
       partnerships,

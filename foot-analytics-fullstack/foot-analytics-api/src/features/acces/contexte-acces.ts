@@ -40,6 +40,12 @@ export interface EquipeAcces {
   saisonId?: string | null;
 }
 
+/** Ce que la politique lit d'un match. */
+export interface MatchAcces {
+  clubDom: string; clubExt: string; equipeDomId?: string | null; equipeExtId?: string | null;
+  saisonId?: string | null; date?: string | null;
+}
+
 export interface SaisonAcces { id: string; anneeDebut: number; actif: boolean }
 
 /** Empreinte stable d'une equipe, independante de la saison : club + categorie + competition + poule. */
@@ -144,6 +150,29 @@ export class ContexteAcces {
     if (this.attribuees.size === 0 || this.attribuees.has(e.id)) return true;
     const niveau = niveauEquipe(e);
     return this.empreintes.has(empreinteEquipe(e)) || (!!niveau && this.niveaux.has(niveau));
+  }
+
+  /**
+   * Les equipes de MON cote d'un match sont-elles de mon perimetre (educateur limite a certaines equipes) ?
+   * `equipes` : les equipes du match par identifiant (une equipe absente de la liste ne s'oppose pas).
+   */
+  equipesDuMatchGerees(
+    m: Pick<MatchAcces, "equipeDomId" | "equipeExtId" | "clubDom" | "clubExt">, equipes: ReadonlyMap<string, EquipeAcces>,
+  ): boolean {
+    if (this.admin) return true;
+    const ids = [this.gereClub(m.clubDom) ? m.equipeDomId : null, this.gereClub(m.clubExt) ? m.equipeExtId : null];
+    return ids.every((id) => { const e = id ? equipes.get(id) : undefined; return !e || this.gereEquipe(e); });
+  }
+
+  /**
+   * Le compte peut-il modifier ou supprimer ce match ? Saison ouverte, l'un des deux clubs est le sien et, de son cote,
+   * une equipe de son perimetre. Meme verdict que celui que l'API applique aux ecritures (AccesService.matchGere).
+   */
+  peutModifierMatch(m: MatchAcces, equipes: ReadonlyMap<string, EquipeAcces>): boolean {
+    if (this.admin) return true;
+    if (!this.voitSaison(m.saisonId) || !this.voitDate(m.date)) return false;
+    if (!this.gereClub(m.clubDom) && !this.gereClub(m.clubExt)) return false;
+    return this.equipesDuMatchGerees(m, equipes);
   }
 
   /** L'equipe est-elle consultable : equipe adverse (saison ouverte), ou equipe de mon club que je gere ? */

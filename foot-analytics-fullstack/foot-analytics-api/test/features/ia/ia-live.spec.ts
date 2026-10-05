@@ -15,18 +15,23 @@ import { LigneClassement } from "@/features/classement/ligne-classement.entity";
 import { Match } from "@/features/matchs/match.entity";
 import { Saison } from "@/features/saisons/saison.entity";
 import { StaffMatch } from "@/features/coachs/staff-match.entity";
-import { compoProbableDuModele, feuillesDeLEquipe, MatchDeLEquipe } from "@/features/ia/ia-live";
-import { poidsInitiaux } from "@/features/ia/ia-modele";
+import { avecAvisDuModele, compoProbableDuModele, feuillesDeLEquipe, MatchDeLEquipe, systemeDuModele } from "@/features/ia/ia-live";
+import { construireJeuDonnees } from "@/features/ia/ia-donnees";
+import { entrainer } from "@/features/ia/ia-entrainement";
+import { HYPER_PAR_DEFAUT, poidsInitiaux } from "@/features/ia/ia-modele";
+import { SituationService } from "@/features/analyse/situation.service";
+import { fusionnerSystemes, SystemeProbable } from "@/features/analyse/systeme-probable";
+import { analyserNumeros, lignesDeFeuille } from "@/features/analyse/compo-numeros";
 import { creerBaseTest } from "@test/support/test-db";
-import { insererLigue, ligue } from "./ligue";
+import { creerIaService, insererLigue, ligue } from "./ligue";
 
 /** Les matchs d'un club de la ligue synthetique, au format du rapport d'equipe. */
-function matchsDuClub(club: number, semaines = 8): MatchDeLEquipe[] {
-  const e = ligue({ clubs: 4, semaines });
+function matchsDuClub(club: number, semaines = 8, formation: string | null = null): MatchDeLEquipe[] {
+  const e = ligue({ clubs: 4, semaines, formation });
   return e.matchs.filter((m) => m.clubDom === `c${club}` || m.clubExt === `c${club}`).map((m) => {
     const cote = m.clubDom === `c${club}` ? "dom" : "ext";
     const lignes = e.compos.filter((c) => c.matchId === m.id && c.cote === cote);
-    return { m: { id: m.id, date: m.date, journee: m.journee, saisonId: m.saisonId }, dom: cote === "dom", titulaires: lignes.filter((l) => l.titulaire), bancs: lignes.filter((l) => !l.titulaire) };
+    return { m: { id: m.id, date: m.date, journee: m.journee, saisonId: m.saisonId, formationDom: m.formationDom, formationExt: m.formationExt }, dom: cote === "dom", titulaires: lignes.filter((l) => l.titulaire), bancs: lignes.filter((l) => !l.titulaire) };
   });
 }
 
@@ -60,6 +65,120 @@ describe("compoProbableDuModele", () => {
   });
 });
 
+describe("le dispositif en direct", () => {
+  const apprendre = (formation: string | null) =>
+    entrainer(construireJeuDonnees(ligue({ clubs: 6, semaines: 14, formation })), { grille: [HYPER_PAR_DEFAUT] });
+
+  it("les feuilles portent le dispositif saisi par le staff pour l'equipe (jamais le couple invente)", () => {
+    const saisi = feuillesDeLEquipe(matchsDuClub(0, 8, "4-3-3"));
+    expect(saisi.every((f) => f.formation === "4-3-3")).toBe(true);
+    expect(feuillesDeLEquipe(matchsDuClub(0, 8)).every((f) => f.formation === null)).toBe(true);
+    const invente = matchsDuClub(0, 8).map((m) => ({ ...m, m: { ...m.m, formationDom: "4-4-2", formationExt: "4-2-3-1" } }));
+    expect(feuillesDeLEquipe(invente).every((f) => f.formation === null)).toBe(true);
+  });
+
+  it("un modele qui a appris les dispositifs (et fait au moins aussi bien que les regles) choisit le dispositif", async () => {
+    const r = await apprendre("4-3-3");
+    expect(r.poids.systemeRetenu).toBe(true);
+    const direct = systemeDuModele(r.poids, matchsDuClub(0, 8, "4-3-3"))!;
+    expect(direct.systeme).toBe("4-3-3");
+    expect(direct.proba).toBeGreaterThan(0.5);
+    expect(direct.classement[0]).toMatchObject({ systeme: "4-3-3" });
+    expect(direct.classement.length).toBeLessThanOrEqual(4);
+  });
+
+  it("pas de modele de dispositif, ou non retenu, ou aucune feuille : le moteur a regles garde la main", async () => {
+    const r = await apprendre(null);
+    expect(r.poids.systeme).toBeNull();
+    expect(systemeDuModele(r.poids, matchsDuClub(0, 8))).toBeNull();
+    const appris = await apprendre("4-3-3");
+    expect(systemeDuModele({ ...appris.poids, systemeRetenu: false }, matchsDuClub(0, 8, "4-3-3"))).toBeNull();
+    const { systemeRetenu, ...ancien } = appris.poids;                    // modele d'avant la verification : non verifie, donc non retenu
+    expect(systemeRetenu).toBe(true);
+    expect(systemeDuModele(ancien, matchsDuClub(0, 8, "4-3-3"))).toBeNull();
+    expect(systemeDuModele(appris.poids, [])).toBeNull();
+  });
+
+  it("l'avis du modele : il choisit le dispositif et sa probabilite, la preuve (source, observations) reste celle des donnees", async () => {
+    const appris = await apprendre("4-3-3");
+    const matchs = matchsDuClub(0, 8, "4-3-3");
+    const modele = systemeDuModele(appris.poids, matchs)!;
+    const base: SystemeProbable = fusionnerSystemes(
+      { systeme: "4-4-2", confiance: 70, observations: 4, fiabilite: "moyenne", alternatives: [{ systeme: "4-3-3", poids: 30 }] },
+      analyserNumeros(matchs.flatMap((i) => lignesDeFeuille(i.m, [...i.titulaires, ...i.bancs]))),
+    )!;
+    const avec = avecAvisDuModele(base, modele, "Modele n°3")!;
+    expect(avec.systeme).toBe("4-3-3");
+    expect(avec.confiance).toBe(Math.round(modele.proba * 100));
+    expect(avec.modele).toEqual({ nom: "Modele n°3" });
+    expect(avec.indices[0]).toMatch(/Choisi par le modele Modele n°3 : 4-3-3/);
+    expect(avec.indices.slice(1)).toEqual(base.indices);
+    expect(avec).toMatchObject({ source: base.source, observations: 4, fiabilite: base.fiabilite });
+    expect(avec.disposition).toBeDefined();
+    expect(avec.alternatives.every((a) => a.poids > 0)).toBe(true);
+    // Sans preuve (aucun dispositif saisi, numeros illisibles) : pas de systeme, le modele ne devine pas ; sans avis : la base telle quelle.
+    expect(avecAvisDuModele(null, modele, "Modele n°3")).toBeNull();
+    expect(avecAvisDuModele(base, null, "Modele n°3")).toBe(base);
+  });
+});
+
+describe("le dispositif du modele dans les services", () => {
+  let ds: DataSource;
+  let ia: IaService;
+
+  beforeEach(async () => {
+    ds = await creerBaseTest();
+    ia = creerIaService(ds);
+  });
+  afterEach(() => ds.destroy());
+
+  const situation = (avecIa: boolean) => new SituationService(
+    ds.getRepository(Club), ds.getRepository(Match), ds.getRepository(Composition), ds.getRepository(Joueur), avecIa ? ia : undefined,
+  );
+  const entrainerEtActiver = async () => {
+    const lance = await ia.lancer(null, { optimiser: false });
+    await ia.attendre(lance.id);
+    await ia.activer((await ia.resume(lance.id)).modele!.id);
+  };
+
+  it("fiche club : avec un modele actif qui a appris les dispositifs, le dispositif probable vient du modele ; sinon des regles", async () => {
+    await insererLigue(ds, ligue({ clubs: 6, semaines: 14, formation: "4-3-3" }));
+    const avant = (await situation(true).situation("c0", { saisonId: "s25" })).systeme.probable!;
+    expect(avant).toMatchObject({ systeme: "4-3-3" });
+    expect(avant.modele).toBeUndefined();
+
+    await entrainerEtActiver();
+    const apres = (await situation(true).situation("c0", { saisonId: "s25" })).systeme.probable!;
+    expect(apres).toMatchObject({ systeme: "4-3-3", modele: { nom: "Modele n°1" }, source: avant.source, observations: avant.observations });
+    expect(apres.indices[0]).toMatch(/Choisi par le modele Modele n°1/);
+    // Le service sans IA, ou le modele desactive : comme avant.
+    expect((await situation(false).situation("c0", { saisonId: "s25" })).systeme.probable!.modele).toBeUndefined();
+    await ia.desactiver();
+    expect((await situation(true).situation("c0", { saisonId: "s25" })).systeme.probable!.modele).toBeUndefined();
+  });
+
+  it("aucun dispositif saisi : le modele n'a rien appris, et ne devine pas ; les numeros seuls parlent comme avant", async () => {
+    await insererLigue(ds, ligue({ clubs: 6, semaines: 14 }));
+    await entrainerEtActiver();
+    const probable = (await situation(true).situation("c0", { saisonId: "s25" })).systeme.probable;
+    expect(probable?.modele).toBeUndefined();
+    expect(probable?.source ?? "numeros").toBe("numeros");
+  });
+
+  it("rapport d'equipe : le dispositif du modele est expose pour le pre-match", async () => {
+    await insererLigue(ds, ligue({ clubs: 6, semaines: 14, formation: "4-3-3" }));
+    await entrainerEtActiver();
+    const repos = [
+      ds.getRepository(Club), ds.getRepository(Match), ds.getRepository(Joueur), ds.getRepository(Composition), ds.getRepository(EvenementMatch),
+      ds.getRepository(Entrainement), ds.getRepository(Coach), ds.getRepository(StaffMatch), ds.getRepository(Equipe),
+      ds.getRepository(LigneClassement), ds.getRepository(Saison),
+    ] as const;
+    const r = await new AnalyseService(...repos, ia).rapportClub("c0");
+    expect(r.systemeModele).toMatchObject({ nom: "Modele n°1", systeme: "4-3-3" });
+    expect((await new AnalyseService(...repos).rapportClub("c0")).systemeModele).toBeNull();
+  });
+});
+
 describe("AnalyseService.rapportClub avec le modele de l'IA", () => {
   let ds: DataSource;
   let ia: IaService;
@@ -68,10 +187,7 @@ describe("AnalyseService.rapportClub avec le modele de l'IA", () => {
 
   beforeEach(async () => {
     ds = await creerBaseTest();
-    ia = new IaService(
-      ds.getRepository(Match), ds.getRepository(Equipe), ds.getRepository(Club), ds.getRepository(Composition),
-      ds.getRepository(Saison), ds.getRepository(IaEntrainement), ds.getRepository(IaModele),
-    );
+    ia = creerIaService(ds);
     const repos = [
       ds.getRepository(Club), ds.getRepository(Match), ds.getRepository(Joueur), ds.getRepository(Composition), ds.getRepository(EvenementMatch),
       ds.getRepository(Entrainement), ds.getRepository(Coach), ds.getRepository(StaffMatch), ds.getRepository(Equipe),

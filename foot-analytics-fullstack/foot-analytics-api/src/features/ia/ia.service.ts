@@ -11,6 +11,7 @@ import { ConflictException, Injectable, Logger, NotFoundException, OnModuleInit 
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
+import { parseDateFlexible } from "@/common/dates";
 import { Club } from "@/features/clubs/club.entity";
 import { Composition } from "@/features/matchs/composition.entity";
 import { Equipe } from "@/features/equipes/equipe.entity";
@@ -18,14 +19,22 @@ import { Match } from "@/features/matchs/match.entity";
 import { estMatchJoue } from "@/features/matchs/match-joue";
 import { Saison } from "@/features/saisons/saison.entity";
 
-import { construireJeuDonnees, EntreesDonnees, JeuDonnees } from "./ia-donnees";
-import { DonneesInsuffisantes, entrainer, GRILLE_COMPLETE, Progression, ResultatEntrainement, resumeDuResultat, ResumeModele } from "./ia-entrainement";
-import { IaEntrainement, OptionsLancement, StatutEntrainement } from "./ia-entrainement.entity";
+import { Decision, decider } from "./ia-decision";
+import { construireJeuDonnees, EntreesDonnees, JeuDonnees, lundiDe } from "./ia-donnees";
+import {
+  DonneesInsuffisantes, entrainer, GRILLE_COMPLETE, OptionsEntrainement, Progression, ResultatEntrainement, resumeDuResultat, ResumeModele,
+} from "./ia-entrainement";
+import { Declencheur, IaEntrainement, OptionsLancement, StatutEntrainement } from "./ia-entrainement.entity";
 import { IaModele } from "./ia-modele.entity";
+import { estDu, FUSEAU, HEURE_AUTO, JOUR_AUTO, planificateurActif, prochainPassage, ReglagePlanning } from "./ia-planning";
+import { IaReglage } from "./ia-reglage.entity";
 import { CARACTERISTIQUES_NUMERO, CARACTERISTIQUES_SYSTEME, CARACTERISTIQUES_TITULAIRE, HYPER_PAR_DEFAUT, PoidsIa, poidsInitiaux } from "./ia-modele";
 
 const TAILLE_LOT = 500;
 const VALIDITE_CACHE_MS = 30_000;
+/** Un entrainement "en cours" sans nouvelles depuis aussi longtemps a ete interrompu (arret du serveur). */
+const SILENCE_ORPHELIN_MS = 3 * 60_000;
+const CLE_PLANNING = "planning";
 
 /** Rend la main a la boucle d'evenements : les autres requetes passent entre deux etapes de l'entrainement. */
 const cooperer = () => new Promise<void>((fin) => setImmediate(fin));
@@ -51,6 +60,7 @@ export class IaService implements OnModuleInit {
     @InjectRepository(Saison) private readonly saisons: Repository<Saison>,
     @InjectRepository(IaEntrainement) private readonly entrainements: Repository<IaEntrainement>,
     @InjectRepository(IaModele) private readonly modeles: Repository<IaModele>,
+    @InjectRepository(IaReglage) private readonly reglages: Repository<IaReglage>,
   ) {}
 
   /** Un entrainement "en cours" sans tache vivante a ete interrompu par un arret du serveur. */
@@ -58,27 +68,37 @@ export class IaService implements OnModuleInit {
     await this.marquerOrphelins();
   }
 
-  private async marquerOrphelins(): Promise<void> {
-    const orphelins = (await this.entrainements.find({ where: { statut: "en_cours" }, select: { id: true } })).filter((e) => !this.jobs.has(e.id));
-    for (const { id } of orphelins) {
+  /**
+   * Un entrainement "en cours" dont aucune tache de CE serveur ne s'occupe et dont plus personne ne donne de nouvelles
+   * (preuve de vie `maj`) depuis quelques minutes a ete interrompu. Un autre serveur peut tres bien en faire tourner un :
+   * on ne le marque pas tant qu'il donne signe de vie.
+   */
+  private async marquerOrphelins(maintenant = Date.now()): Promise<void> {
+    const enCours = await this.entrainements.find({ where: { statut: "en_cours" }, select: { id: true, maj: true, creeLe: true } });
+    for (const { id, maj, creeLe } of enCours) {
+      if (this.jobs.has(id)) continue;
+      if (maintenant - Date.parse(maj ?? creeLe) < SILENCE_ORPHELIN_MS) continue;
       await this.entrainements.update(id, { statut: "echec", message: "Interrompu : le serveur a ete arrete pendant l'entrainement.", termineLe: new Date().toISOString() });
     }
   }
 
   /* ----------------------------------------- lancement ----------------------------------------- */
 
-  async lancer(acteurId: string | null, demande: { optimiser?: boolean; saisonIds?: string[] } = {}): Promise<EntrainementResume> {
-    await this.marquerOrphelins();
+  async lancer(
+    acteurId: string | null, demande: { optimiser?: boolean; saisonIds?: string[] } = {}, declencheur: Declencheur = "manuel", horloge = Date.now(),
+  ): Promise<EntrainementResume> {
+    await this.marquerOrphelins(horloge);
     if ((await this.entrainements.count({ where: { statut: "en_cours" } })) > 0) {
       throw new ConflictException("Un entrainement est deja en cours : attendez qu'il se termine ou annulez-le.");
     }
     const options: OptionsLancement = { optimiser: demande.optimiser !== false, saisonIds: demande.saisonIds?.length ? demande.saisonIds : null };
+    const maintenant = new Date(horloge).toISOString();
     const ligne = await this.entrainements.save(this.entrainements.create({
       statut: "en_cours", progression: 0, message: "Demarrage", options, lancePar: acteurId, modeleId: null, resultat: null, termineLe: null,
-      creeLe: new Date().toISOString(),
+      declencheur, decision: null, maj: maintenant, creeLe: maintenant,
     }));
     // Lance en arriere-plan : la requete rend la main tout de suite, le suivi se fait en interrogeant l'entrainement.
-    const tache = this.executer(ligne.id, options).finally(() => { this.jobs.delete(ligne.id); this.annulations.delete(ligne.id); });
+    const tache = this.executer(ligne.id, options, declencheur).finally(() => { this.jobs.delete(ligne.id); this.annulations.delete(ligne.id); });
     this.jobs.set(ligne.id, tache);
     return this.vers(ligne, null);
   }
@@ -98,20 +118,36 @@ export class IaService implements OnModuleInit {
     return this.resume(id);
   }
 
-  private async executer(id: string, options: OptionsLancement): Promise<void> {
+  /** Lundi (ms UTC) de la derniere semaine de matchs qu'un modele a vue ; null si on ne sait pas (tres ancien modele). */
+  private async derniereSemaineDuModele(m: Pick<IaModele, "entrainementId" | "resume">): Promise<number | null> {
+    if (m.resume.derniereSemaine != null) return m.resume.derniereSemaine;
+    const donnees = (await this.entrainements.findOne({ where: { id: m.entrainementId } }))?.resultat?.donnees;
+    if (!donnees) return null;
+    if (donnees.derniereSemaine != null) return donnees.derniereSemaine;
+    const t = parseDateFlexible(donnees.derniere);
+    return t === null ? null : lundiDe(t);
+  }
+
+  private async executer(id: string, options: OptionsLancement, declencheur: Declencheur): Promise<void> {
     let chaine: Promise<unknown> = Promise.resolve();
     let derniereEcriture = 0;
     const progression = (p: Progression) => {
       const maintenant = Date.now();
       if (maintenant - derniereEcriture < 400 && p.pourcentage < 100) return;
       derniereEcriture = maintenant;
-      chaine = chaine.then(() => this.entrainements.update(id, { progression: p.pourcentage, message: p.message })).catch((e) => this.log.warn(`progression : ${(e as Error).message}`));
+      chaine = chaine
+        .then(() => this.entrainements.update(id, { progression: p.pourcentage, message: p.message, maj: new Date().toISOString() }))
+        .catch((e) => this.log.warn(`progression : ${(e as Error).message}`));
     };
     try {
       const jeu = await this.chargerJeu(options.saisonIds);
+      // Le modele actif, a mesurer face au nouveau sur les semaines qu'il n'avait pas vues.
+      const actif = await this.modeles.findOne({ where: { actif: true } });
+      const apres = actif ? await this.derniereSemaineDuModele(actif) : null;
+      const reference: OptionsEntrainement["reference"] = actif && apres !== null ? { id: actif.id, nom: actif.nom, poids: actif.poids, apres } : undefined;
       const resultat = await entrainer(jeu, {
         grille: options.optimiser ? GRILLE_COMPLETE : [HYPER_PAR_DEFAUT],
-        progression, cooperer, annule: () => this.annulations.has(id),
+        progression, cooperer, annule: () => this.annulations.has(id), reference,
       });
       await chaine;
       const libelles = Object.fromEntries((await this.saisons.find()).map((s) => [s.id, s.nom]));
@@ -121,8 +157,20 @@ export class IaService implements OnModuleInit {
         nom: `Modele n°${nombre + 1}`, entrainementId: id, poids: resultat.poids, resume: resumeDuResultat(resultat), actif: false,
         creeLe: new Date().toISOString(),
       }));
+      // La regle de securite : l'entrainement automatique ne remplace le modele actif que s'il fait au moins aussi bien.
+      // Un lancement manuel recoit le meme avis, mais c'est l'administrateur qui active.
+      const avis = decider(!!actif, resultat.comparaison);
+      const appliquee = declencheur === "auto" && avis.action === "remplace";
+      if (appliquee) {
+        await this.activer(modele.id);
+        this.log.log(`${modele.nom} remplace ${actif!.nom} : ${avis.raison}`);
+      } else if (declencheur === "auto") {
+        this.log.log(`${modele.nom} garde dans l'historique (${avis.action}) : ${avis.raison}`);
+      }
+      const decision: Decision = { ...avis, appliquee };
       await this.entrainements.update(id, {
-        statut: "termine", progression: 100, message: "Termine", resultat: complet, modeleId: modele.id, termineLe: new Date().toISOString(),
+        statut: "termine", progression: 100, message: "Termine", resultat: complet, modeleId: modele.id, decision,
+        termineLe: new Date().toISOString(), maj: new Date().toISOString(),
       });
     } catch (e) {
       await chaine;
@@ -167,7 +215,10 @@ export class IaService implements OnModuleInit {
   /* ------------------------------------------- lecture ------------------------------------------- */
 
   private colonnesLegeres() {
-    return { id: true, statut: true, progression: true, message: true, options: true, lancePar: true, modeleId: true, termineLe: true, creeLe: true } as const;
+    return {
+      id: true, statut: true, progression: true, message: true, options: true, lancePar: true, modeleId: true, termineLe: true,
+      declencheur: true, decision: true, maj: true, creeLe: true,
+    } as const;
   }
 
   private vers(e: Omit<IaEntrainement, "resultat">, modele: IaModele | null): EntrainementResume {
@@ -223,11 +274,66 @@ export class IaService implements OnModuleInit {
       actif,
       enCours: enCours ? await this.resume(enCours.id) : null,
       dernier: dernier ? await this.resume(dernier.id) : null,
+      planning: await this.planning(),
       donnees: {
         matchsJoues: joues.length,
         saisons: saisons.map((s) => ({ id: s.id, nom: s.nom, matchs: parSaison.get(s.id) ?? 0 })),
       },
     };
+  }
+
+  /* ------------------------------------------ planning ------------------------------------------ */
+
+  /** Le reglage du planning ; la premiere lecture le cree (actif, a compter de maintenant : pas de rattrapage d'une semaine passee). */
+  private async lirePlanning(maintenant = Date.now()): Promise<ReglagePlanning> {
+    const ligne = await this.reglages.findOne({ where: { cle: CLE_PLANNING } });
+    if (ligne) return ligne.valeur;
+    const valeur: ReglagePlanning = { actif: true, depuis: new Date(maintenant).toISOString() };
+    await this.reglages.save(this.reglages.create({ cle: CLE_PLANNING, valeur }));
+    return valeur;
+  }
+
+  /** Le reentrainement automatique : actif ou non, prochain passage, dernier entrainement automatique et son verdict. */
+  async planning(maintenant = Date.now()) {
+    const reglage = await this.lirePlanning(maintenant);
+    const dernier = await this.entrainements.findOne({ where: { declencheur: "auto" }, select: this.colonnesLegeres(), order: { creeLe: "DESC" } });
+    return {
+      actif: reglage.actif, depuis: reglage.depuis,
+      /** Le planificateur tourne-t-il sur ce serveur ? (production, ou IA_PLANIFICATEUR=on) */
+      operationnel: planificateurActif(),
+      /** Chaque semaine, a cette heure (heure de Paris) : le jour, 0 = dimanche. */
+      jour: JOUR_AUTO, heure: HEURE_AUTO, fuseau: FUSEAU,
+      prochain: reglage.actif ? new Date(prochainPassage(maintenant)).toISOString() : null,
+      dernier: dernier ? await this.resume(dernier.id) : null,
+    };
+  }
+
+  /** Active ou suspend le reentrainement automatique. Reactive, il ne rattrape pas la semaine en cours : le premier est le mercredi suivant. */
+  async definirPlanning(actif: boolean, maintenant = Date.now()) {
+    const actuel = await this.lirePlanning(maintenant);
+    if (actuel.actif !== actif) {
+      await this.reglages.save(this.reglages.create({ cle: CLE_PLANNING, valeur: { actif, depuis: actif ? new Date(maintenant).toISOString() : actuel.depuis } }));
+    }
+    return this.planning(maintenant);
+  }
+
+  /**
+   * Appelee regulierement par le planificateur : lance l'entrainement automatique de la semaine s'il est du (voir
+   * ia-planning.ts). Renvoie l'entrainement lance, ou null s'il n'y avait rien a faire.
+   */
+  async verifierPlanning(maintenant = Date.now()): Promise<EntrainementResume | null> {
+    // Un entrainement automatique interrompu (serveur arrete) ne doit pas compter pour la semaine : on le marque d'abord.
+    await this.marquerOrphelins(maintenant);
+    const reglage = await this.lirePlanning(maintenant);
+    const autos = await this.entrainements.find({ where: { declencheur: "auto" }, select: { creeLe: true, statut: true, message: true }, order: { creeLe: "DESC" }, take: 5 });
+    if (!estDu(maintenant, reglage, autos)) return null;
+    try {
+      this.log.log("Reentrainement automatique de la semaine");
+      return await this.lancer(null, { optimiser: true }, "auto", maintenant);
+    } catch (e) {
+      if (e instanceof ConflictException) return null;      // un entrainement tourne deja : on reverra au prochain passage
+      throw e;
+    }
   }
 
   /* ------------------------------------------ modele actif ------------------------------------------ */

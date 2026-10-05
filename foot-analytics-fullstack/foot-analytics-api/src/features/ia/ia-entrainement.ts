@@ -19,7 +19,7 @@ import { predireSysteme as predireSystemeSaisi } from "@/features/matchs/systeme
 
 import type { FeuilleEquipe, JeuDonnees, ResumeDonnees } from "./ia-donnees";
 import {
-  Agregats, agregatsVides, arrondi, Methode, METHODES, noter, PrevisionPlate, previsionsDeReference, ResumeNote, resumerTous,
+  Agregat, Agregats, agregatsVides, arrondi, Methode, METHODES, noter, PrevisionPlate, previsionsDeReference, ResumeNote, resumerTous,
 } from "./ia-evaluation";
 import {
   compterSysteme, exemplesNumeros, exemplesTitularisation, FrequencesSysteme, frequencesVides, Hyper, HYPER_PAR_DEFAUT,
@@ -42,7 +42,7 @@ const MAX_EXEMPLES_TITULAIRES = 30_000;
 const MAX_EXEMPLES_NUMEROS = 4_000;
 const MAX_EXEMPLES_SYSTEME = 5_000;
 /** Pour chaque feuille, au plus ce nombre de feuilles precedentes de l'equipe sont relues. */
-const HISTORIQUE_MAX = 30;
+export const HISTORIQUE_MAX = 30;
 const REFERENCE_FENETRE = 10;
 
 export class DonneesInsuffisantes extends Error {}
@@ -57,6 +57,12 @@ export interface OptionsEntrainement {
   cooperer?: () => Promise<void>;
   /** Vrai : l'entrainement est interrompu (leve une erreur). */
   annule?: () => boolean;
+  /**
+   * Le modele actif, a mesurer face au nouveau sur les semaines que ni l'un ni l'autre n'a apprises avant de predire :
+   * celles qui suivent la derniere semaine vue par le modele actif (`apres`, lundi en ms). Le nouveau les predit en marche
+   * avant (poids appris sur le passe), l'actif les predit avec ses poids figes : meme matchs, meme historique, aucune fuite.
+   */
+  reference?: { id: string; nom: string; poids: PoidsIa; apres: number };
 }
 
 /* ----------------------------------------- resultats ----------------------------------------- */
@@ -132,12 +138,29 @@ export interface ResultatEssai {
   /** Feuilles sans aucun historique : rien a predire. */
   sansHistorique: number;
   systeme: ResumeSysteme | null;
+  /** Face au modele actif (absent : aucun modele actif a l'epoque, ou essai leger). */
+  comparaison: ComparaisonActif | null;
   calibration: BandeCalibration[];
   pires: ErreurFeuille[];
   /** Les joueurs les plus difficiles a lire (au moins 6 matchs), du plus au moins difficile. */
   difficiles: JoueurDifficile[];
   /** Mises en garde en clair (peu de donnees, numeros peu fiables...). */
   alertes: string[];
+}
+
+/** Ce que vaut un modele sur les feuilles de la comparaison. */
+export interface MesureComparaison { onze: number | null; postes: number | null; perte: number | null }
+
+/** Le nouveau modele face au modele actif, sur les semaines posterieures a celles que l'actif avait vues. */
+export interface ComparaisonActif {
+  actif: { id: string; nom: string };
+  /** Premiere semaine comparee. */
+  depuis: string;
+  semaines: number;
+  /** Feuilles predites par les deux. */
+  feuilles: number;
+  nouveau: MesureComparaison;
+  ancien: MesureComparaison;
 }
 
 export interface ResultatEntrainement extends ResultatEssai {
@@ -159,7 +182,12 @@ interface SystemePrepare {
   refs: { moteur: string | null; dernier: string | null; frequent: string | null };
 }
 
-interface Commun { refs: Record<Exclude<Methode, "modele">, PrevisionPlate | null>; systeme: SystemePrepare | null }
+interface Commun {
+  refs: Record<Exclude<Methode, "modele">, PrevisionPlate | null>;
+  systeme: SystemePrepare | null;
+  /** Ce que le modele actif voit de l'equipe (sa propre fenetre d'historique), pour les semaines de la comparaison. */
+  prepActif: Preparation | null;
+}
 
 interface FeuillePreparee {
   feuille: FeuilleEquipe;
@@ -175,7 +203,9 @@ const recentes = (liste: readonly FeuilleEquipe[], k: number) => liste.slice(-k)
  * Passe chronologique du jeu de donnees pour un jeu d'hyperparametres : pour chaque feuille, ce que l'on savait de son
  * equipe juste avant le match. `communs` (references, dispositifs) ne depend pas des hyperparametres : calcule une fois.
  */
-function preparer(jeu: JeuDonnees, fenetre: number, communsExistants: Commun[] | null): { prepares: FeuillePreparee[]; communs: Commun[] } {
+function preparer(
+  jeu: JeuDonnees, fenetre: number, communsExistants: Commun[] | null, reference: OptionsEntrainement["reference"] = undefined,
+): { prepares: FeuillePreparee[]; communs: Commun[] } {
   const historiques = new Map<string, FeuilleEquipe[]>();
   const frequences: FrequencesSysteme = frequencesVides();
   const prepares: FeuillePreparee[] = [];
@@ -202,7 +232,8 @@ function preparer(jeu: JeuDonnees, fenetre: number, communsExistants: Commun[] |
             },
           };
         }
-        communs.push({ refs, systeme });
+        const prepActif = reference && etape.debut > reference.apres ? preparerCandidats(passe, f.saisonId, reference.poids.hyper.fenetre) : null;
+        communs.push({ refs, systeme, prepActif });
       }
       prepares.push({ feuille: f, etape: etape.indice, prep, commun: communs[i] });
       hist.push(f);
@@ -271,6 +302,13 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
   const stats = { n: 0, modele: compteSysteme(), moteur: compteSysteme(), dernier: compteSysteme(), frequent: compteSysteme() };
   const nDefense = (x: string | null, vrai: string) => (x && structureDuSysteme(x).defense === structureDuSysteme(vrai).defense ? 1 : 0);
 
+  // Comparaison au modele actif : memes feuilles (semaines posterieures a celles qu'il avait vues), les deux sans fuite.
+  const reference = ctx.leger ? undefined : ctx.options.reference;
+  const cmp = {
+    semaines: new Set<number>(), premiere: null as string | null,
+    nouveau: new Agregat(), ancien: new Agregat(), perteNouveau: 0, perteAncien: 0, nPerteNouveau: 0, nPerteAncien: 0,
+  };
+
   const parEtapeIndice = new Map<number, FeuillePreparee[]>();
   for (const p of prepares) (parEtapeIndice.get(p.etape) ?? parEtapeIndice.set(p.etape, []).get(p.etape)!).push(p);
 
@@ -311,12 +349,25 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
           agregats[m].ajouter(note); global[m].ajouter(note); saison[m].ajouter(note);
         }
 
+        // Le meme match, predit par le modele actif avec ses poids figes (seulement les semaines qu'il n'avait pas vues).
+        const predActif = reference && p.commun.prepActif && p.commun.prepActif.candidats.length > 0 ? predireOnze(reference.poids, p.commun.prepActif) : null;
+        if (predActif) {
+          cmp.semaines.add(etape.indice);
+          cmp.premiere ??= etape.libelle;
+          cmp.nouveau.ajouter(notes.modele);
+          cmp.ancien.ajouter(noter(new Map(predActif.titulaires.map((t) => [t.joueur, t.numero])), f.lignes));
+          for (const c of p.commun.prepActif!.candidats) {
+            cmp.perteAncien += perteBinaire(predActif.probas.get(c.joueur)!, reelsIds.has(c.joueur) ? 1 : 0); cmp.nPerteAncien++;
+          }
+        }
+
         // Qualite des probabilites (perte logarithmique, calibration) sur tous les candidats.
         for (const c of p.prep.candidats) {
           const y = reelsIds.has(c.joueur) ? 1 : 0;
           const pr = pred.probas.get(c.joueur)!;
           const perte = perteBinaire(pr, y);
           sommePerte += perte; nPerte++; perteEtape += perte; nPerteEtape++;
+          if (predActif) { cmp.perteNouveau += perte; cmp.nPerteNouveau++; }
           const cle = `${f.equipe}|${c.joueur}`;
           const l = lectures.get(cle) ?? lectures.set(cle, { nom: c.nom, equipe: f.libelleEquipe, n: 0, proba: 0, titu: 0, perte: 0 }).get(cle)!;
           l.n++; l.proba += pr; l.titu += y; l.perte += perte;
@@ -411,10 +462,19 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
   for (const { a, i } of avecPredictions) if (i >= debutRecent) for (const m of METHODES) recent[m].fusionner(a[m]);
 
   const frequencesFinales = depart.frequencesSysteme;
+  const systemeAppris = poolS.length >= MIN_DISPOSITIFS_APPRIS;
   const poidsFinaux: PoidsIa = {
     ...poidsCourants(), frequencesSysteme: frequencesFinales,
-    systeme: poolS.length >= MIN_DISPOSITIFS_APPRIS ? { noms: depart.systeme!.noms, w: wS } : null,
+    systeme: systemeAppris ? { noms: depart.systeme!.noms, w: wS } : null,
+    // Le dispositif appris ne sert en direct que s'il a fait au moins aussi bien que le moteur a regles, sur les memes matchs.
+    systemeRetenu: systemeAppris && stats.n > 0 && stats.modele.top1 >= stats.moteur.top1,
   };
+
+  const mesure = (a: Agregat, perte: number, n: number): MesureComparaison => ({ onze: arrondi(a.onze), postes: arrondi(a.postes), perte: n ? arrondi(perte / n) : null });
+  const comparaison: ComparaisonActif | null = reference && cmp.nouveau.n > 0 ? {
+    actif: { id: reference.id, nom: reference.nom }, depuis: cmp.premiere!, semaines: cmp.semaines.size, feuilles: cmp.nouveau.n,
+    nouveau: mesure(cmp.nouveau, cmp.perteNouveau, cmp.nPerteNouveau), ancien: mesure(cmp.ancien, cmp.perteAncien, cmp.nPerteAncien),
+  } : null;
 
   // Une reference ne propose qu'un dispositif : pas de "dans les trois premiers".
   const rapport = (k: "modele" | "moteur" | "dernier" | "frequent") => ({
@@ -427,6 +487,7 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
   if (evaluees < 30) alertes.push(`Seulement ${evaluees} compositions predites : trop peu pour que les moyennes soient fiables.`);
   if (global.modele.nPostes < Math.max(10, evaluees / 4)) alertes.push("Peu de feuilles aux numeros lisibles (convention des postes) : la precision par poste est peu significative.");
   if (stats.n > 0 && stats.n < 20) alertes.push(`Seulement ${stats.n} dispositifs saisis : la lecture du systeme reste indicative.`);
+  if (systemeAppris && !poidsFinaux.systemeRetenu) alertes.push("Le modele de dispositif a fait moins bien que le moteur a regles sur les memes matchs : il n'est pas utilise en direct.");
 
   return {
     hyper, perte: nPerte ? arrondi(sommePerte / nPerte) : null, poids: poidsFinaux,
@@ -434,6 +495,7 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
     parSaison: Object.fromEntries([...parSaison].map(([id, a]) => [id, resumerTous(a)])),
     nouveaux: evaluees ? arrondi(inconnus / (evaluees * 11)) : null, sansHistorique,
     systeme: stats.n > 0 ? { n: stats.n, modele: rapport("modele"), moteur: rapport("moteur"), dernier: rapport("dernier"), frequent: rapport("frequent") } : null,
+    comparaison,
     calibration: calibrage.map((b, i) => ({
       de: i / BANDES, a: (i + 1) / BANDES, n: b.n,
       probaMoyenne: b.n ? arrondi(b.somme / b.n) : null, tauxObserve: b.n ? arrondi(b.vrais / b.n) : null,
@@ -469,7 +531,7 @@ export async function entrainer(jeu: JeuDonnees, options: OptionsEntrainement = 
   const parFenetre = new Map<number, FeuillePreparee[]>();
   for (const h of grille) {
     if (parFenetre.has(h.fenetre)) continue;
-    const { prepares, communs: c } = preparer(jeu, h.fenetre, communs);
+    const { prepares, communs: c } = preparer(jeu, h.fenetre, communs, options.reference);
     communs = c;
     parFenetre.set(h.fenetre, prepares);
     if (options.cooperer) await options.cooperer();
@@ -518,6 +580,10 @@ export interface ResumeModele {
   reference: Exclude<Methode, "modele"> | null;
   perte: number | null;
   systemeAppris: boolean;
+  /** Le dispositif appris a fait au moins aussi bien que le moteur a regles : il sert en direct avec ce modele. */
+  systemeRetenu: boolean;
+  /** Lundi (ms UTC) de la derniere semaine de matchs que ce modele a vue : la limite de ce qu'il a appris. */
+  derniereSemaine: number | null;
 }
 
 export function resumeDuResultat(r: ResultatEntrainement): ResumeModele {
@@ -527,6 +593,7 @@ export function resumeDuResultat(r: ResultatEntrainement): ResumeModele {
     hyper: r.hyper, feuilles: r.donnees.feuilles, semaines: r.donnees.etapes, predictions: r.global.modele.n,
     onze: r.global.modele.onze, postes: r.global.modele.postes,
     referenceOnze: meilleureRef ? r.global[meilleureRef].onze : null, reference: meilleureRef,
-    perte: r.perte, systemeAppris: r.poids.systeme !== null,
+    perte: r.perte, systemeAppris: r.poids.systeme !== null, systemeRetenu: r.poids.systemeRetenu === true,
+    derniereSemaine: r.donnees.derniereSemaine,
   };
 }

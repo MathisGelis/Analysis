@@ -21,6 +21,7 @@ import { Saison } from "@/features/saisons/saison.entity";
 import { parseDateFlexible, trierChronologiquement } from "@/common/dates";
 import { PredictionSysteme } from "@/features/matchs/systeme";
 import { estMatchJoue } from "@/features/matchs/match-joue";
+import { avecAvisDuModele } from "@/features/ia/ia-live";
 
 import { Insight, MatchTendance } from "./tendances";
 import {
@@ -204,7 +205,8 @@ export class PrematchService {
     // Systeme de l'adversaire : ses matchs joues, vus de son cote, avec le dispositif quand le staff l'a renseigne.
     const situation = systemeDe(matchsAdv, { clubId: advClub.id, equipeId: advEquipe?.id ?? null });
     const numeros = rap.matchsAnalyses === 0 ? null : rap.numeros;
-    const probable = fusionnerSystemes(situation.prediction, numeros);
+    // Le dispositif retenu par le modele de l'IA actif, quand il en a un (sinon le moteur a regles : dispositifs saisis + numeros).
+    const probable = avecAvisDuModele(fusionnerSystemes(situation.prediction, numeros), rap.systemeModele, rap.systemeModele?.nom ?? "");
     const systemeAdverse = { ...situation, probable };
     const projection = projectionResultat({
       moi: { matchs: moi.matchs, bpm: moi.bpm, bcm: moi.bcm }, adv: { matchs: adv.matchs, bpm: adv.bpm, bcm: adv.bcm }, domicileMoi: domicile,

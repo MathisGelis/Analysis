@@ -4,7 +4,7 @@
 // renseignes) et son dernier onze (celui de la feuille du dernier match joue). Alimente la fiche club et son
 // rapport de scouting, a la place des valeurs figees d'un ancien rapport.
 
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
@@ -14,6 +14,8 @@ import { Joueur } from "@/features/joueurs/joueur.entity";
 import { Match } from "@/features/matchs/match.entity";
 import { estMatchJoue } from "@/features/matchs/match-joue";
 import { normaliser } from "@/common/fuzzy";
+import { avecAvisDuModele, MatchDeLEquipe, systemeDuModele } from "@/features/ia/ia-live";
+import { IaService } from "@/features/ia/ia.service";
 
 import { analyserNumeros, lignesDeFeuille } from "./compo-numeros";
 import {
@@ -51,6 +53,8 @@ export class SituationService {
     @InjectRepository(Match) private matchs: Repository<Match>,
     @InjectRepository(Composition) private compos: Repository<Composition>,
     @InjectRepository(Joueur) private joueurs: Repository<Joueur>,
+    // Le modele de l'IA actif, s'il en est un : il choisit alors le dispositif probable (absent : le moteur a regles seul).
+    @Optional() private ia?: IaService,
   ) {}
 
   async situation(clubId: string, portee: { equipeId?: string | null; saisonId?: string | null } = {}): Promise<SituationClub> {
@@ -87,27 +91,35 @@ export class SituationService {
     }
 
     const systeme = systemeDe(joues, cible);
-    const numeros = analyserNumeros(await this.lignesDeFeuilles(joues, cible));
+    const feuilles = await this.feuilles(joues, cible);
+    const numeros = analyserNumeros(feuilles.flatMap((f) => lignesDeFeuille(f.m, f.compos)));
+    let probable = fusionnerSystemes(systeme.prediction, numeros);
+    // Le modele de l'IA actif choisit le dispositif quand il a appris les dispositifs (et fait au moins aussi bien que les regles).
+    const modele = probable && this.ia ? await this.ia.modeleActif() : null;
+    if (probable && modele) {
+      const matchs: MatchDeLEquipe[] = feuilles.map((f) => ({ m: f.m, dom: f.dom, titulaires: f.compos.filter((c) => c.titulaire), bancs: f.compos.filter((c) => !c.titulaire) }));
+      probable = avecAvisDuModele(probable, systemeDuModele(modele.poids, matchs), modele.nom);
+    }
     return {
       clubId, equipeId: cible.equipeId, saisonId,
-      systeme: { ...systeme, probable: fusionnerSystemes(systeme.prediction, numeros) },
+      systeme: { ...systeme, probable },
       dernierMatch: recents[0] ? versDernierMatch(recents[0], cible) : null,
       dernierOnze,
     };
   }
 
-  /** Les lignes de feuille de la cible sur ces matchs (deux requetes par lot de 500 matchs au plus). */
-  private async lignesDeFeuilles(joues: Match[], cible: { clubId: string; equipeId: string | null }) {
-    const lignes: ReturnType<typeof lignesDeFeuille> = [];
+  /** Les feuilles de la cible sur ces matchs : le match, son cote et les lignes (deux requetes par lot de 500 matchs au plus). */
+  private async feuilles(joues: Match[], cible: { clubId: string; equipeId: string | null }) {
+    const feuilles: { m: Match; dom: boolean; compos: Composition[] }[] = [];
     for (let i = 0; i < joues.length; i += TAILLE_LOT) {
       const lot = joues.slice(i, i + TAILLE_LOT);
       const compos = await this.compos.find({ where: { matchId: In(lot.map((m) => m.id)) } });
       for (const m of lot) {
         const cote = coteDe(m, cible);
-        lignes.push(...lignesDeFeuille(m, compos.filter((c) => c.matchId === m.id && c.cote === cote)));
+        feuilles.push({ m, dom: cote === "dom", compos: compos.filter((c) => c.matchId === m.id && c.cote === cote) });
       }
     }
-    return lignes;
+    return feuilles;
   }
 
   /** Fiche de chaque ligne de feuille : par licence, sinon par nom (et initiale du prenom) dans le club. */

@@ -57,7 +57,7 @@ describe("connexionPostgres", () => {
   it("taille du pool reglable ; entites et generateur d'identifiants toujours declares", () => {
     const o = connexionPostgres({ DATABASE_URL: "postgres://u@localhost/foot", DB_POOL_MAX: "4" });
     expect(o.extra).toEqual({ max: 4 });
-    expect((o.entities as unknown[]).length).toBe(20);
+    expect((o.entities as unknown[]).length).toBe(21);
     expect(o.subscribers).toHaveLength(1);
   });
 });

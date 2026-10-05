@@ -10,7 +10,7 @@ import { IaService } from "@/features/ia/ia.service";
 import { Match } from "@/features/matchs/match.entity";
 import { Saison } from "@/features/saisons/saison.entity";
 import { creerBaseTest } from "@test/support/test-db";
-import { insererLigue, ligue } from "./ligue";
+import { creerIaService, insererLigue, ligue } from "./ligue";
 
 describe("IaService", () => {
   let ds: DataSource;
@@ -18,10 +18,7 @@ describe("IaService", () => {
 
   beforeEach(async () => {
     ds = await creerBaseTest();
-    svc = new IaService(
-      ds.getRepository(Match), ds.getRepository(Equipe), ds.getRepository(Club), ds.getRepository(Composition),
-      ds.getRepository(Saison), ds.getRepository(IaEntrainement), ds.getRepository(IaModele),
-    );
+    svc = creerIaService(ds);
   });
   afterEach(() => ds.destroy());
 
@@ -94,8 +91,9 @@ describe("IaService", () => {
     expect(aucune.options.saisonIds).toEqual(["autre-saison"]);
   });
 
-  it("un entrainement 'en cours' sans tache vivante (serveur arrete) est marque interrompu", async () => {
-    const orphelin = await ds.getRepository(IaEntrainement).save({ statut: "en_cours", progression: 40, options: { optimiser: true, saisonIds: null }, creeLe: new Date().toISOString() } as IaEntrainement);
+  it("un entrainement 'en cours' sans tache vivante ni nouvelles depuis des minutes (serveur arrete) est marque interrompu", async () => {
+    const vieux = new Date(Date.now() - 10 * 60_000).toISOString();
+    const orphelin = await ds.getRepository(IaEntrainement).save({ statut: "en_cours", progression: 40, options: { optimiser: true, saisonIds: null }, maj: vieux, creeLe: vieux } as IaEntrainement);
     await svc.onModuleInit();
     expect(await svc.resume(orphelin.id)).toMatchObject({ statut: "echec", message: expect.stringMatching(/Interrompu/) });
     // Et il ne bloque pas un nouvel entrainement.
@@ -103,6 +101,13 @@ describe("IaService", () => {
     const suivant = await svc.lancer(null, { optimiser: false });
     await svc.attendre(suivant.id);
     expect((await svc.resume(suivant.id)).statut).toBe("termine");
+  });
+
+  it("un entrainement 'en cours' qui donne signe de vie (un autre serveur le fait tourner) n'est pas touche", async () => {
+    const vivant = await ds.getRepository(IaEntrainement).save({ statut: "en_cours", progression: 40, options: { optimiser: true, saisonIds: null }, maj: new Date().toISOString(), creeLe: new Date(Date.now() - 600_000).toISOString() } as IaEntrainement);
+    await svc.onModuleInit();
+    expect(await svc.resume(vivant.id)).toMatchObject({ statut: "en_cours" });
+    await expect(svc.lancer(null, { optimiser: false })).rejects.toThrow(ConflictException);
   });
 
   it("modele actif : un seul a la fois, lu par la prediction, retire par la desactivation", async () => {
@@ -171,10 +176,7 @@ describe("IaService", () => {
     for (const m of e.matchs) { m.formationDom = "4-4-2"; m.formationExt = "4-2-3-1"; }
     const ds2 = await creerBaseTest();
     try {
-      const svc2 = new IaService(
-        ds2.getRepository(Match), ds2.getRepository(Equipe), ds2.getRepository(Club), ds2.getRepository(Composition),
-        ds2.getRepository(Saison), ds2.getRepository(IaEntrainement), ds2.getRepository(IaModele),
-      );
+      const svc2 = creerIaService(ds2);
       await insererLigue(ds2, e);
       const lance = await svc2.lancer(null, { optimiser: false });
       await svc2.attendre(lance.id);

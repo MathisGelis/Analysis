@@ -1,5 +1,7 @@
 // src/features/analyse/analyse.types.ts
 
+import type { SystemeDuModele } from "@/features/ia/ia-live";
+
 import { AnalyseNumeros } from "./compo-numeros";
 import { Issue, SensTendance, Tendances } from "./tendances";
 
@@ -40,6 +42,8 @@ export interface RapportEquipe {
   // D'ou vient la compo : "modele" (modele de l'IA actif, voir features/ia) ou "regles" (moteur a regles) ; `compoProbableModele` : son nom.
   compoProbableSource: "modele" | "regles";
   compoProbableModele: string | null;
+  /** Le dispositif que choisirait le modele de l'IA actif (s'il a un modele de dispositif retenu), a poser sur le systeme probable. */
+  systemeModele: (SystemeDuModele & { nom: string }) | null;
   // Ce que disent les numeros de maillot : postes, polyvalence, indices de systeme (changements de numero).
   numeros: AnalyseNumeros;
   // Meilleurs buteurs de l'equipe sur le perimetre (hors contre son camp), du plus au moins prolifique.

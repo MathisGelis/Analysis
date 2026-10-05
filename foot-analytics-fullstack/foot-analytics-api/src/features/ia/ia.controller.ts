@@ -2,11 +2,11 @@
 //
 // Routes de l'IA : reservees a l'administrateur (entrainer, consulter, activer un modele).
 
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Req, UseGuards } from "@nestjs/common";
 
 import { AdministrateurGuard } from "@/features/acces/administrateur.guard";
 
-import { LancerEntrainementDto } from "./ia.dto";
+import { LancerEntrainementDto, PlanningDto } from "./ia.dto";
 import { IaService } from "./ia.service";
 
 @UseGuards(AdministrateurGuard)
@@ -26,6 +26,11 @@ export class IaController {
   /** Progression et statut, sans le resultat detaille : fait pour etre interroge regulierement. */
   @Get("entrainements/:id/resume") resume(@Param("id") id: string) { return this.svc.resume(id); }
   @Post("entrainements/:id/annuler") @HttpCode(200) annuler(@Param("id") id: string) { return this.svc.annuler(id); }
+
+  /** Le reentrainement automatique du mercredi : actif ou non, prochain passage, dernier passage et son verdict. */
+  @Get("planning") planning() { return this.svc.planning(); }
+  /** Active ou suspend le reentrainement automatique. */
+  @Put("planning") definirPlanning(@Body() dto: PlanningDto) { return this.svc.definirPlanning(dto.actif); }
 
   @Get("modeles") modeles() { return this.svc.listeModeles(); }
   /** Retire le modele actif : l'application reprend son moteur a regles. */

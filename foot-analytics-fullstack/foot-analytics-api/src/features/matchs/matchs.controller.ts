@@ -8,8 +8,9 @@ import { Acces } from "@/features/acces/acces.decorator";
 import { AccesService } from "@/features/acces/acces.service";
 import { ContexteAcces } from "@/features/acces/contexte-acces";
 
-import { UpsertMatchDto, UpdateMatchDto } from "./matchs.dto";
+import { DispositifsMatchDto, UpsertMatchDto, UpdateMatchDto } from "./matchs.dto";
 import { MatchsService } from "./matchs.service";
+import { refusSaisieDispositifs } from "./systeme";
 
 @Controller("matchs")
 export class MatchsController {
@@ -30,13 +31,22 @@ export class MatchsController {
     await this.acces.exigerEquipesDuMatch(ctx, m as any);
   }
 
-  // Les matchs des saisons fermees au compte ne sont pas renvoyes.
+  // Les matchs des saisons fermees au compte ne sont pas renvoyes ; `modifiable` dit si le compte peut modifier ou
+  // supprimer chacun (le front ne propose pas ce que l'API refuserait).
   @Get() async list(@Acces() ctx: ContexteAcces, @Query("clubId") clubId?: string) {
-    return ctx.filtrerSaison(await this.svc.findAll(clubId), (m) => m.saisonId);
+    const matchs = ctx.filtrerSaison(await this.svc.findAll(clubId), (m) => m.saisonId);
+    const modifiables = await this.acces.matchsModifiables(ctx, matchs);
+    return matchs.map((m) => Object.assign(m, { modifiable: modifiables.has(m.id) }));
   }
+  /**
+   * Le match, avec ce que MON compte peut en faire (`droits`) : le front ne propose ni modification ni suppression que
+   * l'API refuserait, et sait si un dispositif deja saisi est modifiable ou seulement a renseigner.
+   */
   @Get(":id") async get(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
-    await this.acces.match(ctx, id);
-    return this.svc.findOne(id);
+    const m = await this.acces.match(ctx, id);
+    const modifier = await this.acces.peutModifierMatch(ctx, m);
+    const trouve = await this.svc.findOne(id);
+    return Object.assign(trouve, { droits: { modifier, dispositifs: modifier ? "libre" : "renseigner" } });
   }
   @Post() async create(@Acces() ctx: ContexteAcces, @Body() dto: UpsertMatchDto) {
     await this.exigerMatchDeMonClub(ctx, dto);
@@ -47,6 +57,21 @@ export class MatchsController {
     // Le match modifie doit lui aussi rester un match de mon club (pas de transfert a un autre club ou une autre equipe).
     await this.exigerMatchDeMonClub(ctx, { ...actuel, ...dto });
     return this.svc.update(id, dto);
+  }
+  /**
+   * Saisir le systeme de jeu d'un match. Plus large que la modification : un dispositif vide peut etre renseigne sur le
+   * match d'un autre club (releves sur les adversaires, base de la prediction de leur systeme) ; un dispositif deja saisi
+   * ne se corrige que sur un match que l'on gere.
+   */
+  @Patch(":id/dispositifs") async dispositifs(@Acces() ctx: ContexteAcces, @Param("id") id: string, @Body() dto: DispositifsMatchDto) {
+    const m = await this.acces.match(ctx, id);
+    if (!ctx.voitDate(m.date)) throw new NotFoundException(`Match ${id} introuvable`);
+    const refus = refusSaisieDispositifs(m, dto, await this.acces.peutModifierMatch(ctx, m));
+    if (refus) throw new ForbiddenException(refus);
+    const saisie: DispositifsMatchDto = {};
+    if (dto.formationDom !== undefined) saisie.formationDom = dto.formationDom;
+    if (dto.formationExt !== undefined) saisie.formationExt = dto.formationExt;
+    return this.svc.update(id, saisie);
   }
   @Delete(":id") async remove(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
     await this.acces.matchGere(ctx, id);

@@ -3,7 +3,26 @@
 // Une ligue synthetique deterministe pour les tests de l'IA : des clubs qui jouent chaque semaine, onze de base fixe
 // avec des absences tirees au sort (generateur congruentiel, graine fixe), les remplacants (choisis au hasard) prenant le numero des partis.
 
+import type { DataSource } from "typeorm";
+
+import { Club } from "@/features/clubs/club.entity";
+import { Composition } from "@/features/matchs/composition.entity";
+import { Equipe } from "@/features/equipes/equipe.entity";
 import type { EntreesDonnees } from "@/features/ia/ia-donnees";
+import { IaEntrainement } from "@/features/ia/ia-entrainement.entity";
+import { IaModele } from "@/features/ia/ia-modele.entity";
+import { IaReglage } from "@/features/ia/ia-reglage.entity";
+import { IaService } from "@/features/ia/ia.service";
+import { Match } from "@/features/matchs/match.entity";
+import { Saison } from "@/features/saisons/saison.entity";
+
+/** Le service d'IA branche sur une base de test. */
+export function creerIaService(ds: DataSource): IaService {
+  return new IaService(
+    ds.getRepository(Match), ds.getRepository(Equipe), ds.getRepository(Club), ds.getRepository(Composition),
+    ds.getRepository(Saison), ds.getRepository(IaEntrainement), ds.getRepository(IaModele), ds.getRepository(IaReglage),
+  );
+}
 
 /** Generateur pseudo-aleatoire congruentiel (Park-Miller) : meme graine, memes tirages. */
 export function alea(graine: number): () => number {

@@ -8,3 +8,8 @@ export class LancerEntrainementDto {
   /** Restreindre aux matchs de ces saisons ; absent ou vide = toutes les saisons. */
   @IsOptional() @IsArray() @IsString({ each: true }) saisonIds?: string[];
 }
+
+export class PlanningDto {
+  /** Reentrainement automatique du mercredi : actif ou suspendu. */
+  @IsBoolean() actif: boolean;
+}

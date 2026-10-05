@@ -146,6 +146,7 @@ describe("entrainer : dispositifs saisis", () => {
     expect(r.systeme!.dernier.top1!).toBeGreaterThan(0.9);
     expect(r.systeme!.moteur.top3).toBeNull();                               // une reference n'a pas de top 3
     expect(r.poids.systeme).not.toBeNull();
+    expect(r.poids.systemeRetenu).toBe(true);                                // au moins aussi bien que le moteur a regles : utilise en direct
     expect(r.poids.frequencesSysteme["4-3-3"]).toBeGreaterThan(100);
   });
 
@@ -153,6 +154,7 @@ describe("entrainer : dispositifs saisis", () => {
     const r = await entrainer(construireJeuDonnees(ligue({ clubs: 4, semaines: 8 })), { grille: UN_SEUL });
     expect(r.systeme).toBeNull();
     expect(r.poids.systeme).toBeNull();
+    expect(r.poids.systemeRetenu).toBe(false);
   });
 });
 
@@ -177,6 +179,54 @@ describe("entrainer : donnees insuffisantes", () => {
     const jeu = construireJeuDonnees({ matchs: [...e.matchs, ...autre.matchs], equipes: [...e.equipes, ...autre.equipes], clubs: [...e.clubs, ...autre.clubs], compos: [...e.compos, ...autre.compos] });
     expect(jeu.etapes.length).toBe(2);
     await expect(entrainer(jeu, { grille: UN_SEUL })).rejects.toThrow(/aucune equipe n'a d'historique/i);
+  });
+});
+
+describe("entrainer : face au modele actif", () => {
+  const entrees = ligue({ clubs: 6, semaines: 16, graine: 7 });
+  const avant = construireJeuDonnees({ ...entrees, matchs: entrees.matchs.filter((m) => Number(m.journee) <= 10) });
+  const tout = construireJeuDonnees(entrees);
+
+  it("sans modele actif : pas de comparaison", async () => {
+    expect((await entrainer(tout, { grille: UN_SEUL })).comparaison).toBeNull();
+  });
+
+  it("mesure l'actif (poids figes) et le nouveau (marche avant) sur les memes feuilles, posterieures a ce que l'actif avait vu", async () => {
+    const actif = await entrainer(avant, { grille: UN_SEUL });
+    const apres = avant.resume.derniereSemaine!;
+    const r = await entrainer(tout, { grille: UN_SEUL, reference: { id: "m1", nom: "Modele n°1", poids: actif.poids, apres } });
+    expect(r.comparaison).toMatchObject({ actif: { id: "m1", nom: "Modele n°1" }, semaines: 6 });
+    expect(r.comparaison!.depuis).toMatch(/^Semaine du /);
+    // Six semaines, six clubs : 36 feuilles (moins celles de moins de onze titulaires), predites par les deux.
+    expect(r.comparaison!.feuilles).toBeGreaterThanOrEqual(28);
+    expect(r.comparaison!.feuilles).toBeLessThanOrEqual(36);
+    for (const m of [r.comparaison!.nouveau, r.comparaison!.ancien]) {
+      expect(m.onze!).toBeGreaterThan(0.5);
+      expect(m.perte!).toBeGreaterThan(0);
+    }
+    // Un modele actif correct et un nouveau qui a vu plus de donnees : du meme ordre de grandeur.
+    expect(Math.abs(r.comparaison!.nouveau.onze! - r.comparaison!.ancien.onze!)).toBeLessThan(0.1);
+  });
+
+  it("l'actif est mesure avec ses poids figes (sans fuite) : un actif a l'envers est nettement battu", async () => {
+    const envers = poidsInitiaux(HYPER_PAR_DEFAUT);
+    envers.titularisation = { ...envers.titularisation, w: envers.titularisation.w.map((x) => -x) };
+    const figes = JSON.stringify(envers);
+    const apres = avant.resume.derniereSemaine!;
+    const r = await entrainer(tout, { grille: UN_SEUL, reference: { id: "envers", nom: "A l'envers", poids: envers, apres } });
+    expect(r.comparaison!.nouveau.onze!).toBeGreaterThan(r.comparaison!.ancien.onze! + 0.2);
+    expect(JSON.stringify(envers)).toBe(figes);                             // l'entrainement n'a pas touche aux poids de l'actif
+  });
+
+  it("aucune semaine apres celles de l'actif : pas de comparaison", async () => {
+    const actif = await entrainer(tout, { grille: UN_SEUL });
+    const r = await entrainer(tout, { grille: UN_SEUL, reference: { id: "m1", nom: "Modele n°1", poids: actif.poids, apres: tout.resume.derniereSemaine! } });
+    expect(r.comparaison).toBeNull();
+  });
+
+  it("le resume d'un modele garde la derniere semaine qu'il a vue", async () => {
+    const r = await entrainer(avant, { grille: UN_SEUL });
+    expect(resumeDuResultat(r)).toMatchObject({ derniereSemaine: avant.resume.derniereSemaine, systemeRetenu: false });
   });
 });
 
