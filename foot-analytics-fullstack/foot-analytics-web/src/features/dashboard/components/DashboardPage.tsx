@@ -30,6 +30,8 @@ import { ClubBadge } from "@/features/clubs/components/ClubBadge";
 import { CountUp } from "@/shared/ui/CountUp";
 import { Sparkline } from "@/shared/ui/Charts";
 import { plusFatigues } from "@/features/joueurs/lib/fatigue";
+import { modeSaison } from "@/features/saisons/lib/saison-mode";
+import { pageAccessible } from "@/features/shell/lib/acces-pages";
 import type { Issue } from "@/shared/lib/types";
 
 export default async function Dashboard() {
@@ -57,6 +59,8 @@ export default async function Dashboard() {
   // cumuls de carriere de la fiche joueur).
   const effectif: any[] = equipe ? await api.effectifEquipe(equipe.id) : [];
   const estSaisonActive = saisonChoisie?.actif === true;
+  // Le calendrier est ferme sur une saison passee (acces-pages.ts) : on ne le propose pas.
+  const calendrierOuvert = pageAccessible("/calendrier", { mode: modeSaison(saisonChoisie, saisons.find((s: any) => s.actif) ?? null) });
 
   // Matchs et bilan de l'equipe.
   const { joues, aVenir } = equipe
@@ -235,10 +239,11 @@ export default async function Dashboard() {
             <div className="grid place-items-center rounded-2xl border border-dashed border-line2 py-10 text-center">
               <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-accent/10 text-accent"><MapPin size={22} /></div>
               <p className="max-w-sm text-sm text-muted">
-                Aucun match programme. Ajoute-le depuis le calendrier, ou importe une feuille de match.
+                {calendrierOuvert ? "Aucun match programme. Ajoute-le depuis le calendrier, ou importe une feuille de match."
+                  : "Aucun match programme sur cette saison. Importe une feuille de match."}
               </p>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
-                <Link href="/calendrier" className="btn btn-primary text-sm"><Calendar size={14} /> Ouvrir le calendrier</Link>
+                {calendrierOuvert && <Link href="/calendrier" className="btn btn-primary text-sm"><Calendar size={14} /> Ouvrir le calendrier</Link>}
                 <Link href="/import" className="btn text-sm"><Upload size={14} /> Importer une feuille FMI</Link>
               </div>
             </div>

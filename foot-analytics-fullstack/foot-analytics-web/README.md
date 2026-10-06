@@ -51,13 +51,13 @@ Fair-play, Import FMI (upload reel vers le parseur du backend).
 | **Joueur** | Identite, score de forme, note, risque blessure IA, polyvalence postes, observations |
 | **Matchs** | Liste avec badge FMI |
 | **Match (detail)** | Score, terrains SVG cote-a-cote avec compos et cartons, banc, timeline chronologique, heatmap, tableaux complets compos + licences |
-| **Tactique** | Selecteur de formation + 11 type modifiable, suggestion IA |
+| **Tactique** | Selecteur de formation + 11 type modifiable, suggestion IA. Sans composition enregistree, le dispositif de depart est celui que le logiciel a identifie pour l'equipe (derniers matchs renseignes, numeros de maillot, IA), sinon 4-2-3-1 |
 | **Entrainements** | Planning semaine, charge par seance, presences |
-| **Medical** | Resume des blessures de la saison : chiffres cles, ou, quand, joueurs les plus touches, rechutes, indisponibles du moment, detail avec saisie |
+| **Medical** | **Saison en cours** : blesses du moment, saisie des blessures, puis la **fatigue de l'effectif** (toujours affichee). **Saison precedente** : resume des blessures de la saison (chiffres cles, ou, quand, joueurs les plus touches, rechutes), detail avec saisie |
 | **Fair-play** | KPIs cartons, motifs, par journee, joueurs a surveiller, profil estime |
 | **Scouting** | Notes d'observation sur un club (ouvertes depuis son dossier dans Rapports ; remplace l'Excel Chaponnay) |
 | **Analytics** | xG vs G, heatmaps off/def, tendances |
-| **Calendrier** | Vue mois janvier 2026, matchs + entrainements |
+| **Calendrier** | Vue mois, matchs + entrainements ; ferme sur une saison anterieure a la saison en cours |
 | **Rapports** | **Point d'entree unique** : le prochain match en un clic et un dossier par club (pre-match avec ses predictions : projection du resultat, systeme et onze probables, pistes ; analyse d'equipe ; scouting). Le pre-match s'imprime en PDF et **s'exporte en PowerPoint** (pages au choix) |
 | **Import FMI** | Drag&drop PDF, simulation pipeline parser → base |
 
@@ -234,10 +234,10 @@ Les imports internes a une feature sont relatifs ; entre features, ils passent p
 ## Cas d'usage typiques
 
 ### Avant un match
-1. Verifier `/medical` pour confirmer l'effectif disponible (les indisponibles du moment sont en tete)
+1. Verifier `/medical` pour confirmer l'effectif disponible (les blesses du moment, puis la fatigue de chacun)
 2. Ouvrir `/rapports` : le prochain match s'y prepare en un clic, et chaque club a son dossier (Pre-match, Analyse d'equipe,
    Scouting) relie par les memes onglets
-3. Composer dans `/tactique` (le onze suggere est pre-rempli)
+3. Composer dans `/tactique` (le dispositif de depart est celui que le logiciel a identifie pour votre equipe, le onze suggere est pre-rempli)
 4. Preparer le rapport d'avant-match (depuis `/rapports`) : lecture a l'ecran, **Imprimer / PDF**, ou **Exporter en PowerPoint**
    (au format de la presentation du staff, **pages au choix** : par exemple sans la page convocation, ou le **modele
    seul**). Le fichier compte 15 pages : les 7 du modele du staff et 8 pages d'**analyse** (comparatif et projection, forme,
@@ -251,8 +251,8 @@ Une seule table (`features/shell/lib/acces-pages.ts`), lue par la navigation **e
 
 | Page | Regle |
 |---|---|
-| Entrainements, Tactique, rapport pre-match (et l'ancienne page Predictions) | **fermees sur une saison anterieure a la saison en cours** : pas d'onglet, et l'adresse tapee a la main affiche « disponible sur la saison en cours » avec un bouton pour y revenir. Rien a preparer sur une saison terminee ; le reste (matchs, effectif, medical, classement, analyse d'equipe, scouting) reste consultable |
-| Saisons, IA (`/admin/ia`) | **administrateur seulement** : ni onglet, ni page pour le referent et l'educateur (de toute facon, le serveur refuse leurs ecritures) |
+| Calendrier, Entrainements, Tactique, rapport pre-match (et l'ancienne page Predictions) | **fermees sur une saison anterieure a la saison en cours** : pas d'onglet, et l'adresse tapee a la main affiche « disponible sur la saison en cours » avec un bouton pour y revenir. Rien a preparer sur une saison terminee ; le reste (matchs, effectif, medical, classement, analyse d'equipe, scouting) reste consultable |
+| Saisons, IA (`/admin/ia`) | **administrateur seulement** : ils sont dans le menu de gauche (section Donnees) de l'administrateur ; ni onglet, ni page pour le referent et l'educateur (de toute facon, le serveur refuse leurs ecritures) |
 
 C'est de l'affichage : les droits sur les donnees sont appliques par l'API. L'ancienne page Scouting renvoie vers `/rapports`, l'ancienne page
 Predictions aussi (`/ia?adversaire=<club>` ouvre le pre-match de ce club).
@@ -295,7 +295,7 @@ match n'apparaissent que si l'API les autorise (`droits`, `modifiable`) ; un ref
 ### Hebdomadaire
 1. `/dashboard` : sante de l'equipe
 2. `/fair-play` : surveiller les joueurs sous menace de suspension
-3. `/medical` : les blessures de la saison, qui est indisponible ; la fatigue se lit dans `/effectif` (tri par fatigue)
+3. `/medical` : qui est blesse, la fatigue de l'effectif (la fatigue se lit aussi dans `/effectif`, tri par fatigue)
 4. `/calendrier` : valider le planning seances
 
 ---

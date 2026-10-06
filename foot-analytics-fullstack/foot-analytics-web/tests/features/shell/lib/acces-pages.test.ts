@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { PAGES_ADMIN, PAGES_SAISON_EN_COURS, pageAccessible, restrictionDe } from "@/features/shell/lib/acces-pages";
 
 describe("saison passee : la preparation du prochain match est fermee", () => {
-  it.each(["/entrainements", "/tactique", "/ia", "/rapports/prematch/club-1", "/rapports/prematch/club-1?matchId=m1"])(
+  it.each(["/calendrier", "/entrainements", "/tactique", "/ia", "/rapports/prematch/club-1", "/rapports/prematch/club-1?matchId=m1"])(
     "%s : fermee pour tous, y compris l'administrateur", (chemin) => {
       for (const role of ["admin", "referent", "user"]) expect(restrictionDe(chemin, { role, mode: "passee" })).toBe("saison-passee");
     });
@@ -15,7 +15,7 @@ describe("saison passee : la preparation du prochain match est fermee", () => {
   });
 
   it("le reste reste consultable sur une saison passee : matchs, effectif, medical, analyse d'equipe, rapports, classement", () => {
-    for (const chemin of ["/", "/matchs", "/matchs/m1", "/effectif", "/medical", "/classement", "/calendrier", "/rapports",
+    for (const chemin of ["/", "/matchs", "/matchs/m1", "/effectif", "/medical", "/classement", "/rapports",
       "/rapports/equipe/club-1", "/club/club-1", "/club/club-1/scouting", "/joueur/j1", "/arbitres", "/import"]) {
       expect(restrictionDe(chemin, { role: "user", mode: "passee" }), chemin).toBeNull();
     }
@@ -24,6 +24,7 @@ describe("saison passee : la preparation du prochain match est fermee", () => {
   it("un prefixe n'est pas un chemin : /entrainementsXYZ et /rapports/prematchs ne sont pas fermes", () => {
     expect(restrictionDe("/entrainementsXYZ", { role: "user", mode: "passee" })).toBeNull();
     expect(restrictionDe("/rapports/prematchs", { role: "user", mode: "passee" })).toBeNull();
+    expect(restrictionDe("/calendrierXYZ", { role: "user", mode: "passee" })).toBeNull();
   });
 });
 

@@ -44,25 +44,32 @@ describe("construireNavigation selon le compte et la saison", () => {
     }
   });
 
-  it("saison passee : entrainements et tactique disparaissent, le reste demeure", () => {
+  it("saison passee : calendrier, entrainements et tactique disparaissent, le reste demeure", () => {
     const liens = hrefs({ role: "admin", mode: "passee" });
-    expect(liens).not.toContain("/entrainements");
-    expect(liens).not.toContain("/tactique");
-    for (const page of ["/", "/effectif", "/medical", "/matchs", "/rapports", "/classement", "/calendrier", "/arbitres", "/import", "/saisons"]) {
+    for (const page of ["/calendrier", "/entrainements", "/tactique"]) expect(liens).not.toContain(page);
+    for (const page of ["/", "/effectif", "/medical", "/matchs", "/rapports", "/classement", "/arbitres", "/import", "/saisons", "/admin/ia"]) {
       expect(liens).toContain(page);
     }
   });
 
-  it("l'onglet Saisons est reserve a l'administrateur : ni le referent ni l'educateur ne le voient", () => {
-    expect(hrefs({ role: "admin", mode: "active" })).toContain("/saisons");
-    for (const role of ["referent", "user", null, undefined]) expect(hrefs({ role, mode: "active" })).not.toContain("/saisons");
+  it("les onglets Saisons et IA sont reserves a l'administrateur : ni le referent ni l'educateur ne les voient", () => {
+    expect(hrefs({ role: "admin", mode: "active" })).toEqual(expect.arrayContaining(["/saisons", "/admin/ia"]));
+    for (const role of ["referent", "user", null, undefined]) {
+      expect(hrefs({ role, mode: "active" })).not.toContain("/saisons");
+      expect(hrefs({ role, mode: "active" })).not.toContain("/admin/ia");
+    }
     expect(hrefs({ role: "user", mode: "active" })).toContain("/import");                          // le reste de la section Donnees demeure
+  });
+  it("l'IA est dans le menu de gauche de l'administrateur, section Donnees, juste apres les Saisons", () => {
+    const donnees = construireNavigation("c", { role: "admin", mode: "active" }).find((s) => s.section === "Donnees");
+    expect(donnees?.items.map((l) => l.label)).toEqual(["Import feuilles FMI", "Saisons", "IA"]);
   });
 
   it("meme un educateur sur une saison passee garde chaque section (aucune ne reste vide)", () => {
     const sections = construireNavigation("c", { role: "user", mode: "passee" });
     expect(sections.map((s) => s.section)).toEqual(["Vue d'ensemble", "Mon equipe", "Match", "Analyse", "Donnees"]);
     expect(sections.every((s) => s.items.length > 0)).toBe(true);
+    expect(sections.find((s) => s.section === "Vue d'ensemble")?.items.map((l) => l.label)).toEqual(["Dashboard", "Classement"]);
     expect(sections.find((s) => s.section === "Match")?.items.map((l) => l.label)).toEqual(["Matchs", "Arbitres"]);
     expect(sections.find((s) => s.section === "Donnees")?.items.map((l) => l.label)).toEqual(["Import feuilles FMI"]);
   });
@@ -98,6 +105,7 @@ describe("titrePage", () => {
     expect(titrePage("/joueur/abc")).toBe("Fiche joueur");
     expect(titrePage("/club/1/scouting")).toBe("Fiche club");
     expect(titrePage("/admin/utilisateurs")).toBe("Administration");
+    expect(titrePage("/admin/ia")).toBe("IA");
   });
   it("chemin inconnu : nom de l'application", () => {
     expect(titrePage("/nimportequoi")).toBe("Foot Analytics");

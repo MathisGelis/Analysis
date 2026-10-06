@@ -33,6 +33,21 @@ export function parseFormation(formation: string | null | undefined): number[] |
   return n.reduce((s, x) => s + x, 0) === NB_TITULAIRES - 1 ? n : null;
 }
 
+/**
+ * Dispositif de DEPART de la page Tactique quand aucune composition n'est enregistree : celui que le logiciel a identifie pour
+ * l'equipe (dispositifs renseignes sur les derniers matchs, numeros de maillot, IA), s'il est exploitable ; sinon le dispositif
+ * par defaut. `identifie` dit si c'est le premier cas (la page l'annonce).
+ */
+export function formationDeDepart(identifie: string | null | undefined): { formation: string; identifie: boolean } {
+  const lignes = parseFormation(identifie);
+  return lignes ? { formation: lignes.join("-"), identifie: true } : { formation: FORMATION_DEFAUT, identifie: false };
+}
+
+/** Les dispositifs proposes par le selecteur : la liste habituelle, plus le dispositif courant s'il n'y figure pas. */
+export function formationsProposees(courante: string): string[] {
+  return (FORMATIONS as readonly string[]).includes(courante) || !parseFormation(courante) ? [...FORMATIONS] : [...FORMATIONS, courante];
+}
+
 export interface Slot {
   /** Position dans la liste des 11 titulaires (0 = gardien), dans l'ordre d'affichage du terrain. */
   index: number;

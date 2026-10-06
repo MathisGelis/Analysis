@@ -6,7 +6,7 @@
 // Fonctions pures.
 
 import {
-  Award, Calendar, CalendarRange, ClipboardList, Dumbbell, FileText, HeartPulse, Layout,
+  Award, Brain, Calendar, CalendarRange, ClipboardList, Dumbbell, FileText, HeartPulse, Layout,
   LayoutDashboard, Shield, ShieldCheck, Trophy, Upload, UserCog, Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -74,7 +74,9 @@ export function construireNavigation(ownClubId: string | null, acces?: ContexteA
       section: "Donnees",
       items: [
         { href: "/import", label: "Import feuilles FMI", icon: Upload },
+        // Les deux dernieres sont reservees a l'administrateur : elles disparaissent du menu des autres comptes.
         { href: "/saisons", label: "Saisons", icon: CalendarRange },
+        { href: "/admin/ia", label: "IA", icon: Brain },
       ],
     },
   ];
@@ -95,7 +97,7 @@ const TITRES: [string, string][] = [
   ["/effectif", "Effectif"], ["/entrainements", "Entrainements"], ["/medical", "Medical"],
   ["/matchs", "Matchs"], ["/tactique", "Tactique"], ["/arbitres", "Arbitres"],
   ["/rapports", "Rapports"], ["/import", "Import FMI"],
-  ["/saisons", "Saisons"], ["/joueur", "Fiche joueur"], ["/coachs", "Fiche entraineur"], ["/admin", "Administration"],
+  ["/saisons", "Saisons"], ["/joueur", "Fiche joueur"], ["/coachs", "Fiche entraineur"], ["/admin/ia", "IA"], ["/admin", "Administration"],
   ["/analytics", "Analytics"],
 ];
 

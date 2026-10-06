@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  changerDispositif, FORMATIONS, ligneDuPoste, nettoyerComposition, optionsJoueurs, parseFormation, slotsDeFormation, suggererOnze, vigilances,
+  changerDispositif, FORMATION_DEFAUT, FORMATIONS, formationDeDepart, formationsProposees, ligneDuPoste, nettoyerComposition, optionsJoueurs, parseFormation, slotsDeFormation, suggererOnze, vigilances,
   type JoueurTactique,
 } from "@/features/tactique/lib/composition";
 import { bilanMutations } from "@/features/tactique/lib/mutations";
@@ -51,6 +51,22 @@ describe("parseFormation / slotsDeFormation", () => {
   });
   it("dispositif invalide : repli sur 4-4-2", () => {
     expect(slotsDeFormation("n'importe quoi").map((s) => s.ligne)).toEqual(slotsDeFormation("4-4-2").map((s) => s.ligne));
+  });
+});
+
+describe("formationDeDepart : le dispositif identifie par le logiciel devient le dispositif par defaut", () => {
+  it("un dispositif identifie et valide est repris tel quel (liste habituelle ou non)", () => {
+    expect(formationDeDepart("4-3-3")).toEqual({ formation: "4-3-3", identifie: true });
+    expect(formationDeDepart("4-4-1-1")).toEqual({ formation: "4-4-1-1", identifie: true });
+    expect(formationDeDepart(" 3 - 5 - 2 ")).toEqual({ formation: "3-5-2", identifie: true });
+  });
+  it("rien d'identifie, ou un dispositif incoherent : le dispositif par defaut, non annonce comme identifie", () => {
+    for (const x of [null, undefined, "", "abc", "4-4-3", "4-4"]) expect(formationDeDepart(x)).toEqual({ formation: FORMATION_DEFAUT, identifie: false });
+  });
+  it("le selecteur propose la liste habituelle, plus le dispositif courant s'il n'y est pas", () => {
+    expect(formationsProposees("4-3-3")).toEqual([...FORMATIONS]);
+    expect(formationsProposees("4-4-1-1")).toEqual([...FORMATIONS, "4-4-1-1"]);
+    expect(formationsProposees("n'importe quoi")).toEqual([...FORMATIONS]);
   });
 });
 

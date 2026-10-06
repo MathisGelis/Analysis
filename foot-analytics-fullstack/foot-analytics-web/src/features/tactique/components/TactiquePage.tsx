@@ -20,8 +20,9 @@ import { useOwnEquipe } from "@/features/equipes/lib/own-equipe-context";
 import { useFeedback } from "@/shared/lib/feedback-context";
 import { useClub } from "@/features/clubs/lib/clubs-context";
 import { prochainMatch, resultatsDeLEquipe } from "@/features/matchs/lib/matchs-equipe";
+import { dispositifAffiche } from "@/features/analyse/lib/dispositif-equipe";
 import {
-  changerDispositif, FORMATION_DEFAUT, FORMATIONS, ligneDuPoste, MAX_REMPLACANTS, NB_TITULAIRES,
+  changerDispositif, FORMATION_DEFAUT, formationDeDepart, formationsProposees, ligneDuPoste, MAX_REMPLACANTS, NB_TITULAIRES,
   nettoyerComposition, optionsJoueurs, slotsDeFormation, suggererOnze, vigilances, parseFormation,
   type JoueurTactique,
 } from "@/features/tactique/lib/composition";
@@ -37,8 +38,6 @@ import { RegleMutations } from "./RegleMutations";
 import { SelecteurJoueur } from "./SelecteurJoueur";
 import { DernierPlanRealise } from "./DernierPlanRealise";
 
-const OPTIONS_FORMATIONS = optionsSimples(FORMATIONS);
-
 export default function Tactique() {
   return (
     <SaisonGuard libelle="La preparation tactique">
@@ -52,7 +51,7 @@ interface ProchainMatch { id: string; date: string; domicile: boolean; adversair
 
 function TactiqueContent() {
   const lectureSeule = useLectureSeule();
-  const { equipeId } = useOwnEquipe();
+  const { equipeId, saisonId } = useOwnEquipe();
   const { notifier, confirmer } = useFeedback();
 
   const [chargement, setChargement] = useState(true);
@@ -67,6 +66,7 @@ function TactiqueContent() {
   const [capitaineId, setCapitaineId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [enregistre, setEnregistre] = useState<string | null>(null);     // instantane du plan enregistre (JSON)
+  const [depart, setDepart] = useState<{ systeme: string; detail: string } | null>(null);   // dispositif identifie par le logiciel, utilise au depart
   const [modifieLe, setModifieLe] = useState<string | null>(null);
   const [sauvegarde, setSauvegarde] = useState(false);
   const [erreurRegle, setErreurRegle] = useState<string[] | null>(null);
@@ -125,6 +125,7 @@ function TactiqueContent() {
         );
         const cap = plan.capitaineId && propre.titulaires.includes(plan.capitaineId) ? plan.capitaineId : null;
         setFormation(parseFormation(plan.formation) ? plan.formation : FORMATION_DEFAUT);
+        setDepart(null);
         setTitulaires(propre.titulaires);
         setRemplacants(propre.remplacants);
         setCapitaineId(cap);
@@ -138,8 +139,16 @@ function TactiqueContent() {
           notifier.info(`${propre.retires} joueur${propre.retires > 1 ? "s" : ""} du plan enregistre ne fait${propre.retires > 1 ? "ont" : ""} plus partie de l'effectif : poste${propre.retires > 1 ? "s" : ""} libere${propre.retires > 1 ? "s" : ""}.`);
         }
       } else {
-        const s = suggererOnze({ formation: FORMATION_DEFAUT, joueurs: liste });
-        setFormation(FORMATION_DEFAUT);
+        // Pas de plan enregistre : on part du dispositif que le logiciel a identifie pour mon equipe (derniers matchs), a defaut
+        // du dispositif par defaut.
+        const clubId = equipes.find((e: any) => e.id === equipeId)?.clubId;
+        const situation = clubId ? await api.situationClub(clubId, { equipeId, saisonId }) : null;
+        if (annule) return;
+        const identifie = dispositifAffiche(situation, null);
+        const depart0 = formationDeDepart(identifie?.systeme);
+        const s = suggererOnze({ formation: depart0.formation, joueurs: liste });
+        setFormation(depart0.formation);
+        setDepart(depart0.identifie && identifie ? { systeme: depart0.formation, detail: identifie.detail } : null);
         setTitulaires(s.titulaires);
         setRemplacants(s.remplacants);
         setCapitaineId(null);
@@ -155,6 +164,7 @@ function TactiqueContent() {
 
   // ---- Derives ---------------------------------------------------------------------------------
   const slots = useMemo(() => slotsDeFormation(formation), [formation]);
+  const optionsFormations = useMemo(() => optionsSimples(formationsProposees(formation)), [formation]);
   const parId = useMemo(() => new Map(joueurs.map((j) => [j.id, j])), [joueurs]);
   const groupe = useMemo(() => [...titulaires.filter((x): x is string => !!x), ...remplacants], [titulaires, remplacants]);
   const statutsGroupe = useMemo(() => groupe.map((id) => parId.get(id)?.statutMutation), [groupe, parId]);
@@ -291,7 +301,7 @@ function TactiqueContent() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select valeur={formation} onChange={choisirFormation} disabled={lectureSeule} className="btn" ariaLabel="Dispositif"
-            options={OPTIONS_FORMATIONS} recherche={false}/>
+            options={optionsFormations} recherche={false}/>
           <button onClick={suggerer} className="btn" disabled={lectureSeule}><Sparkles size={13} /> Onze suggere</button>
           <button onClick={vider} className="btn" disabled={lectureSeule || groupe.length === 0}><Eraser size={13} /> Vider</button>
           <button onClick={enregistrer} className="btn btn-primary" disabled={!peutEnregistrer}
@@ -307,6 +317,9 @@ function TactiqueContent() {
         {modifieLe && !modifie
           ? `Enregistre le ${new Date(modifieLe).toLocaleDateString("fr-FR")} a ${new Date(modifieLe).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}.`
           : modifie ? (enregistre === null ? "Suggestion non enregistree : ajuste-la puis enregistre." : "Modifications non enregistrees.") : ""}
+        {enregistre === null && depart && (
+          <span data-testid="dispositif-identifie"> Dispositif de depart propose par le logiciel : {depart.systeme} ({depart.detail}).</span>
+        )}
         {sansFiche > 0 && ` ${sansFiche} joueur${sansFiche > 1 ? "s" : ""} sans fiche ne ${sansFiche > 1 ? "sont" : "est"} pas proposable${sansFiche > 1 ? "s" : ""}.`}
       </p>
 
