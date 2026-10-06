@@ -714,7 +714,7 @@ test("saison archivee : entrainements, tactique et predictions sont fermes, avec
   // Saison active (2025-2026) : toute la preparation du match est ouverte.
   await page.goto("/");
   await ouvrirSelecteur(page);
-  await page.getByRole("button", { name: /^2025-2026/ }).click();
+  await page.getByRole("button", { name: "2025-2026 ★", exact: true }).click();   // (le bouton du selecteur porte lui aussi ce nom de saison)
   await page.goto("/");
   for (const nom of ["Entrainements", "Tactique", "Saisons"]) await expect(nav.getByRole("link", { name: nom, exact: true })).toBeVisible();   // l'administrateur voit les Saisons
 
@@ -746,7 +746,7 @@ test("saison archivee : entrainements, tactique et predictions sont fermes, avec
   await page.waitForLoadState("load");
   await page.goto("/tactique");
   await expect(page.getByTestId("page-indisponible")).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "11 de depart" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tactique", level: 1 })).toBeVisible();   // (l'effectif de cette saison est vide : pas de "11 de depart")
   await page.goto("/entrainements");
   await expect(page.getByTestId("page-indisponible")).toHaveCount(0);
 
