@@ -168,7 +168,6 @@ export default function ImportPage() {
           <h1 className="font-display text-2xl font-bold text-ink">Import FMI</h1>
         </div>
         <div className="flex items-center gap-2">
-          <span className="badge badge-accent">Parseur natif · pdfplumber</span>
           <button className="btn text-xs" onClick={rebuildNow} disabled={busy}>
             <RefreshCw size={12} /> Recalculer effectifs + classement
           </button>
@@ -223,18 +222,6 @@ export default function ImportPage() {
           {derive}
         </div>
       )}
-
-      {/* Pipeline */}
-      <section className="panel p-5">
-        <div className="h-section mb-3">Pipeline d'import</div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Step n="1" titre="Upload" desc="PDF (fichiers) ou dossier entier de la saison." />
-          <Step n="2" titre="Parsing" desc="Le backend execute parse_fmi.py (pdfplumber)." />
-          <Step n="3" titre="Match" desc="Creation match + compositions + evenements." />
-          <Step n="4" titre="Effectifs" desc="Les joueurs de tous les clubs sont derives des compos." />
-          <Step n="5" titre="Classement" desc="Recalcule a partir de tous les scores." />
-        </div>
-      </section>
 
       {/* Liste fichiers */}
       <section className="panel p-5">
@@ -296,24 +283,6 @@ export default function ImportPage() {
           </ul>
         )}
       </section>
-
-      <section className="panel-inset p-4 text-xs text-muted leading-relaxed">
-        <strong className="text-ink">Cote backend :</strong> l'import cree le match avec
-        ses compositions et evenements, puis <strong className="text-ink">derive
-        l'effectif de tous les clubs</strong> a partir des feuilles et
-        <strong className="text-ink"> recalcule le classement</strong>. Une feuille
-        deja presente (meme numero FMI) est mise a jour, pas dupliquee.
-      </section>
-    </div>
-  );
-}
-
-function Step({ n, titre, desc }: { n: string; titre: string; desc: string }) {
-  return (
-    <div className="panel-inset p-4">
-      <div className="font-display text-2xl font-black text-accent">{n}</div>
-      <div className="font-display font-bold text-ink mt-1">{titre}</div>
-      <p className="text-[11px] text-muted mt-1 leading-relaxed">{desc}</p>
     </div>
   );
 }

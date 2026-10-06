@@ -1,8 +1,8 @@
 // src/features/matchs/numeros-postes.ts
 //
 // CONVENTION numero de maillot -> poste, celle du staff :
-//   1 Gardien, 2 DD, 3 DG, 4 DCD, 5 DCG, 6 MDC, 7 AG, 8 MC, 9 BU, 10 MO, 11 AD.
-// Au-dela de 11 : un remplacant, sans poste. Une seule source pour la derivation (poste d'un joueur), la prediction de
+//   1 Gardien (le 16 aussi : gardien remplacant), 2 DD, 3 DG, 4 DCD, 5 DCG, 6 MDC, 7 AG, 8 MC, 9 BU, 10 MO, 11 AD.
+// Au-dela de 11 : un remplacant, sans poste (sauf le 16, gardien). Une seule source pour la derivation (poste d'un joueur), la prediction de
 // compo (features/analyse/compo-numeros.ts) et le rapport pre-match. Fonctions pures.
 
 export type CodePoste = "GB" | "DD" | "DG" | "DCD" | "DCG" | "MDC" | "AG" | "MC" | "BU" | "MO" | "AD";
@@ -10,6 +10,7 @@ export type LignePoste = "GB" | "DEF" | "MIL" | "ATT";
 
 export const POSTE_PAR_NUMERO: Readonly<Record<number, CodePoste>> = {
   1: "GB", 2: "DD", 3: "DG", 4: "DCD", 5: "DCG", 6: "MDC", 7: "AG", 8: "MC", 9: "BU", 10: "MO", 11: "AD",
+  16: "GB",
 };
 
 export const LIBELLE_POSTE: Readonly<Record<CodePoste, string>> = {
@@ -24,7 +25,7 @@ const LIGNE: Readonly<Record<CodePoste, LignePoste>> = {
 /** Les onze numeros de poste, dans l'ordre. */
 export const NUMEROS_DE_POSTE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
 
-/** Poste d'un numero de maillot ; null au-dela de 11 (remplacant) ou si le numero n'est pas un entier. */
+/** Poste d'un numero de maillot ; null au-dela de 11 (remplacant), sauf le 16 (gardien) ou si le numero n'est pas un entier. */
 export function posteDuNumero(numero: number | null | undefined): CodePoste | null {
   return Number.isInteger(numero) ? POSTE_PAR_NUMERO[numero as number] ?? null : null;
 }

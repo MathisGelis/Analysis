@@ -52,12 +52,12 @@ const RANG: Record<Ligne, number> = { GB: 0, DEF: 1, MIL: 2, ATT: 3 };
 
 /**
  * Ligne d'un joueur : son poste connu, sinon, pour le seul rangement, son numero de maillot selon la convention du staff
- * (1 gardien, 2 a 5 defense, 6 / 8 / 10 milieu, 7 / 9 / 11 attaque).
+ * (1 et 16 gardiens, 2 a 5 defense, 6 / 8 / 10 milieu, 7 / 9 / 11 attaque).
  */
 function ligneDe(j: Pick<JoueurOnze, "poste" | "numero">): Ligne {
   const d = ligneDuPoste(j.poste);
   if (d) return d;
-  if (j.numero === 1) return "GB";
+  if (j.numero === 1 || j.numero === 16) return "GB";
   if (j.numero <= 5) return "DEF";
   return [6, 8, 10].includes(j.numero) ? "MIL" : "ATT";
 }

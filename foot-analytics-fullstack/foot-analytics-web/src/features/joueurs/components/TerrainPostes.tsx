@@ -17,6 +17,7 @@
 //   9  Buteur (BU)
 //   10 Milieu offensif (MO)
 //   11 Ailier droit (AD)
+//   16 Gardien aussi : compte sur la pastille du gardien (1)
 
 import React from "react";
 
@@ -52,10 +53,13 @@ export function TerrainPostes({ numerosFreq, height = 360 }: Props) {
   // de remplacants sans poste fixe — on les listera en bas, hors map.
   const horsTerrain: { num: number; count: number }[] = [];
   for (const [k, v] of Object.entries(numerosFreq ?? {})) {
-    const num = parseInt(k, 10);
+    const brut = parseInt(k, 10);
     if (!v) continue;
+    const num = brut === 16 ? 1 : brut;                     // le 16 est un gardien : meme pastille que le 1
     const poste = POSTES[num];
-    if (poste) entries.push({ num, count: v, x: poste.x, y: poste.y, label: poste.label });
+    const deja = entries.find((e) => e.num === num);
+    if (poste && deja) deja.count += v;
+    else if (poste) entries.push({ num, count: v, x: poste.x, y: poste.y, label: poste.label });
     else horsTerrain.push({ num, count: v });
   }
   horsTerrain.sort((a, b) => a.num - b.num);

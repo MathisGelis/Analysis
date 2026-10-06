@@ -6,6 +6,12 @@ describe("convention numero -> poste", () => {
     for (const poste of Object.values(POSTE_PAR_NUMERO)) expect(LIBELLE_POSTE[poste]).toBeTruthy();
   });
 
+  it("le 16 est un gardien : poste, ligne et fiche", () => {
+    expect(posteDuNumero(16)).toBe("GB");
+    expect(ligneDuNumero(16)).toBe("GB");
+    expect(posteFiche(16)).toBe("GB");
+  });
+
   it("au-dela de 11, ou hors entier : pas de poste (un remplacant)", () => {
     for (const n of [0, 12, 23, -1, 4.5, NaN, null, undefined]) {
       expect(posteDuNumero(n as number)).toBeNull();

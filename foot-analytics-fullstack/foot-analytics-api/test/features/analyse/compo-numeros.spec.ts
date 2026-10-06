@@ -37,7 +37,7 @@ describe("analyserNumeros : postes", () => {
   });
 
   it("numeros de saison (plus de 25 % des titulaires hors 1-11) : rien n'est deduit", () => {
-    const lignes = saison({}, {}).map((l) => ({ ...l, numero: l.numero + 12 }));
+    const lignes = saison({}, {}).map((l) => ({ ...l, numero: l.numero + 20 }));
     const a = analyserNumeros(lignes);
     expect(a.fiabilite.exploitable).toBe(false);
     expect(a.onze).toEqual([]);

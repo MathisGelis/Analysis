@@ -49,7 +49,7 @@ export default async function Rapports() {
     .sort((a, b) => Number(b.id === prochainAdvId) - Number(a.id === prochainAdvId)
       || Number(dansMaPoule.has(b.id)) - Number(dansMaPoule.has(a.id)) || a.nom.localeCompare(b.nom));
   const maPoule = adversaires.filter((c) => dansMaPoule.has(c.id));
-  const autres = adversaires.filter((c) => !dansMaPoule.has(c.id));
+  const affiches = maPoule.length > 0 ? maPoule : adversaires;
 
   const ligne = (c: { id: string; nom: string }) => {
     const r = scoutingDe.get(c.id);
@@ -122,9 +122,9 @@ export default async function Rapports() {
             <LigneClub club={monClub} moi onglets={ongletsDuDossier(monClub.id, { monClub: true, prematchOuvert })} dynamique={dynamiqueDe.get(monClub.id)} scouting={null} />
           </ul>
         )}
-        <Groupe titre="Ma poule" n={maPoule.length}>{maPoule.map(ligne)}</Groupe>
-        <Groupe titre={maPoule.length > 0 ? "Autres clubs de la saison" : `Clubs de la saison`} n={autres.length}>{autres.map(ligne)}</Groupe>
-        {adversaires.length === 0 && (
+        {/* Seulement les clubs de ma poule ; poule inconnue : tous les clubs de la saison. */}
+        <Groupe titre={maPoule.length > 0 ? "Ma poule" : "Clubs de la saison"} n={affiches.length}>{affiches.map(ligne)}</Groupe>
+        {affiches.length === 0 && (
           <p className="py-4 text-center text-sm text-muted">Aucun club adverse sur cette saison pour l'instant : importez des feuilles de match.</p>
         )}
       </section>

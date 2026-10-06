@@ -329,6 +329,8 @@ test("import FMI : la feuille est importee puis consultable", async () => {
 
   await page.goto("/import");
   await page.waitForLoadState("networkidle");                                  // page hydratee : un fichier depose avant serait ignore
+  await expect(page.getByText("Pipeline d'import")).toHaveCount(0);            // ni pipeline, ni pastille du parseur, ni encart "cote backend"
+  await expect(page.getByText(/pdfplumber|Cote backend/)).toHaveCount(0);
   await page.locator("input[type=file]").first().setInputFiles(FMI);
 
   await expect(page.getByText("Importe", { exact: true })).toBeVisible({ timeout: 60_000 });
