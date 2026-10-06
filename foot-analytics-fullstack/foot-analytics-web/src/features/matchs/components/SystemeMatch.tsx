@@ -2,7 +2,7 @@
 // src/features/matchs/components/SystemeMatch.tsx
 //
 // Systeme de jeu (dispositif) d'un match, par cote. La feuille de match FMI n'en contient aucun : c'est une saisie
-// du staff, qui alimente la prediction du systeme adverse (pre-match et page Predictions). Jusqu'a la saisie, on
+// du staff, qui alimente la prediction du systeme adverse (rapport pre-match). Jusqu'a la saisie, on
 // dit "non renseigne" plutot que d'afficher une valeur supposee.
 
 import { useState } from "react";

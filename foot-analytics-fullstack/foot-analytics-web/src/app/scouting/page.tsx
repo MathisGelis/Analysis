@@ -1,7 +1,9 @@
 // src/app/scouting/page.tsx
 //
-// Route /scouting : la page vit dans features/scouting.
+// Ancienne page de scouting : la liste des clubs et de leurs rapports est maintenant dans /rapports (un dossier par club).
 
-export const metadata = { title: "Scouting · Foot Analytics" };
+import { redirect } from "next/navigation";
 
-export { default } from "@/features/scouting/components/ScoutingPage";
+export default function Scouting() {
+  redirect("/rapports");
+}

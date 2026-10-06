@@ -24,6 +24,8 @@ import { LIBELLE_SENS, libelleSerie, serieFavorable } from "@/features/analyse/l
 import { COULEUR_NIVEAU, LIBELLE_NIVEAU, niveauFatigue } from "@/features/joueurs/lib/fatigue";
 import { ClubBadge } from "@/features/clubs/components/ClubBadge";
 import { DonutStat } from "@/shared/ui/Charts";
+import { OngletsDossier } from "@/features/rapports/components/OngletsDossier";
+import { verdictPage } from "@/features/shell/lib/garde-page";
 
 import { CourbeGlissante } from "./CourbeGlissante";
 import { InsightsGrid } from "./InsightsGrid";
@@ -48,7 +50,10 @@ export default async function RapportEquipe({
     ?? saisons.find((s: any) => s.actif) ?? null;
   const { equipe: maEquipe } = await resolveEquipePropre({ equipes, saisons, matchs });
   const equipe = equipeConsultee({ equipes, clubId: idClub, saisonId: saison?.id ?? null, maEquipe });
-  const rapport = await api.analyseClub(idClub, { equipeId: equipe?.id, saisonId: saison?.id });
+  const [rapport, prematch] = await Promise.all([
+    api.analyseClub(idClub, { equipeId: equipe?.id, saisonId: saison?.id }),
+    verdictPage("/rapports/prematch"),
+  ]);
   if (!rapport) notFound();
 
   const t: Tendances = rapport.tendances;
@@ -75,10 +80,11 @@ export default async function RapportEquipe({
 
   return (
     <div className="space-y-6 fade-up">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Link href="/rapports" className="text-xs text-muted hover:text-ink flex items-center gap-1">
           <ArrowLeft size={12}/> Retour rapports
         </Link>
+        <OngletsDossier clubId={idClub} courant="equipe" monClub={maEquipe?.clubId === idClub} prematchOuvert={prematch.restriction === null} />
         <span className="badge">{rapport.matchsAnalyses} matchs analyses</span>
       </div>
 

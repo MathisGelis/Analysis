@@ -24,6 +24,7 @@ import { OwnClubProvider } from "@/features/equipes/lib/own-club-context";
 import { getOwnClubIdServer } from "@/features/equipes/lib/own-club";
 import { getOwnEquipeIdServer, getOwnSaisonIdServer } from "@/features/equipes/lib/own-equipe";
 import { getCurrentUserServer } from "@/features/auth/lib/auth";
+import { AccesProvider } from "@/features/shell/lib/acces-context";
 import { ClubsProvider } from "@/features/clubs/lib/clubs-context";
 import { api } from "@/shared/lib/api";
 
@@ -48,9 +49,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // (barre laterale, recherche, selecteur d'equipe) n'a de sens qu'apres
   // connexion. Sur /login elle affichait "Non connecte" et declenchait des
   // appels API refuses.
-  const connecte = (await getCurrentUserServer()) !== null;
-  // Clubs pour les ecussons (ClubBadge n'a que l'id du club).
-  const clubs = connecte ? await api.clubs() : [];
+  const utilisateur = await getCurrentUserServer();
+  const connecte = utilisateur !== null;
+  // Clubs pour les ecussons (ClubBadge n'a que l'id du club) ; saisons pour la navigation (pages fermees sur une saison passee).
+  const [clubs, saisons] = connecte ? await Promise.all([api.clubs(), api.saisons()]) : [[], []];
   // Lecture cookies serveur -> injectee dans les providers.
   // Ces valeurs se rafraichissent a chaque router.refresh(), donc quand
   // le switcher persist un nouveau choix + refresh, tout le Client tree
@@ -73,6 +75,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               initialSaisonId={initialSaisonId}
             >
               <ClubsProvider clubs={clubs}>
+              <AccesProvider saisons={saisons} role={utilisateur?.role ?? null}>
               <FeedbackProvider>
               <NavProgress />
               {connecte ? (
@@ -83,6 +86,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <main className="relative z-10">{children}</main>
               )}
               </FeedbackProvider>
+              </AccesProvider>
               </ClubsProvider>
             </OwnEquipeProvider>
           </OwnClubProvider>

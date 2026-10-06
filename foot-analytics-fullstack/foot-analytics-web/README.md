@@ -53,13 +53,12 @@ Fair-play, Import FMI (upload reel vers le parseur du backend).
 | **Match (detail)** | Score, terrains SVG cote-a-cote avec compos et cartons, banc, timeline chronologique, heatmap, tableaux complets compos + licences |
 | **Tactique** | Selecteur de formation + 11 type modifiable, suggestion IA |
 | **Entrainements** | Planning semaine, charge par seance, presences |
-| **Medical** | Indisponibles, indice fatigue, risque blessure, dispo. globale |
+| **Medical** | Resume des blessures de la saison : chiffres cles, ou, quand, joueurs les plus touches, rechutes, indisponibles du moment, detail avec saisie |
 | **Fair-play** | KPIs cartons, motifs, par journee, joueurs a surveiller, profil estime |
-| **Scouting** | Liste des rapports, rapport Neuville complet (= remplace l'Excel Chaponnay) |
+| **Scouting** | Notes d'observation sur un club (ouvertes depuis son dossier dans Rapports ; remplace l'Excel Chaponnay) |
 | **Analytics** | xG vs G, heatmaps off/def, tendances |
 | **Calendrier** | Vue mois janvier 2026, matchs + entrainements |
-| **IA** | Predictions resultat, compo adverse (lue dans les numeros de maillot), systeme probable, risque blessure, suggestions tactiques |
-| **Rapports** | Rapport pre-match (imprimable en PDF et **exportable en PowerPoint**, pages au choix), rapport d'equipe, bilan periodique |
+| **Rapports** | **Point d'entree unique** : le prochain match en un clic et un dossier par club (pre-match avec ses predictions : projection du resultat, systeme et onze probables, pistes ; analyse d'equipe ; scouting). Le pre-match s'imprime en PDF et **s'exporte en PowerPoint** (pages au choix) |
 | **Import FMI** | Drag&drop PDF, simulation pipeline parser → base |
 
 ---
@@ -158,6 +157,16 @@ pas perturbe) : la base de developpement n'est jamais touchee. Le
 parcours d'import FMI exige Python + pdfplumber (`PYTHON_BIN=chemin/vers/python`),
 il est ignore sinon. Voir `playwright.config.ts` pour les variables.
 
+### Dependances et securite
+
+`npm audit --omit=dev` (ce qui part en production) : **0 vulnerabilite**. `npm audit` complet signale la seule famille `braces`
+(avis publie en septembre 2026, **aucune version corrigee n'existe** : la derniere, 3.0.3, est touchee), tiree par les outils de
+developpement uniquement (`tailwindcss` 3 et `@next/eslint-plugin-next`, via `micromatch` / `fast-glob` / `chokidar`) : un motif
+de glob imbrique a l'extreme fait deborder la pile, et ces motifs viennent de la configuration du depot, jamais d'une entree utilisateur.
+Passer a Tailwind 4 ne suffirait pas (le plugin ESLint de Next garde `fast-glob`) : a reverifier a chaque mise a jour
+(`npm audit`). Les autres avis ont ete corriges : `postcss-selector-parser` force a `^7.1.6` (`overrides`, CSS genere identique
+octet pour octet), et cote API `argparse` force a `^2` sous `js-yaml` (voir `foot-analytics-api/package.json`).
+
 ### Diagnostic
 
 `NEXT_PUBLIC_DEBUG=1` active les traces `console.debug` du front (`[switcher]`,
@@ -203,8 +212,9 @@ foot-analytics-web/
 │   │   ├── saisons/  clubs/  classement/
 │   │   ├── joueurs/              # effectif, fiche joueur, fatigue, parcours, mutations de club
 │   │   ├── matchs/  calendrier/  entrainements/  medical/
-│   │   ├── tactique/  analyse/  prematch/   # composition, rapport d'equipe, rapport pre-match, predictions
-│   │   ├── arbitres/  coachs/  scouting/  recherche/  fmi/
+│   │   ├── tactique/  analyse/  prematch/   # composition, rapport d'equipe, rapport pre-match (avec ses predictions)
+│   │   ├── rapports/             # point d'entree unique : dossier d'un club (pre-match, analyse, scouting)
+│   │   ├── arbitres/  coachs/  recherche/  fmi/
 │   │   ├── dashboard/            # page d'accueil
 │   │   └── demo/                 # ecran Analytics de demonstration
 │   └── shared/
@@ -224,16 +234,28 @@ Les imports internes a une feature sont relatifs ; entre features, ils passent p
 ## Cas d'usage typiques
 
 ### Avant un match
-1. Verifier `/medical` pour confirmer l'effectif disponible
-2. Ouvrir `/club/<adv>/scouting` pour le rapport complet
+1. Verifier `/medical` pour confirmer l'effectif disponible (les indisponibles du moment sont en tete)
+2. Ouvrir `/rapports` : le prochain match s'y prepare en un clic, et chaque club a son dossier (Pre-match, Analyse d'equipe,
+   Scouting) relie par les memes onglets
 3. Composer dans `/tactique` (le onze suggere est pre-rempli)
-4. Preparer le rapport d'avant-match dans `/rapports` : lecture a l'ecran, **Imprimer / PDF**, ou **Exporter en PowerPoint**
+4. Preparer le rapport d'avant-match (depuis `/rapports`) : lecture a l'ecran, **Imprimer / PDF**, ou **Exporter en PowerPoint**
    (au format de la presentation du staff, **pages au choix** : par exemple sans la page convocation, ou le **modele
    seul**). Le fichier compte 15 pages : les 7 du modele du staff et 8 pages d'**analyse** (comparatif et projection, forme,
    pistes, systeme et indices, onze par poste, changements de numero, joueurs cles et discipline, face-a-face et arbitre),
    au meme style, pour que rien du rapport ne se perde. Les informations que le rapport ne connait pas (heure de
    convocation, surface du terrain, style de jeu, ambiance...) restent des champs **vides** a completer dans PowerPoint ;
    le dispositif attendu place le onze probable sur le terrain.
+
+### Qui voit quoi : saison passee et pages reservees
+Une seule table (`features/shell/lib/acces-pages.ts`), lue par la navigation **et** par les pages elles-memes :
+
+| Page | Regle |
+|---|---|
+| Entrainements, Tactique, rapport pre-match (et l'ancienne page Predictions) | **fermees sur une saison anterieure a la saison en cours** : pas d'onglet, et l'adresse tapee a la main affiche « disponible sur la saison en cours » avec un bouton pour y revenir. Rien a preparer sur une saison terminee ; le reste (matchs, effectif, medical, classement, analyse d'equipe, scouting) reste consultable |
+| Saisons, IA (`/admin/ia`) | **administrateur seulement** : ni onglet, ni page pour le referent et l'educateur (de toute facon, le serveur refuse leurs ecritures) |
+
+C'est de l'affichage : les droits sur les donnees sont appliques par l'API. L'ancienne page Scouting renvoie vers `/rapports`, l'ancienne page
+Predictions aussi (`/ia?adversaire=<club>` ouvre le pre-match de ce club).
 
 ### Compo et systeme probables
 Le systeme de jeu d'un adversaire vient des dispositifs saisis sur ses matchs **et** des numeros de maillot de ses feuilles
@@ -273,7 +295,7 @@ match n'apparaissent que si l'API les autorise (`droits`, `modifiable`) ; un ref
 ### Hebdomadaire
 1. `/dashboard` : sante de l'equipe
 2. `/fair-play` : surveiller les joueurs sous menace de suspension
-3. `/medical` : suivi des charges et risque blessure
+3. `/medical` : les blessures de la saison, qui est indisponible ; la fatigue se lit dans `/effectif` (tri par fatigue)
 4. `/calendrier` : valider le planning seances
 
 ---

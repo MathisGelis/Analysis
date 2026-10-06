@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 
 import { useOwnClubId } from "@/features/equipes/lib/own-club-context";
+import { useAccesPages } from "@/features/shell/lib/acces-context";
 import { construireNavigation, lienActif } from "@/features/shell/lib/navigation";
 import { OwnEquipeSwitcher } from "@/features/equipes/components/OwnEquipeSwitcher";
 
@@ -28,7 +29,8 @@ function Contenu({
 }: { replie: boolean; onBasculerReplie: () => void; onFermerMobile: () => void; mobile: boolean }) {
   const path = usePathname();
   const ownClubId = useOwnClubId();
-  const nav = construireNavigation(ownClubId || null);
+  const acces = useAccesPages();
+  const nav = construireNavigation(ownClubId || null, acces);
   const compact = replie && !mobile;
 
   return (

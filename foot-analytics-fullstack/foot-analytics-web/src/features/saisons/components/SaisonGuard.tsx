@@ -13,14 +13,14 @@
 //    desactiver leurs boutons d'ajout / modification / suppression.
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { AlertCircle, ArrowRight, Info } from "lucide-react";
+import { AlertCircle, Info } from "lucide-react";
 
 import { useOwnEquipe } from "@/features/equipes/lib/own-equipe-context";
-import { useOwnClubId } from "@/features/equipes/lib/own-club-context";
 import { api } from "@/shared/lib/api";
-import { equipeEquivalente } from "@/features/equipes/lib/empreinte-equipe";
 import { estLectureSeule, modeSaison } from "@/features/saisons/lib/saison-mode";
-import type { Equipe, Saison } from "@/shared/lib/types";
+import type { Saison } from "@/shared/lib/types";
+
+import { BoutonSaisonEnCours } from "./BoutonSaisonEnCours";
 
 const LectureSeuleCtx = createContext(false);
 
@@ -35,40 +35,17 @@ export function SaisonGuard({
   children: React.ReactNode;
   libelle?: string;
 }) {
-  const { saisonId, equipeId, setEquipe } = useOwnEquipe();
-  const ownClubId = useOwnClubId();
+  const { saisonId } = useOwnEquipe();
   const [saisons, setSaisons] = useState<Saison[]>([]);
-  const [equipes, setEquipes] = useState<Equipe[]>([]);
 
   useEffect(() => {
-    (async () => {
-      const [s, e] = await Promise.all([api.saisons(), api.equipes(ownClubId)]);
-      setSaisons(s);
-      setEquipes(e);
-    })();
-  }, [ownClubId]);
+    (async () => { setSaisons(await api.saisons()); })();
+  }, []);
 
   const saisonActive = saisons.find((x) => x.actif) ?? null;
   const saisonChoisie = saisons.find((x) => x.id === saisonId) ?? null;
   const mode = modeSaison(saisonChoisie, saisonActive);
   const lectureSeule = estLectureSeule(mode);
-
-  async function revenirSaisonActive() {
-    if (!saisonActive) return;
-    // Equipe de MON club sur la saison active : l'equivalent de l'equipe
-    // actuelle si elle existe, sinon la premiere.
-    const courante = equipes.find((eq) => eq.id === equipeId) ?? null;
-    const candidates = equipes.filter((eq) => eq.saisonId === saisonActive.id);
-    const cible = (courante && candidates.find((eq) => equipeEquivalente(eq, courante)))
-      ?? candidates[0] ?? null;
-    setEquipe(cible?.id ?? null, saisonActive.id);
-    await fetch("/api/own-equipe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ equipeId: cible?.id ?? null, saisonId: saisonActive.id }),
-    });
-    window.location.reload();
-  }
 
   return (
     <LectureSeuleCtx.Provider value={lectureSeule}>
@@ -81,11 +58,7 @@ export function SaisonGuard({
             consultation seule. Les ajouts et modifications sont reserves a la
             saison en cours{saisonActive ? ` (${saisonActive.nom})` : ""}.
           </p>
-          {saisonActive && (
-            <button onClick={revenirSaisonActive} className="btn btn-ghost text-xs">
-              Revenir a {saisonActive.nom} <ArrowRight size={12}/>
-            </button>
-          )}
+          {saisonActive && <BoutonSaisonEnCours />}
         </div>
       )}
       {mode === "future" && saisonChoisie && (

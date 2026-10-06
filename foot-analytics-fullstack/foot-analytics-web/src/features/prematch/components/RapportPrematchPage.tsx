@@ -7,14 +7,15 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Activity, AlertTriangle, ArrowLeft, CalendarDays, Crosshair, Flag, History, Info, MapPin, RotateCcw, Shield, Sparkles, Users } from "lucide-react";
+import { Activity, AlertTriangle, ArrowLeft, CalendarDays, Crosshair, Flag, HeartPulse, History, Info, MapPin, RotateCcw, Shield, Sparkles, Target, Users } from "lucide-react";
 
 import { api } from "@/shared/lib/api";
 import { resolveEquipePropre } from "@/features/equipes/lib/resolve-equipe-propre";
 import { decimal } from "@/features/analyse/lib/tendances-format";
-import { COULEUR_NIVEAU, LIBELLE_NIVEAU, niveauFatigue } from "@/features/joueurs/lib/fatigue";
+import { COULEUR_NIVEAU, LIBELLE_NIVEAU, niveauFatigue, plusFatigues } from "@/features/joueurs/lib/fatigue";
 import { ClubBadge } from "@/features/clubs/components/ClubBadge";
 import { InsightsGrid } from "@/features/analyse/components/InsightsGrid";
+import { OngletsDossier } from "@/features/rapports/components/OngletsDossier";
 import { Pitch } from "@/shared/ui/Pitch";
 
 import { joueursSurTerrain, libellesPostes } from "../lib/onze-terrain";
@@ -22,6 +23,8 @@ import { BoutonImprimer } from "./BoutonImprimer";
 import { ExportPowerPoint } from "./ExportPowerPoint";
 import { PistesMatch } from "./PistesMatch";
 import { ComparatifEquipes } from "./ComparatifEquipes";
+import { JoueursAMenager } from "./JoueursAMenager";
+import { ProjectionResultat } from "./ProjectionResultat";
 import { SystemeProbable } from "./SystemeProbable";
 
 export default async function RapportPrematch({
@@ -30,7 +33,7 @@ export default async function RapportPrematch({
   const { clubId: adversaireClubId } = await params;
   const { matchId: matchDemande } = await searchParams;
   const [equipes, saisons, matchs] = await Promise.all([api.equipes(), api.saisons(), api.matchs()]);
-  const { equipe: maEquipe } = await resolveEquipePropre({ equipes, saisons, matchs });
+  const { equipe: maEquipe, saison } = await resolveEquipePropre({ equipes, saisons, matchs });
 
   if (!maEquipe) {
     return (
@@ -43,8 +46,13 @@ export default async function RapportPrematch({
     return <Vide titre="C'est votre propre club">Choisissez un club adverse pour preparer le match.</Vide>;
   }
 
-  const [r, pagesExport] = await Promise.all([api.prematch(maEquipe.id, adversaireClubId, matchDemande ?? null), api.pagesPrematch()]);
+  // Notre effectif : la fatigue n'est mesuree que sur la saison en cours.
+  const [r, pagesExport, effectif] = await Promise.all([
+    api.prematch(maEquipe.id, adversaireClubId, matchDemande ?? null), api.pagesPrematch(),
+    saison?.actif ? api.effectifEquipe(maEquipe.id) : Promise.resolve([] as any[]),
+  ]);
   if (!r) notFound();
+  const aMenager = plusFatigues(effectif.filter((j: any) => j.id), 5);
 
   const { monEquipe: moi, adversaire: adv, analyse: a, arbitre, match, faceAFace: face } = r;
   const champ = [r.championnat.competition, r.championnat.poule ? `poule ${r.championnat.poule}` : null,
@@ -55,10 +63,11 @@ export default async function RapportPrematch({
 
   return (
     <div className="space-y-5 fade-up">
-      <div className="flex items-center justify-between gap-3 print:hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link href="/rapports" className="flex items-center gap-1 text-xs text-muted hover:text-ink">
           <ArrowLeft size={12} /> Retour rapports
         </Link>
+        <OngletsDossier clubId={adversaireClubId} courant="prematch" prematchOuvert matchId={match?.id ?? null} />
         <div className="flex items-center gap-2">
           <ExportPowerPoint equipeId={maEquipe.id} adversaireId={adversaireClubId} matchId={match?.id ?? null} pages={pagesExport} />
           <BoutonImprimer />
@@ -122,6 +131,18 @@ export default async function RapportPrematch({
           </p>
         )}
       </Section>
+
+      {/* Projection du resultat, et nos joueurs a menager */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <Section titre="Projection du resultat" icone={<Target size={11} className="text-accent" />}
+          aide="modele de Poisson sur les moyennes de buts des deux equipes">
+          <ProjectionResultat r={r} />
+        </Section>
+        <Section titre="Chez nous : joueurs a menager" icone={<HeartPulse size={11} className="text-accent" />}
+          aide="les plus fatigues de l'effectif, charge des 28 derniers jours">
+          <JoueursAMenager joueurs={aMenager as any} saisonActive={!!saison?.actif} />
+        </Section>
+      </div>
 
       {/* Face-a-face */}
       <Section titre="Face-a-face" icone={<History size={11} className="text-accent" />}

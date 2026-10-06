@@ -14,9 +14,16 @@ describe("construireNavigation", () => {
   it("toutes les pages de gestion restent accessibles depuis la barre laterale (la recherche ne propose plus de pages)", () => {
     const hrefs = construireNavigation("c").flatMap((s) => s.items.map((l) => l.href));
     for (const page of ["/", "/classement", "/calendrier", "/effectif", "/entrainements", "/medical", "/matchs", "/tactique",
-      "/arbitres", "/scouting", "/ia", "/rapports", "/import", "/saisons"]) {
+      "/arbitres", "/rapports", "/import", "/saisons"]) {
       expect(hrefs).toContain(page);
     }
+  });
+  it("les rapports ont UNE entree : scouting et predictions n'ont plus d'onglet (ils s'ouvrent depuis le dossier d'un club)", () => {
+    const liens = construireNavigation("c").flatMap((s) => s.items);
+    expect(liens.map((l) => l.href)).not.toContain("/scouting");
+    expect(liens.map((l) => l.href)).not.toContain("/ia");
+    expect(construireNavigation("c").find((s) => s.section === "Analyse")?.items.map((l) => l.label)).toEqual(["Rapports"]);
+    expect(liens.find((l) => l.href === "/medical")?.label).toBe("Medical");
   });
   it("la gestion des comptes n'est dans aucun menu : elle est en bas de la barre laterale, pour tous les roles", () => {
     const hrefs = construireNavigation("c").flatMap((s) => s.items.map((l) => l.href));
@@ -25,6 +32,39 @@ describe("construireNavigation", () => {
   it("aucun lien en double", () => {
     const hrefs = construireNavigation("c").flatMap((s) => s.items.map((l) => l.href));
     expect(new Set(hrefs).size).toBe(hrefs.length);
+  });
+});
+
+describe("construireNavigation selon le compte et la saison", () => {
+  const hrefs = (acces: Parameters<typeof construireNavigation>[1]) => construireNavigation("c", acces).flatMap((s) => s.items.map((l) => l.href));
+
+  it("saison en cours, a venir ou inconnue : tout est la (administrateur)", () => {
+    for (const mode of ["active", "future", "inconnue"] as const) {
+      expect(hrefs({ role: "admin", mode })).toEqual(hrefs(undefined));
+    }
+  });
+
+  it("saison passee : entrainements et tactique disparaissent, le reste demeure", () => {
+    const liens = hrefs({ role: "admin", mode: "passee" });
+    expect(liens).not.toContain("/entrainements");
+    expect(liens).not.toContain("/tactique");
+    for (const page of ["/", "/effectif", "/medical", "/matchs", "/rapports", "/classement", "/calendrier", "/arbitres", "/import", "/saisons"]) {
+      expect(liens).toContain(page);
+    }
+  });
+
+  it("l'onglet Saisons est reserve a l'administrateur : ni le referent ni l'educateur ne le voient", () => {
+    expect(hrefs({ role: "admin", mode: "active" })).toContain("/saisons");
+    for (const role of ["referent", "user", null, undefined]) expect(hrefs({ role, mode: "active" })).not.toContain("/saisons");
+    expect(hrefs({ role: "user", mode: "active" })).toContain("/import");                          // le reste de la section Donnees demeure
+  });
+
+  it("meme un educateur sur une saison passee garde chaque section (aucune ne reste vide)", () => {
+    const sections = construireNavigation("c", { role: "user", mode: "passee" });
+    expect(sections.map((s) => s.section)).toEqual(["Vue d'ensemble", "Mon equipe", "Match", "Analyse", "Donnees"]);
+    expect(sections.every((s) => s.items.length > 0)).toBe(true);
+    expect(sections.find((s) => s.section === "Match")?.items.map((l) => l.label)).toEqual(["Matchs", "Arbitres"]);
+    expect(sections.find((s) => s.section === "Donnees")?.items.map((l) => l.label)).toEqual(["Import feuilles FMI"]);
   });
 });
 

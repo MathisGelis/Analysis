@@ -8,7 +8,7 @@
 //
 // Garde son etat en memoire et se rafraichit apres chaque mutation.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertTriangle, Clock, Dumbbell, Pencil, Plus, Trash2 } from "lucide-react";
@@ -59,9 +59,12 @@ export function BlessuresEditeur({
   const openCreate = () => { setEditing(undefined); setModalOpen(true); };
   const openEdit = (b: Blessure) => { setEditing(b); setModalOpen(true); };
 
+  // Liste d'un joueur : on relit ses blessures. Liste d'une equipe et d'une saison (page Medical) : le serveur recalcule
+  // la liste filtree et la renvoie en propriete, il suffit de rafraichir (relire toutes les blessures du club la melangerait
+  // avec celles des autres saisons).
+  useEffect(() => { if (!joueurId) setBlessures(initialBlessures); }, [initialBlessures, joueurId]);
   const reload = async () => {
-    const list = await api.blessures(joueurId);
-    setBlessures(list);
+    if (joueurId) setBlessures(await api.blessures(joueurId));
     router.refresh();
   };
 

@@ -6,10 +6,12 @@
 // Fonctions pures.
 
 import {
-  Award, Brain, Calendar, CalendarRange, ClipboardList, Dumbbell, FileText, HeartPulse, Layout,
-  LayoutDashboard, Search, Shield, ShieldCheck, Trophy, Upload, UserCog, Users,
+  Award, Calendar, CalendarRange, ClipboardList, Dumbbell, FileText, HeartPulse, Layout,
+  LayoutDashboard, Shield, ShieldCheck, Trophy, Upload, UserCog, Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+
+import { type ContexteAccesPages, pageAccessible } from "./acces-pages";
 
 export interface LienNav {
   href: string;
@@ -31,8 +33,12 @@ export function lienGestionComptes(role?: string | null): LienNav | null {
   return null;
 }
 
-export function construireNavigation(ownClubId: string | null): SectionNav[] {
-  return [
+/**
+ * La navigation du compte : les pages fermees (saison passee, reserve a l'administrateur : voir acces-pages.ts) sont
+ * masquees, et une section sans entree disparait. Sans contexte, tout est montre.
+ */
+export function construireNavigation(ownClubId: string | null, acces?: ContexteAccesPages): SectionNav[] {
+  const sections: SectionNav[] = [
     {
       section: "Vue d'ensemble",
       items: [
@@ -47,7 +53,7 @@ export function construireNavigation(ownClubId: string | null): SectionNav[] {
         { href: ownClubId ? `/club/${ownClubId}` : "/", label: "Mon club", icon: Shield },
         { href: "/effectif", label: "Effectif", icon: Users },
         { href: "/entrainements", label: "Entrainements", icon: Dumbbell },
-        { href: "/medical", label: "Medical & charge", icon: HeartPulse },
+        { href: "/medical", label: "Medical", icon: HeartPulse },
       ],
     },
     {
@@ -59,12 +65,10 @@ export function construireNavigation(ownClubId: string | null): SectionNav[] {
       ],
     },
     {
+      // Un seul point d'entree : le rapport pre-match (avec ses predictions), l'analyse d'equipe et le scouting de chaque
+      // club s'ouvrent depuis /rapports.
       section: "Analyse",
-      items: [
-        { href: "/scouting", label: "Scouting", icon: Search },
-        { href: "/ia", label: "Predictions", icon: Brain },
-        { href: "/rapports", label: "Rapports", icon: FileText },
-      ],
+      items: [{ href: "/rapports", label: "Rapports", icon: FileText }],
     },
     {
       section: "Donnees",
@@ -74,6 +78,10 @@ export function construireNavigation(ownClubId: string | null): SectionNav[] {
       ],
     },
   ];
+  if (!acces) return sections;
+  return sections
+    .map((s) => ({ ...s, items: s.items.filter((it) => pageAccessible(it.href, acces)) }))
+    .filter((s) => s.items.length > 0);
 }
 
 /** Le lien est-il "actif" pour ce chemin ? Le dashboard ne l'est que sur "/". */
@@ -84,11 +92,11 @@ export function lienActif(href: string, chemin: string): boolean {
 
 const TITRES: [string, string][] = [
   ["/classement", "Classement"], ["/calendrier", "Calendrier"], ["/club", "Fiche club"],
-  ["/effectif", "Effectif"], ["/entrainements", "Entrainements"], ["/medical", "Medical & charge"],
+  ["/effectif", "Effectif"], ["/entrainements", "Entrainements"], ["/medical", "Medical"],
   ["/matchs", "Matchs"], ["/tactique", "Tactique"], ["/arbitres", "Arbitres"],
-  ["/scouting", "Scouting"], ["/rapports", "Rapports"], ["/import", "Import FMI"],
+  ["/rapports", "Rapports"], ["/import", "Import FMI"],
   ["/saisons", "Saisons"], ["/joueur", "Fiche joueur"], ["/coachs", "Fiche entraineur"], ["/admin", "Administration"],
-  ["/analytics", "Analytics"], ["/ia", "Predictions"],
+  ["/analytics", "Analytics"],
 ];
 
 /** Titre affiche dans la barre du haut pour un chemin. */

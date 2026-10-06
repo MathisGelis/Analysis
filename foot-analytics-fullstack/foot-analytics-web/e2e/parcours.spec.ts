@@ -245,18 +245,57 @@ test("tactique : composition sur l'effectif reel, regle des mutes imposee, plan 
   expect(await nombre("mutes")).toBeLessThanOrEqual(6);
 });
 
-test("fatigue : jamais de score invente hors saison active ni sans donnee, et l'effectif se trie par fatigue", async () => {
-  // Saison choisie : 2026-2027, a venir (non active). La fatigue est une mesure du moment, elle n'existe pas.
+test("medical : resume des blessures de la saison, vide sans blessure, et la fatigue se lit dans l'effectif", async () => {
+  // Saison choisie : 2026-2027, a venir. Aucune blessure : la page le dit au lieu d'afficher des chiffres inventes.
   await page.goto("/medical");
-  await expect(page.getByText(/Charge et fatigue : indisponibles hors saison active/)).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /Seniors D2 Poule C/ })).toBeVisible();
+  await expect(page.getByText(/Resume des blessures de la saison 2026-2027/)).toBeVisible();
+  await expect(page.getByTestId("kpi-blessures")).toContainText("0");
+  await expect(page.getByTestId("medical-vide")).toContainText("Aucune blessure enregistree sur la saison 2026-2027");
+  // La fatigue n'est plus sur cette page.
   await expect(page.getByRole("img", { name: /^Fatigue \d+ sur 100/ })).toHaveCount(0);
+
+  // Deux blessures d'un joueur de l'effectif, dans la saison : une terminee, une sans retour.
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const appeler = (chemin: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
+    ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+  });
+  const equipeId = (await contexte.cookies()).find((c) => c.name === "ownEquipeId")!.value;
+  const effectif: { id: string; nom: string; prenom?: string }[] = await (await appeler(`/joueurs/effectif?equipeId=${equipeId}`)).json();
+  const joueur = effectif.find((j) => j.nom.startsWith("MUTE1")) ?? effectif[0];
+  const nomJoueur = `${joueur.prenom ?? ""} ${joueur.nom}`.trim();
+  const blessure = (extra: Record<string, unknown>) => appeler("/blessures", {
+    method: "POST", body: JSON.stringify({ joueurId: joueur.id, joueurNom: nomJoueur, ...extra }),
+  });
+  expect((await blessure({ localisation: "Cheville", gravite: "Legere", dateDebut: "2026-09-10", retourEstime: "2026-09-24", statut: "Retabli" })).ok).toBe(true);
+  expect((await blessure({ localisation: "Cheville", gravite: "Moyenne", dateDebut: "2026-11-02", statut: "Indisponible" })).ok).toBe(true);
+  // Une blessure d'une autre saison ne compte pas dans celle-ci.
+  expect((await blessure({ localisation: "Epaule", dateDebut: "2025-10-01", retourEstime: "2025-10-15", statut: "Retabli" })).ok).toBe(true);
+
+  await page.goto("/medical");
+  await expect(page.getByTestId("kpi-blessures")).toContainText("2");
+  await expect(page.getByTestId("kpi-joueurs")).toContainText("1");
+  await expect(page.getByTestId("kpi-duree")).toContainText("14");                 // la seule terminee : 10 -> 24 septembre
+  // Saison a venir : pas d'"indisponibles du moment" (mesure d'aujourd'hui), la blessure sans retour est "non cloturee".
+  await expect(page.getByTestId("kpi-en-cours")).toContainText("Non cloturees");
+  await expect(page.getByTestId("indisponibles")).toHaveCount(0);
+  await expect(page.getByTestId("par-localisation")).toContainText("Cheville");
+  await expect(page.getByTestId("par-localisation")).not.toContainText("Epaule");
+  await expect(page.getByTestId("par-mois")).toContainText("sept.");
+  await expect(page.getByTestId("joueurs-touches")).toContainText(nomJoueur);
+  await expect(page.getByTestId("rechutes")).toContainText("2 fois");             // meme joueur, meme cheville
+  // Le detail et la saisie restent en bas de page.
+  await expect(page.getByRole("heading", { name: "Blessures de la saison 2026-2027 (2)" })).toBeVisible();
 
   // Saison active sans effectif : la page le dit.
   await page.goto("/");
   await ouvrirSelecteur(page);
   await page.getByRole("button", { name: /^2025-2026/ }).click();
   await page.goto("/medical");
-  await expect(page.getByText("Aucune donnee sur cette equipe.")).toBeVisible();
+  await expect(page.getByTestId("medical-vide")).toContainText("Aucune blessure enregistree sur la saison 2025-2026");
 
   // L'effectif propose le tri par fatigue (et non plus par forme).
   await page.goto("/effectif");
@@ -280,7 +319,7 @@ test("import FMI : la feuille est importee puis consultable", async () => {
 
 test("rapport d'equipe : sans match analyse sur la saison, la page l'explique sans planter ni inventer de tendance", async () => {
   await page.goto("/rapports");
-  await cliquerJusquaNavigation(page.getByRole("link", { name: /Mon equipe/ }), /\/rapports\/equipe\//);
+  await cliquerJusquaNavigation(page.getByRole("link", { name: /^Analyse d'equipe : OL Sud E2E/ }), /\/rapports\/equipe\//);
 
   await expect(page.getByRole("heading", { level: 1, name: /OL Sud E2E/ })).toBeVisible();
   await expect(page.getByText("Pas encore de match analyse")).toBeVisible();
@@ -384,6 +423,61 @@ test("rapport pre-match : export PowerPoint, pages au choix (sans la page convoc
   await expect(page.getByRole("heading", { level: 2, name: "Exporter en PowerPoint" })).toHaveCount(0);
 });
 
+test("rapports : un point d'entree unique, un dossier par club, anciennes pages scouting et predictions redirigees", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : l'adversaire vient de la FMI importee");
+
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const appeler = (chemin: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
+    ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+  });
+  const nav = page.getByRole("navigation", { name: "Navigation principale" });
+
+  // Une seule entree "Rapports" : Scouting et Predictions n'ont plus d'onglet.
+  await page.goto("/");
+  await expect(nav.getByRole("link", { name: "Rapports", exact: true })).toBeVisible();
+  for (const ancien of ["Scouting", "Predictions"]) await expect(nav.getByRole("link", { name: ancien, exact: true })).toHaveCount(0);
+
+  // Un club adverse avec une equipe sur la saison choisie : son dossier apparait dans la liste.
+  const saisonId = (await contexte.cookies()).find((c) => c.name === "ownSaisonId")!.value;
+  const club = await (await appeler("/clubs", { method: "POST", body: JSON.stringify({ nom: "Club Dossier" }) })).json();
+  expect((await appeler("/equipes", {
+    method: "POST", body: JSON.stringify({
+      clubId: club.id, nom: "Seniors D2 Poule C", categorie: "Seniors", division: "D2", poule: "C",
+      competitionLibelle: "Seniors D2 / Phase Unique", saisonId,
+    }),
+  })).ok).toBe(true);
+
+  await page.goto("/rapports");
+  await expect(page.getByRole("heading", { level: 1, name: /^Rapports/ })).toBeVisible();
+  await expect(page.getByTestId("prochain-match")).toContainText("Aucun match programme");
+  const dossiers = page.getByTestId("dossiers-clubs");
+  // Mon club : un seul document, l'analyse (on ne prepare pas un match contre soi, on ne s'observe pas).
+  const moi = dossiers.getByTestId(/^dossier-/).filter({ hasText: "Mon equipe" });
+  await expect(moi.getByRole("link")).toHaveCount(1);
+  await expect(moi.getByRole("link", { name: /^Analyse d'equipe : OL Sud E2E/ })).toBeVisible();
+  // Un adversaire : les trois documents du dossier.
+  const adv = dossiers.getByTestId(`dossier-${club.id}`);
+  await expect(adv.getByRole("link", { name: "Pre-match : Club Dossier" })).toHaveAttribute("href", `/rapports/prematch/${club.id}`);
+  await expect(adv.getByRole("link", { name: "Analyse d'equipe : Club Dossier" })).toHaveAttribute("href", `/rapports/equipe/${club.id}`);
+  await expect(adv.getByRole("link", { name: "Scouting : Club Dossier" })).toHaveAttribute("href", `/club/${club.id}/scouting`);
+
+  // Les trois documents sont relies par les memes onglets : on passe de l'un a l'autre sans repasser par la liste.
+  await cliquerJusquaNavigation(adv.getByRole("link", { name: "Pre-match : Club Dossier" }), /\/rapports\/prematch\//);
+  const onglets = page.getByRole("navigation", { name: "Documents du club" });
+  await expect(onglets.getByRole("link", { name: "Pre-match" })).toHaveAttribute("aria-current", "page");
+  await cliquerJusquaNavigation(onglets.getByRole("link", { name: "Scouting" }), /\/club\/.+\/scouting$/);
+  await expect(page.getByRole("navigation", { name: "Documents du club" }).getByRole("link", { name: "Scouting" })).toHaveAttribute("aria-current", "page");
+  await cliquerJusquaNavigation(page.getByRole("navigation", { name: "Documents du club" }).getByRole("link", { name: "Analyse d'equipe" }), /\/rapports\/equipe\//);
+  await expect(page.getByRole("navigation", { name: "Documents du club" }).getByRole("link", { name: "Analyse d'equipe" })).toHaveAttribute("aria-current", "page");
+
+  // Anciennes adresses : redirigees vers le point d'entree unique.
+  await page.goto("/scouting");
+  await expect(page).toHaveURL(/\/rapports$/);
+});
+
 test("entraineur : cliquable depuis la feuille de match, fiche avec bilan par saison et parcours", async () => {
   test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : les entraineurs viennent de la FMI importee");
 
@@ -408,7 +502,7 @@ test("entraineur : cliquable depuis la feuille de match, fiche avec bilan par sa
   await expect(page.getByText("1 match", { exact: false }).first()).toBeVisible();
 });
 
-test("systeme de jeu : saisi sur la fiche du match, repris par la prediction et la page Predictions", async () => {
+test("systeme de jeu : saisi sur la fiche du match, repris par la prediction et le rapport pre-match", async () => {
   test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : le match vient de la FMI importee");
 
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
@@ -456,10 +550,15 @@ test("systeme de jeu : saisi sur la fiche du match, repris par la prediction et 
   await expect(section.getByText("Dispositifs renseignes", { exact: true })).toBeVisible();
   await expect(section.getByText("Onze probable", { exact: true }).first()).toBeVisible();
 
-  // Page Predictions : elle s'affiche, sans exemple fictif.
-  await page.goto("/ia");
-  await expect(page.getByRole("heading", { level: 1, name: "Predictions" })).toBeVisible();
+  // Les predictions font partie du rapport pre-match (projection, systeme, onze), sans exemple fictif ; l'ancienne page
+  // Predictions renvoie vers les rapports.
+  await expect(page.getByRole("heading", { name: "Projection du resultat" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Chez nous : joueurs a menager" })).toBeVisible();
   await expect(page.getByText("Chaponnay")).toHaveCount(0);
+  await page.goto("/ia");
+  await expect(page).toHaveURL(/\/rapports$/);
+  await page.goto(`/ia?adversaire=${match.clubDom}`);
+  await expect(page).toHaveURL(new RegExp(`/rapports/prematch/${match.clubDom}$`));
 });
 
 test("systeme de jeu : un educateur d'un autre club renseigne un systeme vide, jamais un systeme deja saisi, et le refus est explique", async ({ browser }) => {
@@ -587,7 +686,7 @@ test("accessibilite : aucune violation axe sur les pages principales, en theme n
     headers: { Authorization: `Bearer ${token}` },
   })).json();
   const adversaire = clubs.find((c) => c.nom !== "OL Sud E2E");
-  const pages = ["/", "/rapports", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical", "/ia", "/admin/ia",
+  const pages = ["/", "/rapports", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical", "/admin/ia",
     ...(adversaire ? [`/rapports/prematch/${adversaire.id}`] : [])];
 
   const violations: string[] = [];
@@ -610,17 +709,51 @@ test("accessibilite : aucune violation axe sur les pages principales, en theme n
   expect(violations, "violations d'accessibilite (axe-core)").toEqual([]);
 });
 
-test("saison archivee : /tactique s'affiche en consultation seule", async () => {
+test("saison archivee : entrainements, tactique et predictions sont fermes, avec leur raison ; le reste reste consultable", async () => {
+  const nav = page.getByRole("navigation", { name: "Navigation principale" });
+  // Saison active (2025-2026) : toute la preparation du match est ouverte.
+  await page.goto("/");
+  await ouvrirSelecteur(page);
+  await page.getByRole("button", { name: /^2025-2026/ }).click();
+  await page.goto("/");
+  for (const nom of ["Entrainements", "Tactique", "Saisons"]) await expect(nav.getByRole("link", { name: nom, exact: true })).toBeVisible();   // l'administrateur voit les Saisons
+
+  // Saison archivee (2024-2025) : ces onglets disparaissent de la navigation.
+  await ouvrirSelecteur(page);
+  await page.getByRole("button", { name: /^2024-2025/ }).click();
+  await page.goto("/");
+  for (const nom of ["Entrainements", "Tactique"]) await expect(nav.getByRole("link", { name: nom, exact: true })).toHaveCount(0);
+  for (const nom of ["Effectif", "Medical", "Matchs", "Rapports"]) await expect(nav.getByRole("link", { name: nom, exact: true })).toBeVisible();
+
+  // Taper l'adresse ne contourne rien : la page dit pourquoi, et propose de revenir a la saison en cours.
+  for (const [chemin, page_] of [["/tactique", "Tactique"], ["/entrainements", "Entrainements"]] as const) {
+    await page.goto(chemin);
+    const indisponible = page.getByTestId("page-indisponible");
+    await expect(indisponible).toHaveAttribute("data-restriction", "saison-passee");
+    await expect(indisponible).toContainText(`${page_} : disponible sur la saison en cours`);
+    await expect(indisponible).toContainText("2024-2025");
+    await expect(page.locator("button:enabled", { hasText: "Enregistrer" })).toHaveCount(0);
+  }
+  // L'ancienne page Predictions renvoie vers les rapports, ou le pre-match est ferme lui aussi.
+  await page.goto("/rapports");
+  await expect(page.getByTestId("rapports-saison-passee")).toContainText("le pre-match (avec ses predictions) se prepare sur la saison en cours");
+  await expect(page.getByTestId("prochain-match")).toHaveCount(0);
+  await page.goto("/rapports/prematch/un-club");
+  await expect(page.getByTestId("page-indisponible")).toContainText("Rapport pre-match : disponible sur la saison en cours");
+
+  // Revenir a la saison en cours rouvre ces pages.
+  await page.getByRole("button", { name: /Revenir a 2025-2026/ }).click();
+  await page.waitForLoadState("load");
+  await page.goto("/tactique");
+  await expect(page.getByTestId("page-indisponible")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "11 de depart" })).toBeVisible();
+  await page.goto("/entrainements");
+  await expect(page.getByTestId("page-indisponible")).toHaveCount(0);
+
+  // Le parcours suivant part de la saison archivee, comme avant.
   await page.goto("/");
   await ouvrirSelecteur(page);
   await page.getByRole("button", { name: /^2024-2025/ }).click();
-
-  await page.goto("/tactique");
-
-  await expect(page.getByText(/archivee, en consultation seule/)).toBeVisible();
-  // Aucune ecriture possible : pas de bouton Enregistrer actif (ici l'effectif archive est vide, la page le dit).
-  await expect(page.getByText("Aucun joueur dans l'effectif")).toBeVisible();
-  await expect(page.locator("button:enabled", { hasText: "Enregistrer" })).toHaveCount(0);
 });
 
 test("effectif : trier par n'importe quelle colonne de stats, en cliquant son en-tete", async () => {
@@ -824,6 +957,17 @@ test("referent de club : cree les comptes de ses educateurs, sans rien voir ni p
     await p.locator("button[type=submit]").click();
     await p.waitForURL((u) => u.pathname === "/");
 
+    // Les saisons et l'IA sont reservees a l'administrateur : ni onglet, ni page (l'adresse tapee a la main est refusee).
+    const navReferent = p.getByRole("navigation", { name: "Navigation principale" });
+    await expect(navReferent.getByRole("link", { name: "Import feuilles FMI" })).toBeVisible();
+    await expect(navReferent.getByRole("link", { name: "Saisons", exact: true })).toHaveCount(0);
+    for (const chemin of ["/saisons", "/admin/ia"]) {
+      await p.goto(chemin);
+      await expect(p.getByTestId("page-indisponible")).toHaveAttribute("data-restriction", "admin");
+      await expect(p.getByTestId("page-indisponible")).toContainText("reserve a l'administrateur");
+    }
+    await p.goto("/");
+
     // Entree dediee dans la navigation ; pas d'acces aux autres clubs (le club est impose par son jeton).
     // Au meme endroit que l'administration (en bas de la barre laterale, a cote de la deconnexion), pas dans les menus.
     await expect(p.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Mes educateurs" })).toHaveCount(0);
@@ -1021,7 +1165,7 @@ test("recherche : Ctrl+K et / placent le curseur, fiches seulement, Entree ouvre
   await page.keyboard.type("blessures");
   await expect(page.getByText(/Rien ne correspond/)).toBeVisible();
   await expect(page.getByRole("option")).toHaveCount(0);
-  await expect(page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Medical & charge" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Medical", exact: true })).toBeVisible();
 
   // Echap efface d'abord la saisie, puis rend la main, sans jamais naviguer.
   const url = page.url();
