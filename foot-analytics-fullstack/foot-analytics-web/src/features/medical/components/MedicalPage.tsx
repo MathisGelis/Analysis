@@ -126,7 +126,7 @@ export default async function Medical() {
           <BlessuresEditeur joueurs={effectif as any} initialBlessures={blessures as any} titre={`Blessures de la saison ${saison.nom}`} />
 
           <p className="px-1 text-[11px] text-faint">
-            La fatigue de l&apos;effectif (charge d&apos;entrainement et de match) se lit dans <Link href="/effectif" className="text-accent hover:underline">Effectif</Link> (tri par fatigue)
+            La fatigue de l&apos;effectif (charge d&apos;entrainement et de match) se lit dans <Link href="/effectif" className="text-accent underline underline-offset-2">Effectif</Link> (tri par fatigue)
             et sur la fiche de chaque joueur.
           </p>
         </>
