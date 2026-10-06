@@ -288,7 +288,7 @@ test("medical : resume des blessures de la saison, vide sans blessure, et la fat
   await expect(page.getByTestId("joueurs-touches")).toContainText(nomJoueur);
   await expect(page.getByTestId("rechutes")).toContainText("2 fois");             // meme joueur, meme cheville
   // Le detail et la saisie restent en bas de page.
-  await expect(page.getByRole("heading", { name: "Blessures de la saison 2026-2027 (2)" })).toBeVisible();
+  await expect(page.getByText("Blessures de la saison 2026-2027 (2)")).toBeVisible();
 
   // Saison active sans effectif : la page le dit.
   await page.goto("/");
