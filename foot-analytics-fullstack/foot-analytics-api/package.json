@@ -58,6 +58,9 @@
     "test-exclude": "^8.0.0",
     "typeorm": {
       "glob": "^13.0.6"
+    },
+    "js-yaml": {
+      "argparse": "^2.0.1"
     }
   }
 }
