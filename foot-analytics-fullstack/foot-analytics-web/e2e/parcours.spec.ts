@@ -309,6 +309,7 @@ test("import FMI : la feuille est importee puis consultable", async () => {
   test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis pour parser les PDF");
 
   await page.goto("/import");
+  await page.waitForLoadState("networkidle");                                  // page hydratee : un fichier depose avant serait ignore
   await page.locator("input[type=file]").first().setInputFiles(FMI);
 
   await expect(page.getByText("Importe", { exact: true })).toBeVisible({ timeout: 60_000 });
@@ -639,6 +640,7 @@ test("IA (administrateur) : onglet de l'administration, entrainement lance depui
   test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : l'entrainement lit les feuilles de match importees");
 
   await page.goto("/admin/utilisateurs");
+  await page.waitForLoadState("networkidle");                                  // page hydratee : un clic donne trop tot sur un lien serait perdu
   await page.getByRole("navigation", { name: "Administration" }).getByRole("link", { name: "IA" }).click();
   await expect(page).toHaveURL(/\/admin\/ia$/);
   await expect(page.getByRole("heading", { level: 1, name: "Intelligence artificielle" })).toBeVisible();
@@ -743,6 +745,7 @@ test("saison archivee : entrainements, tactique et predictions sont fermes, avec
 
   // Revenir a la saison en cours rouvre ces pages.
   await page.getByRole("button", { name: /Revenir a 2025-2026/ }).click();
+  await expect(page.getByTestId("page-indisponible")).toHaveCount(0);       // la page se recharge sur la saison en cours : on attend ce rechargement avant de naviguer
   await page.waitForLoadState("load");
   await page.goto("/tactique");
   await expect(page.getByTestId("page-indisponible")).toHaveCount(0);
