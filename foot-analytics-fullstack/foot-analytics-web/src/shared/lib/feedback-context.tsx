@@ -66,7 +66,7 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
     <Ctx.Provider value={valeur}>
       {children}
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[80] flex flex-col items-center gap-2 px-4 sm:inset-x-auto sm:right-6 sm:items-end"
+      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-80 flex flex-col items-center gap-2 px-4 sm:inset-x-auto sm:right-6 sm:items-end"
         aria-live="polite">
         {toasts.map((t) => <Notification key={t.id} toast={t} onFermer={() => retirer(t.id)} />)}
       </div>
@@ -86,7 +86,7 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
             <div className="flex justify-end gap-2">
               <button className="btn" onClick={() => repondre(false)} autoFocus>Annuler</button>
               <button
-                className={`btn ${confirmation.danger ? "!border-transparent !bg-danger !text-[rgb(var(--bg))]" : "btn-accent"}`}
+                className={`btn ${confirmation.danger ? "border-transparent! !bg-danger text-[rgb(var(--bg))]!" : "btn-accent"}`}
                 onClick={() => repondre(true)}
               >
                 {confirmation.libelleConfirmer ?? (confirmation.danger ? "Supprimer" : "Confirmer")}

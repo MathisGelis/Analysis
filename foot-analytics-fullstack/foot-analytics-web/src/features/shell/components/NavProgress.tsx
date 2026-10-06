@@ -42,7 +42,7 @@ function Barre() {
   return (
     <div
       aria-hidden="true"
-      className="fixed inset-x-0 top-0 z-[60] h-[3px] pointer-events-none"
+      className="fixed inset-x-0 top-0 z-60 h-[3px] pointer-events-none"
       style={{ opacity: etat === "repos" ? 0 : 1, transition: "opacity 250ms ease" }}
     >
       <div

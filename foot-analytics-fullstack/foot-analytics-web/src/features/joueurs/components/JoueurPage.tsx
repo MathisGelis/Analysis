@@ -102,10 +102,10 @@ export default async function JoueurPage({
 
       {/* IDENTITE */}
       <header className="panel relative grid grid-cols-12 gap-5 overflow-hidden p-6">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-accentstrong/[0.16] via-transparent to-accent2/[0.06]" />
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-accentstrong/[0.16] via-transparent to-accent2/[0.06]" />
         <div className="pitch-lines" />
         <div className="relative col-span-12 flex items-center gap-5 md:col-span-6">
-          <div className="grid h-24 w-24 shrink-0 place-items-center rounded-3xl bg-gradient-to-br from-accentstrong to-accentdeep font-display text-5xl font-bold text-white shadow-glow"
+          <div className="grid h-24 w-24 shrink-0 place-items-center rounded-3xl bg-linear-to-br from-accentstrong to-accentdeep font-display text-5xl font-bold text-white shadow-glow"
             title="Numero le plus porte sur la saison">
             {numero ?? "?"}
           </div>

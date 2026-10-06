@@ -303,7 +303,7 @@ function CalendrierContent() {
                     {slot.date.getDate()}
                   </div>
                   {/* Visibles au survol, au clavier (focus) et en permanence sur ecran tactile (pas de survol). */}
-                  <div className={`transition gap-0.5 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 group-focus-within:!opacity-100 ${
+                  <div className={`transition gap-0.5 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 group-focus-within:opacity-100! ${
                     lectureSeule ? "hidden" : "flex"
                   }`}>
                     <button

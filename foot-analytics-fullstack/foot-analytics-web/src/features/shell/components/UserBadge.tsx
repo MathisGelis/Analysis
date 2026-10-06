@@ -46,15 +46,15 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
 
   return (
     <div className="flex items-center gap-3 px-4 pb-3 pt-1">
-      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accentstrong to-accent2 font-display text-sm font-bold text-white">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-linear-to-br from-accentstrong to-accent2 font-display text-sm font-bold text-white">
         {initiales}
       </div>
       <div className="min-w-0 flex-1 leading-tight">
         <div className="truncate text-sm font-semibold text-ink">{user.prenom} {user.nom}</div>
         <div className="flex items-center gap-1.5 text-[11px] text-faint">
           <span className="truncate font-mono">{user.login}</span>
-          {user.role === "admin" && <span className="badge badge-accent !px-1.5 !py-0 !text-[10px]">Admin</span>}
-          {user.role === "referent" && <span className="badge badge-accent !px-1.5 !py-0 !text-[10px]">Referent</span>}
+          {user.role === "admin" && <span className="badge badge-accent !px-1.5 !py-0 text-[10px]!">Admin</span>}
+          {user.role === "referent" && <span className="badge badge-accent !px-1.5 !py-0 text-[10px]!">Referent</span>}
         </div>
       </div>
       {gestion && IconeGestion && (

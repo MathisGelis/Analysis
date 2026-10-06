@@ -53,7 +53,7 @@ export function ResumeSaison({ saison, effectif, blessures, noms, maintenant }: 
               <RepartitionBarres lignes={resume.parLocalisation} vide="Aucune localisation renseignee." />
               {resume.parGravite.length > 0 && (
                 <p className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-line pt-3 text-[11px] text-muted">
-                  Gravite : {resume.parGravite.map((g) => <span key={g.cle} className="badge !text-[10px]">{g.libelle} · {g.n}</span>)}
+                  Gravite : {resume.parGravite.map((g) => <span key={g.cle} className="badge text-[10px]!">{g.libelle} · {g.n}</span>)}
                 </p>
               )}
             </Bloc>

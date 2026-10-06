@@ -13,7 +13,7 @@ export function Kpi({ label, valeur, suffixe, note, ton = "neutre", testid }: {
   return (
     <div className="stat-tile no-coupure" data-testid={testid}>
       <div className="stat-label">{label}</div>
-      <div className={`stat-value mt-2 !text-[28px] ${ton === "danger" ? "!text-danger" : ton === "amber" ? "!text-amber" : ""}`}>
+      <div className={`stat-value mt-2 text-[28px]! ${ton === "danger" ? "!text-danger" : ton === "amber" ? "!text-amber" : ""}`}>
         {valeur}{suffixe && <span className="ml-1 text-xs font-medium text-muted">{suffixe}</span>}
       </div>
       {note && <div className="mt-1.5 text-xs text-muted">{note}</div>}
@@ -90,7 +90,7 @@ export function Rechutes({ rechutes }: { rechutes: ResumeBlessures["rechutes"] }
         <li key={`${r.joueurId}-${r.localisation}`} className="panel-inset no-coupure flex items-center gap-2 border-l-[3px] border-l-amber px-3 py-2 text-sm">
           <Link href={`/joueur/${r.joueurId}`} className="min-w-0 flex-1 truncate font-semibold text-ink hover:text-accent">{r.nom}</Link>
           <span className="text-xs text-muted">{r.localisation}</span>
-          <span className="badge badge-amber !text-[10px]">{r.n} fois</span>
+          <span className="badge badge-amber text-[10px]!">{r.n} fois</span>
         </li>
       ))}
     </ul>
@@ -109,7 +109,7 @@ export function IndisponiblesDuMoment({ blessures, noms, maintenant }: { blessur
           <li key={b.id} className="panel-inset no-coupure flex flex-wrap items-center gap-x-3 gap-y-1 border-l-2 border-l-danger p-3 text-sm">
             <Link href={`/joueur/${b.joueurId}`} className="font-semibold text-ink hover:text-accent">{noms.get(b.joueurId) ?? b.joueurNom ?? "Joueur"}</Link>
             <span className="text-muted">{b.localisation ?? "Localisation non precisee"}</span>
-            {b.statut && <span className="badge badge-danger !text-[10px]">{b.statut}</span>}
+            {b.statut && <span className="badge badge-danger text-[10px]!">{b.statut}</span>}
             <span className="ml-auto text-[11px] text-faint">
               {jours !== null ? `depuis ${jours} j` : ""}{b.retourEstime ? ` · retour estime ${b.retourEstime}` : ""}
             </span>

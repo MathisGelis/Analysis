@@ -5,7 +5,7 @@
 // neutralise si l'utilisateur prefere moins d'animations.
 
 function Bloc({ className = "" }: { className?: string }) {
-  return <div className={`skeleton !rounded-[18px] border border-line ${className}`} aria-hidden="true" />;
+  return <div className={`skeleton rounded-[18px]! border border-line ${className}`} aria-hidden="true" />;
 }
 
 export default function Chargement() {

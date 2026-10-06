@@ -102,7 +102,7 @@ export function Flottant({ ancre, onFermer, hauteurMax = 320, largeurMin = 0, la
       // Avant son placement (un instant, avant le premier affichage) le panneau est transparent et non cliquable, jamais
       // `visibility:hidden` : un element cache ne peut pas prendre le focus, et la liste doit le prendre des l'ouverture.
       style={pos ? { top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxHeight } : { top: 0, left: 0, opacity: 0, pointerEvents: "none" }}
-      className={`panel-pop pop-in fixed z-[70] flex flex-col overflow-hidden !rounded-xl ${className}`}
+      className={`panel-pop pop-in fixed z-70 flex flex-col overflow-hidden !rounded-xl ${className}`}
     >
       {children}
     </div>,

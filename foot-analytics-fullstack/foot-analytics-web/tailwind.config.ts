@@ -13,7 +13,6 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        base:       "rgb(var(--bg) / <alpha-value>)",
         panel:      "rgb(var(--surface) / <alpha-value>)",
         panel2:     "rgb(var(--surface-2) / <alpha-value>)",
         panel3:     "rgb(var(--surface-3) / <alpha-value>)",

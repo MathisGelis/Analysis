@@ -191,7 +191,7 @@ export default function EffectifPage() {
                         {j.prenom} {j.nom}
                       </Link>
                       {j.typeDiscipline && (
-                        <div className="mt-0.5"><span className="badge badge-danger !px-1.5 !py-0 !text-[10px]">{j.typeDiscipline}</span></div>
+                        <div className="mt-0.5"><span className="badge badge-danger !px-1.5 !py-0 text-[10px]!">{j.typeDiscipline}</span></div>
                       )}
                     </div>
                   </div>

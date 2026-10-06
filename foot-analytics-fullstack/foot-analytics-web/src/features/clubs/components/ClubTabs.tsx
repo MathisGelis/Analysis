@@ -118,7 +118,7 @@ export function ClubTabs({
     <div className="space-y-6 fade-up">
       {/* ============= EN-TETE COMMUN A TOUS LES ONGLETS ============== */}
       <header className="panel p-6 relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-accentstrong/[0.16] via-transparent to-accent2/[0.06]" />
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-accentstrong/[0.16] via-transparent to-accent2/[0.06]" />
         <div className="pitch-lines" />
         <div className="relative flex items-start gap-5 flex-wrap">
           <ClubBadge clubId={club.id} size={86} />

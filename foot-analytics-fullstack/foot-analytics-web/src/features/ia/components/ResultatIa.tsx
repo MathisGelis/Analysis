@@ -22,7 +22,7 @@ function Tuile({ label, valeur, aide, testid }: { label: string; valeur: string;
   return (
     <div className="stat-tile" data-testid={testid}>
       <div className="stat-label">{label}</div>
-      <div className="stat-value mt-2 !text-[28px]">{valeur}</div>
+      <div className="stat-value mt-2 text-[28px]!">{valeur}</div>
       {aide && <div className="mt-1.5 text-xs text-muted">{aide}</div>}
     </div>
   );

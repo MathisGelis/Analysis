@@ -38,7 +38,7 @@ function Contenu({
       {/* Marque */}
       <div className={`flex items-center ${compact ? "justify-center px-2" : "justify-between px-4"} pt-4 pb-3`}>
         <Link href="/" className="flex items-center gap-3 group min-w-0" title="Dashboard">
-          <Logo size={compact ? 38 : 40} className="shrink-0 transition-transform duration-300 group-hover:rotate-[-6deg] group-hover:scale-105" />
+          <Logo size={compact ? 38 : 40} className="shrink-0 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105" />
           {!compact && (
             <div className="leading-tight min-w-0">
               <div className="font-display text-[17px] font-bold text-ink truncate">Foot Analytics</div>
@@ -146,7 +146,7 @@ export function Sidebar({ replie, onBasculerReplie, mobileOuvert, onFermerMobile
     <>
       {/* Bureau : colonne collante, largeur animee entre menu complet et rail d'icones. */}
       <aside
-        className={`relative z-20 hidden lg:block print:!hidden shrink-0 border-r border-line glass transition-[width] duration-300 ease-smooth
+        className={`relative z-20 hidden lg:block print:hidden! shrink-0 border-r border-line glass transition-[width] duration-300 ease-smooth
           ${replie ? "w-[84px]" : "w-[268px]"}`}
       >
         <div className="sticky top-0 h-screen">

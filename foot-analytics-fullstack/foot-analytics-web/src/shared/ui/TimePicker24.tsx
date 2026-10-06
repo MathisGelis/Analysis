@@ -58,13 +58,13 @@ export function TimePicker24({
   return (
     <div className={`flex items-center gap-1 ${className}`}>
       <Select
-        className="inp font-mono tabular-nums !w-[4.5rem]" ariaLabel={`${ariaLabel} (heures)`}
+        className="inp font-mono tabular-nums w-[4.5rem]!" ariaLabel={`${ariaLabel} (heures)`}
         valeur={h == null ? "" : String(h)} options={optionsHeures} recherche={false} largeurListe={72}
         placeholder="--" onChange={(v) => emit(v === "" ? null : +v, m)}
       />
       <span className="text-faint font-mono">:</span>
       <Select
-        className="inp font-mono tabular-nums !w-[4.5rem]" ariaLabel={`${ariaLabel} (minutes)`}
+        className="inp font-mono tabular-nums w-[4.5rem]!" ariaLabel={`${ariaLabel} (minutes)`}
         valeur={m == null ? "" : String(m)} options={optionsMinutes} recherche={false} largeurListe={72}
         placeholder="--" onChange={(v) => emit(h, v === "" ? null : +v)}
       />

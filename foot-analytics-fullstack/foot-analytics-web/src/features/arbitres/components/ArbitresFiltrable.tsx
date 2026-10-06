@@ -285,7 +285,7 @@ export function ArbitresFiltrable({
                   <Fragment key={a.id}>
                   {nouveauGroupe && (
                     <tr>
-                      <th colSpan={10} scope="colgroup" className="!bg-transparent !py-2 text-left h-section">
+                      <th colSpan={10} scope="colgroup" className="bg-transparent! !py-2 text-left h-section">
                         {groupe === "principal" ? "Arbitres principaux" : "Assistants et autres roles uniquement"}
                       </th>
                     </tr>

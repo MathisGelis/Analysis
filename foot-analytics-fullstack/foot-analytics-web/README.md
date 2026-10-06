@@ -159,13 +159,16 @@ il est ignore sinon. Voir `playwright.config.ts` pour les variables.
 
 ### Dependances et securite
 
-`npm audit --omit=dev` (ce qui part en production) : **0 vulnerabilite**. `npm audit` complet signale la seule famille `braces`
-(avis publie en septembre 2026, **aucune version corrigee n'existe** : la derniere, 3.0.3, est touchee), tiree par les outils de
-developpement uniquement (`tailwindcss` 3 et `@next/eslint-plugin-next`, via `micromatch` / `fast-glob` / `chokidar`) : un motif
-de glob imbrique a l'extreme fait deborder la pile, et ces motifs viennent de la configuration du depot, jamais d'une entree utilisateur.
-Passer a Tailwind 4 ne suffirait pas (le plugin ESLint de Next garde `fast-glob`) : a reverifier a chaque mise a jour
-(`npm audit`). Les autres avis ont ete corriges : `postcss-selector-parser` force a `^7.1.6` (`overrides`, CSS genere identique
-octet pour octet), et cote API `argparse` force a `^2` sous `js-yaml` (voir `foot-analytics-api/package.json`).
+`npm audit` : **0 vulnerabilite** (complet, dev compris), comme cote API. L'avis `braces` (pile epuisee par des motifs de glob
+imbriques, **aucune version corrigee**) etait tire par `tailwindcss` 3 (`micromatch`, `fast-glob`, `chokidar`) et par
+`@next/eslint-plugin-next` (`fast-glob`) ; la chaine a ete supprimee plutot que toleree :
+
+- **Tailwind 4** (`tailwindcss` + `@tailwindcss/postcss`, plus d'`autoprefixer`) : le fichier `tailwind.config.ts` est charge par
+  `@config` dans `globals.css` (les tokens restent des variables CSS). Le jeton de couleur `base`, jamais utilise, a ete retire : en v4
+  il masquait la taille de texte `text-base`.
+- **`@next/eslint-plugin-next`** : son unique usage de `fast-glob` (reglage `settings.next.rootDir`, non utilise ici) est
+  redirige par `overrides` vers `tinyglobby` (meme appel `globSync`, sans `braces`).
+- Autres avis : `postcss-selector-parser` force a `^7.1.6` (`overrides`), et cote API `argparse` force a `^2` sous `js-yaml`.
 
 ### Diagnostic
 

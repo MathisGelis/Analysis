@@ -672,8 +672,8 @@ export default async function RapportEquipe({
                   i.delta > 0.5 ? "text-accent"
                   : i.delta < -0.5 ? "text-danger" : ""
                 }`}>
-                  {i.delta > 0 && <ArrowRight size={10} className="inline rotate-[-45deg] text-accent mr-0.5"/>}
-                  {i.delta < 0 && <ArrowRight size={10} className="inline rotate-[45deg] text-danger mr-0.5"/>}
+                  {i.delta > 0 && <ArrowRight size={10} className="inline -rotate-45 text-accent mr-0.5"/>}
+                  {i.delta < 0 && <ArrowRight size={10} className="inline rotate-45 text-danger mr-0.5"/>}
                   {i.delta >= 0 ? "+" : ""}{i.delta.toFixed(2)}
                 </td>
                 <td className={`text-right tabular-nums font-display font-bold ${

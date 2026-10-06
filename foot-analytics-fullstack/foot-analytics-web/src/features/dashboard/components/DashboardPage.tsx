@@ -117,13 +117,13 @@ export default async function Dashboard() {
           HERO : mon club, ma saison, mon classement
           ============================================================ */}
       <header className="panel relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-accentstrong/[0.18] via-transparent to-accent2/[0.08]" />
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-accentstrong/[0.18] via-transparent to-accent2/[0.08]" />
         <div className="pitch-lines" />
 
         <div className="relative grid grid-cols-12 items-center gap-6 p-6 sm:p-8">
           <div className="col-span-12 flex items-center gap-5 lg:col-span-6">
             <div className="relative shrink-0">
-              <div className="absolute inset-0 -z-0 rounded-full bg-accentstrong/30 blur-2xl" aria-hidden="true" />
+              <div className="absolute inset-0 z-0 rounded-full bg-accentstrong/30 blur-2xl" aria-hidden="true" />
               <ClubBadge clubId={clubPropreId} size={88} className="relative" />
             </div>
             <div className="min-w-0 flex-1">
@@ -478,7 +478,7 @@ function Kpi({
       </div>
       <div className="mt-4 flex items-end justify-between gap-2">
         <div>
-          <div className="stat-value !text-[40px]"><CountUp value={value} /></div>
+          <div className="stat-value text-[40px]!"><CountUp value={value} /></div>
           {sous && <div className="mt-1.5 text-xs text-muted">{sous}</div>}
         </div>
         {serie && serie.length > 1 && (

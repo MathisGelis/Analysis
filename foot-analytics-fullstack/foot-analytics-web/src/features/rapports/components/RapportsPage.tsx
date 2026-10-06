@@ -84,7 +84,7 @@ export default async function Rapports() {
       {/* Prochain match : le pre-match, en un clic */}
       {prematchOuvert && (
         <section className="panel relative overflow-hidden p-5" data-testid="prochain-match">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-accentstrong/[0.12] via-transparent to-accent2/[0.06]" />
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-accentstrong/[0.12] via-transparent to-accent2/[0.06]" />
           <div className="relative flex flex-wrap items-center gap-4">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-accent/10 text-accent"><Target size={20} aria-hidden /></div>
             <div className="min-w-0 flex-1">
@@ -167,9 +167,9 @@ function LigneClub({
       <div className="min-w-0 flex-1 basis-48">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="truncate font-display text-sm font-bold text-ink">{club.nom}</span>
-          {moi && <span className="badge badge-accent !text-[10px]">Mon equipe</span>}
-          {prochain && <span className="badge badge-accent !text-[10px]">Prochain match</span>}
-          {scouting && <span className="badge badge-amber !text-[10px]" title={scouting.date ? `Rapport de scouting du ${scouting.date}` : "Rapport de scouting"}><FileText size={9} aria-hidden /> Scouting</span>}
+          {moi && <span className="badge badge-accent text-[10px]!">Mon equipe</span>}
+          {prochain && <span className="badge badge-accent text-[10px]!">Prochain match</span>}
+          {scouting && <span className="badge badge-amber text-[10px]!" title={scouting.date ? `Rapport de scouting du ${scouting.date}` : "Rapport de scouting"}><FileText size={9} aria-hidden /> Scouting</span>}
         </div>
         {scouting?.dispositif && <div className="mt-0.5 text-[11px] text-muted">Dispositif attendu : <span className="font-semibold text-accent">{scouting.dispositif}</span></div>}
         {dynamique && <MiniDynamique equipe={dynamique} />}
