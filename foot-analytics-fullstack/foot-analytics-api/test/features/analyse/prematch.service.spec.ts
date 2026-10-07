@@ -1,0 +1,323 @@
+import { DataSource } from "typeorm";
+
+import { Arbitre } from "@/features/arbitres/arbitre.entity";
+import { Club } from "@/features/clubs/club.entity";
+import { Coach } from "@/features/coachs/coach.entity";
+import { Composition } from "@/features/matchs/composition.entity";
+import { Entrainement } from "@/features/entrainements/entrainement.entity";
+import { Equipe } from "@/features/equipes/equipe.entity";
+import { EvenementMatch } from "@/features/matchs/evenement-match.entity";
+import { Joueur } from "@/features/joueurs/joueur.entity";
+import { LigneClassement } from "@/features/classement/ligne-classement.entity";
+import { Match } from "@/features/matchs/match.entity";
+import { Saison } from "@/features/saisons/saison.entity";
+import { StaffMatch } from "@/features/coachs/staff-match.entity";
+import { creerBaseTest, fabriques } from "@test/support/test-db";
+import { AnalyseService } from "@/features/analyse/analyse.service";
+import { estMatchJoue } from "@/features/matchs/match-joue";
+import { PrematchService } from "@/features/analyse/prematch.service";
+
+describe("estMatchJoue", () => {
+  it("exclut les matchs annules, reportes et programmes (0-0 par defaut)", () => {
+    for (const statut of ["annule", "reporte", "prevu", "a_venir"]) {
+      expect(estMatchJoue({ statut } as Match)).toBe(false);
+    }
+    expect(estMatchJoue({ statut: "joue" } as Match)).toBe(true);
+    expect(estMatchJoue({ statut: undefined } as unknown as Match)).toBe(true);
+  });
+});
+
+describe("PrematchService.rapport", () => {
+  let ds: DataSource;
+  let svc: PrematchService;
+  let f: ReturnType<typeof fabriques>;
+
+  beforeEach(async () => {
+    ds = await creerBaseTest();
+    const analyse = new AnalyseService(
+      ds.getRepository(Club), ds.getRepository(Match), ds.getRepository(Joueur),
+      ds.getRepository(Composition), ds.getRepository(EvenementMatch), ds.getRepository(Entrainement),
+      ds.getRepository(Coach), ds.getRepository(StaffMatch), ds.getRepository(Equipe),
+      ds.getRepository(LigneClassement), ds.getRepository(Saison),
+    );
+    svc = new PrematchService(
+      analyse, ds.getRepository(Match), ds.getRepository(Equipe), ds.getRepository(Club),
+      ds.getRepository(LigneClassement), ds.getRepository(Saison), ds.getRepository(Arbitre),
+    );
+    f = fabriques(ds);
+  });
+  afterEach(() => ds.destroy());
+
+  /** Ma poule : moi, l'adversaire et un tiers ; un match programme moi / adversaire. */
+  async function contexte() {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse FC");
+    const tiers = await f.club("Tiers AS");
+    const s = await f.saison("2025-2026", 2025, { actif: true });
+    const commun = { categorie: "Seniors", saisonId: s.id, competitionLibelle: "D2", poule: "A" };
+    const eMoi = await f.equipe({ clubId: moi.id, nom: "Seniors", ...commun });
+    const eAdv = await f.equipe({ clubId: adv.id, nom: "Seniors", ...commun });
+    const eTiers = await f.equipe({ clubId: tiers.id, nom: "Seniors", ...commun });
+    const jouer = (dom: Club, ext: Club, eDom: Equipe, eExt: Equipe, date: string, sd: number, se: number, extra: object = {}) =>
+      f.match({
+        clubDom: dom.id, clubExt: ext.id, equipeDomId: eDom.id, equipeExtId: eExt.id, saisonId: s.id,
+        date, scoreDom: sd, scoreExt: se, ...extra,
+      });
+    return { moi, adv, tiers, s, eMoi, eAdv, eTiers, jouer };
+  }
+
+  it("equipe inconnue : 404", async () => {
+    const c = await contexte();
+    await expect(svc.rapport("nimporte", c.adv.id)).rejects.toThrow(/introuvable/);
+  });
+
+  it("club adverse inconnu, ou identique au mien : erreur claire", async () => {
+    const c = await contexte();
+    await expect(svc.rapport(c.eMoi.id, "nimporte")).rejects.toThrow(/introuvable/);
+    await expect(svc.rapport(c.eMoi.id, c.moi.id)).rejects.toThrow(/autre club/);
+  });
+
+  it("sans match joue : rapport a froid, pas de piste inventee, pas de match cible", async () => {
+    const c = await contexte();
+    const r = await svc.rapport(c.eMoi.id, c.adv.id);
+    expect(r.match).toBeNull();
+    expect(r.analyse).toBeNull();
+    expect(r.faceAFace.bilan.joues).toBe(0);
+    expect(r.adversaire.clubNom).toBe("Adverse FC");
+    expect(r.championnat).toMatchObject({ competition: "D2", poule: "A", saisonNom: "2025-2026", saisonActive: true });
+  });
+
+  it("cible le prochain match programme entre les deux clubs, et ignore un 0-0 programme dans les resultats", async () => {
+    const c = await contexte();
+    const demain = new Date(Date.now() + 7 * 86_400_000);
+    const iso = demain.toISOString().slice(0, 10);
+    await c.jouer(c.moi, c.adv, c.eMoi, c.eAdv, iso, 0, 0, { statut: "prevu", heure: "15:00", terrain: "Stade A" });
+    // Un match deja joue contre un tiers, pour avoir un bilan.
+    await c.jouer(c.moi, c.tiers, c.eMoi, c.eTiers, "01/09/2025", 2, 0);
+    const r = await svc.rapport(c.eMoi.id, c.adv.id);
+    expect(r.match).toMatchObject({ date: iso, heure: "15:00", terrain: "Stade A", domicile: true });
+    // Le match programme ne compte pas : seul le 2-0 existe.
+    expect(r.monEquipe.matchs).toBe(1);
+    expect(r.faceAFace.bilan.joues).toBe(0);
+  });
+
+  it("bilan de saison de l'adversaire : sa ligne de classement, sinon ses matchs ; lieux et cinq derniers matchs", async () => {
+    const c = await contexte();
+    // Adverse : 4 matchs joues (V 3-0 dom, N 1-1 ext, D 0-2 ext, V 2-1 dom), le premier contre un tiers, le plus recent en dernier.
+    await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, "07/09/2025", 3, 0);
+    await c.jouer(c.tiers, c.adv, c.eTiers, c.eAdv, "14/09/2025", 1, 1);
+    await c.jouer(c.tiers, c.adv, c.eTiers, c.eAdv, "21/09/2025", 2, 0);
+    await c.jouer(c.adv, c.moi, c.eAdv, c.eMoi, "28/09/2025", 2, 1);
+
+    const sans = (await svc.rapport(c.eMoi.id, c.adv.id)).adversaire;
+    expect(sans.bilan).toEqual({ joues: 4, v: 2, n: 1, d: 1, bp: 6, bc: 4, pts: null, rang: null, source: "matchs" });
+    expect(sans.lieux.domicile).toEqual({ joues: 2, v: 2, n: 0, d: 0, bp: 5, bc: 1 });
+    expect(sans.lieux.exterieur).toEqual({ joues: 2, v: 0, n: 1, d: 1, bp: 1, bc: 3 });
+    expect(sans.derniersMatchs.map((m) => [m.date, m.adversaire, m.domicile, m.bp, m.bc, m.issue])).toEqual([
+      ["28/09/2025", "OL Sud", true, 2, 1, "V"], ["21/09/2025", "Tiers AS", false, 0, 2, "D"],
+      ["14/09/2025", "Tiers AS", false, 1, 1, "N"], ["07/09/2025", "Tiers AS", true, 3, 0, "V"],
+    ]);
+
+    // Avec une ligne de classement : ses valeurs font foi (elle couvre des matchs que la base n'a pas).
+    await ds.getRepository(LigneClassement).save({ clubId: c.adv.id, equipeId: c.eAdv.id, saisonId: c.s.id, rang: 5, joues: 7, v: 4, n: 0, d: 3, bp: 14, bc: 9, pts: 12 } as any);
+    const avec = (await svc.rapport(c.eMoi.id, c.adv.id)).adversaire;
+    expect(avec.bilan).toEqual({ joues: 7, v: 4, n: 0, d: 3, bp: 14, bc: 9, pts: 12, rang: 5, source: "classement" });
+    expect(avec.lieux.domicile.joues).toBe(2);              // les lieux restent ceux des matchs connus
+  });
+
+  it("meilleurs buteurs de l'adversaire : ses buts seulement, hors contre son camp, au nom de la feuille", async () => {
+    const c = await contexte();
+    const m1 = await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, "07/09/2025", 3, 1);
+    const m2 = await c.jouer(c.tiers, c.adv, c.eTiers, c.eAdv, "14/09/2025", 1, 2);
+    await f.compo({ matchId: m1.id, cote: "dom", nom: "AVANT", prenom: "Leo", numero: 9 });
+    await f.compo({ matchId: m1.id, cote: "dom", nom: "MENEUR", prenom: "Tom", numero: 10 });
+    await f.compo({ matchId: m2.id, cote: "ext", nom: "AVANT", prenom: "Leo", numero: 9 });
+    for (const [m, joueur, equipe, sousType] of [
+      [m1, "AVANT Leo", "dom", "normal"], [m1, "AVANT Leo", "dom", "normal"], [m1, "TIERS Zed", "ext", "normal"],
+      [m2, "AVANT Leo", "ext", "normal"], [m2, "AVANT Leo", "ext", "csc"], [m2, "MENEUR Tom", "ext", "normal"],
+    ] as const) await f.evenement({ matchId: m.id, type: "but", sousType, joueur, equipe, minute: 30 });
+
+    const r = await svc.rapport(c.eMoi.id, c.adv.id);
+
+    expect(r.analyse!.buteurs).toEqual([{ nom: "Leo AVANT", buts: 3 }, { nom: "Tom MENEUR", buts: 1 }]);
+  });
+
+  it("match programme : arbitre designe repris tel qu'il est saisi, meme sans profil connu", async () => {
+    const c = await contexte();
+    const iso = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+    await c.jouer(c.moi, c.adv, c.eMoi, c.eAdv, iso, 0, 0, { statut: "prevu", arbitre: "  MARTIN Paul " });
+    const r = await svc.rapport(c.eMoi.id, c.adv.id);
+    expect(r.match!.arbitre).toBe("MARTIN Paul");
+    expect(r.arbitre).toBeNull();
+  });
+
+  it("face-a-face : rencontres jouees entre les deux clubs, de mon point de vue, recentes d'abord", async () => {
+    const c = await contexte();
+    await c.jouer(c.moi, c.adv, c.eMoi, c.eAdv, "10/09/2025", 3, 1);
+    await c.jouer(c.adv, c.moi, c.eAdv, c.eMoi, "15/10/2025", 2, 2);
+    const r = await svc.rapport(c.eMoi.id, c.adv.id);
+    expect(r.faceAFace.bilan).toMatchObject({ joues: 2, v: 1, n: 1, d: 0 });
+    expect(r.faceAFace.rencontres[0]).toMatchObject({ date: "15/10/2025", domicile: false, bp: 2, bc: 2, issue: "N" });
+  });
+
+  it("face-a-face : ne melange pas les categories (Seniors contre U20)", async () => {
+    const c = await contexte();
+    const u20Moi = await f.equipe({ clubId: c.moi.id, nom: "U20", categorie: "U20", saisonId: c.s.id });
+    const u20Adv = await f.equipe({ clubId: c.adv.id, nom: "U20", categorie: "U20", saisonId: c.s.id });
+    await c.jouer(c.moi, c.adv, c.eMoi, c.eAdv, "10/09/2025", 1, 0);
+    await c.jouer(c.moi, c.adv, u20Moi, u20Adv, "11/09/2025", 5, 0);
+    const r = await svc.rapport(c.eMoi.id, c.adv.id);
+    expect(r.faceAFace.bilan.joues).toBe(1);
+  });
+
+  it("match designe entre d'autres clubs : refuse", async () => {
+    const c = await contexte();
+    const autre = await c.jouer(c.moi, c.tiers, c.eMoi, c.eTiers, "01/09/2025", 1, 1);
+    await expect(svc.rapport(c.eMoi.id, c.adv.id, autre.id)).rejects.toThrow(/oppose pas/);
+    await expect(svc.rapport(c.eMoi.id, c.adv.id, "inconnu")).rejects.toThrow(/introuvable/);
+  });
+
+  it("arbitre : retrouve son profil par nom (prenom nom ou nom prenom)", async () => {
+    const c = await contexte();
+    await ds.getRepository(Arbitre).save(ds.getRepository(Arbitre).create({
+      nom: "DUPONT", prenom: "Jean", matchsPrincipal: 10, cartonsJaunesDonnes: 50, cartonsRougesDonnes: 5, profil: "Strict", motifsTop: "Contestation",
+    }));
+    const m = await c.jouer(c.moi, c.adv, c.eMoi, c.eAdv, "20/12/2030", 0, 0, { statut: "prevu", arbitre: "Jean Dupont" });
+    const r = await svc.rapport(c.eMoi.id, c.adv.id, m.id);
+    expect(r.arbitre).toMatchObject({ nom: "Jean DUPONT", profil: "Strict", matchsPrincipal: 10, cartonsParMatch: 5.5 });
+    // Nom non reconnu : pas d'arbitre, pas d'erreur.
+    const m2 = await c.jouer(c.moi, c.adv, c.eMoi, c.eAdv, "27/12/2030", 0, 0, { statut: "prevu", arbitre: "Inconnu Total" });
+    expect((await svc.rapport(c.eMoi.id, c.adv.id, m2.id)).arbitre).toBeNull();
+  });
+
+  it("rapport detaille de l'adversaire : avertis et joueurs ressortent quand ses matchs sont analyses", async () => {
+    const c = await contexte();
+    const m = await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, "05/10/2025", 1, 0);
+    await f.compo({ matchId: m.id, cote: "dom", nom: "ATTAQUANT", prenom: "Leo" });
+    await f.evenement({ matchId: m.id, type: "carton", sousType: "jaune", joueur: "ATTAQUANT Leo", equipe: "dom", minute: 80 });
+    const r = await svc.rapport(c.eMoi.id, c.adv.id);
+    expect(r.analyse).not.toBeNull();
+    expect(r.analyse!.matchsAnalyses).toBe(1);
+    expect(r.analyse!.avertis[0]).toMatchObject({ nom: expect.stringContaining("ATTAQUANT"), jaunes: 1, rouges: 0 });
+    expect(r.analyse!.compoProbable.length).toBeGreaterThan(0);
+  });
+
+  describe("systeme adverse et projection", () => {
+    it("systeme probable : d'apres les dispositifs RENSEIGNES de l'adversaire, vus de son cote", async () => {
+      const c = await contexte();
+      // Adverse a domicile (formationDom), puis a l'exterieur (formationExt), puis un match sans dispositif.
+      await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, "07/09/2025", 1, 0, { formationDom: "4-3-3" });
+      await c.jouer(c.tiers, c.adv, c.eTiers, c.eAdv, "14/09/2025", 2, 2, { formationExt: "4-3-3" });
+      await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, "21/09/2025", 0, 0);
+
+      const r = await svc.rapport(c.eMoi.id, c.adv.id);
+
+      expect(r.systemeAdverse).toMatchObject({ observes: 2, matchs: 3 });
+      expect(r.systemeAdverse.prediction).toMatchObject({ systeme: "4-3-3", observations: 2, fiabilite: "faible" });
+      expect(r.systemeAdverse.dernierMatchId).toBeTruthy();
+      expect(r.pistes.some((x) => x.titre === "Systeme probable : 4-3-3")).toBe(true);
+    });
+
+    /**
+     * Quatre matchs de l'adversaire ; sur chacun, un lateral (DEFA / DEFB, 2 et 4) et un attaquant (AVANT / MENEUR, 9 et 10)
+     * echangent leur numero un match sur deux : une defense a 4 et deux attaquants, seul le 4-4-2 les reunit.
+     */
+    async function matchsAvecNumeros(c: Awaited<ReturnType<typeof contexte>>, extra: object = {}) {
+      for (const [i, date] of ["07/09/2025", "14/09/2025", "21/09/2025", "28/09/2025"].entries()) {
+        const m = await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, date, 1, 0, extra);
+        const echange = i % 2 === 1;
+        await f.compo({ matchId: m.id, cote: "dom", nom: "GARDIEN", prenom: "Gil", numero: 1 });
+        await f.compo({ matchId: m.id, cote: "dom", nom: "DEFA", prenom: "Ali", numero: echange ? 4 : 2 });
+        await f.compo({ matchId: m.id, cote: "dom", nom: "DEFB", prenom: "Ben", numero: echange ? 2 : 4 });
+        await f.compo({ matchId: m.id, cote: "dom", nom: "AVANT", prenom: "Leo", numero: echange ? 10 : 9 });
+        await f.compo({ matchId: m.id, cote: "dom", nom: "MENEUR", prenom: "Tom", numero: echange ? 9 : 10 });
+      }
+    }
+
+    it("sans dispositif renseigne, le systeme se lit dans les changements de numero (defense a 4 et deux attaquants : 4-4-2)", async () => {
+      const c = await contexte();
+      await matchsAvecNumeros(c);
+
+      const r = await svc.rapport(c.eMoi.id, c.adv.id);
+
+      expect(r.systemeAdverse.prediction).toBeNull();
+      expect(r.systemeAdverse.probable).toMatchObject({ systeme: "4-4-2", source: "numeros", observations: 0, matchsNumeros: 4 });
+      expect(r.systemeAdverse.probable!.confiance).toBeLessThanOrEqual(70);
+      expect(r.systemeAdverse.probable!.disposition).toEqual([[2, 4, 5, 3], [7, 6, 8, 11], [9, 10]]);
+      expect(r.numeros!.indices.map((i) => i.regle)).toEqual(expect.arrayContaining(["lateral-axe", "deux-attaquants"]));
+      expect(r.pistes.find((x) => x.titre === "Systeme probable : 4-4-2")!.detail).toMatch(/changements de numero sur 4 feuilles/);
+      // Les numeros donnent aussi le onze : le gardien au 1.
+      expect(r.analyse!.compoProbable).toEqual(expect.arrayContaining([
+        expect.objectContaining({ numero: 1, poste: "GB", nom: "Gil GARDIEN" }),
+      ]));
+    });
+
+    it("des changements de numero qui ne tranchent pas : pas de systeme, mais les indices et les notes", async () => {
+      const c = await contexte();
+      for (const [i, date] of ["07/09/2025", "14/09/2025", "21/09/2025", "28/09/2025"].entries()) {
+        const m = await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, date, 1, 0);
+        await f.compo({ matchId: m.id, cote: "dom", nom: "AVANT", prenom: "Leo", numero: i % 2 ? 10 : 9 });
+        await f.compo({ matchId: m.id, cote: "dom", nom: "MENEUR", prenom: "Tom", numero: i % 2 ? 9 : 10 });
+      }
+      const r = await svc.rapport(c.eMoi.id, c.adv.id);
+      expect(r.systemeAdverse.probable).toBeNull();
+      expect(r.numeros!.structure.attaque).toEqual({ attaquants: 2, part: 100 });
+      expect(r.numeros!.notes.join(" ")).toMatch(/ne tranchent pas/);
+    });
+
+    it("dispositif renseigne ET numeros : les deux sont fusionnes, le dispositif saisi gardant la tete", async () => {
+      const c = await contexte();
+      await matchsAvecNumeros(c, { formationDom: "4-3-3" });
+
+      const r = await svc.rapport(c.eMoi.id, c.adv.id);
+
+      expect(r.systemeAdverse.prediction).toMatchObject({ systeme: "4-3-3", observations: 4 });
+      expect(r.systemeAdverse.probable).toMatchObject({ systeme: "4-3-3", source: "mixte", observations: 4, matchsNumeros: 4 });
+      expect(r.systemeAdverse.probable!.alternatives.map((a) => a.systeme)).toContain("4-4-2");
+    });
+
+    it("numeros de saison (hors 1-11) : aucun systeme ni poste deduits des numeros", async () => {
+      const c = await contexte();
+      for (const [i, date] of ["07/09/2025", "14/09/2025", "21/09/2025"].entries()) {
+        const m = await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, date, 1, 0);
+        await f.compo({ matchId: m.id, cote: "dom", nom: "AVANT", prenom: "Leo", numero: i % 2 ? 19 : 29 });
+      }
+
+      const r = await svc.rapport(c.eMoi.id, c.adv.id);
+
+      expect(r.systemeAdverse.probable).toBeNull();
+      expect(r.numeros!.fiabilite.exploitable).toBe(false);
+      expect(r.numeros!.notes[0]).toMatch(/Numeros peu fiables/);
+      expect(r.analyse!.compoProbable).toHaveLength(1);       // repli : les titulaires les plus utilises
+    });
+
+    it("le couple 4-4-2 / 4-2-3-1 ecrit en dur par l'ancien import n'est jamais une observation", async () => {
+      const c = await contexte();
+      for (const [i, date] of ["07/09/2025", "14/09/2025", "21/09/2025"].entries()) {
+        await c.jouer(i % 2 ? c.tiers : c.adv, i % 2 ? c.adv : c.tiers, i % 2 ? c.eTiers : c.eAdv, i % 2 ? c.eAdv : c.eTiers, date, 1, 1,
+          { formationDom: "4-4-2", formationExt: "4-2-3-1" });
+      }
+
+      const r = await svc.rapport(c.eMoi.id, c.adv.id);
+
+      expect(r.systemeAdverse).toMatchObject({ prediction: null, observes: 0, matchs: 3 });
+      expect(r.pistes.some((x) => x.titre.startsWith("Systeme probable"))).toBe(false);
+    });
+
+    it("projection de resultat : absente sous 5 matchs joues de chaque cote, puis de somme 100", async () => {
+      const c = await contexte();
+      await c.jouer(c.moi, c.tiers, c.eMoi, c.eTiers, "07/09/2025", 2, 0);
+      expect((await svc.rapport(c.eMoi.id, c.adv.id)).projection).toBeNull();
+
+      for (let i = 0; i < 5; i++) {
+        await c.jouer(c.moi, c.tiers, c.eMoi, c.eTiers, `0${i + 1}/10/2025`, 2, 1);
+        await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, `0${i + 1}/11/2025`, 1, 1);
+      }
+      const p = (await svc.rapport(c.eMoi.id, c.adv.id)).projection!;
+
+      expect(p.pV + p.pN + p.pD).toBe(100);
+      expect(p.matchs).toBe(5);
+      expect(p.pV).toBeGreaterThan(p.pD);       // je marque plus et encaisse moins que l'adversaire
+    });
+  });
+});

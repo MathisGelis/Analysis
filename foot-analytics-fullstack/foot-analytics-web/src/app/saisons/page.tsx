@@ -1,28 +1,13 @@
 // src/app/saisons/page.tsx
 //
-// Liste les saisons en base, marque la saison active, permet d'en
-// activer une autre ou d'en creer une nouvelle. Composant client pour
-// l'interactivite.
+// Route /saisons : la page vit dans features/saisons. Reservee a l'administrateur (voir
+// features/shell/lib/acces-pages.ts ; les ecritures sont de toute facon refusees par l'API).
 
-import { api } from "@/lib/api";
-import { SaisonsManager } from "@/components/SaisonsManager";
+import SaisonsPage from "@/features/saisons/components/SaisonsPage";
+import { GardePage } from "@/features/shell/components/GardePage";
 
 export const metadata = { title: "Saisons · Foot Analytics" };
 
-export default async function SaisonsPage() {
-  const [saisons, equipes] = await Promise.all([api.saisons(), api.equipes()]);
-  return (
-    <div className="space-y-6 fade-up">
-      <header>
-        <div className="h-section">Gestion multi-saisons</div>
-        <h1 className="font-display text-2xl font-bold text-ink">Saisons</h1>
-        <p className="text-sm text-muted mt-1">
-          La saison "active" est celle utilisee par defaut a l'import et
-          dans les vues. Une seule peut etre active a un instant donne.
-        </p>
-      </header>
-
-      <SaisonsManager saisons={saisons} equipes={equipes} />
-    </div>
-  );
+export default function Route() {
+  return <GardePage chemin="/saisons" page="Saisons"><SaisonsPage /></GardePage>;
 }

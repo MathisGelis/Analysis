@@ -6,3 +6,8 @@ out
 *.log
 .DS_Store
 parser/out
+*.tsbuildinfo
+e2e/.tmp
+test-results
+playwright-report
+.next-e2e

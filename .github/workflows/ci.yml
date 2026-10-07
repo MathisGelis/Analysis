@@ -1,0 +1,170 @@
+# Integration continue : verifie chaque pull request et chaque poussee sur la branche principale.
+#   api          : compilation TypeScript + tests Jest (base SQLite en memoire)
+#   api-postgres : la meme suite Jest sur Postgres 16 (un schema par test) + migrations, verrouillage RLS, copie SQLite -> Postgres
+#   parser       : tests du parseur de feuilles de match FMI (Python)
+#   web          : compilation TypeScript + lint ESLint + tests Vitest
+#   e2e          : parcours Playwright, avec sa propre API et son propre front (ports 4100 / 3100), sur SQLite puis sur Postgres
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  RACINE: foot-analytics-fullstack
+
+jobs:
+  api:
+    name: API (tsc + Jest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ${{ env.RACINE }}/foot-analytics-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.RACINE }}/foot-analytics-api/package-lock.json
+      - run: npm ci
+      - name: Compilation TypeScript
+        run: npx tsc --noEmit -p .
+      - name: Tests
+        run: npx jest --ci
+
+  api-postgres:
+    name: API (Jest sur Postgres)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: foot_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: ${{ env.RACINE }}/foot-analytics-api
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/foot_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.RACINE }}/foot-analytics-api/package-lock.json
+      - run: npm ci
+      - name: Tests sur Postgres
+        run: npx jest --ci
+
+  parser:
+    name: Parseur FMI (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ${{ env.RACINE }}/foot-analytics-api/parser
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: ${{ env.RACINE }}/foot-analytics-api/parser/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: pytest tests
+
+  web:
+    name: Front (tsc + Vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ${{ env.RACINE }}/foot-analytics-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.RACINE }}/foot-analytics-web/package-lock.json
+      - run: npm ci
+      - name: Compilation TypeScript
+        run: npx tsc --noEmit -p .
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npx vitest run
+
+  e2e:
+    name: Parcours de bout en bout (Playwright, ${{ matrix.db }})
+    needs: [api, api-postgres, web]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [sqlite, postgres]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: foot_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: ${{ env.RACINE }}/foot-analytics-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            ${{ env.RACINE }}/foot-analytics-api/package-lock.json
+            ${{ env.RACINE }}/foot-analytics-web/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # Le parcours d'import FMI lit un vrai PDF : il lui faut pdfplumber.
+      - run: pip install -r ../foot-analytics-api/parser/requirements.txt
+      - run: npm ci --prefix ../foot-analytics-api
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Parcours
+        run: npx playwright test
+        env:
+          PYTHON_BIN: python
+          # Vide = base SQLite jetable ; sinon l'API de test tourne sur Postgres (schema recree a chaque lancement).
+          E2E_DATABASE_URL: ${{ matrix.db == 'postgres' && 'postgres://postgres:postgres@localhost:5432/foot_e2e' || '' }}
+      - name: Traces en cas d'echec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces-${{ matrix.db }}
+          path: ${{ env.RACINE }}/foot-analytics-web/test-results
+          retention-days: 7

@@ -1,0 +1,142 @@
+// src/features/analyse/situation.service.ts
+//
+// Situation d'une equipe d'apres ses derniers matchs : le dispositif qu'elle joue (d'apres ceux que le staff a
+// renseignes) et son dernier onze (celui de la feuille du dernier match joue). Alimente la fiche club et son
+// rapport de scouting, a la place des valeurs figees d'un ancien rapport.
+
+import { Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { In, Repository } from "typeorm";
+
+import { Club } from "@/features/clubs/club.entity";
+import { Composition } from "@/features/matchs/composition.entity";
+import { Joueur } from "@/features/joueurs/joueur.entity";
+import { Match } from "@/features/matchs/match.entity";
+import { estMatchJoue } from "@/features/matchs/match-joue";
+import { normaliser } from "@/common/fuzzy";
+import { avecAvisDuModele, MatchDeLEquipe, systemeDuModele } from "@/features/ia/ia-live";
+import { IaService } from "@/features/ia/ia.service";
+
+import { analyserNumeros, lignesDeFeuille } from "./compo-numeros";
+import {
+  coteDe, DernierMatch, plusRecentsDAbord, SituationSysteme, systemeDe, versDernierMatch,
+} from "./situation-equipe";
+import { fusionnerSystemes, SystemeProbable } from "./systeme-probable";
+
+/** Taille des lots d'identifiants (SQLite limite le nombre de variables d'une requete). */
+const TAILLE_LOT = 500;
+
+export interface JoueurOnze {
+  numero: number; nom: string; prenom: string | null; licence: string | null;
+  /** Fiche du joueur dans la base, quand on la retrouve (licence, sinon nom dans le club). */
+  joueurId: string | null; poste: string | null;
+  capitaine: boolean; minutes: number;
+}
+
+export interface SituationClub {
+  clubId: string; equipeId: string | null; saisonId: string | null;
+  /**
+   * `prediction` : d'apres les dispositifs renseignes seuls ; `probable` : fusionnee avec ce que disent les numeros de
+   * maillot (features/analyse/systeme-probable.ts), c'est ce qu'il faut afficher.
+   */
+  systeme: SituationSysteme & { probable: SystemeProbable | null };
+  /** Le dernier match joue (dispositif renseigne ou non). */
+  dernierMatch: DernierMatch | null;
+  /** Le dernier match dont la feuille donne les titulaires, avec le onze et le banc. */
+  dernierOnze: { match: DernierMatch; titulaires: JoueurOnze[]; remplacants: JoueurOnze[] } | null;
+}
+
+@Injectable()
+export class SituationService {
+  constructor(
+    @InjectRepository(Club) private clubs: Repository<Club>,
+    @InjectRepository(Match) private matchs: Repository<Match>,
+    @InjectRepository(Composition) private compos: Repository<Composition>,
+    @InjectRepository(Joueur) private joueurs: Repository<Joueur>,
+    // Le modele de l'IA actif, s'il en est un : il choisit alors le dispositif probable (absent : le moteur a regles seul).
+    @Optional() private ia?: IaService,
+  ) {}
+
+  async situation(clubId: string, portee: { equipeId?: string | null; saisonId?: string | null } = {}): Promise<SituationClub> {
+    if (!(await this.clubs.findOne({ where: { id: clubId } }))) throw new NotFoundException(`Club ${clubId} introuvable`);
+    const cible = { clubId, equipeId: portee.equipeId || null };
+    const saisonId = portee.saisonId || null;
+    const filtreSaison = saisonId ? { saisonId } : {};
+    const tous = await this.matchs.find({ where: [{ ...filtreSaison, clubDom: clubId }, { ...filtreSaison, clubExt: clubId }] });
+    const joues = tous.filter(estMatchJoue).filter((m) =>
+      !cible.equipeId || m.equipeDomId === cible.equipeId || m.equipeExtId === cible.equipeId);
+
+    const recents = plusRecentsDAbord(joues);
+    let dernierOnze: SituationClub["dernierOnze"] = null;
+    for (const m of recents) {
+      const cote = coteDe(m, cible);
+      const lignes = await this.compos.find({ where: { matchId: m.id, cote } });
+      if (!lignes.some((c) => c.titulaire)) continue;      // feuille sans onze : on remonte au match precedent
+      const fiches = await this.fichesDe(clubId, lignes);
+      const vers = (c: Composition): JoueurOnze => {
+        const fiche = fiches.get(c.id) ?? null;
+        return {
+          numero: c.numero, nom: c.nom, prenom: c.prenom ?? null, licence: c.licence ?? null,
+          joueurId: fiche?.id ?? null, poste: fiche?.poste ?? null, capitaine: !!c.capitaine, minutes: c.minutes ?? 0,
+        };
+      };
+      const parNumero = (a: JoueurOnze, b: JoueurOnze) => a.numero - b.numero || a.nom.localeCompare(b.nom);
+      dernierOnze = {
+        match: versDernierMatch(m, cible),
+        titulaires: lignes.filter((c) => c.titulaire).map(vers).sort(parNumero),
+        // Le banc : ceux qui sont entres en jeu d'abord (un remplacant qui n'a pas joue n'apporte rien au scouting).
+        remplacants: lignes.filter((c) => !c.titulaire).map(vers).sort((a, b) => (b.minutes > 0 ? 1 : 0) - (a.minutes > 0 ? 1 : 0) || parNumero(a, b)),
+      };
+      break;
+    }
+
+    const systeme = systemeDe(joues, cible);
+    const feuilles = await this.feuilles(joues, cible);
+    const numeros = analyserNumeros(feuilles.flatMap((f) => lignesDeFeuille(f.m, f.compos)));
+    let probable = fusionnerSystemes(systeme.prediction, numeros);
+    // Le modele de l'IA actif choisit le dispositif quand il a appris les dispositifs (et fait au moins aussi bien que les regles).
+    const modele = probable && this.ia ? await this.ia.modeleActif() : null;
+    if (probable && modele) {
+      const matchs: MatchDeLEquipe[] = feuilles.map((f) => ({ m: f.m, dom: f.dom, titulaires: f.compos.filter((c) => c.titulaire), bancs: f.compos.filter((c) => !c.titulaire) }));
+      probable = avecAvisDuModele(probable, systemeDuModele(modele.poids, matchs), modele.nom);
+    }
+    return {
+      clubId, equipeId: cible.equipeId, saisonId,
+      systeme: { ...systeme, probable },
+      dernierMatch: recents[0] ? versDernierMatch(recents[0], cible) : null,
+      dernierOnze,
+    };
+  }
+
+  /** Les feuilles de la cible sur ces matchs : le match, son cote et les lignes (deux requetes par lot de 500 matchs au plus). */
+  private async feuilles(joues: Match[], cible: { clubId: string; equipeId: string | null }) {
+    const feuilles: { m: Match; dom: boolean; compos: Composition[] }[] = [];
+    for (let i = 0; i < joues.length; i += TAILLE_LOT) {
+      const lot = joues.slice(i, i + TAILLE_LOT);
+      const compos = await this.compos.find({ where: { matchId: In(lot.map((m) => m.id)) } });
+      for (const m of lot) {
+        const cote = coteDe(m, cible);
+        feuilles.push({ m, dom: cote === "dom", compos: compos.filter((c) => c.matchId === m.id && c.cote === cote) });
+      }
+    }
+    return feuilles;
+  }
+
+  /** Fiche de chaque ligne de feuille : par licence, sinon par nom (et initiale du prenom) dans le club. */
+  private async fichesDe(clubId: string, lignes: Composition[]): Promise<Map<string, Joueur>> {
+    const licences = [...new Set(lignes.map((c) => c.licence).filter((l): l is string => !!l))];
+    const [parLicence, duClub] = await Promise.all([
+      licences.length ? this.joueurs.find({ where: { licence: In(licences) } }) : Promise.resolve([] as Joueur[]),
+      this.joueurs.find({ where: { clubId } }),
+    ]);
+    const idxLicence = new Map(parLicence.map((j) => [j.licence, j]));
+    const resultat = new Map<string, Joueur>();
+    for (const c of lignes) {
+      const trouve = (c.licence && idxLicence.get(c.licence))
+        || duClub.find((j) => normaliser(j.nom) === normaliser(c.nom)
+          && (!c.prenom || !j.prenom || normaliser(j.prenom).startsWith(normaliser(c.prenom).charAt(0))));
+      if (trouve) resultat.set(c.id, trouve);
+    }
+    return resultat;
+  }
+}

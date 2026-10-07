@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 /**
- * Theme Foot Analytics — Football Manager + chaud, deux modes.
+ * Theme Foot Analytics — "Soiree de match" : bleu nuit + accent violet, deux modes.
  *
  * Toutes les couleurs sont liees a des CSS variables definies dans
  * globals.css. Le switch dark/light est gere par l'attribut
@@ -13,9 +13,9 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        base:       "rgb(var(--bg) / <alpha-value>)",
         panel:      "rgb(var(--surface) / <alpha-value>)",
         panel2:     "rgb(var(--surface-2) / <alpha-value>)",
+        panel3:     "rgb(var(--surface-3) / <alpha-value>)",
         line:       "rgb(var(--line) / <alpha-value>)",
         line2:      "rgb(var(--line-strong) / <alpha-value>)",
 
@@ -23,9 +23,11 @@ const config: Config = {
         muted:      "rgb(var(--muted) / <alpha-value>)",
         faint:      "rgb(var(--faint) / <alpha-value>)",
 
-        turf:       "rgb(var(--turf) / <alpha-value>)",
-        turfdim:    "rgb(var(--turf-dim) / <alpha-value>)",
-        turfdeep:   "rgb(var(--turf-deep) / <alpha-value>)",
+        accent:       "rgb(var(--accent) / <alpha-value>)",
+        accentdim:    "rgb(var(--accent-dim) / <alpha-value>)",
+        accentdeep:   "rgb(var(--accent-deep) / <alpha-value>)",
+        accentstrong: "rgb(var(--accent-strong) / <alpha-value>)",
+        accent2:      "rgb(var(--accent-2) / <alpha-value>)",
 
         sky:        "rgb(var(--sky) / <alpha-value>)",
         amber:      "rgb(var(--amber) / <alpha-value>)",
@@ -36,21 +38,22 @@ const config: Config = {
         loss:       "rgb(var(--loss) / <alpha-value>)",
       },
       fontFamily: {
-        display: ["Geist", "system-ui", "sans-serif"],
-        body:    ["Inter", "system-ui", "sans-serif"],
-        mono:    ['"JetBrains Mono"', "ui-monospace", "monospace"],
+        display: ['"Bricolage Grotesque Variable"', '"Instrument Sans Variable"', "ui-sans-serif", "system-ui", "sans-serif"],
+        body:    ['"Instrument Sans Variable"', "ui-sans-serif", "system-ui", "sans-serif"],
+        mono:    ['"JetBrains Mono Variable"', "ui-monospace", "monospace"],
       },
       borderRadius: {
-        xl2: "12px",
-        xl3: "14px",
+        xl2: "14px",
+        xl3: "18px",
+        xl4: "24px",
       },
       boxShadow: {
         panel: "var(--shadow-panel)",
         pop:   "var(--shadow-pop)",
-        glow:  "0 0 0 1px rgb(var(--turf) / .3), 0 0 28px -8px rgb(var(--turf) / .4)",
+        glow:  "var(--glow-accent)",
       },
       transitionTimingFunction: {
-        smooth: "cubic-bezier(.4,0,.2,1)",
+        smooth: "cubic-bezier(.2,.8,.2,1)",
       },
     },
   },

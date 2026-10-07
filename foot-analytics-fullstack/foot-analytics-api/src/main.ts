@@ -2,12 +2,16 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe, Logger } from "@nestjs/common";
+
+import { AuthService } from "@/features/auth/auth.service";
+import { BootstrapService } from "@/features/saisons/bootstrap.service";
+import { niveauxDeLog } from "@/common/log-level";
+import { EquipesService } from "@/features/equipes/equipes.service";
+
 import { AppModule } from "./app.module";
-import { AuthService } from "@/modules/auth/auth.module";
-import { BootstrapService } from "@/modules/bootstrap/bootstrap.module";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { logger: niveauxDeLog() });
 
   // Prefixe global : toutes les routes sous /api
   app.setGlobalPrefix("api");
@@ -32,6 +36,8 @@ async function bootstrap() {
       }
     },
     credentials: true,
+    // Le front lit le nom du fichier propose par l'export PowerPoint.
+    exposedHeaders: ["Content-Disposition"],
   });
 
   // Validation automatique des DTO (class-validator)
@@ -53,6 +59,23 @@ async function bootstrap() {
   // n'est requis : on peut deja basculer la saison active dessus).
   try { await app.get(BootstrapService).bootstrapSaisonsParDefaut(); }
   catch (e) { new Logger("Bootstrap").error(`bootstrap saisons: ${(e as Error).message}`); }
+
+  // Rattrape les clones provisoires de la saison precedente devenus doublons
+  // de la vraie equipe (autre poule) : fusion sure, joueurs et seances suivent.
+  // Idempotent ; AUTO_RECONCILE=false pour desactiver.
+  if (process.env.AUTO_RECONCILE !== "false") {
+    try {
+      const r = await app.get(EquipesService).reconcilier(true);
+      if (r.fusions.length > 0) {
+        new Logger("Bootstrap").log(
+          `Equipes reconciliees : ${r.fusions.map((f) => `${f.club} ${f.saison} ${f.source.nom} -> ${f.cible.nom}`).join(" ; ")}`,
+        );
+      }
+      if (r.ambigus.length > 0) {
+        new Logger("Bootstrap").warn(`${r.ambigus.length} cas d'equipes ambigus non fusionnes (voir POST /equipes/maintenance/reconcilier)`);
+      }
+    } catch (e) { new Logger("Bootstrap").error(`reconciliation des equipes: ${(e as Error).message}`); }
+  }
 
   const port = process.env.PORT ?? 4000;
   await app.listen(port);
