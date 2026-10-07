@@ -28,6 +28,7 @@ import { Entrainement } from "@/features/entrainements/entrainement.entity";
 import { Equipe } from "@/features/equipes/equipe.entity";
 import { EvenementMatch } from "@/features/matchs/evenement-match.entity";
 import { Joueur } from "@/features/joueurs/joueur.entity";
+import { calculerClassement } from "@/features/classement/calcul-classement";
 import { LigneClassement } from "@/features/classement/ligne-classement.entity";
 import { Match } from "@/features/matchs/match.entity";
 import { Saison } from "@/features/saisons/saison.entity";
@@ -575,79 +576,10 @@ export class DerivationService {
     return { joueurs: toSave.length, ownClubs: ownClubIds.size };
   }
 
-  /** Recalcule le classement a partir de tous les matchs joues. */
+  /** Recalcule le classement a partir de tous les matchs joues (regles : features/classement/calcul-classement.ts). */
   async rebuildClassement() {
-    const matchs = await this.matchs.find();
-
-    type S = { v: number; n: number; d: number; bp: number; bc: number;
-      results: { jn: number; issue: string }[];
-      clubId: string; equipeId: string | null; saisonId: string | null };
-    const stat = new Map<string, S>();
-    // Clef = saison|equipeId si equipeId existe, sinon saison|club pour
-    // compat. Permet a une meme saison de generer 1 ligne par equipe
-    // distincte (Seniors D2, Seniors R2, U20 R2...) du meme club.
-    const ensure = (clubId: string, equipeId: string | null, saisonId: string | null): S => {
-      const key = `${saisonId ?? ""}|${equipeId ?? clubId}`;
-      let s = stat.get(key);
-      if (!s) {
-        s = { v: 0, n: 0, d: 0, bp: 0, bc: 0, results: [],
-              clubId, equipeId, saisonId };
-        stat.set(key, s);
-      }
-      return s;
-    };
-
-    for (const m of matchs) {
-      if (m.statut && m.statut !== "joue") continue;
-      const jn = parseInt((m.journee ?? "").replace(/[^0-9]/g, ""), 10) || 0;
-      const dom = ensure(m.clubDom, m.equipeDomId ?? null, m.saisonId ?? null);
-      const ext = ensure(m.clubExt, m.equipeExtId ?? null, m.saisonId ?? null);
-      dom.bp += m.scoreDom; dom.bc += m.scoreExt;
-      ext.bp += m.scoreExt; ext.bc += m.scoreDom;
-      let di: string, ei: string;
-      if (m.scoreDom > m.scoreExt) { dom.v++; ext.d++; di = "V"; ei = "D"; }
-      else if (m.scoreDom < m.scoreExt) { dom.d++; ext.v++; di = "D"; ei = "V"; }
-      else { dom.n++; ext.n++; di = "N"; ei = "N"; }
-      dom.results.push({ jn, issue: di });
-      ext.results.push({ jn, issue: ei });
-    }
-
-    const rowsBrutes = [...stat.values()].map((s) => ({
-      clubId: s.clubId, equipeId: s.equipeId, saisonId: s.saisonId,
-      joues: s.v + s.n + s.d,
-      v: s.v, n: s.n, d: s.d, bp: s.bp, bc: s.bc,
-      pts: s.v * 3 + s.n,
-      forme: s.results.sort((a, b) => a.jn - b.jn).slice(-5).map((r) => r.issue),
-    }));
-
-    // Tri et rang : par (saison, equipe) puis pts/diff/bp DESCENDANT.
-    // Le rang est calcule a l'interieur d'un meme regroupement (saisonId,
-    // equipeId differents => classements differents qui ne se melangent
-    // pas — c'est ce qu'on veut pour D2, R2, U20 etc.).
-    // Regroupement par cle de competition : saisonId + (poule via une
-    // recherche dans les matchs originaux).
-    // Pour simplifier, on groupe par (saisonId, division+poule) via les
-    // equipes : 2 equipes sont dans le meme championnat si elles ont
-    // (meme competitionLibelle, meme poule, meme saison) — donc on
-    // re-cherche ca.
-    const equipes = await this.equipesRepo.find();
-    const equipeById = new Map(equipes.map((e) => [e.id, e]));
-    const groupes = new Map<string, typeof rowsBrutes>();
-    for (const r of rowsBrutes) {
-      const eq = r.equipeId ? equipeById.get(r.equipeId) : null;
-      const groupKey = `${r.saisonId ?? ""}|${eq?.competitionLibelle ?? ""}|${eq?.poule ?? ""}`;
-      if (!groupes.has(groupKey)) groupes.set(groupKey, []);
-      groupes.get(groupKey)!.push(r);
-    }
-    const rows: any[] = [];
-    for (const [, group] of groupes) {
-      group.sort(
-        (a, b) => b.pts - a.pts || (b.bp - b.bc) - (a.bp - a.bc) || b.bp - a.bp,
-      );
-      group.forEach((r, i) => ((r as any).rang = i + 1));
-      rows.push(...group);
-    }
-
+    const [matchs, equipes] = await Promise.all([this.matchs.find(), this.equipesRepo.find()]);
+    const rows = calculerClassement(matchs, equipes);
     await this.classement.clear();
     if (rows.length) await this.classement.save(rows as any);
     return rows;

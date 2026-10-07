@@ -20,7 +20,7 @@
 import { trierChronologiquement } from "@/common/dates";
 import { normaliser } from "@/common/fuzzy";
 import {
-  CodePoste, ligneDuNumero, LignePoste, NUMEROS_DE_POSTE, posteDuNumero,
+  CodePoste, ligneDuNumero, LignePoste, NUMEROS_DE_POSTE, numeroDePoste, posteDuNumero,
 } from "@/features/matchs/numeros-postes";
 
 /** Une ligne de feuille de match, du cote de l'equipe etudiee. */
@@ -256,7 +256,8 @@ export function analyserNumeros(lignes: LigneFeuille[], fenetre = FENETRE_NUMERO
       const c = cumuls.get(l.joueur) ?? cumuls.set(l.joueur, { joueur: l.joueur, nom: l.nom, titularisations: 0, poidsTotal: 0, parNumero: new Map() }).get(l.joueur)!;
       c.titularisations++; c.poidsTotal += poids;
       if (!posteDuNumero(l.numero)) continue;      // un titulaire en 14 n'a pas de poste lisible
-      const k = c.parNumero.get(l.numero) ?? c.parNumero.set(l.numero, { fois: 0, poids: 0 }).get(l.numero)!;
+      const no = numeroDePoste(l.numero);          // le 16 est un gardien : il occupe le poste du 1
+      const k = c.parNumero.get(no) ?? c.parNumero.set(no, { fois: 0, poids: 0 }).get(no)!;
       k.fois++; k.poids += poids;
     }
   });

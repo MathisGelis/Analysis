@@ -7,7 +7,7 @@
 //   3. sinon rien : la fiche invite a le renseigner sur le dernier match.
 // Fonctions pures.
 
-import { ligneDuPoste, type Ligne } from "@/features/tactique/lib/composition";
+import { estNumeroGardien, ligneDuPoste, type Ligne } from "@/features/tactique/lib/composition";
 
 import type { JoueurOnze, SituationClub } from "./situation-types";
 
@@ -57,7 +57,7 @@ const RANG: Record<Ligne, number> = { GB: 0, DEF: 1, MIL: 2, ATT: 3 };
 function ligneDe(j: Pick<JoueurOnze, "poste" | "numero">): Ligne {
   const d = ligneDuPoste(j.poste);
   if (d) return d;
-  if (j.numero === 1 || j.numero === 16) return "GB";
+  if (estNumeroGardien(j.numero)) return "GB";
   if (j.numero <= 5) return "DEF";
   return [6, 8, 10].includes(j.numero) ? "MIL" : "ATT";
 }

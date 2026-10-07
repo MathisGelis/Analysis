@@ -187,7 +187,7 @@ function TeamStats({ matchs, clubs, ownClubId }:
       return byClub.get(id)!;
     };
     for (const m of matchs) {
-      if (m.statut && m.statut !== "joue") continue;
+      if (["prevu", "a_venir", "annule", "reporte"].includes((m.statut ?? "joue").toLowerCase())) continue;     // meme regle que le classement
       const dom = ensure(m.clubDom);
       const ext = ensure(m.clubExt);
       dom.joues++; ext.joues++;

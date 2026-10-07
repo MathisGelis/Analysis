@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { diffButs, fenetreClassement, ligneDeLEquipe, ligneDuClub, lignesDuChampionnat } from "@/features/classement/lib/classement";
+import { diffButs, fenetreClassement, ligneDeLEquipe, ligneDuClub, lignesDuChampionnat, matchsDuChampionnat } from "@/features/classement/lib/classement";
 import type { Equipe, LigneClassement } from "@/shared/lib/types";
 
 const l = (equipeId: string, rang: number, o: Partial<LigneClassement> = {}): LigneClassement => ({
@@ -66,5 +66,20 @@ describe("ligneDuClub", () => {
   it("ignore les autres saisons et les autres clubs", () => {
     expect(ligneDuClub(classement, equipes, "club", "s2")).toBeNull();
     expect(ligneDuClub(classement, equipes, "inconnu", "s1")).toBeNull();
+  });
+});
+
+describe("matchsDuChampionnat", () => {
+  const champ = new Set(["senA", "senB"]);
+  const m = (equipeDomId: string | null, equipeExtId: string | null) => ({ equipeDomId, equipeExtId });
+  it("un match entre deux equipes du championnat", () => {
+    expect(matchsDuChampionnat([m("senA", "senB")], champ)).toHaveLength(1);
+  });
+  it("jamais un match des memes clubs dans un autre championnat (U20 entre les clubs de la poule Seniors)", () => {
+    expect(matchsDuChampionnat([m("u20A", "u20B"), m("senA", "u20B")], champ)).toEqual([]);
+  });
+  it("une equipe inconnue ne disqualifie pas le match dont l'autre equipe en est ; deux inconnues : exclu", () => {
+    expect(matchsDuChampionnat([m("senA", null), m(null, "senB")], champ)).toHaveLength(2);
+    expect(matchsDuChampionnat([m(null, null), m("autre", null)], champ)).toEqual([]);
   });
 });

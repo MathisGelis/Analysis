@@ -29,6 +29,15 @@ describe("analyserNumeros : postes", () => {
     expect(a.notes.join(" ")).toMatch(/Aucun changement de numero/);
   });
 
+  it("un gardien en 16 occupe le poste du gardien (1), sans fausser le systeme ni le onze", () => {
+    const a = analyserNumeros(saison({ p1: 16 }, { p1: 16 }, { p1: 1 }));
+    const gb = a.onze[0];
+    expect([gb.numero, gb.poste, gb.nom, gb.fois, gb.origine]).toEqual([1, "GB", "Joueur 1", 3, "numero"]);
+    expect(a.onze.every((p) => p.joueur !== null)).toBe(true);
+    expect(a.profils.find((p) => p.nom === "Joueur 1")!.polyvalent).toBe(false);   // 16 et 1 : meme poste, pas un changement de poste
+    expect(a.systeme).toBeNull();
+  });
+
   it("une seule feuille : les postes, mais aucun changement a observer", () => {
     const a = analyserNumeros(feuille("m1", "01/09/2025"));
     expect(a.onze).toHaveLength(11);

@@ -7,6 +7,7 @@ import {
 import { Acces } from "@/features/acces/acces.decorator";
 import { AccesService } from "@/features/acces/acces.service";
 import { ContexteAcces } from "@/features/acces/contexte-acces";
+import { ClassementService } from "@/features/classement/classement.service";
 
 import { DispositifsMatchDto, UpsertMatchDto, UpdateMatchDto } from "./matchs.dto";
 import { MatchsService } from "./matchs.service";
@@ -14,7 +15,7 @@ import { refusSaisieDispositifs } from "./systeme";
 
 @Controller("matchs")
 export class MatchsController {
-  constructor(private svc: MatchsService, private acces: AccesService) {}
+  constructor(private svc: MatchsService, private acces: AccesService, private classement: ClassementService) {}
 
   /**
    * Programmer ou modifier un match : l'un des deux clubs doit etre le mien et, de mon cote, l'equipe qui m'est attribuee
@@ -50,13 +51,17 @@ export class MatchsController {
   }
   @Post() async create(@Acces() ctx: ContexteAcces, @Body() dto: UpsertMatchDto) {
     await this.exigerMatchDeMonClub(ctx, dto);
-    return this.svc.create(dto);
+    const cree = await this.svc.create(dto);
+    await this.classement.recalculer();                 // un score saisi change le classement
+    return cree;
   }
   @Patch(":id") async update(@Acces() ctx: ContexteAcces, @Param("id") id: string, @Body() dto: UpdateMatchDto) {
     const actuel = await this.acces.matchGere(ctx, id);
     // Le match modifie doit lui aussi rester un match de mon club (pas de transfert a un autre club ou une autre equipe).
     await this.exigerMatchDeMonClub(ctx, { ...actuel, ...dto });
-    return this.svc.update(id, dto);
+    const modifie = await this.svc.update(id, dto);
+    await this.classement.recalculer();
+    return modifie;
   }
   /**
    * Saisir le systeme de jeu d'un match. Plus large que la modification : un dispositif vide peut etre renseigne sur le
@@ -75,6 +80,8 @@ export class MatchsController {
   }
   @Delete(":id") async remove(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
     await this.acces.matchGere(ctx, id);
-    return this.svc.remove(id);
+    const supprime = await this.svc.remove(id);
+    await this.classement.recalculer();
+    return supprime;
   }
 }

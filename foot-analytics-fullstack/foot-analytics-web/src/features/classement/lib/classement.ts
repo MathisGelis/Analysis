@@ -27,6 +27,22 @@ export function ligneDeLEquipe(
   return equipeId ? lignes.find((l) => l.equipeId === equipeId) ?? null : null;
 }
 
+/**
+ * Les matchs du championnat : ceux dont les DEUX equipes en font partie (une equipe inconnue ne disqualifie pas un match dont
+ * l'autre en est). Jamais "deux clubs du championnat" : les memes clubs se rencontrent aussi en U20, U15... dans d'autres
+ * championnats, et ces matchs gonfleraient les statistiques de celui-ci.
+ */
+export function matchsDuChampionnat<M extends { equipeDomId?: string | null; equipeExtId?: string | null }>(
+  matchs: readonly M[],
+  equipesDuChampionnat: ReadonlySet<string>,
+): M[] {
+  return matchs.filter((m) => {
+    const dom = m.equipeDomId ?? null, ext = m.equipeExtId ?? null;
+    if (!dom && !ext) return false;
+    return (!dom || equipesDuChampionnat.has(dom)) && (!ext || equipesDuChampionnat.has(ext));
+  });
+}
+
 export const diffButs = (l: Pick<LigneClassement, "bp" | "bc">): number => l.bp - l.bc;
 
 /**

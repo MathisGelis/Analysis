@@ -8,6 +8,7 @@
 import { api } from "@/shared/lib/api";
 import { getOwnClubIdServer } from "@/features/equipes/lib/own-club";
 import { resolveEquipePropre } from "@/features/equipes/lib/resolve-equipe-propre";
+import { matchsDuChampionnat } from "@/features/classement/lib/classement";
 import { CHAMPS_JOUEUR_CLASSEMENT, CHAMPS_MATCH_CLASSEMENT, garder } from "@/features/classement/lib/allegement";
 
 import { ClassementTabs } from "./ClassementTabs";
@@ -41,21 +42,10 @@ export default async function Classement() {
   let joueursDuChampionnat: any[] = [];
   if (equipePropre) {
     joueursDuChampionnat = await api.joueursChampionnat(equipePropre.id);
-    const clubsDuChampionnat = new Set(
-      classementBrut
-        .filter((l: any) => l.equipeId && equipesDuChampionnat.has(l.equipeId))
-        .map((l: any) => l.clubId),
-    );
     classement = classementBrut.filter((l: any) =>
       l.equipeId && equipesDuChampionnat.has(l.equipeId),
     );
-    matchsChampionnat = matchs.filter((m: any) =>
-      (m.equipeDomId && equipesDuChampionnat.has(m.equipeDomId))
-      || (m.equipeExtId && equipesDuChampionnat.has(m.equipeExtId))
-      || (m.saisonId === equipePropre.saisonId
-          && clubsDuChampionnat.has(m.clubDom)
-          && clubsDuChampionnat.has(m.clubExt)),
-    );
+    matchsChampionnat = matchsDuChampionnat(matchs, equipesDuChampionnat);
   }
 
   // Recompose la valeur a afficher dans le header.

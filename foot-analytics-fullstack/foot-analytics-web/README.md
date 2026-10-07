@@ -45,7 +45,7 @@ Fair-play, Import FMI (upload reel vers le parseur du backend).
 | Section | Description |
 |---|---|
 | **Dashboard** | Hero club, KPIs (BM/BC, forme, discipline), dernier match, prochain match avec acces au rapport scouting, courbe BM/BC saison, top forme, classement Poule C |
-| **Championnat** | Classement complet 12 equipes + buts par equipe |
+| **Championnat** | Classement complet de la poule (depart FFF a egalite de points) + statistiques par equipe, limitees aux matchs de CE championnat |
 | **Mon club** | Identite, bilan dom/ext, effectif, historique des matchs |
 | **Effectif** | 57 joueurs Chaponnay reels, filtres poste + tri (matchs/forme/discipline/nom) |
 | **Joueur** | Identite, score de forme, note, risque blessure IA, polyvalence postes, observations |

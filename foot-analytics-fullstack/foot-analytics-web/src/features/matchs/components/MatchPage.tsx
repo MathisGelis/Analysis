@@ -12,6 +12,7 @@ import {
 import { api } from "@/shared/lib/api";
 import { getOwnClubIdServer } from "@/features/equipes/lib/own-club";
 import { ClubBadge } from "@/features/clubs/components/ClubBadge";
+import { ordonnerOnze } from "@/features/matchs/lib/onze";
 import { Pitch } from "@/shared/ui/Pitch";
 import { PitchHeatmap } from "@/shared/ui/Charts";
 import { PlanRealise } from "@/features/tactique/components/PlanRealise";
@@ -74,8 +75,9 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     }
   }
 
-  const titulairesDom = (m.compoDom ?? []).filter((p: any) => p.titulaire);
-  const titulairesExt = (m.compoExt ?? []).filter((p: any) => p.titulaire);
+  // Le gardien (maillot 1 ou 16) en premier : le terrain range les joueurs dans l'ordre de la liste, le gardien au but.
+  const titulairesDom = ordonnerOnze((m.compoDom ?? []).filter((p: any) => p.titulaire));
+  const titulairesExt = ordonnerOnze((m.compoExt ?? []).filter((p: any) => p.titulaire));
 
   // Arbitre principal : lien vers sa fiche quand la FMI l'a rattache a un arbitre.
   const arbitrePrincipal = (arbitresLiens as any[]).find(

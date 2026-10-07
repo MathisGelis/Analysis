@@ -15,6 +15,10 @@ export const REMPLACANTS_PAR_DEFAUT = 3;
 export type Ligne = "GB" | "DEF" | "MIL" | "ATT";
 export const LIBELLE_LIGNE: Record<Ligne, string> = { GB: "Gardien", DEF: "Defense", MIL: "Milieu", ATT: "Attaque" };
 
+/** Maillots de gardien, selon la convention du staff : le 1 et le 16 (le gardien remplacant). */
+export const NUMEROS_GARDIEN: readonly number[] = [1, 16];
+export const estNumeroGardien = (numero: number | null | undefined): boolean => NUMEROS_GARDIEN.includes(numero as number);
+
 /** Ligne d'un poste de la base ("GB", "G", "DC", "MO", "AT", "BU"...) ; null si inconnu. */
 export function ligneDuPoste(poste: string | null | undefined): Ligne | null {
   const p = (poste ?? "").trim().toUpperCase();

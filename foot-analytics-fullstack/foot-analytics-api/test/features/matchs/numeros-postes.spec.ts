@@ -1,4 +1,4 @@
-import { ligneDuNumero, LIBELLE_POSTE, NUMEROS_DE_POSTE, posteDuNumero, POSTE_PAR_NUMERO, posteFiche } from "@/features/matchs/numeros-postes";
+import { ligneDuNumero, numeroDePoste, LIBELLE_POSTE, NUMEROS_DE_POSTE, posteDuNumero, POSTE_PAR_NUMERO, posteFiche } from "@/features/matchs/numeros-postes";
 
 describe("convention numero -> poste", () => {
   it("suit celle du staff : 1 GB, 2 DD, 3 DG, 4 DCD, 5 DCG, 6 MDC, 7 AG, 8 MC, 9 BU, 10 MO, 11 AD", () => {
@@ -10,6 +10,8 @@ describe("convention numero -> poste", () => {
     expect(posteDuNumero(16)).toBe("GB");
     expect(ligneDuNumero(16)).toBe("GB");
     expect(posteFiche(16)).toBe("GB");
+    expect(numeroDePoste(16)).toBe(1);
+    expect([1, 5, 11, 12, 23].map(numeroDePoste)).toEqual([1, 5, 11, 12, 23]);
   });
 
   it("au-dela de 11, ou hors entier : pas de poste (un remplacant)", () => {

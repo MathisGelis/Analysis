@@ -22,6 +22,9 @@ const LIGNE: Readonly<Record<CodePoste, LignePoste>> = {
   GB: "GB", DD: "DEF", DG: "DEF", DCD: "DEF", DCG: "DEF", MDC: "MIL", MC: "MIL", MO: "MIL", AG: "ATT", AD: "ATT", BU: "ATT",
 };
 
+/** Le numero de POSTE d'un maillot : le 16 (gardien remplacant) occupe le poste du 1 ; les autres numeros sont inchanges. */
+export const numeroDePoste = (numero: number): number => (numero === 16 ? 1 : numero);
+
 /** Les onze numeros de poste, dans l'ordre. */
 export const NUMEROS_DE_POSTE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
 

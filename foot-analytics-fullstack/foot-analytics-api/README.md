@@ -178,7 +178,11 @@ Toutes les routes sont prefixees par `/api`.
 - `POST   /scouting` · `PATCH /scouting/:id` · `DELETE /scouting/:id`
 
 ### Classement / Stats
-- `GET    /classement`
+- `GET    /classement` : un classement par (saison, competition, poule), calcule par `features/classement/calcul-classement.ts` :
+  3 points la victoire, 1 le nul ; seuls les matchs **joues** comptent, pas les coupes ; a egalite de points, le **depart FFF**
+  (confrontations directes : points puis difference de buts, puis difference generale, buts marques, buts marques puis encaisses
+  a l'exterieur) ; forme = 5 derniers resultats dans l'ordre des dates. Recalcule au demarrage, apres chaque import FMI et apres
+  chaque creation / modification / suppression de match.
 - `GET    /stats/bilan/:clubId?equipeId=&saisonId=` (sans parametre : toutes equipes et saisons melangees)
 - `GET    /analyse/club/:clubId?equipeId=&saisonId=` : rapport d'analyse d'equipe, meme perimetre
 - `GET    /analyse/club/:clubId/situation?equipeId=&saisonId=` : dispositif joue (`systeme.prediction` : d'apres les seuls
