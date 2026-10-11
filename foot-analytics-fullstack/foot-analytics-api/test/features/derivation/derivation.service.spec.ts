@@ -27,7 +27,7 @@ describe("DerivationService - cartons et arbitres", () => {
     f = fabriques(ds);
     const r = <T extends object>(e: new () => T) => ds.getRepository(e);
     svc = new DerivationService(
-      r(Joueur), r(Match), r(LigneClassement), r(Club), r(Entrainement), r(Blessure),
+      r(Joueur), r(Match), r(LigneClassement), r(Entrainement), r(Blessure),
       r(Arbitre), r(ArbitreMatch), r(Coach), r(StaffMatch), r(Equipe), r(Saison), r(EvenementMatch),
     );
   });
@@ -451,7 +451,7 @@ describe("DerivationService - matchs programmes en double", () => {
     f = fabriques(ds);
     const r = <T extends object>(e: new () => T) => ds.getRepository(e);
     svc = new DerivationService(
-      r(Joueur), r(Match), r(LigneClassement), r(Club), r(Entrainement), r(Blessure),
+      r(Joueur), r(Match), r(LigneClassement), r(Entrainement), r(Blessure),
       r(Arbitre), r(ArbitreMatch), r(Coach), r(StaffMatch), r(Equipe), r(Saison), r(EvenementMatch),
     );
   });

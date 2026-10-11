@@ -25,7 +25,7 @@ import { UpsertEquipeDto } from "./equipes.dto";
 const minuscule = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
 
 /** Meme "niveau" dans un club : categorie ET division connues et identiques (poule ignoree). */
-export function memeNiveau(
+function memeNiveau(
   a: Pick<Equipe, "categorie" | "division">,
   b: Pick<Equipe, "categorie" | "division">,
 ): boolean {

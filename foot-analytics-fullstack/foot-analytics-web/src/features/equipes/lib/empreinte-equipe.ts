@@ -16,10 +16,6 @@
 
 import type { Equipe } from "@/shared/lib/types";
 
-type EquipeMin = Pick<
-  Equipe, "id" | "clubId" | "categorie" | "competitionLibelle" | "poule" | "saisonId"
->;
-
 /** Empreinte stable d'une equipe, independante de la saison. */
 export function empreinteEquipe(e: Pick<Equipe, "clubId" | "categorie" | "competitionLibelle" | "poule">): string {
   return `${e.clubId}|${e.categorie ?? ""}|${e.competitionLibelle ?? ""}|${e.poule ?? ""}`;

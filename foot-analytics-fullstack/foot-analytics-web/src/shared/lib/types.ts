@@ -136,27 +136,6 @@ export interface Joueur {
   scoreDiscipline?: number | null;
 }
 
-export interface Arbitre {
-  id: string;
-  nom: string;
-  prenom?: string;
-  matchsOfficies: number;
-  cartonsJaunesDonnes: number;
-  cartonsRougesDonnes: number;
-  profil?: "Permissif" | "Standard" | "Strict" | null;
-  motifsTop?: string | null;
-  noteMoyenne?: number | null;
-}
-
-export interface ArbitreMatch {
-  id: string;
-  matchId: string;
-  arbitreId: string;
-  role: "principal" | "assistant1" | "assistant2" | "4e" | "autre";
-  note?: number | null;
-  arbitre?: Arbitre;
-}
-
 /** Plan de jeu enregistre d'une equipe (dispositif, onze, remplacants). */
 export interface TactiquePlan {
   id: string;
@@ -171,9 +150,6 @@ export interface TactiquePlan {
   modifieLe: string;
 }
 
-/** Champ ajoute par GET /joueurs/search : derniere saison connue du joueur. */
-export type { DerniereSaison } from "@/features/joueurs/lib/parcours-joueur";
-
 export interface EvenementMatch {
   type: "carton" | "carton_vert" | "but" | "remplacement" | "blessure";
   sousType?: string;         // jaune|rouge / type but / localisation
@@ -185,7 +161,7 @@ export interface EvenementMatch {
   equipe: "dom" | "ext";
 }
 
-export interface CompoLigne {
+interface CompoLigne {
   numero: number;
   nom: string;
   prenom: string;
@@ -229,7 +205,7 @@ export interface Match {
   droits?: { modifier: boolean; dispositifs: "libre" | "renseigner" };
 }
 
-export interface MatchResultat {
+interface MatchResultat {
   journee: string;
   lieu: "Domicile" | "Extérieur";
   adversaire: string;

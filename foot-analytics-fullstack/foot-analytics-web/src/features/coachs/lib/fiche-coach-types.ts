@@ -3,12 +3,12 @@
 // Forme de la reponse de GET /coachs/:id/fiche. Miroir de FicheCoach
 // (foot-analytics-api/src/common/fiche-coach.ts) : le serveur reste la source.
 
-export interface BilanCoach {
+interface BilanCoach {
   matchs: number; v: number; n: number; d: number;
   bp: number; bc: number; pts: number; ppm: number; pctV: number;
 }
 
-export interface MatchCoachLigne {
+interface MatchCoachLigne {
   matchId: string;
   date: string | null;
   journee: string | null;

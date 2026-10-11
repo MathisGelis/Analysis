@@ -44,8 +44,8 @@ import { SeedModule } from "@/features/seed/seed.module";
 
 import { fabriques, optionsBaseTest } from "./test-db";
 
-export interface Reponse<T = any> { statut: number; corps: T }
-export type Appeler = (methode: string, chemin: string, corps?: unknown) => Promise<Reponse>;
+interface Reponse<T = any> { statut: number; corps: T }
+type Appeler = (methode: string, chemin: string, corps?: unknown) => Promise<Reponse>;
 
 export interface AppTest {
   app: INestApplication;

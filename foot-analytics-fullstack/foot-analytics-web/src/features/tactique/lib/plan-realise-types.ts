@@ -9,7 +9,7 @@ export type RolePrevu = "titulaire" | "remplacant" | null;
 export type RoleReel = "titulaire" | "entre" | "banc" | "absent";
 export type Ecart = "conforme" | "promu" | "relegue" | "absent" | "surprise" | "non_prevu";
 
-export interface LigneComparaison {
+interface LigneComparaison {
   joueurId: string | null;
   nom: string;
   prevu: RolePrevu;
@@ -18,7 +18,7 @@ export interface LigneComparaison {
   ecart: Ecart;
 }
 
-export interface ComparaisonPlanRealise {
+interface ComparaisonPlanRealise {
   etat: "ok" | "feuille_vide";
   formation: { prevue: string; reelle: string | null; identique: boolean | null };
   capitaine: { prevu: string | null; reel: string | null; identique: boolean | null };

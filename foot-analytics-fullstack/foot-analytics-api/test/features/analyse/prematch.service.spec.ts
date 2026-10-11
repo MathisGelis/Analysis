@@ -2,11 +2,11 @@ import { DataSource } from "typeorm";
 
 import { Arbitre } from "@/features/arbitres/arbitre.entity";
 import { Club } from "@/features/clubs/club.entity";
-import { Coach } from "@/features/coachs/coach.entity";
-import { Composition } from "@/features/matchs/composition.entity";
-import { Entrainement } from "@/features/entrainements/entrainement.entity";
+
+
+
 import { Equipe } from "@/features/equipes/equipe.entity";
-import { EvenementMatch } from "@/features/matchs/evenement-match.entity";
+
 import { Joueur } from "@/features/joueurs/joueur.entity";
 import { LigneClassement } from "@/features/classement/ligne-classement.entity";
 import { Match } from "@/features/matchs/match.entity";
@@ -36,8 +36,7 @@ describe("PrematchService.rapport", () => {
     ds = await creerBaseTest();
     const analyse = new AnalyseService(
       ds.getRepository(Club), ds.getRepository(Match), ds.getRepository(Joueur),
-      ds.getRepository(Composition), ds.getRepository(EvenementMatch), ds.getRepository(Entrainement),
-      ds.getRepository(Coach), ds.getRepository(StaffMatch), ds.getRepository(Equipe),
+      ds.getRepository(StaffMatch), ds.getRepository(Equipe),
       ds.getRepository(LigneClassement), ds.getRepository(Saison),
     );
     svc = new PrematchService(

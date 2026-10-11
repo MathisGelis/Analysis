@@ -5,7 +5,7 @@
 // dans la sidebar (pas tout le club). Charge calculee en UA-RPE (methode
 // Foster) qui prend en compte duree, intensite, type, ET espace de jeu.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Calendar, Check, Clock, Dumbbell, MapPin, Maximize2,
   Pencil, Plus, Save, Trash2, Users, X,

@@ -4,7 +4,7 @@
 
 import type { SystemeProbableDonnees } from "@/features/prematch/lib/numeros-types";
 
-export interface DernierMatch {
+interface DernierMatch {
   id: string; date: string | null; journee: string | null; domicile: boolean; adversaireId: string;
   bp: number; bc: number; issue: "V" | "N" | "D";
   /** Dispositif renseigne pour CE match, null sinon. */

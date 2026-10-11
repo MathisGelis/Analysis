@@ -4,7 +4,7 @@
 // systeme-probable.ts) : onze par poste, polyvalence, indices de systeme. Le serveur reste la source.
 // Convention : 1 gardien, 2 DD, 3 DG, 4 DCD, 5 DCG, 6 MDC, 7 AG, 8 MC, 9 BU, 10 MO, 11 AD.
 
-export type Fiabilite = "faible" | "moyenne" | "bonne";
+type Fiabilite = "faible" | "moyenne" | "bonne";
 
 export interface PosteProbable {
   numero: number;
@@ -19,7 +19,7 @@ export interface PosteProbable {
   autres: { nom: string; fois: number }[];
 }
 
-export interface IndiceNumeros {
+interface IndiceNumeros {
   regle: string;
   nom: string;
   numeros: [number, number];
@@ -28,7 +28,7 @@ export interface IndiceNumeros {
   texte: string;
 }
 
-export interface ProfilJoueurNumeros {
+interface ProfilJoueurNumeros {
   joueur: string;
   nom: string;
   titularisations: number;
@@ -37,7 +37,7 @@ export interface ProfilJoueurNumeros {
   polyvalent: boolean;
 }
 
-export interface StructureNumeros {
+interface StructureNumeros {
   defense: { lignes: number; part: number } | null;
   attaque: { attaquants: number; part: number } | null;
 }

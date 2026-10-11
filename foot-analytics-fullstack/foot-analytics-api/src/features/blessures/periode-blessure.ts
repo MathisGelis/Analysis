@@ -15,7 +15,7 @@ export interface PeriodeBlessure {
   statut?: string | null;
 }
 
-export function statutTermine(statut?: string | null): boolean {
+function statutTermine(statut?: string | null): boolean {
   const s = (statut ?? "").toLowerCase();
   return s.includes("retabli") || s.includes("guerie") || s.includes("termine");
 }

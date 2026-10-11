@@ -7,7 +7,7 @@ export type Mesure = "onze" | "postes";
 
 export interface Hyper { fenetre: number; l2: number; demiVie: number | null }
 
-export interface ResumeNote { n: number; onze: number | null; postes: number | null; nPostes: number; parfaits: number }
+interface ResumeNote { n: number; onze: number | null; postes: number | null; nPostes: number; parfaits: number }
 export type NotesParMethode = Record<Methode, ResumeNote>;
 
 export interface PointCourbe {
@@ -44,7 +44,7 @@ export interface JoueurDifficile {
   perteMoyenne: number;
 }
 
-export interface ResumeSysteme {
+interface ResumeSysteme {
   n: number;
   modele: { top1: number | null; top3: number | null; defense: number | null };
   moteur: { top1: number | null; top3: number | null; defense: number | null };
@@ -56,7 +56,7 @@ export interface BandeCalibration { de: number; a: number; n: number; probaMoyen
 
 export interface Poids { noms: string[]; w: number[] }
 
-export interface PoidsIa {
+interface PoidsIa {
   version: 1;
   hyper: Hyper;
   titularisation: Poids;
@@ -67,7 +67,7 @@ export interface PoidsIa {
   frequencesSysteme: Record<string, number>;
 }
 
-export interface ResumeDonnees {
+interface ResumeDonnees {
   matchsLus: number;
   feuilles: number;
   etapes: number;
@@ -101,7 +101,7 @@ export interface ResultatEntrainement {
   dureeMs: number;
 }
 
-export interface ResumeModele {
+interface ResumeModele {
   hyper: Hyper;
   feuilles: number;
   semaines: number;
@@ -119,12 +119,12 @@ export interface ResumeModele {
 
 export type StatutEntrainement = "en_cours" | "termine" | "echec" | "annule";
 /** manuel : lance par un administrateur ; auto : le reentrainement hebdomadaire. */
-export type Declencheur = "manuel" | "auto";
+type Declencheur = "manuel" | "auto";
 
-export interface MesureComparaison { onze: number | null; postes: number | null; perte: number | null }
+interface MesureComparaison { onze: number | null; postes: number | null; perte: number | null }
 
 /** Le nouveau modele face au modele actif, sur les semaines posterieures a celles que l'actif avait vues. */
-export interface ComparaisonActif {
+interface ComparaisonActif {
   actif: { id: string; nom: string };
   depuis: string;
   semaines: number;
@@ -137,7 +137,7 @@ export interface ComparaisonActif {
  * remplace : au moins aussi bon que l'actif ; conserve : l'actif reste (moins bon, ou comparaison impossible) ;
  * sans_actif : aucun modele actif ; inchange : rien de nouveau.
  */
-export type ActionDecision = "remplace" | "conserve" | "sans_actif" | "inchange";
+type ActionDecision = "remplace" | "conserve" | "sans_actif" | "inchange";
 
 export interface Decision {
   action: ActionDecision;

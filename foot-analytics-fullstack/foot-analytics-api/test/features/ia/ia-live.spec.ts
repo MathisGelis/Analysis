@@ -2,13 +2,13 @@ import { DataSource } from "typeorm";
 
 import { AnalyseService } from "@/features/analyse/analyse.service";
 import { Club } from "@/features/clubs/club.entity";
-import { Coach } from "@/features/coachs/coach.entity";
+
 import { Composition } from "@/features/matchs/composition.entity";
-import { Entrainement } from "@/features/entrainements/entrainement.entity";
+
 import { Equipe } from "@/features/equipes/equipe.entity";
-import { EvenementMatch } from "@/features/matchs/evenement-match.entity";
-import { IaEntrainement } from "@/features/ia/ia-entrainement.entity";
-import { IaModele } from "@/features/ia/ia-modele.entity";
+
+
+
 import { IaService } from "@/features/ia/ia.service";
 import { Joueur } from "@/features/joueurs/joueur.entity";
 import { LigneClassement } from "@/features/classement/ligne-classement.entity";
@@ -169,8 +169,7 @@ describe("le dispositif du modele dans les services", () => {
     await insererLigue(ds, ligue({ clubs: 6, semaines: 14, formation: "4-3-3" }));
     await entrainerEtActiver();
     const repos = [
-      ds.getRepository(Club), ds.getRepository(Match), ds.getRepository(Joueur), ds.getRepository(Composition), ds.getRepository(EvenementMatch),
-      ds.getRepository(Entrainement), ds.getRepository(Coach), ds.getRepository(StaffMatch), ds.getRepository(Equipe),
+      ds.getRepository(Club), ds.getRepository(Match), ds.getRepository(Joueur), ds.getRepository(StaffMatch), ds.getRepository(Equipe),
       ds.getRepository(LigneClassement), ds.getRepository(Saison),
     ] as const;
     const r = await new AnalyseService(...repos, ia).rapportClub("c0");
@@ -189,8 +188,7 @@ describe("AnalyseService.rapportClub avec le modele de l'IA", () => {
     ds = await creerBaseTest();
     ia = creerIaService(ds);
     const repos = [
-      ds.getRepository(Club), ds.getRepository(Match), ds.getRepository(Joueur), ds.getRepository(Composition), ds.getRepository(EvenementMatch),
-      ds.getRepository(Entrainement), ds.getRepository(Coach), ds.getRepository(StaffMatch), ds.getRepository(Equipe),
+      ds.getRepository(Club), ds.getRepository(Match), ds.getRepository(Joueur), ds.getRepository(StaffMatch), ds.getRepository(Equipe),
       ds.getRepository(LigneClassement), ds.getRepository(Saison),
     ] as const;
     avec = new AnalyseService(...repos, ia);

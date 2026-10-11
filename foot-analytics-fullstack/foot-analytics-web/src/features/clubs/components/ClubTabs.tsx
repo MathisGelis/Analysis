@@ -9,13 +9,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  AlertTriangle, ArrowDownRight, ArrowUpRight, Check, FileText, Printer,
+  AlertTriangle, ArrowDownRight, ArrowUpRight, Check, FileText,
   Star, Users, X,
 } from "lucide-react";
 
 import { TabBar } from "@/shared/ui/TabBar";
-import type { Club, Equipe, Joueur, Match, RapportScouting, LigneClassement, Issue } from "@/shared/lib/types";
-import { BarsChart, FormeStrip, Sparkline } from "@/shared/ui/Charts";
+import type { Club, Equipe, Joueur, RapportScouting, LigneClassement, Issue } from "@/shared/lib/types";
+import { BarsChart, FormeStrip } from "@/shared/ui/Charts";
 import { FatigueBar } from "@/features/joueurs/components/FatigueBar";
 import { plusFatigues } from "@/features/joueurs/lib/fatigue";
 import { classeBadgeMutation } from "@/features/tactique/lib/mutations";
@@ -173,11 +173,11 @@ export function ClubTabs({
       {/* ============= PANELS ============= */}
       {tab === "overview" && <OverviewPanel
         bilan={bilan} resultats={resultats} joueurs={joueurs}
-        rapport={rapport} cumulCJ={cumulCJ} cumulCR={cumulCR}
+        cumulCJ={cumulCJ} cumulCR={cumulCR}
         saisonActif={!!saisonActif} dispositif={dispositif} situation={situation}
       />}
       {tab === "effectif" && <EffectifPanel joueurs={joueurs} isMine={isMine} />}
-      {tab === "matchs" && <MatchsPanel resultats={resultats} clubId={club.id} />}
+      {tab === "matchs" && <MatchsPanel resultats={resultats} />}
       {tab === "scouting" && <ScoutingPanel
         club={club} equipe={equipe} bilan={bilan} resultats={resultats}
         joueurs={annuaire ?? joueurs} rapport={rapport} cumulCJ={cumulCJ} cumulCR={cumulCR}
@@ -191,7 +191,7 @@ export function ClubTabs({
 /*                        PANEL : Vue d'ensemble                  */
 /* ============================================================ */
 function OverviewPanel({
-  bilan, resultats, joueurs, rapport, cumulCJ, cumulCR, saisonActif, dispositif, situation,
+  bilan, resultats, joueurs, cumulCJ, cumulCR, saisonActif, dispositif, situation,
 }: any) {
   // Les plus fatigues : ceux a menager. Sans score (pas de charge recente connue) : ecartes.
   const topFatigue = plusFatigues<Joueur>(joueurs.filter((j: Joueur) => j.matchs >= 1), 5);
@@ -381,7 +381,7 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
 /* ============================================================ */
 /*                        PANEL : Matchs                          */
 /* ============================================================ */
-function MatchsPanel({ resultats, clubId }: { resultats: ResultatLigne[]; clubId: string }) {
+function MatchsPanel({ resultats }: { resultats: ResultatLigne[] }) {
   if (resultats.length === 0) {
     return (
       <div className="panel p-8 text-center text-sm text-muted">
@@ -524,7 +524,7 @@ function ScoutingPanel({
               <div className="mx-auto max-w-[380px]">
               <Pitch
                 formation={formationOnze.formation}
-                joueurs={titulairesTerrain.slice(0, 11).map((j, i): JoueurTerrain => ({
+                joueurs={titulairesTerrain.slice(0, 11).map((j): JoueurTerrain => ({
                   numero: j.numero, nom: nomDeFamille(j.nom), capitaine: j.capitaine,
                 }))}
                 titre={`Dernier onze · ${formationOnze.formation}${formationOnze.exact ? "" : " (probable)"}`}

@@ -31,10 +31,10 @@ export interface PlanComparable {
   capitaineId?: string | null;
 }
 
-export type RolePrevu = "titulaire" | "remplacant" | null;
+type RolePrevu = "titulaire" | "remplacant" | null;
 /** `entre` : remplacant entre en jeu ; `banc` : sur la feuille mais sans minute ; `absent` : pas sur la feuille. */
-export type RoleReel = "titulaire" | "entre" | "banc" | "absent";
-export type Ecart =
+type RoleReel = "titulaire" | "entre" | "banc" | "absent";
+type Ecart =
   | "conforme"     // titulaire prevu qui demarre, ou remplacant prevu (entre ou reste au banc)
   | "promu"        // prevu remplacant, demarre le match
   | "relegue"      // prevu titulaire, sur le banc (entre ou non)
@@ -42,7 +42,7 @@ export type Ecart =
   | "surprise"     // non prevu, titulaire
   | "non_prevu";   // non prevu, entre en jeu
 
-export interface LigneComparaison {
+interface LigneComparaison {
   joueurId: string | null;
   nom: string;
   prevu: RolePrevu;
@@ -51,7 +51,7 @@ export interface LigneComparaison {
   ecart: Ecart;
 }
 
-export interface Observation {
+interface Observation {
   ton: "atout" | "vigilance" | "info";
   importance: 1 | 2 | 3;
   titre: string;

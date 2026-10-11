@@ -29,7 +29,7 @@ export interface DynamiqueForme {
   libelle: string;
 }
 
-export interface Serie { type: TypeSerie; longueur: number }
+interface Serie { type: TypeSerie; longueur: number }
 
 export interface Insight {
   id: string;

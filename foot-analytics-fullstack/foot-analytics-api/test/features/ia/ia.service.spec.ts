@@ -1,14 +1,14 @@
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import { DataSource } from "typeorm";
 
-import { Club } from "@/features/clubs/club.entity";
-import { Composition } from "@/features/matchs/composition.entity";
-import { Equipe } from "@/features/equipes/equipe.entity";
+
+
+
 import { IaEntrainement } from "@/features/ia/ia-entrainement.entity";
-import { IaModele } from "@/features/ia/ia-modele.entity";
+
 import { IaService } from "@/features/ia/ia.service";
-import { Match } from "@/features/matchs/match.entity";
-import { Saison } from "@/features/saisons/saison.entity";
+
+
 import { creerBaseTest } from "@test/support/test-db";
 import { creerIaService, insererLigue, ligue } from "./ligue";
 

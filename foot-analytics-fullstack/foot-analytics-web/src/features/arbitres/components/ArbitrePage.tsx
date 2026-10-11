@@ -9,7 +9,7 @@
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, AlertTriangle, Award, Star } from "lucide-react";
+import { ArrowLeft, Award, Star } from "lucide-react";
 
 import { api } from "@/shared/lib/api";
 import { ClubBadge } from "@/features/clubs/components/ClubBadge";

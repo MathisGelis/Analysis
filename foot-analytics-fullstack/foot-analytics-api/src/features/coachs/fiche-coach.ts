@@ -11,7 +11,7 @@ import { estMatchJoue } from "@/features/matchs/match-joue";
 import { parseDateFlexible } from "@/common/dates";
 import { SaisonRef } from "@/features/joueurs/parcours-joueur";
 
-export const FONCTION_LIBELLE: Record<string, string> = {
+const FONCTION_LIBELLE: Record<string, string> = {
   E: "Entraineur", A: "Adjoint", M: "Medecin", D: "Dirigeant",
 };
 
@@ -39,7 +39,7 @@ export interface ParticipationCoach {
   match: MatchCoach | null;
 }
 
-export interface BilanCoach {
+interface BilanCoach {
   matchs: number; v: number; n: number; d: number;
   bp: number; bc: number; pts: number;
   /** Points par match ; 0 sans match. */
@@ -47,7 +47,7 @@ export interface BilanCoach {
   /** Part de victoires, en % (entier). */
   pctV: number;
 }
-export interface MatchCoachLigne {
+interface MatchCoachLigne {
   matchId: string;
   date: string | null;
   journee: string | null;

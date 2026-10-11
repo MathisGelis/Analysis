@@ -45,7 +45,7 @@ export interface FeuilleEquipe {
 }
 
 /** Une semaine de matchs : le modele la predit en entier avant de la decouvrir. */
-export interface Etape {
+interface Etape {
   indice: number;
   /** Lundi de la semaine (ms UTC). */
   debut: number;

@@ -58,7 +58,7 @@ export const PLAFOND_CONFIANCE_NUMEROS = 70;
 /* ---------------------------------- systemes et regles ---------------------------------- */
 
 export const FORMATIONS_NUMEROS = ["4-4-2", "4-3-3", "4-2-3-1", "3-5-2", "3-4-3", "5-3-2", "5-4-1"] as const;
-export type FormationNumeros = (typeof FORMATIONS_NUMEROS)[number];
+type FormationNumeros = (typeof FORMATIONS_NUMEROS)[number];
 
 interface Regle {
   id: string;
@@ -135,7 +135,7 @@ const FACTEUR_CHANGEMENT_ISOLE = 0.5;
 
 /* ------------------------------------------- types ------------------------------------------- */
 
-export interface FiabiliteNumeros {
+interface FiabiliteNumeros {
   /** Lignes de titulaires lues, et parmi elles celles dont le numero est entre 1 et 11. */
   titulaires: number;
   dansLesOnze: number;
@@ -144,7 +144,7 @@ export interface FiabiliteNumeros {
   exploitable: boolean;
 }
 
-export interface ProfilJoueurNumeros {
+interface ProfilJoueurNumeros {
   joueur: string;
   nom: string;
   titularisations: number;
@@ -155,7 +155,7 @@ export interface ProfilJoueurNumeros {
   polyvalent: boolean;
 }
 
-export interface PosteProbable {
+interface PosteProbable {
   numero: number;
   poste: CodePoste;
   joueur: string | null;
@@ -168,7 +168,7 @@ export interface PosteProbable {
   autres: { nom: string; fois: number }[];
 }
 
-export interface IndiceNumeros {
+interface IndiceNumeros {
   regle: string;
   nom: string;
   numeros: [number, number];
@@ -177,7 +177,7 @@ export interface IndiceNumeros {
   texte: string;
 }
 
-export interface EstimationNumeros {
+interface EstimationNumeros {
   systeme: string;
   /** 0-100, plafonnee (voir PLAFOND_CONFIANCE_NUMEROS) et d'autant plus basse que les indices sont minces. */
   confiance: number;

@@ -26,8 +26,8 @@ import { comparerPlanRealise } from "./plan-realise";
 import { PlanContreRealise } from "./tactiques.types";
 import { EnregistrerTactiqueDto } from "./tactiques.dto";
 
-export const NB_TITULAIRES = 11;
-export const MAX_REMPLACANTS = 7;
+const NB_TITULAIRES = 11;
+const MAX_REMPLACANTS = 7;
 
 const JOUR = 86_400_000;
 

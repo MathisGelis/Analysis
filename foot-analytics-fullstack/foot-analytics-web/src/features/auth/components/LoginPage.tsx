@@ -6,7 +6,7 @@
 //  - Sinon -> redirect <from> (defaut /)
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { LogIn } from "lucide-react";
 
 import { api } from "@/shared/lib/api";
@@ -16,7 +16,6 @@ import { cheminInterne } from "@/features/auth/lib/redirection";
 import { AuthShell } from "./AuthShell";
 
 export default function LoginPage() {
-  const router = useRouter();
   const params = useSearchParams();
   // Cible validee : jamais une URL externe (open redirect).
   const from = cheminInterne(params.get("from"));

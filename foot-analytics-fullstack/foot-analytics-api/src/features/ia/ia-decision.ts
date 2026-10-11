@@ -17,7 +17,7 @@ export const MIN_FEUILLES_COMPARAISON = 10;
 /** Deux parts de titulaires egales a ce pres sont a egalite. */
 const EPSILON = 1e-9;
 
-export type ActionDecision =
+type ActionDecision =
   /** Le nouveau modele fait au moins aussi bien : il devient (ou deviendrait, pour un lancement manuel) le modele actif. */
   | "remplace"
   /** Le modele actif fait mieux, ou la comparaison est trop mince : il reste en place. */

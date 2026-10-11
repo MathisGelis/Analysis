@@ -6,7 +6,7 @@
 
 import type { Equipe } from "@/shared/lib/types";
 
-export interface EquipeDeGroupe {
+interface EquipeDeGroupe {
   id: string;
   clubId: string;
   clubNom: string;

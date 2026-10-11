@@ -21,13 +21,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   CalendarCheck, ChevronLeft, ChevronRight, Dumbbell,
-  FileText, Plus, Save, Settings2, Trophy, X,
+  FileText, Save, Settings2, Trophy, X,
   Calendar as CalIcon, Trash2,
 } from "lucide-react";
 
 import { api, messageApi } from "@/shared/lib/api";
 import { useOwnEquipe } from "@/features/equipes/lib/own-equipe-context";
-import { useOwnClubId } from "@/features/equipes/lib/own-club-context";
 import { Modal } from "@/shared/ui/Modal";
 import type { ClubChoix } from "@/features/calendrier/lib/adversaires";
 import { SeanceModal } from "@/features/entrainements/components/SeanceModal";
@@ -76,7 +75,6 @@ export default function Calendrier() {
 
 function CalendrierContent() {
   const lectureSeule = useLectureSeule();
-  const ownClubId = useOwnClubId();
   const { equipeId, saisonId } = useOwnEquipe();
   const [cursor, setCursor] = useState<Date>(() => startOfMonth(new Date()));
   const [seances, setSeances] = useState<any[]>([]);

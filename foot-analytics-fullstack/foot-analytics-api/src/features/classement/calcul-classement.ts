@@ -36,7 +36,7 @@ export interface LigneCalculee {
 }
 
 /** Une coupe n'a pas de classement. */
-export const estCompetitionSansClassement = (competition: string | null | undefined): boolean => /\bcoupe\b/i.test(competition ?? "");
+const estCompetitionSansClassement = (competition: string | null | undefined): boolean => /\bcoupe\b/i.test(competition ?? "");
 
 /** "30/05/2026" ou "2026-05-30" (heure ignoree) -> jour en ms UTC ; null si illisible. */
 export function jourDuMatch(date: string | null | undefined): number | null {

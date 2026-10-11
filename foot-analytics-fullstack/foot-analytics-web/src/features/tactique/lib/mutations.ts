@@ -80,9 +80,6 @@ export function classeBadgeMutation(statut: string | null | undefined): string {
   return c === "aucune" ? "badge-accent" : c === "mutation" ? "badge-amber" : c === "hors_delai" ? "badge-danger" : "";
 }
 
-export const LIBELLE_CATEGORIE: Record<CategorieMutation, string> = {
-  aucune: "Pas mute", mutation: "Mute", hors_delai: "Mute hors delai", inconnue: "Statut inconnu",
-};
 /** Pastille courte affichee sur le terrain et dans les listes ("M", "HD"). */
 export const SIGLE_CATEGORIE: Record<CategorieMutation, string | null> = {
   aucune: null, mutation: "M", hors_delai: "HD", inconnue: null,

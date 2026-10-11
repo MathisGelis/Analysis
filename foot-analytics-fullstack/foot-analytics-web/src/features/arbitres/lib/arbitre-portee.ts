@@ -8,7 +8,7 @@
 export type Portee = "saison" | "carriere";
 
 /** Un motif de carton et le nombre de cartons donnes pour ce motif. */
-export interface CompteMotif { motif: string; n: number }
+interface CompteMotif { motif: string; n: number }
 
 export interface ParticipationChamp {
   saisonId?: string | null;

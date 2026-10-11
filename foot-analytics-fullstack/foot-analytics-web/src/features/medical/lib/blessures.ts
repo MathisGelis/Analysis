@@ -52,23 +52,3 @@ export function joursManques(b: BlessureLite, now: Date = new Date()): number {
   return Math.max(0, Math.round(ms / (1000 * 60 * 60 * 24)));
 }
 
-/**
- * Cumul des jours manques par zone (clef = localisation normalisee).
- * Permet d'afficher un total sur chaque point de la silhouette, meme
- * pour les blessures recurrentes.
- */
-export function cumulJoursParZone(
-  blessures: BlessureLite[],
-  now: Date = new Date(),
-): Map<string, number> {
-  const out = new Map<string, number>();
-  for (const b of blessures) {
-    const loc = (b.localisation ?? "").trim();
-    if (!loc) continue;
-    const key = loc.toLowerCase();
-    const jours = joursManques(b, now);
-    if (jours <= 0) continue;
-    out.set(key, (out.get(key) ?? 0) + jours);
-  }
-  return out;
-}

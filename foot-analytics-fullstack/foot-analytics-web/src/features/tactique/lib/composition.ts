@@ -10,13 +10,12 @@ export const FORMATION_DEFAUT = "4-2-3-1";
 export const NB_TITULAIRES = 11;
 export const MAX_REMPLACANTS = 7;
 /** Banc propose par defaut (suggestion, premiere ouverture) ; le staff peut aller jusqu'a MAX_REMPLACANTS. */
-export const REMPLACANTS_PAR_DEFAUT = 3;
+const REMPLACANTS_PAR_DEFAUT = 3;
 
 export type Ligne = "GB" | "DEF" | "MIL" | "ATT";
-export const LIBELLE_LIGNE: Record<Ligne, string> = { GB: "Gardien", DEF: "Defense", MIL: "Milieu", ATT: "Attaque" };
 
 /** Maillots de gardien, selon la convention du staff : le 1 et le 16 (le gardien remplacant). */
-export const NUMEROS_GARDIEN: readonly number[] = [1, 16];
+const NUMEROS_GARDIEN: readonly number[] = [1, 16];
 export const estNumeroGardien = (numero: number | null | undefined): boolean => NUMEROS_GARDIEN.includes(numero as number);
 
 /** Ligne d'un poste de la base ("GB", "G", "DC", "MO", "AT", "BU"...) ; null si inconnu. */
@@ -97,7 +96,7 @@ export interface JoueurTactique {
 }
 
 /** Valeur sportive d'un joueur pour la suggestion : temps de jeu, titularisations, note, fraicheur. */
-export function valeurJoueur(j: JoueurTactique, max: { titularisations: number; minutes: number }): number {
+function valeurJoueur(j: JoueurTactique, max: { titularisations: number; minutes: number }): number {
   const titu = ((j.titularisations ?? 0) / Math.max(1, max.titularisations)) * 40;
   const minutes = ((j.minutes ?? 0) / Math.max(1, max.minutes)) * 20;
   const note = ((j.noteMoyenne ?? 5.5) - 5.5) * 8;

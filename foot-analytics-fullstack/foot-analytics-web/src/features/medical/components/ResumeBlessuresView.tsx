@@ -5,7 +5,7 @@
 
 import Link from "next/link";
 
-import type { BlessureSaison, LigneJoueur, LigneRepartition, ResumeBlessures } from "../lib/resume-blessures";
+import type { LigneJoueur, LigneRepartition, ResumeBlessures } from "../lib/resume-blessures";
 
 export function Kpi({ label, valeur, suffixe, note, ton = "neutre", testid }: {
   label: string; valeur: string | number; suffixe?: string; note?: string; ton?: "neutre" | "danger" | "amber"; testid?: string;
@@ -93,29 +93,6 @@ export function Rechutes({ rechutes }: { rechutes: ResumeBlessures["rechutes"] }
           <span className="badge badge-amber text-[10px]!">{r.n} fois</span>
         </li>
       ))}
-    </ul>
-  );
-}
-
-/** Les indisponibles du moment (saison en cours seulement). */
-export function IndisponiblesDuMoment({ blessures, noms, maintenant }: { blessures: BlessureSaison[]; noms: ReadonlyMap<string, string>; maintenant: number }) {
-  if (blessures.length === 0) return <p className="text-sm text-muted">Personne n&apos;est indisponible en ce moment.</p>;
-  return (
-    <ul className="space-y-2">
-      {blessures.map((b) => {
-        const debut = b.dateDebut ? Date.parse(b.dateDebut) : NaN;
-        const jours = Number.isNaN(debut) ? null : Math.max(0, Math.round((maintenant - debut) / 86_400_000));
-        return (
-          <li key={b.id} className="panel-inset no-coupure flex flex-wrap items-center gap-x-3 gap-y-1 border-l-2 border-l-danger p-3 text-sm">
-            <Link href={`/joueur/${b.joueurId}`} className="font-semibold text-ink hover:text-accent">{noms.get(b.joueurId) ?? b.joueurNom ?? "Joueur"}</Link>
-            <span className="text-muted">{b.localisation ?? "Localisation non precisee"}</span>
-            {b.statut && <span className="badge badge-danger text-[10px]!">{b.statut}</span>}
-            <span className="ml-auto text-[11px] text-faint">
-              {jours !== null ? `depuis ${jours} j` : ""}{b.retourEstime ? ` · retour estime ${b.retourEstime}` : ""}
-            </span>
-          </li>
-        );
-      })}
     </ul>
   );
 }

@@ -9,7 +9,7 @@
 //     sauf le nom. Pas de stats de match (matchs, buts, etc.) — elles
 //     se construiront automatiquement avec les FMI futures.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Plus, Save, Search, User, UserPlus, X,
 } from "lucide-react";

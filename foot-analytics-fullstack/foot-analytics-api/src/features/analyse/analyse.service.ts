@@ -21,9 +21,9 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { In, IsNull, Repository } from "typeorm";
 
 import { Club } from "@/features/clubs/club.entity";
-import { Coach } from "@/features/coachs/coach.entity";
+
 import { Composition } from "@/features/matchs/composition.entity";
-import { Entrainement } from "@/features/entrainements/entrainement.entity";
+
 import { Equipe } from "@/features/equipes/equipe.entity";
 import { EvenementMatch } from "@/features/matchs/evenement-match.entity";
 import { Joueur } from "@/features/joueurs/joueur.entity";
@@ -44,12 +44,6 @@ import { RapportEquipe, ImpactJoueur, Faiblesse, Partnership, DynamiqueEquipe } 
 
 function norm(s?: string): string {
   return (s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-}
-// Permet de retrouver le joueur depuis un evenement nomme ("nom prenom").
-function eventReferenceComp(evtName: string | undefined, comp: Composition): boolean {
-  const n = norm(evtName);
-  const s = norm(comp.nom);
-  return s.length > 1 && n.includes(s);
 }
 function avg(arr: number[]): number {
   return arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : 0;
@@ -77,10 +71,6 @@ export class AnalyseService {
     @InjectRepository(Club) private clubs: Repository<Club>,
     @InjectRepository(Match) private matchs: Repository<Match>,
     @InjectRepository(Joueur) private joueurs: Repository<Joueur>,
-    @InjectRepository(Composition) private compos: Repository<Composition>,
-    @InjectRepository(EvenementMatch) private evts: Repository<EvenementMatch>,
-    @InjectRepository(Entrainement) private trainings: Repository<Entrainement>,
-    @InjectRepository(Coach) private coachsRepo: Repository<Coach>,
     @InjectRepository(StaffMatch) private staffMatchsRepo: Repository<StaffMatch>,
     @InjectRepository(Equipe) private equipesRepo: Repository<Equipe>,
     @InjectRepository(LigneClassement) private classementRepo: Repository<LigneClassement>,
@@ -107,7 +97,6 @@ export class AnalyseService {
       matchsDuClub.filter((m) => dansPortee(m) && estMatchJoue(m)), this.matchs.manager,
     );
     const joueurs = await this.joueurs.find({ where: { clubId } });
-    const joueursById = new Map(joueurs.map((j) => [j.id, j]));
 
     // Helper : pour chaque match, donner les points obtenus par le club, la
     // composition de ses 11 titulaires, le banc, et la diff de buts.

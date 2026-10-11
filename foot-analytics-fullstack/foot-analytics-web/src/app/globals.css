@@ -540,12 +540,6 @@ body::before {
   to   { background-position: -120% 0; }
 }
 
-@keyframes spinSlow {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-.spin-slow { animation: spinSlow 2s linear infinite; }
-
 /* Respect de "reduire les animations" : tout devient instantane. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -560,9 +554,6 @@ body::before {
 
 .font-display { font-family: "Bricolage Grotesque Variable", "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.02em; }
 .font-mono    { font-family: "JetBrains Mono Variable", ui-monospace, monospace; }
-
-.link-discrete { color: rgb(var(--ink)); transition: color 140ms; }
-.link-discrete:hover { color: rgb(var(--accent)); }
 
 /* ----- Impression : on ne garde que le contenu, sur fond blanc ---- */
 @media print {

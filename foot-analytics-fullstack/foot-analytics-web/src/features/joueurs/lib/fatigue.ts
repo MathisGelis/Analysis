@@ -4,7 +4,7 @@
 // par l'API (foot-analytics-api/src/common/fatigue.ts reste la source du calcul). Fonctions pures.
 
 export type NiveauFatigue = "frais" | "normal" | "charge" | "surcharge";
-export type CleFacteur = "acwr" | "residuelle" | "congestion" | "vulnerabilite";
+type CleFacteur = "acwr" | "residuelle" | "congestion" | "vulnerabilite";
 
 export interface FacteurFatigue {
   cle: CleFacteur;

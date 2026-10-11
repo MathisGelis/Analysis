@@ -17,14 +17,14 @@ import { optionsSimples } from "@/shared/lib/selecteur";
 import { TimePicker24 } from "@/shared/ui/TimePicker24";
 import { api } from "@/shared/lib/api";
 
-export const TYPES = [
+const TYPES = [
   "Tactique", "Physique", "Technique", "Recup", "Activation", "Pre-match",
 ];
 
 // Espaces de jeu, avec leur facteur de modulation de charge (juste pour
 // l'affichage du libelle / preview cote front ; le backend fait le calcul
 // reel via calcCharge).
-export const ESPACES = [
+const ESPACES = [
   { id: "terrain_entier", label: "Terrain entier",   facteur: 1.00 },
   { id: "demi_terrain",   label: "Demi-terrain",     facteur: 1.15 },
   { id: "quart_terrain",  label: "Quart de terrain", facteur: 1.30 },
@@ -34,15 +34,12 @@ export const ESPACES = [
 ];
 const OPTIONS_TYPES = optionsSimples(TYPES);
 const OPTIONS_ESPACES = ESPACES.map((e) => ({ valeur: e.id, libelle: e.label }));
-export const FACTEURS_TYPE: Record<string, number> = {
+const FACTEURS_TYPE: Record<string, number> = {
   Physique: 1.20, "Pre-match": 1.00, Tactique: 0.85,
   Technique: 0.75, Activation: 0.40, Recup: 0.30,
 };
 
-export function labelEspace(id?: string | null) {
-  return ESPACES.find((e) => e.id === id)?.label ?? id ?? "";
-}
-export function previewCharge(
+function previewCharge(
   duree: number, intensite: number, type: string, espace: string,
 ): number {
   const fT = FACTEURS_TYPE[type] ?? 0.85;

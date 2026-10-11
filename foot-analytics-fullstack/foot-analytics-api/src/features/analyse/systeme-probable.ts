@@ -10,7 +10,7 @@ import { PredictionSysteme } from "@/features/matchs/systeme";
 import { AnalyseNumeros, structureDe, StructureNumeros } from "./compo-numeros";
 import { Disposition, dispositionDe } from "./disposition-onze";
 
-export type Fiabilite = "faible" | "moyenne" | "bonne";
+type Fiabilite = "faible" | "moyenne" | "bonne";
 
 export interface SystemeProbable {
   systeme: string;

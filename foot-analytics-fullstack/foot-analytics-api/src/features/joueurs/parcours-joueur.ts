@@ -91,10 +91,10 @@ export function saisonCourte(nom: string): string {
 //  Statut de mutation
 // ---------------------------------------------------------------------------
 
-export const PAS_MUTATION = "Pas mutation";
-export const MUTATION = "Mutation";
-export const MUTATION_HORS_DELAI = "Mutation hors delai";
-export const NON_CONNU = "Non connu";
+const PAS_MUTATION = "Pas mutation";
+const MUTATION = "Mutation";
+const MUTATION_HORS_DELAI = "Mutation hors delai";
+const NON_CONNU = "Non connu";
 
 /** Un rattachement a une equipe (effectif) vaut presence dans la saison de cette equipe, au club de l'equipe. */
 export function apparitionsDesEquipes(equipes: { clubId: string; saisonId?: string | null }[]): Apparition[] {

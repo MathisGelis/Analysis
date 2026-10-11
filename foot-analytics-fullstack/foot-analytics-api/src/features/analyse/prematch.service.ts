@@ -49,12 +49,12 @@ function versTendance(m: Match, equipeId: string): MatchTendance {
 }
 
 /** Bilan de saison d'une equipe : la ligne du classement quand elle existe, sinon le cumul de ses matchs joues. */
-export interface BilanSaison extends BilanLieu {
+interface BilanSaison extends BilanLieu {
   pts: number | null; rang: number | null; source: "classement" | "matchs";
 }
 
 /** Bilan de saison, par lieu, et derniers matchs d'une equipe (les memes pour mon equipe et pour l'adversaire). */
-export interface ResumeSaison {
+interface ResumeSaison {
   /** V-N-D, buts et points de la saison. */
   bilan: BilanSaison;
   /** Bilan a domicile et a l'exterieur (scores des matchs joues). */

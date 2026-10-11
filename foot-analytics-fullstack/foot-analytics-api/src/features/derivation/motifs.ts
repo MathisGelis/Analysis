@@ -11,7 +11,7 @@
 export interface CompteMotif { motif: string; n: number }
 
 /** Libelle des cartons dont la feuille ne donne aucun motif. */
-export const MOTIF_NON_RENSEIGNE = "Motif non renseigne";
+const MOTIF_NON_RENSEIGNE = "Motif non renseigne";
 
 /**
  * Motif propre : espaces normalises, lettre parasite finale retiree ("...brutalite r" : initiale de
@@ -27,7 +27,7 @@ export function nettoyerMotif(brut: string | null | undefined): string {
 }
 
 /** Cle de regroupement : sans accents, sans casse, sans ponctuation. */
-export function cleMotif(motif: string): string {
+function cleMotif(motif: string): string {
   return nettoyerMotif(motif)
     .toLowerCase()
     .normalize("NFD")

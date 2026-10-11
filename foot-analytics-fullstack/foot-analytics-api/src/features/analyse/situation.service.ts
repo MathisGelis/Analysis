@@ -26,7 +26,7 @@ import { fusionnerSystemes, SystemeProbable } from "./systeme-probable";
 /** Taille des lots d'identifiants (SQLite limite le nombre de variables d'une requete). */
 const TAILLE_LOT = 500;
 
-export interface JoueurOnze {
+interface JoueurOnze {
   numero: number; nom: string; prenom: string | null; licence: string | null;
   /** Fiche du joueur dans la base, quand on la retrouve (licence, sinon nom dans le club). */
   joueurId: string | null; poste: string | null;

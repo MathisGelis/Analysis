@@ -34,17 +34,17 @@ export interface Piste {
   detail: string;
 }
 
-export interface BilanLieu { joues: number; v: number; n: number; d: number; bp: number; bc: number }
+interface BilanLieu { joues: number; v: number; n: number; d: number; bp: number; bc: number }
 
 /** Bilan de saison : la ligne du classement quand elle existe, sinon le cumul des matchs joues. */
-export interface BilanSaison extends BilanLieu { pts: number | null; rang: number | null; source: "classement" | "matchs" }
+interface BilanSaison extends BilanLieu { pts: number | null; rang: number | null; source: "classement" | "matchs" }
 
-export interface MatchRecent {
+interface MatchRecent {
   matchId: string; date: string | null; journee: string | null;
   adversaire: string; domicile: boolean; bp: number; bc: number; issue: Issue;
 }
 
-export interface RencontreFace {
+interface RencontreFace {
   matchId: string; date: string | null; journee: string | null; saisonId?: string | null;
   domicile: boolean; bp: number; bc: number; issue: Issue;
 }

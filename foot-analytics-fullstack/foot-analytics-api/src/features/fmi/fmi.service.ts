@@ -648,7 +648,7 @@ export class FmiService {
 }
 
 /** Rapport d'import d'une feuille dans un lot. */
-export interface RapportFichierFmi {
+interface RapportFichierFmi {
   fichier: string;
   ok: boolean;
   statut: "importe" | "mis_a_jour" | "echec";

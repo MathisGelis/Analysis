@@ -19,7 +19,7 @@ import { decoderPayloadJwt } from "@/features/auth/lib/jwt";
 
 import { DEFAULT_OWN_CLUB_ID } from "./club-defaut";
 
-export { DEFAULT_OWN_CLUB_ID };
+;
 
 export async function getOwnClubIdServer(): Promise<string> {
   const all = await cookies();

@@ -55,12 +55,6 @@ export function getCachedUser(): User | null {
   try { return JSON.parse(raw); } catch { return null; }
 }
 
-/** Cote client. Lit le token brut. */
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
-}
-
 /** Cote client. Detruit la session. */
 export function clearSession() {
   if (typeof window === "undefined") return;
@@ -70,7 +64,7 @@ export function clearSession() {
   viderSelectionCookies();
 }
 
-export { COOKIE_NAME };
+;
 
 /* ----------------------- LECTURE COTE SERVEUR ---------------------------- */
 // Helper utilisable dans les Server Components Next pour pre-filtrer les

@@ -11,7 +11,7 @@ import { categorieMutation, SIGLE_CATEGORIE } from "@/features/tactique/lib/muta
 import { LIBELLE_NIVEAU, niveauFatigue } from "@/features/joueurs/lib/fatigue";
 import { Select, type OptionSelect } from "@/shared/ui/Select";
 
-export function libelleJoueur(j: OptionJoueur["joueur"]): string {
+function libelleJoueur(j: OptionJoueur["joueur"]): string {
   const sigle = SIGLE_CATEGORIE[categorieMutation(j.statutMutation)];
   const niveau = niveauFatigue(j.scoreFatigue);
   return [

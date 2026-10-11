@@ -29,7 +29,6 @@ export const estPageModele = (p: PageRapport): p is PageModele => (PAGES_MODELE 
 
 /** Les pages d'analyse ajoutees, dans le style du modele. */
 export type PageAnalyse = Exclude<PageRapport, PageModele>;
-export const PAGES_ANALYSE = PAGES_RAPPORT.filter((p): p is PageAnalyse => !estPageModele(p));
 
 /** Les pages au choix : de quoi construire le selecteur (titre, contenu et groupe de chacune). */
 export const DESCRIPTION_PAGES: Readonly<Record<PageRapport, { titre: string; contenu: string; groupe: "modele" | "analyse" }>> = {
@@ -152,7 +151,7 @@ export function ajusterPuces(colonnes: string[][]): { colonnes: string[][]; tail
 }
 
 /** Police des trois cles du dernier ecran (cartes de 165 pt de large) : plus le texte est long, plus elle est petite. */
-export function tailleCles(textes: string[]): number {
+function tailleCles(textes: string[]): number {
   const max = Math.max(0, ...textes.map((t) => t.length));
   return max <= 80 ? 1400 : max <= 110 ? 1200 : max <= 150 ? 1100 : 1000;
 }

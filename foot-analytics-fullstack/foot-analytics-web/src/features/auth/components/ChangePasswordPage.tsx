@@ -5,7 +5,7 @@
 // volontairement plus tard). Apres succes -> redirect from (ou /).
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Key } from "lucide-react";
 
 import { api } from "@/shared/lib/api";
@@ -15,7 +15,6 @@ import { cheminInterne } from "@/features/auth/lib/redirection";
 import { AuthShell } from "./AuthShell";
 
 export default function ChangePasswordPage() {
-  const router = useRouter();
   const params = useSearchParams();
   const from = cheminInterne(params.get("from"));
   const u = getCachedUser();

@@ -37,7 +37,7 @@ export const GRILLE_COMPLETE: readonly Hyper[] = [
 ];
 
 /** Sous ce nombre de dispositifs saisis, le modele de dispositif reste a ses poids de depart. */
-export const MIN_DISPOSITIFS_APPRIS = 8;
+const MIN_DISPOSITIFS_APPRIS = 8;
 const MAX_EXEMPLES_TITULAIRES = 30_000;
 const MAX_EXEMPLES_NUMEROS = 4_000;
 const MAX_EXEMPLES_SYSTEME = 5_000;
@@ -67,7 +67,7 @@ export interface OptionsEntrainement {
 
 /* ----------------------------------------- resultats ----------------------------------------- */
 
-export interface PointCourbe {
+interface PointCourbe {
   etape: number;
   libelle: string;
   journees: string;
@@ -81,7 +81,7 @@ export interface PointCourbe {
   perte: number | null;
 }
 
-export interface ErreurFeuille {
+interface ErreurFeuille {
   matchId: string;
   etape: number;
   date: string;
@@ -98,7 +98,7 @@ export interface ErreurFeuille {
 }
 
 /** Un joueur que le modele lit mal : ses probabilites annoncees d'un match a l'autre et ce qui s'est passe. */
-export interface JoueurDifficile {
+interface JoueurDifficile {
   nom: string;
   equipe: string;
   /** Matchs de son equipe ou il etait candidat. */
@@ -111,7 +111,7 @@ export interface JoueurDifficile {
   perteMoyenne: number;
 }
 
-export interface ResumeSysteme {
+interface ResumeSysteme {
   /** Matchs dont le dispositif saisi a servi de verite. */
   n: number;
   /** Part de bons dispositifs (premier choix), et dans les trois premiers. */
@@ -121,9 +121,9 @@ export interface ResumeSysteme {
   frequent: { top1: number | null; top3: number | null; defense: number | null };
 }
 
-export interface BandeCalibration { de: number; a: number; n: number; probaMoyenne: number | null; tauxObserve: number | null }
+interface BandeCalibration { de: number; a: number; n: number; probaMoyenne: number | null; tauxObserve: number | null }
 
-export interface ResultatEssai {
+interface ResultatEssai {
   hyper: Hyper;
   /** Perte logarithmique moyenne de la titularisation sur toutes les predictions (plus bas = mieux). */
   perte: number | null;

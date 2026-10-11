@@ -8,7 +8,7 @@
 // Regle d'or : on ne tire aucune conclusion d'un echantillon trop petit. Chaque
 // mesure declare son seuil (MIN_*) et retombe sur "insuffisant" en dessous.
 
-import { parseDateFlexible, trierChronologiquement } from "@/common/dates";
+import { trierChronologiquement } from "@/common/dates";
 
 export type Issue = "V" | "N" | "D";
 
@@ -36,15 +36,15 @@ export interface MatchTendance {
 /** Seuils : en dessous, pas de tendance. */
 export const MIN_MATCHS_TENDANCE = 6;
 export const MIN_MATCHS_LIEU = 3;
-export const MIN_MATCHS_PROFIL = 5;
-export const MIN_MATCHS_NIVEAU = 2;
+const MIN_MATCHS_PROFIL = 5;
+const MIN_MATCHS_NIVEAU = 2;
 
 const arrondi = (x: number, d = 2) => Math.round(x * 10 ** d) / 10 ** d;
 const moyenne = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
 const borne = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
 
 export const issueDe = (bp: number, bc: number): Issue => (bp > bc ? "V" : bp === bc ? "N" : "D");
-export const pointsDe = (i: Issue): number => (i === "V" ? 3 : i === "N" ? 1 : 0);
+const pointsDe = (i: Issue): number => (i === "V" ? 3 : i === "N" ? 1 : 0);
 
 /* ---------------------------------- Bilans --------------------------------- */
 
@@ -177,7 +177,7 @@ const CONDITIONS: Record<TypeSerie, (m: MatchTendance) => boolean> = {
   marque: (m) => m.bp > 0,
 };
 
-export interface Serie { type: TypeSerie; longueur: number }
+interface Serie { type: TypeSerie; longueur: number }
 
 export interface Series {
   /** Series encore ouvertes au dernier match (au moins 2 matchs), les plus longues d'abord ; "marque" en dernier. */
@@ -367,7 +367,7 @@ export function rotation(matchs: MatchTendance[]): Rotation {
 
 /* ------------------------------ Niveau des adversaires ---------------------- */
 
-export type NiveauAdversaire = "haut" | "milieu" | "bas";
+type NiveauAdversaire = "haut" | "milieu" | "bas";
 
 export interface ParNiveau {
   niveau: NiveauAdversaire;
@@ -440,8 +440,8 @@ export function calculerTendances(
 
 /* --------------------------------- Insights --------------------------------- */
 
-export type TonInsight = "positif" | "negatif" | "neutre";
-export type CategorieInsight = "forme" | "attaque" | "defense" | "domicile" | "discipline" | "effectif" | "adversaires";
+type TonInsight = "positif" | "negatif" | "neutre";
+type CategorieInsight = "forme" | "attaque" | "defense" | "domicile" | "discipline" | "effectif" | "adversaires";
 
 export interface Insight {
   id: string;

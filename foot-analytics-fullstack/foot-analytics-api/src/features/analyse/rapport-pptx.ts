@@ -17,7 +17,7 @@ import { ContenuRapport, estPageModele, PAGES_MODELE, PAGES_RAPPORT, PageModele,
 import { construirePageAnalyse } from "./rapport-pptx-pages";
 
 /** Le modele du staff ; copie dans dist avec le reste (assets de nest-cli.json). */
-export const CHEMIN_MODELE = join(__dirname, "modele", "rapport-avant-match.pptx");
+const CHEMIN_MODELE = join(__dirname, "modele", "rapport-avant-match.pptx");
 
 let modeleEnMemoire: Uint8Array | null = null;
 export function lireModele(): Uint8Array {

@@ -22,7 +22,7 @@ export function getClub(id: string): Club | undefined {
   return CLUBS.find((c) => c.id === id);
 }
 
-export const MATCHS_CHAPONNAY: Match[] = RESULTATS_CHAPONNAY.map((r, i) => {
+const MATCHS_CHAPONNAY: Match[] = RESULTATS_CHAPONNAY.map((r, i) => {
   const advClub = (r as any).advClub as string;
   return {
     id: `chapo-m-${i + 1}`,

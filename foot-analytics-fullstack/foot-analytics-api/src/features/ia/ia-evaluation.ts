@@ -21,10 +21,6 @@ export type PrevisionPlate = Map<string, number | null>;
 export type Methode = "modele" | "dernier" | "moteur" | "frequence";
 export const METHODES: readonly Methode[] = ["modele", "dernier", "moteur", "frequence"];
 
-export const LIBELLE_METHODE: Readonly<Record<Methode, string>> = {
-  modele: "Modele appris", dernier: "Meme onze que le dernier match", moteur: "Moteur a regles actuel", frequence: "Les 11 plus souvent titulaires",
-};
-
 const titulairesDe = (f: FeuilleEquipe) => f.lignes.filter((l) => l.titulaire);
 
 /** Les trois methodes de reference pour une equipe dont on connait l'historique (le plus recent d'abord). */
@@ -100,7 +96,7 @@ export interface ResumeNote { n: number; onze: number | null; postes: number | n
 
 const arrondi = (x: number | null, d = 4): number | null => (x === null ? null : +x.toFixed(d));
 
-export const resumer = (a: Agregat): ResumeNote => ({ n: a.n, onze: arrondi(a.onze), postes: arrondi(a.postes), nPostes: a.nPostes, parfaits: a.parfaits });
+const resumer = (a: Agregat): ResumeNote => ({ n: a.n, onze: arrondi(a.onze), postes: arrondi(a.postes), nPostes: a.nPostes, parfaits: a.parfaits });
 export { arrondi };
 
 export type Agregats = Record<Methode, Agregat>;

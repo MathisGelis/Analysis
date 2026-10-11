@@ -16,7 +16,7 @@ export const TEINTES: Teinte[] = ["accent", "sky", "amber", "crest-violet", "cre
 export const NB_MOTIFS = 4;
 
 /** Couleur par defaut inseree en base pour tous les clubs : "aucune couleur choisie". */
-export const COULEUR_PAR_DEFAUT = "#b6f24a";
+const COULEUR_PAR_DEFAUT = "#b6f24a";
 
 // Mots d'appareil des noms de clubs (statut juridique, "de", "saint"...) : ils
 // n'identifient pas le club. Compares SANS points ni accents.

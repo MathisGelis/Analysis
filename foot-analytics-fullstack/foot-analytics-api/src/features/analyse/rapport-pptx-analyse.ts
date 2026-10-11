@@ -19,9 +19,9 @@ const LIBELLE_SENS: Record<SensTendance, string> = { hausse: "en hausse", baisse
 
 /* --------------------------------------- types --------------------------------------- */
 
-export interface LigneComparatif { libelle: string; nous: string; eux: string; meilleur: "nous" | "eux" | null }
+interface LigneComparatif { libelle: string; nous: string; eux: string; meilleur: "nous" | "eux" | null }
 
-export interface ResumeForme {
+interface ResumeForme {
   club: string;
   /** Les cinq derniers resultats, du plus ancien au plus recent. */
   pastilles: Issue[];
@@ -31,7 +31,7 @@ export interface ResumeForme {
   defense: string;
 }
 
-export interface MatchAffiche { issue: Issue; libelle: string; score: string }
+interface MatchAffiche { issue: Issue; libelle: string; score: string }
 
 export interface ContenuAnalyse {
   comparatif: {

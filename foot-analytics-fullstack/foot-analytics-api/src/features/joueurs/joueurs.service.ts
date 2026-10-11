@@ -274,7 +274,6 @@ export class JoueursService {
     });
     if (equipesChamp.length === 0) return [];
     const equipeIds = new Set(equipesChamp.map((e) => e.id));
-    const equipeById = new Map(equipesChamp.map((e) => [e.id, e]));
 
     // Matchs ou au moins une de ces equipes joue.
     const matchs = await this.matchsRepo.find({
@@ -650,16 +649,6 @@ export class JoueursService {
     return freq;
   }
 
-  /** Helper de matching joueur <-> composition : licence prioritaire,
-   *  fallback nom+prenom (insensible casse/espaces). */
-  private composMatchesJoueur(c: Composition, j: Joueur): boolean {
-    if (j.licence && c.licence) return c.licence === j.licence;
-    const sameNom = (c.nom ?? "").toLowerCase().trim() === (j.nom ?? "").toLowerCase().trim();
-    const samePrenom = !j.prenom
-      ? true
-      : (c.prenom ?? "").toLowerCase().trim() === (j.prenom ?? "").toLowerCase().trim();
-    return sameNom && samePrenom;
-  }
 
   /** Compositions d'un joueur : licence si connue, sinon nom + prenom. */
   private composDuJoueur(j: Joueur): Promise<Composition[]> {

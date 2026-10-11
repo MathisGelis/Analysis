@@ -21,7 +21,7 @@ import {
 import { Arbitre } from "@/features/arbitres/arbitre.entity";
 import { ArbitreMatch } from "@/features/arbitres/arbitre-match.entity";
 import { Blessure } from "@/features/blessures/blessure.entity";
-import { Club } from "@/features/clubs/club.entity";
+
 import { Coach } from "@/features/coachs/coach.entity";
 import { Composition } from "@/features/matchs/composition.entity";
 import { Entrainement } from "@/features/entrainements/entrainement.entity";
@@ -88,9 +88,6 @@ function daysBetween(a: Date, b: Date): number {
   return Math.abs((a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function clamp(v: number, lo: number, hi: number): number {
-  return Math.max(lo, Math.min(hi, v));
-}
 
 // Estimation des minutes jouees a partir des remplacements de la feuille.
 function estimateMinutes(comp: Composition, evts: EvenementMatch[]): number {
@@ -117,7 +114,6 @@ export class DerivationService {
     @InjectRepository(Joueur) private joueurs: Repository<Joueur>,
     @InjectRepository(Match) private matchs: Repository<Match>,
     @InjectRepository(LigneClassement) private classement: Repository<LigneClassement>,
-    @InjectRepository(Club) private clubs: Repository<Club>,
     @InjectRepository(Entrainement) private entrainements: Repository<Entrainement>,
     @InjectRepository(Blessure) private blessures: Repository<Blessure>,
     @InjectRepository(Arbitre) private arbitresRepo: Repository<Arbitre>,
@@ -1034,7 +1030,7 @@ export class DerivationService {
     const toUpdate: Match[] = [];
     let totalAffectees = 0;
 
-    for (const [key, ms] of groupes.entries()) {
+    for (const ms of groupes.values()) {
       // Combien d'equipes distinctes ?
       const equipes = new Set<string>();
       for (const m of ms) {
@@ -1042,8 +1038,6 @@ export class DerivationService {
         equipes.add(m.clubExt);
       }
       const nbEquipes = equipes.size;
-      // Bornes : aller-retour classique = (n-1)*2 journees max.
-      const nbJourneesMax = Math.max(1, (nbEquipes - 1) * 2);
 
       // Trie les matchs par date croissante.
       const datedMatchs = ms

@@ -49,11 +49,11 @@ export interface MatchAcces {
 export interface SaisonAcces { id: string; anneeDebut: number; actif: boolean }
 
 /** Empreinte stable d'une equipe, independante de la saison : club + categorie + competition + poule. */
-export const empreinteEquipe = (e: Pick<EquipeAcces, "clubId" | "categorie" | "competitionLibelle" | "poule">): string =>
+const empreinteEquipe = (e: Pick<EquipeAcces, "clubId" | "categorie" | "competitionLibelle" | "poule">): string =>
   `${e.clubId}|${e.categorie ?? ""}|${e.competitionLibelle ?? ""}|${e.poule ?? ""}`;
 
 /** Niveau d'une equipe : club + categorie + division, sans la poule (qui change d'une saison a l'autre). Null si incomplet. */
-export const niveauEquipe = (e: Pick<EquipeAcces, "clubId" | "categorie" | "division">): string | null =>
+const niveauEquipe = (e: Pick<EquipeAcces, "clubId" | "categorie" | "division">): string | null =>
   e.categorie && e.division ? `${e.clubId}|${e.categorie}|${e.division}` : null;
 
 /** La saison "actuelle" : la plus recente des saisons actives, a defaut la plus recente tout court. */

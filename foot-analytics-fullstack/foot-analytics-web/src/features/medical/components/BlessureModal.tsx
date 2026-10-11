@@ -22,7 +22,7 @@ import { api, ApiError, messageApi } from "@/shared/lib/api";
 
 // Regions du corps groupees pour le select. Aligne sur les zones
 // reconnues par le composant CorpsHumain.
-export const REGIONS = [
+const REGIONS = [
   { group: "Tete & tronc", items: [
     "Tete", "Cou", "Epaule gauche", "Epaule droite",
     "Torse", "Dos", "Cotes", "Abdomen",

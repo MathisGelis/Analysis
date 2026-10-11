@@ -34,7 +34,7 @@ export function ArbitresMatchBlock({
   liens: Lien[];
   peutNoter: boolean;
 }) {
-  const { notifier, confirmer } = useFeedback();
+  const { notifier } = useFeedback();
   const [local, setLocal] = useState<Lien[]>(liens);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);

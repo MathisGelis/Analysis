@@ -413,7 +413,6 @@ function Timeline({ events, domNom, extNom }: { events: EvenementMatch[]; domNom
     <ul className="space-y-3">
       {tries.map((e, i) => {
         const m = `${e.minute ?? "?"}${e.arret ? `+${e.arret}` : ""}'`;
-        const side = e.equipe === "dom" ? "left" : "right";
         let icon: React.ReactNode = null;
         let color = "text-muted";
         let title = "";

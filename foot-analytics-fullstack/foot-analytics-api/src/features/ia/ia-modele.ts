@@ -122,7 +122,7 @@ export function poidsInitiaux(hyper: Hyper = HYPER_PAR_DEFAUT): PoidsIa {
 const LIGNES: readonly LignePoste[] = ["GB", "DEF", "MIL", "ATT"];
 const indiceLigne = (l: LignePoste | null) => (l ? LIGNES.indexOf(l) : -1);
 
-export interface Candidat {
+interface Candidat {
   joueur: string;
   nom: string;
   /** Caracteristiques de titularisation (voir CARACTERISTIQUES_TITULAIRE). */
@@ -287,7 +287,7 @@ export function numerosDeFeuilleExploitables(titulaires: readonly { numero: numb
 
 /* ---------------------------------------------- le onze ---------------------------------------------- */
 
-export interface JoueurPredit { joueur: string; nom: string; proba: number; numero: number | null }
+interface JoueurPredit { joueur: string; nom: string; proba: number; numero: number | null }
 
 export interface PredictionOnze {
   /** Les 11 titulaires predits, par numero quand il est lisible, sinon du plus au moins probable. */

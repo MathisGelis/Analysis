@@ -7,7 +7,7 @@
 import { AlertTriangle, Info } from "lucide-react";
 
 import {
-  COULEUR_NIVEAU, estEstimation, FOND_NIVEAU, LIBELLE_NIVEAU, niveauFatigue, PASTILLE_NIVEAU, TEXTE_NIVEAU,
+  estEstimation, FOND_NIVEAU, LIBELLE_NIVEAU, niveauFatigue, PASTILLE_NIVEAU, TEXTE_NIVEAU,
   type FatigueDetail,
 } from "@/features/joueurs/lib/fatigue";
 

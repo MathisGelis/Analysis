@@ -22,8 +22,8 @@
 // matchs seuls et marque "estimation".
 
 export const RPE_MATCH = 7.5;
-export const FENETRE_AIGUE = 7;        // jours
-export const FENETRE_CHRONIQUE = 28;   // jours
+const FENETRE_AIGUE = 7;        // jours
+const FENETRE_CHRONIQUE = 28;   // jours
 const DEMI_VIE_RESIDUELLE = 1.5;       // jours (constante de decroissance)
 const ECHELLE_RESIDUELLE = 800;        // UA residuelles = pression 100
 
@@ -52,7 +52,7 @@ export interface EntreeFatigue {
 }
 
 export type NiveauFatigue = "frais" | "normal" | "charge" | "surcharge";
-export type CleFacteur = "acwr" | "residuelle" | "congestion" | "vulnerabilite";
+type CleFacteur = "acwr" | "residuelle" | "congestion" | "vulnerabilite";
 
 export interface FacteurFatigue {
   cle: CleFacteur;
@@ -231,7 +231,7 @@ interface EntreeStockee {
 }
 
 /** Entree serialisable : seuls les efforts encore dans la fenetre de 28 jours sont gardes. */
-export function serialiserEntree(entree: EntreeFatigue): string {
+function serialiserEntree(entree: EntreeFatigue): string {
   const limite = entree.aujourdhui.getTime() - FENETRE_CHRONIQUE * JOUR;
   const stocke: EntreeStockee = {
     v: 1,
@@ -270,7 +270,7 @@ export function deserialiserEntree(json: string | null | undefined, aujourdhui: 
 }
 
 /** Detail compact stocke / servi au front : tout ce qu'il faut pour expliquer le score, rien de plus. */
-export function detailFatigue(r: ResultatFatigue, aujourdhui: Date) {
+function detailFatigue(r: ResultatFatigue, aujourdhui: Date) {
   return {
     niveau: r.niveau,
     raison: r.raison,
