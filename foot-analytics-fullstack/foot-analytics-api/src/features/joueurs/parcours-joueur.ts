@@ -12,6 +12,8 @@ export interface Apparition {
   saisonId: string | null;
   /** Date du match ("jj/mm/aaaa" ou ISO), si connue. */
   date: string | null;
+  /** L'equipe (Seniors, U18...) pour laquelle il a joue ou auquel il est rattache, si connue. */
+  equipeId?: string | null;
 }
 
 export interface SaisonRef { id: string; nom: string; anneeDebut: number }
@@ -97,8 +99,8 @@ const MUTATION_HORS_DELAI = "Mutation hors delai";
 const NON_CONNU = "Non connu";
 
 /** Un rattachement a une equipe (effectif) vaut presence dans la saison de cette equipe, au club de l'equipe. */
-export function apparitionsDesEquipes(equipes: { clubId: string; saisonId?: string | null }[]): Apparition[] {
-  return equipes.map((e) => ({ clubId: e.clubId, saisonId: e.saisonId ?? null, date: null }));
+export function apparitionsDesEquipes(equipes: { id?: string; clubId: string; saisonId?: string | null }[]): Apparition[] {
+  return equipes.map((e) => ({ clubId: e.clubId, saisonId: e.saisonId ?? null, date: null, equipeId: e.id ?? null }));
 }
 
 /**

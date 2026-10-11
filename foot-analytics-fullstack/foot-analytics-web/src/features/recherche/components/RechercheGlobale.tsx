@@ -15,10 +15,11 @@ import { Award, Search, Shield, Users, UserCog, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { api } from "@/shared/lib/api";
-import { scoreRecherche } from "@/features/recherche/lib/recherche";
-import { saisonPassee, type DerniereSaison } from "@/features/joueurs/lib/parcours-joueur";
+import { pastillesJoueur, scoreRecherche } from "@/features/recherche/lib/recherche";
+import type { DerniereSaison } from "@/features/joueurs/lib/parcours-joueur";
+import { useOwnEquipe } from "@/features/equipes/lib/own-equipe-context";
 import { ClubBadge } from "@/features/clubs/components/ClubBadge";
-import type { Club, Joueur } from "@/shared/lib/types";
+import type { Club, Equipe, Joueur } from "@/shared/lib/types";
 
 /** Evenement qui place le curseur dans la barre (raccourcis clavier de la coquille). */
 export const EVENEMENT_RECHERCHE = "fa:recherche";
@@ -29,21 +30,24 @@ interface Resultat {
   groupe: Groupe;
   label: string;
   sous?: string;
+  /** Pastilles a droite : categorie (autre equipe), saison passee. */
+  pastilles?: string[];
   icone: LucideIcon;
   clubId?: string;
   score: number;
   href: string;
 }
 
-type JoueurTrouve = Joueur & { derniereSaison?: DerniereSaison | null };
+type JoueurTrouve = Joueur & { derniereSaison?: DerniereSaison | null; derniereEquipe?: { categorie?: string | null } | null };
 
 // Clubs et arbitres, gardes entre deux recherches (une seule charge par session de page).
-let cache: { clubs: Club[]; arbitres: any[] } | null = null;
+let cache: { clubs: Club[]; arbitres: any[]; equipes: Equipe[] } | null = null;
 const LIMITE_PAR_GROUPE = 5;
 const ORDRE: Groupe[] = ["Joueurs", "Entraineurs", "Clubs", "Arbitres"];
 
 export function RechercheGlobale() {
   const router = useRouter();
+  const { equipeId } = useOwnEquipe();
   const idListe = useId();
   const [q, setQ] = useState("");
   const [ouvert, setOuvert] = useState(false);
@@ -78,8 +82,8 @@ export function RechercheGlobale() {
   // Clubs et arbitres : charges au premier usage.
   useEffect(() => {
     if (!ouvert || cache) return;
-    Promise.all([api.clubs().catch(() => []), api.arbitres().catch(() => [])]).then(([clubs, arbitres]) => {
-      cache = { clubs, arbitres };
+    Promise.all([api.clubs().catch(() => []), api.arbitres().catch(() => []), api.equipes().catch(() => [])]).then(([clubs, arbitres, equipes]) => {
+      cache = { clubs, arbitres, equipes };
       setDonnees(cache);
     });
   }, [ouvert]);
@@ -110,12 +114,15 @@ export function RechercheGlobale() {
     if (terme.length < 2) return [];
     const out: Resultat[] = [];
     const nomClub = (id?: string | null) => donnees?.clubs.find((c) => c.id === id)?.nom;
+    const maCategorie = donnees?.equipes.find((e) => e.id === equipeId)?.categorie;
     // L'ordre du serveur (pertinence) est conserve : score decroissant.
     joueurs.forEach((j, i) => out.push({
       id: `joueur:${j.id}`, groupe: "Joueurs", icone: Users, score: 1000 - i, href: `/joueur/${j.id}`,
       label: `${j.prenom ?? ""} ${j.nom}`.trim(),
-      // Club le plus recent (calcule par le serveur sur les feuilles) et, hors saison en cours, la derniere saison connue.
-      sous: [nomClub(j.clubId), j.poste, saisonPassee(j.derniereSaison)].filter(Boolean).join(" · "),
+      // Club le plus recent (calcule par le serveur sur les feuilles) ; la categorie (autre equipe) et la saison passee
+      // sont des pastilles a droite.
+      sous: [nomClub(j.clubId), j.poste].filter(Boolean).join(" · "),
+      pastilles: pastillesJoueur(j, maCategorie),
     }));
     coachs.forEach((c, i) => out.push({
       id: `coach:${c.id}`, groupe: "Entraineurs", icone: UserCog, score: 1000 - i, href: `/coachs/${c.id}`,
@@ -130,7 +137,7 @@ export function RechercheGlobale() {
       if (score > 0) out.push({ id: `arbitre:${a.id}`, groupe: "Arbitres", icone: Award, score, href: `/arbitres/${a.id}`, label: `${a.prenom ? a.prenom + " " : ""}${a.nom}`.trim(), sous: a.profil ? `Profil ${a.profil}` : undefined });
     }
     return ORDRE.flatMap((g) => out.filter((r) => r.groupe === g).sort((a, b) => b.score - a.score).slice(0, LIMITE_PAR_GROUPE));
-  }, [terme, donnees, joueurs, coachs]);
+  }, [terme, donnees, joueurs, coachs, equipeId]);
 
   useEffect(() => { setActif(0); }, [terme]);
   useEffect(() => {
@@ -204,6 +211,7 @@ export function RechercheGlobale() {
                       <span className="block truncate text-sm font-medium text-ink">{r.label}</span>
                       {r.sous && <span className="block truncate text-xs text-muted">{r.sous}</span>}
                     </span>
+                    {r.pastilles?.map((p) => <span key={p} className="badge shrink-0 text-[10px]!">{p}</span>)}
                   </button>
                 </div>
               );

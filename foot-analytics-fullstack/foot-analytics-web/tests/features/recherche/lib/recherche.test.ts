@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normaliser, scoreRecherche } from "@/features/recherche/lib/recherche";
+import { normaliser, pastillesJoueur, scoreRecherche } from "@/features/recherche/lib/recherche";
 
 describe("normaliser", () => {
   it("accents, casse et ponctuation", () => {
@@ -30,5 +30,15 @@ describe("scoreRecherche", () => {
   });
   it("cherche aussi dans les mots-cles", () => {
     expect(scoreRecherche("blessures", "Medical & charge", "blessures fatigue sante")).toBeGreaterThan(0);
+  });
+});
+
+describe("pastillesJoueur", () => {
+  it("categorie d'une autre equipe, puis saison passee ; rien pour un joueur de mon equipe de la saison en cours", () => {
+    expect(pastillesJoueur({ derniereEquipe: { categorie: "U18" }, derniereSaison: { court: "25-26", enCours: true } }, "Seniors")).toEqual(["U18"]);
+    expect(pastillesJoueur({ derniereEquipe: { categorie: "U18" }, derniereSaison: { court: "24-25", enCours: false } }, "Seniors")).toEqual(["U18", "24-25"]);
+    expect(pastillesJoueur({ derniereEquipe: { categorie: "Seniors" }, derniereSaison: { court: "25-26", enCours: true } }, "seniors")).toEqual([]);
+    expect(pastillesJoueur({ derniereSaison: { court: "24-25", enCours: false } }, null)).toEqual(["24-25"]);
+    expect(pastillesJoueur({}, "Seniors")).toEqual([]);
   });
 });

@@ -30,6 +30,8 @@ const SEUIL_RECHERCHE = 0.6;
 /** Resultat de recherche : la fiche, avec son club le plus recent et sa derniere saison connue. */
 export type JoueurRecherche = Omit<Joueur, "rafraichirFatigue"> & {
   derniereSaison: { id: string; nom: string; court: string; enCours: boolean } | null;
+  /** L'equipe (categorie, ex. "U18") de sa derniere apparition, si connue : un joueur d'une autre equipe du club. */
+  derniereEquipe: { id: string; nom: string; categorie: string | null } | null;
 };
 
 @Injectable()
@@ -474,9 +476,14 @@ export class JoueursService {
   private async avecParcours(joueurs: Joueur[]): Promise<JoueurRecherche[]> {
     if (joueurs.length === 0) return [];
     const { saisons, courante, apps } = await this.parcoursDe(joueurs);
+    const derniereDe = (j: Joueur) => derniereApparition(apps.get(j.id) ?? [], saisons);
+    const equipeIds = [...new Set(joueurs.map((j) => derniereDe(j)?.equipeId).filter((id): id is string => !!id))];
+    const equipes = equipeIds.length ? await this.equipesRepo.find({ where: { id: In(equipeIds) } }) : [];
+    const equipeParId = new Map(equipes.map((e) => [e.id, e]));
     return joueurs.map((j) => {
       const parcours = apps.get(j.id) ?? [];
-      const derniere = derniereApparition(parcours, saisons);
+      const derniere = derniereDe(j);
+      const equipe = derniere?.equipeId ? equipeParId.get(derniere.equipeId) : undefined;
       const saison = derniereSaison(parcours, saisons);
       return {
         ...j,
@@ -484,6 +491,7 @@ export class JoueursService {
         derniereSaison: saison
           ? { id: saison.id, nom: saison.nom, court: saisonCourte(saison.nom), enCours: saison.id === courante?.id }
           : null,
+        derniereEquipe: equipe ? { id: equipe.id, nom: equipe.nom, categorie: equipe.categorie ?? null } : null,
       };
     });
   }
@@ -506,13 +514,14 @@ export class JoueursService {
       .innerJoin(Match, "m", "m.id = c.match_id")
       // Alias entre guillemets : Postgres met en minuscules les alias non cites (saisonid), SQLite non.
       .select(['c.licence AS "licence"', 'c.nom AS "nom"', 'c.prenom AS "prenom"', 'c.cote AS "cote"',
-        'm.date AS "date"', 'm.saison_id AS "saisonId"', 'm.club_dom AS "clubDom"', 'm.club_ext AS "clubExt"']);
+        'm.date AS "date"', 'm.saison_id AS "saisonId"', 'm.club_dom AS "clubDom"', 'm.club_ext AS "clubExt"',
+        'm.equipe_dom AS "equipeDom"', 'm.equipe_ext AS "equipeExt"']);
     if (licences.length) qb.where("c.licence IN (:...licences)", { licences });
     if (sansLicence.length) {
       qb.orWhere("c.nom IN (:...noms)", { noms: [...new Set(sansLicence.map((j) => j.nom))] });
     }
     const lignes: { licence: string | null; nom: string; prenom: string | null; cote: string; date: string | null;
-      saisonId: string | null; clubDom: string; clubExt: string }[] = licences.length || sansLicence.length ? await qb.getRawMany() : [];
+      saisonId: string | null; clubDom: string; clubExt: string; equipeDom: string | null; equipeExt: string | null }[] = licences.length || sansLicence.length ? await qb.getRawMany() : [];
 
     const equipeIds = [...new Set(joueurs.flatMap((j) => j.equipesAttachees ?? []))];
     const equipes = equipeIds.length ? await this.equipesRepo.find({ where: { id: In(equipeIds) } }) : [];
@@ -527,7 +536,7 @@ export class JoueursService {
         const estLui = j.licence
           ? l.licence === j.licence
           : !l.licence && club === j.clubId && `${normaliser(l.nom)}|${normaliser(l.prenom)}` === cle;
-        if (estLui) liste.push({ clubId: club, saisonId: l.saisonId, date: l.date });
+        if (estLui) liste.push({ clubId: club, saisonId: l.saisonId, date: l.date, equipeId: (l.cote === "dom" ? l.equipeDom : l.equipeExt) ?? null });
       }
       const rattaches = (j.equipesAttachees ?? []).map((id) => equipeParId.get(id)).filter((e): e is Equipe => !!e);
       liste.push(...apparitionsDesEquipes(rattaches));

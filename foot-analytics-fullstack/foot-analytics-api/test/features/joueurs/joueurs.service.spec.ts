@@ -595,6 +595,19 @@ describe("JoueursService", () => {
         expect(r.derniereSaison).toEqual({ id: c.s25.id, nom: "2025-2026", court: "25-26", enCours: true });
       });
 
+      it("l'equipe de sa derniere apparition est renvoyee (un joueur des U18 : categorie U18)", async () => {
+        const c = await parcours();
+        const u18 = await f.equipe({ clubId: c.ol.id, nom: "U18 R2 Poule B", categorie: "U18", saisonId: c.s25.id });
+        const jeune = { nom: "JEUNE", prenom: "Tom", licence: "888" };
+        await f.joueur({ ...jeune, clubId: c.ol.id });
+        const m = await f.match({ clubDom: c.ol.id, clubExt: c.adv.id, equipeDomId: u18.id, saisonId: c.s25.id, date: "06/09/2025" });
+        await f.compo({ matchId: m.id, cote: "dom", ...jeune });
+
+        const [r] = await svc.search("jeune");
+
+        expect(r.derniereEquipe).toEqual({ id: u18.id, nom: "U18 R2 Poule B", categorie: "U18" });
+      });
+
       it("derniere saison connue passee : indiquee comme telle (24-25), pas en cours", async () => {
         const c = await parcours();
         const parti = { nom: "PARTI", prenom: "Luc", licence: "777" };

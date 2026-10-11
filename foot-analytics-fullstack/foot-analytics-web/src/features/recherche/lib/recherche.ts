@@ -31,3 +31,19 @@ export function scoreRecherche(requete: string, ...textes: (string | null | unde
   if (corpus.startsWith(mots.join(" "))) total += 4;
   return total;
 }
+
+/**
+ * Pastilles d'un joueur trouve, affichees a droite du resultat : sa categorie quand il joue dans une AUTRE equipe que la
+ * mienne (U18...), et sa derniere saison ("24-25") quand ce n'est pas la saison en cours.
+ */
+export function pastillesJoueur(
+  j: { derniereEquipe?: { categorie?: string | null } | null; derniereSaison?: { court: string; enCours: boolean } | null },
+  categorieMonEquipe: string | null | undefined,
+): string[] {
+  const categorie = j.derniereEquipe?.categorie?.trim();
+  const saison = j.derniereSaison && !j.derniereSaison.enCours ? j.derniereSaison.court : null;
+  return [
+    categorie && normaliser(categorie) !== normaliser(categorieMonEquipe) ? categorie : null,
+    saison,
+  ].filter((p): p is string => !!p);
+}
