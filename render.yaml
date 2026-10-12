@@ -6,11 +6,13 @@ services:
     runtime: docker
     region: frankfurt                # proche de Supabase eu-west-1 (Irlande)
     plan: starter                    # toujours allume : le reentrainement IA planifie (mercredi 5 h) l'exige
-    rootDir: foot-analytics-fullstack/foot-analytics-api
     dockerfilePath: ./foot-analytics-fullstack/foot-analytics-api/Dockerfile
     dockerContext: ./foot-analytics-fullstack/foot-analytics-api
     healthCheckPath: /api/health
     autoDeploy: true
+    buildFilter:                     # ne redeploie que si l'API change
+      paths:
+        - foot-analytics-fullstack/foot-analytics-api/**
     envVars:
       - key: DB_TYPE
         value: postgres
