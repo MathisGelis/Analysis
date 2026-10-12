@@ -472,6 +472,8 @@ body::before {
 .panel:has(table.table-fm) { overflow-x: auto; }
 @media (max-width: 1023px) {
   .table-fm { min-width: 560px; }
+  /* Tableaux a peu de colonnes : ils tiennent dans l'ecran, sans defilement lateral. */
+  .table-fm.table-fm-compact { min-width: 0; }
 }
 
 /* Ecrans tactiles : cibles d'au moins 44 px, et champs a 16 px (en dessous, iOS zoome la page au focus). */

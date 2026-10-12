@@ -157,7 +157,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         </div>
 
         {/* meta sous le score */}
-        <div className="relative grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 pt-5 border-t border-line text-xs">
+        <div className="relative grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 mt-5 pt-5 border-t border-line text-xs">
           <Meta icon={<MapPin size={12}/>} label="Terrain" value={m.terrain ?? "—"}/>
           <Meta icon={<User size={12}/>} label="Arbitre" value={
             arbitrePrincipal
@@ -304,16 +304,16 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
 /* ---- sous-composants ---- */
 function Meta({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 text-muted">
-      <span className="text-faint">{icon}</span>
-      <span className="text-faint uppercase tracking-wider text-[10px]">{label}</span>
-      <span className="text-ink truncate">{value}</span>
+    <div className="flex items-start gap-2 text-muted min-w-0">
+      <span className="text-faint mt-0.5 shrink-0">{icon}</span>
+      <span className="text-faint uppercase tracking-wider text-[10px] mt-0.5 shrink-0">{label}</span>
+      <span className="text-ink min-w-0 break-words">{value}</span>
     </div>
   );
 }
 function BancCard({ club, compo, cartons }: any) {
   return (
-    <div className="col-span-12 md:col-span-6 panel p-5">
+    <div className="col-span-12 md:col-span-6 panel p-4 sm:p-5">
       <div className="flex items-center gap-2 mb-3">
         <ClubBadge clubId={club.id} size={20}/>
         <div className="h-section">Banc · {club.abbr}</div>
@@ -356,9 +356,9 @@ function CompoTable({ club, compo, joueurs, cartons }: any) {
         <ClubBadge clubId={club.id} size={20}/>
         <div className="h-section">Composition · {club.nom}</div>
       </div>
-      <table className="table-fm">
+      <table className="table-fm table-fm-compact">
         <thead>
-          <tr><th>#</th><th>Joueur</th><th>Licence</th><th>Statut</th></tr>
+          <tr><th>#</th><th>Joueur</th><th className="hidden sm:table-cell">Licence</th><th>Statut</th></tr>
         </thead>
         <tbody>
           {compo.map((p: any) => {
@@ -388,7 +388,7 @@ function CompoTable({ club, compo, joueurs, cartons }: any) {
                     {p.capitaine && <span className="ml-1 badge badge-amber">C</span>}
                   </span>
                 </td>
-                <td className="text-[11px] font-mono text-faint">{p.licence}</td>
+                <td className="hidden sm:table-cell text-[11px] font-mono text-faint">{p.licence}</td>
                 <td>
                   <span className={`badge ${p.titulaire ? "badge-accent" : ""}`}>
                     {p.titulaire ? "Titulaire" : "Remplacant"}

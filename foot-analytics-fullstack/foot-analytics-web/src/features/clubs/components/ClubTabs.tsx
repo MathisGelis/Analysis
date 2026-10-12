@@ -117,14 +117,14 @@ export function ClubTabs({
   return (
     <div className="space-y-6 fade-up">
       {/* ============= EN-TETE COMMUN A TOUS LES ONGLETS ============== */}
-      <header className="panel p-6 relative overflow-hidden">
+      <header className="panel p-4 sm:p-6 relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-accentstrong/[0.16] via-transparent to-accent2/[0.06]" />
-        <div className="pitch-lines" />
-        <div className="relative flex items-start gap-5 flex-wrap">
-          <ClubBadge clubId={club.id} size={86} />
+        <div className="pitch-lines hidden sm:block" />
+        <div className="relative flex items-start gap-3 sm:gap-5 flex-wrap">
+          <ClubBadge clubId={club.id} size={86} className="shrink-0 max-sm:!w-16 max-sm:!h-16" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">{club.nom}</h1>
+              <h1 className="font-display text-2xl font-bold text-ink break-words sm:text-4xl">{club.nom}</h1>
               {club.numeroFff && <span className="badge">FFF #{club.numeroFff}</span>}
               {isMine && <span className="badge badge-accent">Mon club</span>}
               {!isMine && rapport && <span className="badge badge-amber">Rapport scouting</span>}
@@ -146,7 +146,7 @@ export function ClubTabs({
             )}
           </div>
           {ligne && (
-            <div className="panel-inset px-5 py-3 text-center">
+            <div className="panel-inset px-4 py-3 text-center max-sm:flex max-sm:w-full max-sm:items-center max-sm:justify-between max-sm:gap-3 max-sm:text-left sm:px-5">
               <div className="h-section">Classement</div>
               <div className="font-display text-4xl font-black text-accent leading-none mt-1">
                 {ligne.rang}<span className="text-xs text-muted font-medium">/{totalClasses ?? ligne.rang}</span>
@@ -157,13 +157,13 @@ export function ClubTabs({
         </div>
 
         {/* stats ligne */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mt-5 pt-5 border-t border-line relative">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-x-4 gap-y-3 mt-4 pt-4 sm:mt-5 sm:pt-5 border-t border-line relative">
           <Stat label="Joues" value={bilan.joues} />
           <Stat label="Victoires" value={bilan.v} accent="win" />
           <Stat label="Nuls" value={bilan.n} accent="draw" />
           <Stat label="Defaites" value={bilan.d} accent="loss" />
           <Stat label="BM / BC" value={`${bilan.bp} / ${bilan.bc}`} />
-          <Stat label="Forme" value={<FormeStrip values={bilan.forme} />} />
+          <div className="col-span-2 md:col-span-1"><Stat label="Forme" value={<FormeStrip values={bilan.forme} />} /></div>
         </div>
       </header>
 

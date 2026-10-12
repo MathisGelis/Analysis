@@ -74,12 +74,12 @@ export function ArbitresMatchBlock({
       {sorted.length === 0 ? (
         <p className="text-sm text-muted py-2">Aucun arbitre enregistre sur ce match.</p>
       ) : (
-        <table className="table-fm">
+        <table className="table-fm table-fm-compact">
           <thead>
             <tr>
               <th>Fonction</th>
               <th>Nom</th>
-              <th>Profil</th>
+              <th className="hidden sm:table-cell">Profil</th>
               <th>Note</th>
             </tr>
           </thead>
@@ -100,7 +100,7 @@ export function ArbitresMatchBlock({
                       {l.arbitre.nom}
                     </Link>
                   </td>
-                  <td>
+                  <td className="hidden sm:table-cell">
                     {l.arbitre.profil ? (
                       <span className={`badge ${
                         l.arbitre.profil === "Strict" ? "badge-danger"
