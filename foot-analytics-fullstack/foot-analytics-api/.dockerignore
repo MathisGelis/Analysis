@@ -1,0 +1,14 @@
+node_modules
+dist
+.env
+.env.*
+*.sqlite
+*.db
+test
+coverage
+parser/tests
+parser/__pycache__
+**/__pycache__
+parser-out
+uploads
+*.tsbuildinfo

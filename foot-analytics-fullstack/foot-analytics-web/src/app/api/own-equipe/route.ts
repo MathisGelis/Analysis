@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const equipeId = body.equipeId == null ? null : String(body.equipeId);
   const saisonId = body.saisonId == null ? null : String(body.saisonId);
-  const jar = cookies();
+  const jar = await cookies();
   const opts = { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" as const };
   if (equipeId) jar.set({ ...opts, name: "ownEquipeId", value: equipeId });
   else jar.delete("ownEquipeId");
