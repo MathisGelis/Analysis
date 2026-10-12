@@ -1,5 +1,4 @@
-# Donnees personnelles et locales : jamais dans le depot
-foot-analytics-fullstack/Data/
+# Donnees locales : jamais dans le depot
 *.sqlite
 *.sqlite3
 *.db
