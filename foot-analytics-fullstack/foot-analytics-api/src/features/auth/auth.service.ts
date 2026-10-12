@@ -11,7 +11,12 @@ import * as jwt from "jsonwebtoken";
 
 import { Utilisateur } from "@/features/utilisateurs/utilisateur.entity";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-foot-analytics-change-me";
+const SECRET_DEV = "dev-secret-foot-analytics-change-me";
+const JWT_SECRET = process.env.JWT_SECRET || SECRET_DEV;
+// En production, le secret par defaut est public (il est dans le depot) : n'importe qui pourrait forger un jeton admin.
+if (process.env.NODE_ENV === "production" && (JWT_SECRET === SECRET_DEV || JWT_SECRET.length < 32)) {
+  throw new Error("JWT_SECRET obligatoire en production (32 caracteres minimum). Genere-le avec : openssl rand -hex 32");
+}
 const JWT_EXPIRES = "7d";
 
 /** Payload encode dans le token JWT. */
