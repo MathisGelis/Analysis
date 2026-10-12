@@ -5,61 +5,22 @@
 // dans la sidebar (pas tout le club). Charge calculee en UA-RPE (methode
 // Foster) qui prend en compte duree, intensite, type, ET espace de jeu.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Calendar, Check, Clock, Dumbbell, MapPin, Maximize2,
-  Pencil, Plus, Save, Trash2, Users, X,
+  Calendar, ChevronLeft, ChevronRight, Clock, Dumbbell, MapPin, Maximize2,
+  Pencil, Plus, Trash2, Users,
 } from "lucide-react";
 
 import { api } from "@/shared/lib/api";
 import { useOwnEquipe } from "@/features/equipes/lib/own-equipe-context";
 import { useOwnClubId } from "@/features/equipes/lib/own-club-context";
-import { Modal } from "@/shared/ui/Modal";
-import { DatePicker } from "@/shared/ui/DatePicker";
-import { Select } from "@/shared/ui/Select";
-import { optionsSimples } from "@/shared/lib/selecteur";
 import { Sparkline } from "@/shared/ui/Charts";
 import { useFeedback } from "@/shared/lib/feedback-context";
-
-const TYPES = ["Tactique","Physique","Technique","Recup","Activation","Pre-match"];
-
-// Espaces de jeu, avec leur facteur de modulation de charge (juste pour
-// l'affichage du libelle / preview cote front ; le backend fait le calcul
-// reel via calcCharge).
-const ESPACES = [
-  { id: "terrain_entier", label: "Terrain entier",  facteur: 1.00 },
-  { id: "demi_terrain",   label: "Demi-terrain",    facteur: 1.15 },
-  { id: "quart_terrain",  label: "Quart de terrain",facteur: 1.30 },
-  { id: "espace_reduit",  label: "Espace reduit",   facteur: 1.40 },
-  { id: "salle",          label: "Salle",           facteur: 0.90 },
-  { id: "autre",          label: "Autre",           facteur: 1.00 },
-];
-const FACTEURS_TYPE: Record<string, number> = {
-  Physique: 1.20, "Pre-match": 1.00, Tactique: 0.85,
-  Technique: 0.75, Activation: 0.40, Recup: 0.30,
-};
-
-function labelEspace(id?: string | null) {
-  return ESPACES.find((e) => e.id === id)?.label ?? id ?? "";
-}
-function previewCharge(duree: number, intensite: number, type: string, espace: string): number {
-  const fT = FACTEURS_TYPE[type] ?? 0.85;
-  const fE = ESPACES.find((e) => e.id === espace)?.facteur ?? 1.00;
-  return Math.round(duree * intensite * fT * fE);
-}
-
-interface JoueurLite {
-  id: string; nom: string; prenom?: string; numeroFavori?: number | null;
-  poste?: string | null;
-}
-interface Seance {
-  id: string; date?: string; jour?: string; heure?: string; type?: string;
-  theme?: string; dureeMin: number; intensite?: number; charge: number;
-  terrain?: string; espace?: string;
-  presents: number; total: number;
-  joueursPresents?: string[];
-  equipeId?: string;
-}
+import { dateVersIso } from "@/features/calendrier/lib/calendrier";
+import {
+  SeanceModal, type JoueurLite, type Seance,
+} from "./SeanceModal";
+import { libelleEspace, moyennePresence, ordonnerRecentsDabord, SEANCES_PAR_PAGE } from "../lib/seances";
 
 export default function Entrainements() {
   const { notifier, confirmer } = useFeedback();
@@ -71,6 +32,7 @@ export default function Entrainements() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Seance | null>(null);
+  const [page, setPage] = useState(1);
 
   // Charge effectif filtre sur l'equipe propre.
   // - Si equipe propre selectionnee : charge son effectif et ses seances
@@ -116,6 +78,13 @@ export default function Entrainements() {
 
   const chargeTotale = seances.reduce((s, x) => s + (x.charge ?? 0), 0);
   const chargeMoyenne = seances.length ? Math.round(chargeTotale / seances.length) : 0;
+  const presenceMoyenne = moyennePresence(seances);
+  const recentes = useMemo(() => ordonnerRecentsDabord(seances, dateVersIso), [seances]);
+  const nbPages = Math.max(1, Math.ceil(recentes.length / SEANCES_PAR_PAGE));
+  const pageCourante = Math.min(page, nbPages);
+  const visibles = recentes.slice(
+    (pageCourante - 1) * SEANCES_PAR_PAGE, pageCourante * SEANCES_PAR_PAGE,
+  );
 
   return (
     <div className="space-y-6 fade-up">
@@ -149,7 +118,8 @@ export default function Entrainements() {
             <Kpi label="Seances" value={seances.length} icon={<Calendar size={14}/>}/>
             <Kpi label="Effectif" value={effectif.length} icon={<Users size={14}/>}/>
             <Kpi label="Charge totale" value={Math.round(chargeTotale)} suffix="UA-RPE" icon={<Dumbbell size={14}/>}/>
-            <Kpi label="Charge moyenne / seance" value={chargeMoyenne} suffix="UA-RPE" icon={<Dumbbell size={14}/>}/>
+            <Kpi label="Charge moyenne / seance" value={chargeMoyenne} suffix="UA-RPE" icon={<Dumbbell size={14}/>}
+              extra={presenceMoyenne === null ? undefined : `Presence moyenne : ${presenceMoyenne} %`}/>
           </section>
 
           <section>
@@ -161,7 +131,7 @@ export default function Entrainements() {
               </p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {seances.map((s) => (
+                {visibles.map((s) => (
                   <div key={s.id} className="panel-inset p-4 flex flex-col gap-2 relative group">
                     <div className="flex items-center justify-between">
                       <div className="font-display font-bold text-ink">
@@ -176,7 +146,7 @@ export default function Entrainements() {
                     <div className="text-[11px] text-muted flex items-center gap-3 flex-wrap">
                       <span className="flex items-center gap-1"><Clock size={10}/>{s.heure ?? "—"} · {s.dureeMin}'</span>
                       {s.terrain && <span className="flex items-center gap-1"><MapPin size={10}/>{s.terrain}</span>}
-                      {s.espace && <span className="flex items-center gap-1"><Maximize2 size={10}/>{labelEspace(s.espace)}</span>}
+                      {s.espace && <span className="flex items-center gap-1"><Maximize2 size={10}/>{libelleEspace(s.espace)}</span>}
                     </div>
                     <div className="flex items-center gap-4 mt-1">
                       <div className="flex-1">
@@ -186,6 +156,12 @@ export default function Entrainements() {
                         <div className="w-full bg-line h-1.5 rounded-full overflow-hidden mt-1">
                           <div className="h-full bg-amber" style={{ width: `${Math.min(s.charge/10, 100)}%` }}/>
                         </div>
+                        {s.total > 0 && (
+                          <div className="flex items-center justify-between text-[10px] text-faint uppercase tracking-wider mt-1.5"
+                            data-testid="presence-seance">
+                            <span>Presence</span><span>{Math.round((s.presents / s.total) * 100)} %</span>
+                          </div>
+                        )}
                       </div>
                       <div className="text-right">
                         <div className="text-[10px] text-faint uppercase tracking-wider">Presents</div>
@@ -204,11 +180,26 @@ export default function Entrainements() {
                 ))}
               </div>
             )}
+            {nbPages > 1 && (
+              <nav className="flex items-center justify-center gap-3 mt-4" aria-label="Pagination des seances">
+                <button className="btn text-xs" disabled={pageCourante <= 1}
+                  onClick={() => setPage(pageCourante - 1)}>
+                  <ChevronLeft size={12}/> Precedent
+                </button>
+                <span className="text-xs text-muted tabular-nums" data-testid="pagination-seances">
+                  Page {pageCourante} / {nbPages}
+                </span>
+                <button className="btn text-xs" disabled={pageCourante >= nbPages}
+                  onClick={() => setPage(pageCourante + 1)}>
+                  Suivant <ChevronRight size={12}/>
+                </button>
+              </nav>
+            )}
           </section>
 
           <section className="panel p-5">
             <div className="h-section mb-3">Charge par seance (UA-RPE)</div>
-            <Sparkline values={seances.map((s) => s.charge)} width={620} height={120} color="rgb(var(--amber))"/>
+            <Sparkline values={[...recentes].reverse().map((s) => s.charge)} width={620} height={120} color="rgb(var(--amber))"/>
             <p className="text-[11px] text-faint mt-2">
               Charge calculee via la methode session-RPE (Foster) :
               <span className="text-ink"> duree x intensite x facteur_type x facteur_espace</span>.
@@ -219,7 +210,7 @@ export default function Entrainements() {
       )}
 
       {adding && equipe && (
-        <SeanceForm
+        <SeanceModal
           equipeId={equipe.id}
           effectif={effectif}
           onClose={() => setAdding(false)}
@@ -227,7 +218,7 @@ export default function Entrainements() {
         />
       )}
       {editing && equipe && (
-        <SeanceForm
+        <SeanceModal
           equipeId={equipe.id}
           effectif={effectif}
           seance={editing}
@@ -239,196 +230,7 @@ export default function Entrainements() {
   );
 }
 
-/* ---- formulaire add/edit ---- */
-function SeanceForm({
-  equipeId, effectif, seance, onClose, onSaved,
-}: {
-  equipeId: string;
-  effectif: JoueurLite[];
-  seance?: Seance;     // si defini -> mode edit
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const isEdit = !!seance?.id;
-  const [form, setForm] = useState({
-    equipeId,
-    date: seance?.date ?? "",
-    jour: seance?.jour ?? "",
-    heure: seance?.heure ?? "19:30",
-    type: seance?.type ?? "Tactique",
-    theme: seance?.theme ?? "",
-    dureeMin: seance?.dureeMin ?? 90,
-    intensite: seance?.intensite ?? 6,
-    terrain: seance?.terrain ?? "Honneur",
-    espace: seance?.espace ?? "terrain_entier",
-  });
-  const [presents, setPresents] = useState<Set<string>>(
-    () => new Set(seance?.joueursPresents ?? effectif.map((j) => j.id)),
-  );
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
-    setForm((f) => ({ ...f, [k]: v }));
-  }
-  function toggle(id: string) {
-    setPresents((s) => {
-      const n = new Set(s);
-      if (n.has(id)) n.delete(id); else n.add(id);
-      return n;
-    });
-  }
-  function tousPresents() { setPresents(new Set(effectif.map((j) => j.id))); }
-  function aucunPresent() { setPresents(new Set()); }
-
-  async function save() {
-    setSaving(true); setError(null);
-    try {
-      const payload = {
-        ...form,
-        joueursPresents: [...presents],
-        total: effectif.length,
-      };
-      if (isEdit) {
-        await api.updateEntrainement(seance!.id, payload);
-      } else {
-        await api.createEntrainement(payload);
-      }
-      onSaved();
-    } catch (e) {
-      setError("Echec : backend injoignable. " + (e as Error).message);
-      setSaving(false);
-    }
-  }
-
-  const chargePreview = previewCharge(
-    form.dureeMin, form.intensite, form.type, form.espace,
-  );
-  const sortedEffectif = [...effectif].sort((a, b) =>
-    (a.numeroFavori ?? 99) - (b.numeroFavori ?? 99),
-  );
-
-  return (
-    <Modal open={true} onClose={onClose} maxWidth="max-w-3xl">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="font-display text-xl font-bold text-ink">
-          {isEdit ? "Modifier la seance" : "Nouvel entrainement"}
-        </h2>
-        <button className="btn text-xs" onClick={onClose}><X size={14}/></button>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <Field label="Date">
-          <DatePicker valeur={form.date} onChange={(v)=>set("date", v)} ariaLabel="Date" effacable={false}/>
-        </Field>
-        <Field label="Jour (libelle)">
-          <input className="inp" value={form.jour}
-            placeholder="Mar." onChange={(e)=>set("jour", e.target.value)}/>
-        </Field>
-        <Field label="Heure">
-          <input className="inp" value={form.heure}
-            onChange={(e)=>set("heure", e.target.value)}/>
-        </Field>
-        <Field label="Type">
-          <Select valeur={form.type} onChange={(v)=>set("type", v)} ariaLabel="Type" options={optionsSimples(TYPES)}/>
-        </Field>
-        <Field label="Espace">
-          <Select valeur={form.espace} onChange={(v)=>set("espace", v)} ariaLabel="Espace"
-            options={ESPACES.map((e) => ({ valeur: e.id, libelle: e.label }))}/>
-        </Field>
-        <Field label="Terrain">
-          <input className="inp" value={form.terrain}
-            onChange={(e)=>set("terrain", e.target.value)}/>
-        </Field>
-        <Field label="Theme">
-          <input className="inp" value={form.theme}
-            placeholder="Sortie de balle / pressing" onChange={(e)=>set("theme", e.target.value)}/>
-        </Field>
-        <Field label="Duree (min)">
-          <input type="number" className="inp" value={form.dureeMin}
-            onChange={(e)=>set("dureeMin", +e.target.value)}/>
-        </Field>
-        <Field label="Intensite (RPE / 10)">
-          <input type="number" min={1} max={10} className="inp" value={form.intensite}
-            onChange={(e)=>set("intensite", +e.target.value)}/>
-        </Field>
-        <Field label="Charge (auto)">
-          <div className="inp bg-panel text-amber font-mono">{chargePreview} UA-RPE</div>
-        </Field>
-      </div>
-      <p className="text-[10px] text-faint mt-1">
-        Charge calculee live : duree x RPE x facteur_type ({(FACTEURS_TYPE[form.type] ?? 0.85).toFixed(2)})
-        x facteur_espace ({(ESPACES.find((e) => e.id === form.espace)?.facteur ?? 1.00).toFixed(2)}).
-      </p>
-
-      {/* selection joueurs presents */}
-      <div className="mt-5 panel-inset p-3">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Users size={14} className="text-accent"/>
-            <span className="font-display font-bold text-ink text-sm">
-              Joueurs presents
-            </span>
-            <span className="badge badge-accent">{presents.size} / {effectif.length}</span>
-          </div>
-          <div className="flex gap-2">
-            <button className="btn text-xs" onClick={tousPresents}>
-              <Check size={11}/> Tous
-            </button>
-            <button className="btn text-xs" onClick={aucunPresent}>
-              <X size={11}/> Aucun
-            </button>
-          </div>
-        </div>
-        {effectif.length === 0 ? (
-          <p className="text-xs text-muted py-3 text-center">
-            Aucun joueur dans l'effectif de cette equipe. Importe une FMI.
-          </p>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-1 max-h-[280px] overflow-auto">
-            {sortedEffectif.map((j) => {
-              const checked = presents.has(j.id);
-              return (
-                <label
-                  key={j.id}
-                  className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer ${
-                    checked ? "bg-accent/10 text-ink" : "text-muted hover:bg-line/40"
-                  }`}
-                >
-                  <input type="checkbox" checked={checked} onChange={() => toggle(j.id)} />
-                  <span className="font-mono text-xs w-6 text-right text-faint">
-                    {j.numeroFavori ?? "—"}
-                  </span>
-                  <span className="flex-1 truncate">{j.prenom} {j.nom}</span>
-                  <span className="badge text-[9px] !px-1.5 !py-0">{j.poste}</span>
-                </label>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {error && <p className="text-danger text-xs mt-3">{error}</p>}
-
-      <div className="flex justify-end gap-2 mt-5">
-        <button className="btn" onClick={onClose}>Annuler</button>
-        <button className="btn btn-primary" onClick={save} disabled={saving}>
-          <Save size={14}/> {saving ? "Enregistrement…" : (isEdit ? "Enregistrer" : "Creer la seance")}
-        </button>
-      </div>
-    </Modal>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="stat-label">{label}</span>
-      <div className="mt-1">{children}</div>
-    </label>
-  );
-}
-function Kpi({ label, value, suffix, icon }:{label:string;value:string|number;suffix?:string;icon?:React.ReactNode}) {
+function Kpi({ label, value, suffix, icon, extra }:{label:string;value:string|number;suffix?:string;icon?:React.ReactNode;extra?:string}) {
   return (
     <div className="stat-tile">
       <div className="flex items-center justify-between">
@@ -437,6 +239,7 @@ function Kpi({ label, value, suffix, icon }:{label:string;value:string|number;su
       </div>
       <div className="stat-value tabular-nums">{value}</div>
       {suffix && <div className="stat-suffix">{suffix}</div>}
+      {extra && <div className="text-[11px] text-muted mt-1">{extra}</div>}
     </div>
   );
 }

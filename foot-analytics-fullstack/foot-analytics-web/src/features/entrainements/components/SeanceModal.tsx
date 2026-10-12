@@ -47,6 +47,12 @@ function previewCharge(
   return Math.round(duree * intensite * fT * fE);
 }
 
+const JOURS_COURTS = ["Dim.", "Lun.", "Mar.", "Mer.", "Jeu.", "Ven.", "Sam."];
+function jourDepuisDate(iso?: string): string {
+  const d = iso ? new Date(`${iso}T12:00:00`) : null;
+  return d && !Number.isNaN(d.getTime()) ? JOURS_COURTS[d.getDay()] : "";
+}
+
 export interface JoueurLite {
   id: string; nom: string; prenom?: string;
   numeroFavori?: number | null;
@@ -63,12 +69,13 @@ export interface Seance {
 }
 
 export function SeanceModal({
-  equipeId, effectif, seance, defaultDate, onClose, onSaved,
+  equipeId, effectif, seance, defaultDate, defaultHeure, onClose, onSaved,
 }: {
   equipeId: string;
   effectif: JoueurLite[];
   seance?: Seance;       // si defini -> mode edit
   defaultDate?: string;  // pre-remplit la date (creation depuis calendrier)
+  defaultHeure?: string; // heure prevue du creneau clique (creation depuis calendrier)
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -76,8 +83,8 @@ export function SeanceModal({
   const [form, setForm] = useState({
     equipeId,
     date: seance?.date ?? defaultDate ?? "",
-    jour: seance?.jour ?? "",
-    heure: seance?.heure ?? "19:30",
+    jour: seance?.jour ?? jourDepuisDate(defaultDate),
+    heure: seance?.heure ?? defaultHeure ?? "19:30",
     type: seance?.type ?? "Tactique",
     theme: seance?.theme ?? "",
     dureeMin: seance?.dureeMin ?? 90,

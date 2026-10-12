@@ -923,6 +923,56 @@ test("calendrier : un match ajoute (adversaire choisi dans une liste) apparait a
   await fetch(`${API_URL}/matchs/${idMatch}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
 });
 
+test("calendrier : la modale reprend l'heure prevue, une seance se rouvre d'un clic ; entrainements : 9 par page, recents d'abord, presence moyenne", async () => {
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  await page.goto("/calendrier");
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: /^[A-Z][a-z]{2,3}\.$/ }).last().click();
+  // Le creneau prevu (jour + heure) propose l'heure du planning dans la modale de creation.
+  const prevu = page.getByRole("button", { name: /Entrainement \d{2}:\d{2}/ }).first();
+  const heurePrevue = (await prevu.innerText()).match(/\d{2}:\d{2}/)![0];
+  await prevu.click();
+  const modale = page.locator("div.fixed.inset-0.overflow-y-auto");
+  await expect(modale.getByRole("heading", { name: "Nouvel entrainement" })).toBeVisible();
+  await expect(modale).toContainText(heurePrevue);
+  await modale.getByPlaceholder("Sortie de balle / pressing").fill("Theme initial e2e");
+  await modale.getByRole("button", { name: "Creer la seance" }).click();
+  await expect(modale).toBeHidden();
+
+  // Un clic sur la seance rouvre la modale en edition.
+  await page.getByRole("button", { name: /Theme initial e2e/ }).click();
+  await expect(modale.getByRole("heading", { name: "Modifier la seance" })).toBeVisible();
+  await modale.getByPlaceholder("Sortie de balle / pressing").fill("Theme modifie e2e");
+  await modale.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(modale).toBeHidden();
+  await expect(page.getByRole("button", { name: /Theme modifie e2e/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Theme initial e2e/ })).toHaveCount(0);
+
+  // Entrainements : 12 seances au total -> 9 sur la premiere page, 3 sur la seconde.
+  const entr = await (await fetch(`${API_URL}/entrainements`, { headers: { Authorization: `Bearer ${token}` } })).json();
+  const creee = entr.find((e: any) => e.theme === "Theme modifie e2e");
+  const ids: string[] = [creee.id];
+  for (let i = 0; i < 11; i++) {
+    const r = await fetch(`${API_URL}/entrainements`, {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ equipeId: creee.equipeId, date: `2020-01-${String(i + 1).padStart(2, "0")}`, heure: "18:00", type: "Tactique", dureeMin: 60, intensite: 5, espace: "terrain_entier", presents: 5, total: 10 }),
+    });
+    ids.push((await r.json()).id);
+  }
+  await page.goto("/entrainements");
+  await expect(page.getByTestId("pagination-seances")).toHaveText("Page 1 / 2");
+  await expect(page.getByTestId("presence-seance")).toHaveCount(9);
+  await expect(page.getByText("Presence moyenne :")).toBeVisible();
+  await page.getByRole("button", { name: /Suivant/ }).click();
+  await expect(page.getByTestId("pagination-seances")).toHaveText("Page 2 / 2");
+  await expect(page.getByTestId("presence-seance")).toHaveCount(3);
+
+  for (const id of ids) await fetch(`${API_URL}/entrainements/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+});
+
 test("calendrier : un match cree puis modifie reste unique, et un doublon est refuse avec son motif", async () => {
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" },

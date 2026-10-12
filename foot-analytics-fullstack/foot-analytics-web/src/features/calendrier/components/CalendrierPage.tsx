@@ -90,6 +90,7 @@ function CalendrierContent() {
   const [addOpen, setAddOpen] = useState<
     null | { date: string; type: "entrainement" | "match" | "autre" }
   >(null);
+  const [seanceEdit, setSeanceEdit] = useState<any | null>(null);
 
   // Charge la cle planning + autres depuis localStorage (par equipe).
   useEffect(() => {
@@ -344,9 +345,12 @@ function CalendrierContent() {
                   })}
                   {/* Entrainements */}
                   {sList.map((s) => (
-                    <div key={s.id}
-                      className="px-1.5 py-1 rounded-sm text-[10px] leading-tight
-                        bg-amber/10 text-amber border border-amber/20">
+                    <button key={s.id} type="button"
+                      onClick={() => setSeanceEdit(s)}
+                      disabled={lectureSeule}
+                      title={lectureSeule ? "Saison archivee : consultation seule" : "Modifier la seance"}
+                      className="block w-full text-left px-1.5 py-1 rounded-sm text-[10px] leading-tight
+                        bg-amber/10 text-amber border border-amber/20 enabled:hover:bg-amber/20">
                       <div className="flex items-center gap-1">
                         <Dumbbell size={9}/>
                         <span className="font-bold truncate">{s.type ?? "Entr."}</span>
@@ -355,7 +359,7 @@ function CalendrierContent() {
                       {s.theme && (
                         <div className="text-[9px] text-muted truncate">{s.theme}</div>
                       )}
-                    </div>
+                    </button>
                   ))}
                   {/* Autres */}
                   {aList.map((a) => (
@@ -411,8 +415,18 @@ function CalendrierContent() {
           equipeId={equipeId}
           effectif={effectif}
           defaultDate={addOpen.date}
+          defaultHeure={planning.heure}
           onClose={() => setAddOpen(null)}
           onSaved={async () => { setAddOpen(null); await reload(); }}
+        />
+      )}
+      {seanceEdit && (
+        <SeanceModal
+          equipeId={equipeId}
+          effectif={effectif}
+          seance={{ ...seanceEdit, date: dateVersIso(seanceEdit.date) ?? seanceEdit.date }}
+          onClose={() => setSeanceEdit(null)}
+          onSaved={async () => { setSeanceEdit(null); await reload(); }}
         />
       )}
       {addOpen?.type === "match" && (
