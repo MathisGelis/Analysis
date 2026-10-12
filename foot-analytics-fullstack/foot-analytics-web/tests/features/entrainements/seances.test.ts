@@ -6,8 +6,8 @@ import {
 } from "@/features/entrainements/lib/seances";
 
 describe("seances", () => {
-  it("affiche 9 seances par page", () => {
-    expect(SEANCES_PAR_PAGE).toBe(9);
+  it("affiche 6 seances par page", () => {
+    expect(SEANCES_PAR_PAGE).toBe(6);
   });
 
   it("ordonne la plus recente d'abord, date puis heure, formats mixtes", () => {

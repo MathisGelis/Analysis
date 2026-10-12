@@ -923,7 +923,7 @@ test("calendrier : un match ajoute (adversaire choisi dans une liste) apparait a
   await fetch(`${API_URL}/matchs/${idMatch}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
 });
 
-test("calendrier : la modale reprend l'heure prevue, une seance se rouvre d'un clic ; entrainements : 9 par page, recents d'abord, presence moyenne", async () => {
+test("calendrier : la modale reprend l'heure prevue, une seance se rouvre d'un clic ; entrainements : 6 par page, recents d'abord, presence moyenne", async () => {
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
@@ -951,7 +951,7 @@ test("calendrier : la modale reprend l'heure prevue, une seance se rouvre d'un c
   await expect(page.getByRole("button", { name: /Theme modifie e2e/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Theme initial e2e/ })).toHaveCount(0);
 
-  // Entrainements : 12 seances au total -> 9 sur la premiere page, 3 sur la seconde.
+  // Entrainements : 12 seances au total -> 6 sur chaque page.
   const entr = await (await fetch(`${API_URL}/entrainements`, { headers: { Authorization: `Bearer ${token}` } })).json();
   const creee = entr.find((e: any) => e.theme === "Theme modifie e2e");
   const ids: string[] = [creee.id];
@@ -964,11 +964,11 @@ test("calendrier : la modale reprend l'heure prevue, une seance se rouvre d'un c
   }
   await page.goto("/entrainements");
   await expect(page.getByTestId("pagination-seances")).toHaveText("Page 1 / 2");
-  await expect(page.getByTestId("presence-seance")).toHaveCount(9);
-  await expect(page.getByText("Presence moyenne :")).toBeVisible();
+  await expect(page.getByTestId("presence-seance")).toHaveCount(6);
+  await expect(page.getByTestId("presence-moyenne")).toContainText("Moyenne :");
   await page.getByRole("button", { name: /Suivant/ }).click();
   await expect(page.getByTestId("pagination-seances")).toHaveText("Page 2 / 2");
-  await expect(page.getByTestId("presence-seance")).toHaveCount(3);
+  await expect(page.getByTestId("presence-seance")).toHaveCount(6);
 
   for (const id of ids) await fetch(`${API_URL}/entrainements/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
 });

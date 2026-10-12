@@ -118,8 +118,7 @@ export default function Entrainements() {
             <Kpi label="Seances" value={seances.length} icon={<Calendar size={14}/>}/>
             <Kpi label="Effectif" value={effectif.length} icon={<Users size={14}/>}/>
             <Kpi label="Charge totale" value={Math.round(chargeTotale)} suffix="UA-RPE" icon={<Dumbbell size={14}/>}/>
-            <Kpi label="Charge moyenne / seance" value={chargeMoyenne} suffix="UA-RPE" icon={<Dumbbell size={14}/>}
-              extra={presenceMoyenne === null ? undefined : `Presence moyenne : ${presenceMoyenne} %`}/>
+            <Kpi label="Charge moyenne / seance" value={chargeMoyenne} suffix="UA-RPE" icon={<Dumbbell size={14}/>}/>
           </section>
 
           <section>
@@ -206,6 +205,18 @@ export default function Entrainements() {
               Reference match officiel ~700-900 UA-RPE.
             </p>
           </section>
+
+          {presenceMoyenne !== null && (
+            <section className="panel p-5" data-testid="presence-moyenne">
+              <div className="flex items-center justify-between mb-3">
+                <div className="h-section">Presence par seance (%)</div>
+                <span className="badge badge-accent">Moyenne : {presenceMoyenne} %</span>
+              </div>
+              <Sparkline values={[...recentes].reverse().filter((s) => s.total > 0)
+                .map((s) => Math.round((s.presents / s.total) * 100))}
+                width={620} height={120} color="rgb(var(--accent))"/>
+            </section>
+          )}
         </>
       )}
 
@@ -230,7 +241,7 @@ export default function Entrainements() {
   );
 }
 
-function Kpi({ label, value, suffix, icon, extra }:{label:string;value:string|number;suffix?:string;icon?:React.ReactNode;extra?:string}) {
+function Kpi({ label, value, suffix, icon }:{label:string;value:string|number;suffix?:string;icon?:React.ReactNode;extra?:string}) {
   return (
     <div className="stat-tile">
       <div className="flex items-center justify-between">
@@ -239,7 +250,6 @@ function Kpi({ label, value, suffix, icon, extra }:{label:string;value:string|nu
       </div>
       <div className="stat-value tabular-nums">{value}</div>
       {suffix && <div className="stat-suffix">{suffix}</div>}
-      {extra && <div className="text-[11px] text-muted mt-1">{extra}</div>}
     </div>
   );
 }

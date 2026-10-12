@@ -2,7 +2,7 @@
 //
 // Logique pure de la liste des seances : ordre, pagination, presence.
 
-export const SEANCES_PAR_PAGE = 9;
+export const SEANCES_PAR_PAGE = 6;
 
 const LIBELLES_ESPACES: Record<string, string> = {
   terrain_entier: "Terrain entier",
