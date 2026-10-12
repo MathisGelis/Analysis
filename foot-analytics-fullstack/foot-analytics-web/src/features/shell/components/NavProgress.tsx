@@ -55,9 +55,15 @@ function Barre() {
   return (
     <>
       {cercle && (
+        // Pop-up centree, aux couleurs du theme (surface, bordure et accent suivent le mode nuit / jour). Elle n'intercepte aucun
+        // clic : on peut toujours changer d'avis et cliquer ailleurs.
         <div aria-hidden="true" data-testid="chargement-long"
-          className="pointer-events-none fixed right-5 top-[76px] z-60 grid h-9 w-9 place-items-center rounded-full border border-line bg-panel shadow-pop fade-up">
-          <Spinner taille={18} />
+          className="pointer-events-none fixed inset-0 z-60 grid place-items-center bg-[rgb(var(--bg))]/45 backdrop-blur-[2px] fade-up">
+          <div className="panel-pop flex flex-col items-center gap-3 px-9 py-7">
+            <Spinner taille={44} epaisseur={4} />
+            <div className="text-sm font-semibold text-ink">Chargement</div>
+            <div className="text-[11px] text-muted">Les donnees se calculent...</div>
+          </div>
         </div>
       )}
       <div
