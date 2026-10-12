@@ -101,17 +101,17 @@ export default async function JoueurPage({
       )}
 
       {/* IDENTITE */}
-      <header className="panel relative grid grid-cols-12 gap-5 overflow-hidden p-6">
+      <header className="panel relative grid grid-cols-12 gap-4 overflow-hidden p-4 sm:gap-5 sm:p-6">
         <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-accentstrong/[0.16] via-transparent to-accent2/[0.06]" />
-        <div className="pitch-lines" />
-        <div className="relative col-span-12 flex items-center gap-5 md:col-span-6">
-          <div className="grid h-24 w-24 shrink-0 place-items-center rounded-3xl bg-linear-to-br from-accentstrong to-accentdeep font-display text-5xl font-bold text-white shadow-glow"
+        <div className="pitch-lines hidden sm:block" />
+        <div className="relative col-span-12 flex items-center gap-4 sm:gap-5 md:col-span-6">
+          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-accentstrong to-accentdeep font-display text-3xl font-bold sm:h-24 sm:w-24 sm:rounded-3xl sm:text-5xl text-white shadow-glow"
             title="Numero le plus porte sur la saison">
             {numero ?? "?"}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs uppercase tracking-[0.18em] text-faint">{j.poste ?? "—"}</div>
-            <h1 className="font-display text-3xl font-bold leading-tight text-ink sm:text-4xl">
+            <h1 className="font-display text-2xl font-bold leading-tight text-ink break-words sm:text-4xl">
               {j.prenom} <span className="text-muted font-light">{j.nom}</span>
             </h1>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -136,7 +136,7 @@ export default async function JoueurPage({
           </div>
         </div>
 
-        <div className="relative col-span-12 grid grid-cols-3 gap-3 md:col-span-6">
+        <div className="relative col-span-12 grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 md:col-span-6">
           <Card label="Fatigue" big={
             fatigue != null && niveau ? (
               <div className="flex flex-col items-center gap-1">

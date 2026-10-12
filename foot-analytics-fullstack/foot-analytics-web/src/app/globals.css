@@ -240,7 +240,7 @@ body::before {
   }
   .stat-value {
     font-family: "Bricolage Grotesque Variable", "Instrument Sans Variable", ui-sans-serif, sans-serif;
-    font-size: 34px;
+    font-size: clamp(26px, 8vw, 34px);   /* tient dans une tuile a 2 colonnes, meme sur un petit telephone */
     font-weight: 700;
     line-height: 1;
     color: rgb(var(--ink));
