@@ -260,6 +260,14 @@ Une seule table (`features/shell/lib/acces-pages.ts`), lue par la navigation **e
 C'est de l'affichage : les droits sur les donnees sont appliques par l'API. L'ancienne page Scouting renvoie vers `/rapports`, l'ancienne page
 Predictions aussi (`/ia?adversaire=<club>` ouvre le pre-match de ce club).
 
+### Cartons rouges et staff
+- **Suspendus** : un joueur expulse (carton rouge, ou second jaune) au **dernier match** de son equipe est suspendu au moins un
+  match. Il est ecarte de la compo probable (rapport d'analyse et pre-match, qui le mentionnent) et jamais propose ni
+  suggere dans Tactique (indisponible). La duree reelle de la suspension (commission) n'est pas dans la FMI.
+- **Cartons du staff** : un carton d'entraineur ou de dirigeant est range a part (evenement `carton_staff`) : il n'entre ni
+  dans la discipline des joueurs, ni dans les suspensions ; il est credite au coach. Les feuilles deja importees sont
+  reclassees au demarrage de l'API.
+
 ### Compo et systeme probables
 Le systeme de jeu d'un adversaire vient des dispositifs saisis sur ses matchs **et** des numeros de maillot de ses feuilles
 (1 gardien, 2 DD, 3 DG, 4 DCD, 5 DCG, 6 MDC, 7 AG, 8 MC, 9 BU, 10 MO, 11 AD) : un joueur qui passe du 2 au 4 dit une

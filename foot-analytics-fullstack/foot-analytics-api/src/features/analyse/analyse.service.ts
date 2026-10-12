@@ -41,6 +41,7 @@ import { posteDuNumero } from "@/features/matchs/numeros-postes";
 import { analyserNumeros, lignesDeFeuille } from "./compo-numeros";
 import { calculerTendances, dynamiqueForme, issueDe, MatchTendance, series as seriesDe } from "./tendances";
 import { RapportEquipe, ImpactJoueur, Faiblesse, Partnership, DynamiqueEquipe } from "./analyse.types";
+import { expulseDansLeMatch } from "@/features/matchs/suspensions";
 
 function norm(s?: string): string {
   return (s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
@@ -370,9 +371,23 @@ export class AnalyseService {
     // de la convention (numeros de saison), repli sur les 11 titulaires les plus utilises, tous postes confondus.
     type PosteScore = { poste: string; numero?: number; nom: string; matchsJoues: number; proba?: number };
     const numeros = analyserNumeros(infos.flatMap((i) => lignesDeFeuille(i.m, i.titulaires)));
+    // Les joueurs expulses au DERNIER match sont suspendus au moins un match : ils ne sont pas dans la compo probable.
+    const dernierInfo = infosChrono.at(-1);
+    const suspendusNoms = new Set<string>();
+    const nomsSuspendus: string[] = [];
+    for (const c of dernierInfo ? [...dernierInfo.titulaires, ...dernierInfo.bancs] : []) {
+      if (!expulseDansLeMatch(c, dernierInfo!.m.evenements ?? [])) continue;
+      suspendusNoms.add(norm(`${c.nom} ${c.prenom ?? ""}`));
+      nomsSuspendus.push(`${c.prenom ?? ""} ${c.nom}`.trim());
+    }
+    const dispo = (c: Composition) => !suspendusNoms.has(norm(`${c.nom} ${c.prenom ?? ""}`));
+    const infosCompo = suspendusNoms.size
+      ? infos.map((i) => ({ ...i, titulaires: i.titulaires.filter(dispo), bancs: i.bancs.filter(dispo) }))
+      : infos;
+    const numerosCompo = suspendusNoms.size ? analyserNumeros(infosCompo.flatMap((i) => lignesDeFeuille(i.m, i.titulaires))) : numeros;
     // Un modele de l'IA actif (features/ia) prime : probabilite de titularisation par joueur, apprise sur toutes les feuilles.
     const modeleIa = this.ia ? await this.ia.modeleActif() : null;
-    const parModele = modeleIa ? compoProbableDuModele(modeleIa.poids, infos, saisonId) : null;
+    const parModele = modeleIa ? compoProbableDuModele(modeleIa.poids, infosCompo, saisonId) : null;
     // Et, si ce modele a appris les dispositifs (et fait au moins aussi bien que le moteur), le dispositif probable.
     const systemeParModele = modeleIa ? systemeDuModele(modeleIa.poids, infos) : null;
     let compoProbable: PosteScore[];
@@ -384,13 +399,13 @@ export class AnalyseService {
       }));
       compoProbableSur = parModele.sur;
     } else if (numeros.fiabilite.exploitable) {
-      const titu = new Map(numeros.profils.map((p) => [p.joueur, p.titularisations]));
-      compoProbable = numeros.onze.flatMap((p) => p.joueur && p.nom
+      const titu = new Map(numerosCompo.profils.map((p) => [p.joueur, p.titularisations]));
+      compoProbable = numerosCompo.onze.flatMap((p) => p.joueur && p.nom
         ? [{ poste: p.poste, numero: p.numero, nom: p.nom, matchsJoues: titu.get(p.joueur) ?? 0 }] : []);
       compoProbableSur = numeros.matchs;
     } else {
       const titsParJoueur = new Map<string, { poste: string; numero?: number; nom: string; titularisations: number }>();
-      for (const info of infos) {
+      for (const info of infosCompo) {
         for (const c of info.titulaires) {
           const k = norm(`${c.nom}-${c.prenom ?? ""}`);
           const j = joueurs.find(
@@ -742,6 +757,7 @@ export class AnalyseService {
       faiblesses,
       compoProbable,
       compoProbableSur,
+      suspendus: nomsSuspendus,
       compoProbableSource: parModele ? "modele" : "regles",
       compoProbableModele: parModele ? modeleIa!.nom : null,
       systemeModele: systemeParModele ? { ...systemeParModele, nom: modeleIa!.nom } : null,

@@ -209,6 +209,11 @@ export default async function RapportPrematch({
               aide={a.compoProbableSource === "modele"
                 ? `predit par l'IA (${a.compoProbableModele ?? "modele actif"}) : la chance de chaque joueur de commencer`
                 : r.numeros?.fiabilite.exploitable ? `un joueur par numero de maillot, sur ses ${r.numeros.matchs} dernieres feuilles` : "titulaires les plus utilises, par poste"}>
+              {(a.suspendus?.length ?? 0) > 0 && (
+                <p className="mb-2 text-[11px] text-amber" data-testid="suspendus">
+                  Suspendu{a.suspendus!.length > 1 ? "s" : ""} (rouge au dernier match), absent{a.suspendus!.length > 1 ? "s" : ""} de ce onze : {a.suspendus!.join(", ")}.
+                </p>
+              )}
               {a.compoProbable.length === 0 ? <Note>Composition non disponible.</Note> : (
                 <ul className="divide-y divide-line">
                   {[...a.compoProbable].sort((x, y) => (x.numero ?? 99) - (y.numero ?? 99)).map((j) => (

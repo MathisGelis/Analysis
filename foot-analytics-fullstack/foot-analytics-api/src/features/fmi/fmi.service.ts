@@ -22,6 +22,7 @@ import { ArbitresService } from "@/features/arbitres/arbitres.service";
 import { CoachsService } from "@/features/coachs/coachs.service";
 import { EquipesService } from "@/features/equipes/equipes.service";
 import { SaisonsService } from "@/features/saisons/saisons.service";
+import { estCartonDuStaff } from "./carton-staff";
 
 // Normalise une chaine pour comparaison (NFD + lowercase + trim).
 function norm(s?: string | null): string {
@@ -360,9 +361,13 @@ export class FmiService {
     ];
 
     const evenements: any[] = [];
+    // Les cartons de l'encadrement (entraineur, dirigeant) sont ranges a part : jamais des cartons de joueurs.
+    const joueursFeuille = [...(parsed.compo_recevante ?? []), ...(parsed.compo_visiteuse ?? [])]
+      .map((p: any) => ({ licence: p.licence, nom: `${p.nom ?? ""} ${p.prenom ?? ""}`.trim() }));
+    const staffFeuille = (parsed.encadrement ?? []).map((s: any) => ({ licence: s.licence, nom: s.nom_complet ?? "" }));
     for (const c of parsed.cartons ?? []) {
       evenements.push({
-        type: "carton", sousType: c.couleur, motif: c.motif,
+        type: estCartonDuStaff(c, joueursFeuille, staffFeuille) ? "carton_staff" : "carton", sousType: c.couleur, motif: c.motif,
         minute: c.minute, arret: c.arret ?? 0, joueur: c.joueur,
         equipe: isRecev(c.equipe) ? "dom" : "ext",
       });

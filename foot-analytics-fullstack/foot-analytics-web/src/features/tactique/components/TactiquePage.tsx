@@ -100,7 +100,8 @@ function TactiqueContent() {
         id: j.id, nom: j.nom, prenom: j.prenom, poste: j.poste, numeroFavori: j.numeroFavori,
         statutMutation: j.statutMutation, matchs: j.matchs, titularisations: j.titularisations, minutes: j.minutes,
         noteMoyenne: j.noteMoyenne, scoreFatigue: j.scoreFatigue,
-        indisponible: indispo.has(j.id), enReprise: reprise.has(j.id),
+        // Expulse au dernier match : suspendu au moins un match, donc jamais propose ni suggere (calcule par l'API).
+        indisponible: indispo.has(j.id) || j.suspendu === true, suspendu: j.suspendu === true, enReprise: reprise.has(j.id),
       }));
       setJoueurs(liste);
       setSansFiche(effectif.length - avecFiche.length);

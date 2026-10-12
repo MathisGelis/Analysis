@@ -39,6 +39,8 @@ export interface RapportEquipe {
   // `proba` : la chance de titularisation que lui donne le modele de l'IA, present seulement quand un modele est actif.
   compoProbable: { poste: string; numero?: number; nom: string; matchsJoues: number; proba?: number }[];
   compoProbableSur: number;
+  // Joueurs expulses (rouge, second jaune) au dernier match : suspendus au moins un match, absents de la compo probable.
+  suspendus: string[];
   // D'ou vient la compo : "modele" (modele de l'IA actif, voir features/ia) ou "regles" (moteur a regles) ; `compoProbableModele` : son nom.
   compoProbableSource: "modele" | "regles";
   compoProbableModele: string | null;

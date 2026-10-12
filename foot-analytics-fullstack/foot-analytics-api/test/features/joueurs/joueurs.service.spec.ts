@@ -42,6 +42,34 @@ describe("JoueursService", () => {
       await expect(svc.effectif("inconnue")).rejects.toThrow(/introuvable/);
     });
 
+    it("suspendu : expulse (rouge, second jaune) au DERNIER match de l'equipe seulement ; le staff ne suspend personne", async () => {
+      const c = await contexte();
+      const joueurs = [
+        { nom: "ROUGE", prenom: "Ali", licence: "1" }, { nom: "DOUBLE", prenom: "Bob", licence: "2" },
+        { nom: "ANCIEN", prenom: "Cyr", licence: "3" }, { nom: "JAUNE", prenom: "Dan", licence: "4" },
+      ];
+      const m1 = await f.match({ clubDom: c.moi.id, clubExt: c.adv.id, equipeDomId: c.seniors.id, equipeExtId: c.advEq.id, saisonId: c.saison.id, date: "07/09/2025", statut: "joue", scoreDom: 1, scoreExt: 0 });
+      const m2 = await f.match({ clubDom: c.adv.id, clubExt: c.moi.id, equipeDomId: c.advEq.id, equipeExtId: c.seniors.id, saisonId: c.saison.id, date: "14/09/2025", statut: "joue", scoreDom: 0, scoreExt: 0 });
+      await f.match({ clubDom: c.moi.id, clubExt: c.adv.id, equipeDomId: c.seniors.id, equipeExtId: c.advEq.id, saisonId: c.saison.id, date: "21/09/2025", statut: "prevu" });
+      for (const j of joueurs) {
+        await f.compo({ matchId: m1.id, cote: "dom", ...j });
+        await f.compo({ matchId: m2.id, cote: "ext", ...j });
+      }
+      await f.evenement({ matchId: m1.id, type: "carton", sousType: "rouge", equipe: "dom", joueur: "ANCIEN Cyr" });          // match precedent : purge
+      await f.evenement({ matchId: m2.id, type: "carton", sousType: "rouge", equipe: "ext", joueur: "ROUGE Ali" });
+      await f.evenement({ matchId: m2.id, type: "carton", sousType: "double_jaune", equipe: "ext", joueur: "DOUBLE Bob" });
+      await f.evenement({ matchId: m2.id, type: "carton", sousType: "jaune", equipe: "ext", joueur: "JAUNE Dan" });
+      await f.evenement({ matchId: m2.id, type: "carton_staff", sousType: "rouge", equipe: "ext", joueur: "ROUGE Ali" });    // jamais compte
+
+      const rows = await svc.effectif(c.seniors.id);
+      const suspendu = (nom: string) => rows.find((r) => r.nom === nom)!.suspendu;
+
+      expect(suspendu("ROUGE")).toBe(true);
+      expect(suspendu("DOUBLE")).toBe(true);
+      expect(suspendu("ANCIEN")).toBe(false);
+      expect(suspendu("JAUNE")).toBe(false);
+    });
+
     it("compte les stats UNIQUEMENT sur les matchs de cette equipe", async () => {
       const c = await contexte();
       const j = { nom: "MARCON", prenom: "Leo", licence: "111" };

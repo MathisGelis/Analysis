@@ -139,6 +139,34 @@ describe("AnalyseService.rapportClub", () => {
     expect(r.numeros.systeme).toBeNull();                        // aucun changement de numero : pas de systeme
   });
 
+  it("compo probable : un joueur expulse au DERNIER match est suspendu, donc absent (et signale) ; un rouge plus ancien ne compte plus", async () => {
+    const moi = await f.club("OL Sud");
+    const adv = await f.club("Adverse");
+    const s = await f.saison("2025-2026", 2025);
+    const eq = await f.equipe({ clubId: moi.id, nom: "Seniors", categorie: "Seniors", saisonId: s.id });
+    const advEq = await f.equipe({ clubId: adv.id, nom: "Adverse", categorie: "Seniors", saisonId: s.id });
+    const dates = ["07/09/2025", "14/09/2025", "21/09/2025"];
+    const matchs: { id: string }[] = [];
+    for (const date of dates) {
+      const m = await f.match({ clubDom: moi.id, clubExt: adv.id, equipeDomId: eq.id, equipeExtId: advEq.id, saisonId: s.id, date, scoreDom: 1, scoreExt: 0 });
+      for (let numero = 1; numero <= 12; numero++) {
+        await f.compo({ matchId: m.id, cote: "dom", nom: `JOUEUR${numero}`, prenom: "Jo", numero, titulaire: numero <= 11 });
+      }
+      matchs.push(m);
+    }
+    // Un rouge ancien (premier match) : purge depuis. Un second jaune (double_jaune) au dernier match : suspendu.
+    await f.evenement({ matchId: matchs[0].id, type: "carton", sousType: "rouge", equipe: "dom", joueur: "JOUEUR3 Jo", minute: 50 });
+    await f.evenement({ matchId: matchs[2].id, type: "carton", sousType: "double_jaune", equipe: "dom", joueur: "JOUEUR9 Jo", minute: 70 });
+
+    const r = await svc.rapportClub(moi.id, { equipeId: eq.id });
+
+    expect(r.suspendus).toEqual(["Jo JOUEUR9"]);
+    const noms = r.compoProbable.map((c) => c.nom);
+    expect(noms).not.toContain("Jo JOUEUR9");
+    expect(noms).toContain("Jo JOUEUR3");
+    expect(r.compoProbable.find((c) => c.numero === 9)?.nom).not.toBe("Jo JOUEUR9");
+  });
+
   it("equipe sans match : rapport vide, sans planter", async () => {
     const c = await contexte();
     const vide = await f.equipe({ clubId: c.moi.id, nom: "Seniors 2", categorie: "Seniors", saisonId: c.s26.id });

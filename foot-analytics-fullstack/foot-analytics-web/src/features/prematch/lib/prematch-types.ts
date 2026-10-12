@@ -73,6 +73,8 @@ export interface RapportPrematch {
     entraineurId: string | null;
     insights: Insight[];
     compoProbable: { poste: string; numero?: number; nom: string; matchsJoues: number; proba?: number }[];
+    /** Expulses au dernier match : suspendus au moins un match, absents de la compo probable. */
+    suspendus?: string[];
     /** "modele" : compo predite par le modele de l'IA actif (`proba` : sa chance de commencer) ; "regles" : moteur a regles. */
     compoProbableSource: "modele" | "regles";
     compoProbableModele: string | null;

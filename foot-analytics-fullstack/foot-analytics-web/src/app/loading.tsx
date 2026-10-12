@@ -4,6 +4,8 @@
 // Server Components appelle l'API). Un reflet traverse les blocs ; il est
 // neutralise si l'utilisateur prefere moins d'animations.
 
+import { Spinner } from "@/shared/ui/Spinner";
+
 function Bloc({ className = "" }: { className?: string }) {
   return <div className={`skeleton rounded-[18px]! border border-line ${className}`} aria-hidden="true" />;
 }
@@ -11,6 +13,7 @@ function Bloc({ className = "" }: { className?: string }) {
 export default function Chargement() {
   return (
     <div className="space-y-6" role="status" aria-label="Chargement en cours">
+      <div className="flex items-center gap-2 text-xs text-muted" aria-hidden="true"><Spinner taille={14} /> Chargement...</div>
       <Bloc className="h-44" />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => <Bloc key={i} className="h-28" />)}

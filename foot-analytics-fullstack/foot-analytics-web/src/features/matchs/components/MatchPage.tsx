@@ -420,6 +420,11 @@ function Timeline({ events, domNom, extNom }: { events: EvenementMatch[]; domNom
           icon = <span className={`w-2.5 h-3.5 rounded-sm ${e.sousType === "rouge" ? "bg-danger" : "bg-amber"}`}/>;
           color = e.sousType === "rouge" ? "text-danger" : "text-amber";
           title = `Carton ${e.sousType} · ${e.joueur}`;
+        } else if (e.type === "carton_staff") {
+          // Carton de l'entraineur ou d'un dirigeant : affiche, mais jamais compte comme un carton de joueur.
+          icon = <span className={`w-2.5 h-3.5 rounded-sm border ${e.sousType === "rouge" ? "border-danger" : "border-amber"}`}/>;
+          color = e.sousType === "rouge" ? "text-danger" : "text-amber";
+          title = `Carton ${e.sousType} · banc · ${e.joueur}`;
         } else if (e.type === "carton_vert") {
           icon = <span className="w-2.5 h-3.5 rounded-sm bg-win"/>;
           color = "text-win";

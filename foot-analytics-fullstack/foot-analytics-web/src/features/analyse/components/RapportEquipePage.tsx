@@ -396,6 +396,11 @@ export default async function RapportEquipe({
               Un joueur par numero de maillot (1 gardien, 2 DD, 3 DG, 4 DCD, 5 DCG, 6 MDC, 7 AG, 8 MC, 9 BU, 10 MO, 11 AD), sur les {rapport.numeros.matchs} dernieres feuilles.
             </p>
           )}
+          {(rapport.suspendus?.length ?? 0) > 0 && (
+            <p className="mb-3 text-[11px] text-amber" data-testid="suspendus">
+              Suspendu{rapport.suspendus.length > 1 ? "s" : ""} (rouge au dernier match), absent{rapport.suspendus.length > 1 ? "s" : ""} de cette compo : {rapport.suspendus.join(", ")}.
+            </p>
+          )}
           {rapport.compoProbable.length === 0 ? (
             <p className="text-sm text-muted py-4 text-center">
               Aucun joueur recurrent — trop peu de matchs pour deduire une compo.

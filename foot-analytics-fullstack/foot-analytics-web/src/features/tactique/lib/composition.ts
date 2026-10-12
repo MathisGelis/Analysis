@@ -91,6 +91,8 @@ export interface JoueurTactique {
   scoreFatigue?: number | null;
   /** Indisponible : blesse ou suspendu. Ne peut pas etre aligne. */
   indisponible?: boolean;
+  /** Expulse (rouge, second jaune) au dernier match : suspendu au moins un match. Implique `indisponible`. */
+  suspendu?: boolean;
   /** Retour de blessure : alignable, mais a surveiller. */
   enReprise?: boolean;
 }
@@ -188,7 +190,7 @@ export function vigilances(entree: {
     v.push({ niveau: "info", texte: `${bilan.inconnus} joueur${bilan.inconnus > 1 ? "s" : ""} au statut de mutation inconnu : la regle ne peut pas etre verifiee pour eux.` });
   }
   const indispos = [...presents, ...banc].filter((j) => j.indisponible);
-  if (indispos.length > 0) v.push({ niveau: "alerte", texte: `Indisponible${indispos.length > 1 ? "s" : ""} dans le groupe : ${indispos.map(nom).join(", ")}.` });
+  if (indispos.length > 0) v.push({ niveau: "alerte", texte: `Indisponible${indispos.length > 1 ? "s" : ""} dans le groupe : ${indispos.map((j) => (j.suspendu ? `${nom(j)} (suspendu, rouge au dernier match)` : nom(j))).join(", ")}.` });
   const fatigues = presents.filter((j) => (j.scoreFatigue ?? 0) >= 75);
   if (fatigues.length > 0) v.push({ niveau: "alerte", texte: `Fatigue en surcharge chez ${fatigues.map(nom).join(", ")} : envisager de les menager.` });
   const reprises = [...presents, ...banc].filter((j) => j.enReprise && !j.indisponible);

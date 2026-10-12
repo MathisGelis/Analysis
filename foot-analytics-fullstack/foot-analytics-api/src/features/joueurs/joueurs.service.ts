@@ -23,6 +23,7 @@ import {
   Apparition, apparitionsDesEquipes, changementDeClub, derniereApparition, derniereSaison, saisonCourte, SaisonRef,
   statutMutationDeduit, statutSaisi,
 } from "./parcours-joueur";
+import { dernierMatchJoue, expulseDansLeMatch } from "@/features/matchs/suspensions";
 
 /** Score minimal (0-1) pour qu'un joueur apparaisse dans la recherche. */
 const SEUIL_RECHERCHE = 0.6;
@@ -175,6 +176,13 @@ export class JoueursService {
     // calcul depuis les feuilles (qui n'ont pas toujours les buteurs).
     const saisies = await this.saisiesEquipe(equipeId);
 
+    // Suspendus pour le prochain match : expulses (rouge, second jaune) au DERNIER match joue de l'equipe.
+    const dernier = dernierMatchJoue(matchs);
+    const suspendus = new Set<string>();
+    for (const c of composPourEquipe) {
+      if (c.matchId === dernier?.id && expulseDansLeMatch(c, evtsByMatch.get(c.matchId) ?? [])) suspendus.add(cleNom(c.nom, c.prenom));
+    }
+
     // Resultat : on prend le joueur global si dispo, sinon on bricole.
     const rows = [...acc.values()].map((a) => {
       const saisie = a.joueur ? saisies.get(a.joueur.id) : undefined;
@@ -201,6 +209,8 @@ export class JoueursService {
         passesDecisives: saisie?.passesDecisives ?? a.stats.passesDecisives,
         cartonsJaunes: a.stats.cartonsJaunes,
         cartonsRouges: a.stats.cartonsRouges,
+        /** Expulse au dernier match : suspendu au moins un match. */
+        suspendu: suspendus.has(cleNom(a.nom, a.prenom)),
         noteMoyenne: a.matchs > 0 ? noteIndicative(a.matchs, a.stats.cartonsRouges) : null,
         postes: numeros.length ? numeros.map(([n, k]) => `${n} (${k})`).join(" / ") : null,
         typeDiscipline: a.joueur?.typeDiscipline ?? null,
@@ -241,7 +251,7 @@ export class JoueursService {
         noteMoyenne: null,
         matchs: 0, titularisations: 0, minutes: 0,
         buts: saisies.get(j.id)?.buts ?? 0, passesDecisives: saisies.get(j.id)?.passesDecisives ?? 0,
-        cartonsJaunes: 0, cartonsRouges: 0,
+        cartonsJaunes: 0, cartonsRouges: 0, suspendu: false,
         typeDiscipline: j.typeDiscipline ?? null,
         tailleCm: j.tailleCm, poidsKg: j.poidsKg, piedFort: j.piedFort,
         blessuresAnt: j.blessuresAnt ?? null,

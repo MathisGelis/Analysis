@@ -9,8 +9,9 @@
 // Ces routines sont appelees automatiquement apres chaque import FMI, et
 // disponibles manuellement via POST /api/derivation/rebuild.
 
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import { estCartonDuStaff } from "@/features/fmi/carton-staff";
 import { In, IsNull, Not, Repository } from "typeorm";
 
 import { chargerDetailsMatchs } from "@/features/matchs/details-matchs";
@@ -109,7 +110,9 @@ function estimateMinutes(comp: Composition, evts: EvenementMatch[]): number {
 }
 
 @Injectable()
-export class DerivationService {
+export class DerivationService implements OnApplicationBootstrap {
+  private readonly journal = new Logger(DerivationService.name);
+
   constructor(
     @InjectRepository(Joueur) private joueurs: Repository<Joueur>,
     @InjectRepository(Match) private matchs: Repository<Match>,
@@ -124,6 +127,22 @@ export class DerivationService {
     @InjectRepository(Saison) private saisonsRepo: Repository<Saison>,
     @InjectRepository(EvenementMatch) private evenementsRepo: Repository<EvenementMatch>,
   ) {}
+
+  /**
+   * Au demarrage : des cartons de staff encore ranges avec ceux des joueurs (feuilles importees avant leur separation) sont
+   * reclasses, et les statistiques recalculees, sans attendre un import ni un rebuild manuel.
+   */
+  async onApplicationBootstrap() {
+    try {
+      const n = await this.reclasserCartonsStaff();
+      if (n > 0) {
+        this.journal.log(`${n} carton(s) du staff reclasses ; statistiques recalculees.`);
+        await this.rebuildAll();
+      }
+    } catch (e) {
+      this.journal.warn(`Cartons du staff non reclasses au demarrage : ${(e as Error).message}`);
+    }
+  }
 
   /** Reconstruit l'effectif de tous les clubs depuis les compositions. */
   async recomputeJoueurs() {
@@ -693,7 +712,7 @@ export class DerivationService {
       // Cartons : seul le principal en distribue. Cumul global + par champ.
       if (roleNorm === "principal") {
         for (const e of (m as any).evenements ?? []) {
-          if (e.type !== "carton") continue;
+          if (e.type !== "carton" && e.type !== "carton_staff") continue;       // l'arbitre sanctionne aussi le banc
           if (e.sousType === "rouge") {
             g.cartonsRougesDonnes++; c.cartonsRougesDonnes++;
           } else {
@@ -860,6 +879,23 @@ export class DerivationService {
       if (bp > bc) a.v++;
       else if (bp < bc) a.d++;
       else a.n++;
+    }
+
+    // Cartons du banc, ranges a part a l'import (type "carton_staff") : credites au membre du staff designe, du bon cote.
+    const staffParMatch = new Map<string, StaffMatch[]>();
+    for (const sm of staffMatchs) (staffParMatch.get(sm.matchId) ?? staffParMatch.set(sm.matchId, []).get(sm.matchId)!).push(sm);
+    const coachParId = new Map(coachs.map((c) => [c.id, c]));
+    for (const m of matchs) {
+      for (const e of m.evenements ?? []) {
+        if (e.type !== "carton_staff") continue;
+        const cible = (staffParMatch.get(m.id) ?? []).map((sm) => ({ sm, c: coachParId.get(sm.coachId) }))
+          .find(({ sm, c }) => sm.cote === e.equipe && c && norm(e.joueur).includes(norm(c.nom)));
+        if (!cible?.c) continue;
+        const a = ensure(cible.c.id);
+        if (e.sousType === "rouge") a.cartonsRouges++;
+        else a.cartonsJaunes++;
+        a.motifsBruts.push(e.motif ?? "");
+      }
     }
 
     // Cartons recus par les coachs : on parcourt les evenements de type
@@ -1246,6 +1282,38 @@ export class DerivationService {
   }
 
   /**
+   * Les cartons de l'ENCADREMENT (entraineur, dirigeant) etaient ranges avec ceux des joueurs : ils gonflaient la discipline
+   * des joueurs et pouvaient meme "suspendre" un joueur. Un carton qui ne designe aucun joueur de la feuille mais le nom d'un
+   * membre du staff de ce match (cote compris) devient un evenement "carton_staff". Idempotent ; appele a chaque reconstruction.
+   */
+  async reclasserCartonsStaff(): Promise<number> {
+    const cartons = await this.evenementsRepo.find({ where: { type: "carton" } });
+    if (cartons.length === 0) return 0;
+    const manager = this.matchs.manager;
+    const matchIds = [...new Set(cartons.map((e) => e.matchId))];
+    const compos = new Map<string, Composition[]>();
+    const staff = new Map<string, StaffMatch[]>();
+    for (let i = 0; i < matchIds.length; i += 500) {
+      const ids = matchIds.slice(i, i + 500);
+      const [cs, ss] = await Promise.all([
+        manager.getRepository(Composition).find({ where: { matchId: In(ids) } }),
+        this.staffMatchsRepo.find({ where: { matchId: In(ids) }, relations: ["coach"] }),
+      ]);
+      for (const c of cs) (compos.get(c.matchId) ?? compos.set(c.matchId, []).get(c.matchId)!).push(c);
+      for (const s of ss) (staff.get(s.matchId) ?? staff.set(s.matchId, []).get(s.matchId)!).push(s);
+    }
+    const nomDe = (nom: string, prenom?: string | null) => `${nom ?? ""} ${prenom ?? ""}`.trim();
+    const aReclasser = cartons.filter((e) => estCartonDuStaff(
+      { joueur: e.joueur },
+      (compos.get(e.matchId) ?? []).filter((c) => c.cote === e.equipe).map((c) => ({ licence: c.licence, nom: nomDe(c.nom, c.prenom) })),
+      (staff.get(e.matchId) ?? []).filter((s) => s.cote === e.equipe && s.coach).map((s) => ({ licence: s.coach.licence, nom: nomDe(s.coach.nom, s.coach.prenom) })),
+    ));
+    if (aReclasser.length === 0) return 0;
+    await this.evenementsRepo.save(aReclasser.map((e) => ({ ...e, type: "carton_staff" })));
+    return aReclasser.length;
+  }
+
+  /**
    * Maintenance : les FMI importees AVANT la separation du tableau CARTON VERT (fair-play) ont range
    * ces cartons verts parmi les cartons JAUNES, sans motif. Ils gonflaient les jaunes des joueurs et des
    * arbitres, et donnaient "4 cartons annonces pour 2 motifs affiches". Toute sanction de la FMI porte un
@@ -1296,6 +1364,7 @@ export class DerivationService {
   }
 
   async rebuildAll() {
+    await this.reclasserCartonsStaff();
     const dedoublonnage = await this.dedoublonnerProgrammes();
     const backfill = await this.backfillSaisonEtEquipes();
     const journees = await this.recomputeJournees();

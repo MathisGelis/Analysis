@@ -151,7 +151,7 @@ export interface TactiquePlan {
 }
 
 export interface EvenementMatch {
-  type: "carton" | "carton_vert" | "but" | "remplacement" | "blessure";
+  type: "carton" | "carton_staff" | "carton_vert" | "but" | "remplacement" | "blessure";
   sousType?: string;         // jaune|rouge / type but / localisation
   motif?: string;
   minute: number;

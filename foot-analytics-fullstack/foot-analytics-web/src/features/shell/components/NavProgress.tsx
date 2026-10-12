@@ -9,11 +9,24 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 
+import { Spinner } from "@/shared/ui/Spinner";
+
+/** Delai avant d'afficher le cercle : une navigation rapide n'affiche que la barre, sans clignotement. */
+const DELAI_CERCLE_MS = 400;
+
 function Barre() {
   const pathname = usePathname();
   const search = useSearchParams();
   const [etat, setEtat] = useState<"repos" | "charge" | "fin">("repos");
   const minuteur = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [cercle, setCercle] = useState(false);
+
+  // Le cercle n'apparait que si le chargement dure : donnees longues (rapport pre-match, analyse d'equipe...).
+  useEffect(() => {
+    if (etat !== "charge") { setCercle(false); return; }
+    const t = setTimeout(() => setCercle(true), DELAI_CERCLE_MS);
+    return () => clearTimeout(t);
+  }, [etat]);
 
   // Fin de navigation : la cle adresse + parametres a change.
   useEffect(() => {
@@ -40,21 +53,29 @@ function Barre() {
   }, []);
 
   return (
-    <div
-      aria-hidden="true"
-      className="fixed inset-x-0 top-0 z-60 h-[3px] pointer-events-none"
-      style={{ opacity: etat === "repos" ? 0 : 1, transition: "opacity 250ms ease" }}
-    >
+    <>
+      {cercle && (
+        <div aria-hidden="true" data-testid="chargement-long"
+          className="pointer-events-none fixed right-5 top-[76px] z-60 grid h-9 w-9 place-items-center rounded-full border border-line bg-panel shadow-pop fade-up">
+          <Spinner taille={18} />
+        </div>
+      )}
       <div
-        className="h-full origin-left"
-        style={{
-          backgroundImage: "linear-gradient(90deg, rgb(var(--accent-strong)), rgb(var(--accent-2)))",
-          boxShadow: "0 0 12px rgb(var(--accent) / .7)",
-          width: etat === "repos" ? "0%" : etat === "charge" ? "82%" : "100%",
-          transition: etat === "charge" ? "width 6s cubic-bezier(.1,.6,.2,1)" : "width 200ms ease-out",
-        }}
-      />
-    </div>
+        aria-hidden="true"
+        className="fixed inset-x-0 top-0 z-60 h-[3px] pointer-events-none"
+        style={{ opacity: etat === "repos" ? 0 : 1, transition: "opacity 250ms ease" }}
+      >
+        <div
+          className="h-full origin-left"
+          style={{
+            backgroundImage: "linear-gradient(90deg, rgb(var(--accent-strong)), rgb(var(--accent-2)))",
+            boxShadow: "0 0 12px rgb(var(--accent) / .7)",
+            width: etat === "repos" ? "0%" : etat === "charge" ? "82%" : "100%",
+            transition: etat === "charge" ? "width 6s cubic-bezier(.1,.6,.2,1)" : "width 200ms ease-out",
+          }}
+        />
+      </div>
+    </>
   );
 }
 
