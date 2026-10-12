@@ -1278,6 +1278,7 @@ test("comptes : equipe de la saison actuelle sans la poule, saisons de l'histori
 
 test("recherche : Ctrl+K et / placent le curseur, fiches seulement, Entree ouvre la fiche", async () => {
   await page.goto("/");
+  await page.waitForLoadState("networkidle");   // le raccourci n'existe qu'une fois la page hydratee
   const champ = page.getByRole("combobox", { name: /Rechercher/ });
   // Tape tout de suite apres le raccourci : aucune lettre ne doit se perdre.
   await page.keyboard.press("Control+k");
@@ -1386,6 +1387,66 @@ test("mobile : menu en tiroir, ferme apres navigation, sans debordement horizont
   } finally {
     await mobile.close();
   }
+});
+
+test("responsive : aucune page ne deborde de l'ecran, sur mobile et tablette (portrait et paysage)", async ({ browser }) => {
+  test.setTimeout(300_000);
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const get = async (chemin: string) => (await fetch(`${API_URL}${chemin}`, { headers: { Authorization: `Bearer ${token}` } })).json();
+  const clubs: { id: string }[] = await get("/clubs");
+  const matchs: { id: string }[] = await get("/matchs");
+  const arbitres: { id: string }[] = await get("/arbitres");
+  const joueurs: { id: string }[] = await get("/joueurs");
+  const pages = [
+    "/", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical", "/entrainements",
+    "/rapports", "/rapports/equipe", "/saisons", "/admin/ia", "/admin/utilisateurs", "/import", "/analytics", "/ia", "/scouting",
+    ...(clubs[0] ? [`/club/${clubs[0].id}`, `/club/${clubs[0].id}/scouting`, `/rapports/prematch/${clubs[0].id}`, `/rapports/equipe/${clubs[0].id}`] : []),
+    ...(matchs[0] ? [`/matchs/${matchs[0].id}`] : []),
+    ...(arbitres[0] ? [`/arbitres/${arbitres[0].id}`] : []),
+    ...(joueurs[0] ? [`/joueur/${joueurs[0].id}`] : []),
+  ];
+  const tailles = [
+    { width: 360, height: 740 }, { width: 390, height: 844 }, { width: 768, height: 1024 },
+    { width: 1024, height: 768 }, { width: 844, height: 390 },
+  ];
+  const debordements: string[] = [];
+  for (const viewport of tailles) {
+    const ctx = await browser.newContext({ viewport, storageState: await contexte.storageState() });
+    const p = await ctx.newPage();
+    try {
+      for (const chemin of pages) {
+        await p.goto(chemin);
+        await p.waitForLoadState("networkidle");
+        const fautifs: string[] = await p.evaluate(() => {
+          const largeur = window.innerWidth;
+          const sortis: string[] = [];
+          if (document.documentElement.scrollWidth - largeur > 1) sortis.push(`PAGE scrollWidth=${document.documentElement.scrollWidth}`);
+          for (const el of Array.from(document.body.querySelectorAll<HTMLElement>("*"))) {
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) continue;
+            if (r.right - largeur > 1) {
+              // Ignore ce qui est dans un conteneur defilant (tableaux) : il n'elargit pas la page.
+              let a: HTMLElement | null = el.parentElement, defile = false;
+              while (a && a !== document.body) {
+                const o = getComputedStyle(a).overflowX;
+                if (o === "auto" || o === "scroll" || o === "hidden" || o === "clip" || getComputedStyle(a).position === "fixed") { defile = true; break; }
+                a = a.parentElement;
+              }
+              if (!defile && getComputedStyle(el).position !== "fixed") sortis.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 50)} right=${Math.round(r.right)}`);
+            }
+          }
+          return sortis.slice(0, 4);
+        });
+        if (fautifs.length) debordements.push(`${viewport.width}x${viewport.height} ${chemin.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/g, ":id")} : ${fautifs.join(" | ")}`);
+      }
+    } finally {
+      await ctx.close();
+    }
+  }
+  expect(debordements, "pages qui debordent de l'ecran").toEqual([]);
 });
 
 function pdfplumberDisponible(): boolean {

@@ -268,17 +268,17 @@ function CalendrierContent() {
 
       {/* Grille */}
       <section className="panel p-3">
-        <div className="grid grid-cols-7 mb-2">
+        <div className="hidden md:grid grid-cols-7 mb-2">
           {JOURS_FR.map((j) => (
             <div key={j} className="text-[10px] uppercase tracking-[0.18em] text-faint px-2 py-1">
               {j}
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-1.5 md:gap-1">
           {mois.map((slot, i) => {
             if (!slot.date) {
-              return <div key={i} className="min-h-[110px] opacity-30"/>;
+              return <div key={i} className="hidden md:block min-h-[110px] opacity-30"/>;
             }
             const iso = slot.iso!;
             const isToday = iso === todayIso;
@@ -290,33 +290,37 @@ function CalendrierContent() {
             const showPlaceholder = jourPrevu
               && sList.length === 0 && mList.length === 0;
 
+            // Mobile : une liste d'agenda, sans les jours vides (la grille de 7 colonnes y serait illisible).
+            const videMobile = !isToday && sList.length === 0 && mList.length === 0
+              && aList.length === 0 && !showPlaceholder;
             return (
               <div key={i}
-                className={`min-h-[110px] panel-inset p-2 relative group ${
-                  isToday ? "border-2 border-accent" : ""
-                }`}>
+                className={`md:min-h-[110px] panel-inset p-2 relative group ${
+                  videMobile ? "hidden md:block" : ""
+                } ${isToday ? "border-2 border-accent" : ""}`}>
                 <div className="flex items-center justify-between">
                   <div className={`text-[11px] font-mono ${
                     isToday ? "text-accent font-bold" : "text-muted"
                   }`}>
+                    <span className="md:hidden uppercase tracking-wider mr-1">{JOURS_FR[dow]}</span>
                     {slot.date.getDate()}
                   </div>
                   {/* Visibles au survol, au clavier (focus) et en permanence sur ecran tactile (pas de survol). */}
-                  <div className={`transition gap-0.5 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 group-focus-within:opacity-100! ${
+                  <div className={`transition gap-0.5 [@media(hover:hover)]:md:opacity-0 [@media(hover:hover)]:md:group-hover:opacity-100 group-focus-within:opacity-100! ${
                     lectureSeule ? "hidden" : "flex"
                   }`}>
                     <button
                       onClick={() => setAddOpen({ date: iso, type: "entrainement" })}
                       title="Ajouter un entrainement"
-                      className="text-[9px] px-1 py-0.5 rounded hover:bg-amber/20 text-amber">+E</button>
+                      className="text-xs md:text-[9px] px-3 py-2 md:px-1 md:py-0.5 rounded hover:bg-amber/20 text-amber">+E</button>
                     <button
                       onClick={() => setAddOpen({ date: iso, type: "match" })}
                       title="Ajouter un match"
-                      className="text-[9px] px-1 py-0.5 rounded hover:bg-accent/20 text-accent">+M</button>
+                      className="text-xs md:text-[9px] px-3 py-2 md:px-1 md:py-0.5 rounded hover:bg-accent/20 text-accent">+M</button>
                     <button
                       onClick={() => setAddOpen({ date: iso, type: "autre" })}
                       title="Ajouter un evenement"
-                      className="text-[9px] px-1 py-0.5 rounded hover:underline text-sky">+A</button>
+                      className="text-xs md:text-[9px] px-3 py-2 md:px-1 md:py-0.5 rounded hover:underline text-sky">+A</button>
                   </div>
                 </div>
 

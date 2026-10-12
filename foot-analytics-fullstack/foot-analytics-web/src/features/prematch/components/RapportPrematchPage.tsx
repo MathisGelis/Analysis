@@ -75,13 +75,13 @@ export default async function RapportPrematch({
       </div>
 
       {/* En-tete : l'affiche du match */}
-      <header className="panel p-6">
+      <header className="panel p-4 sm:p-6">
         <h1 className="text-xs font-semibold uppercase tracking-[0.18em] text-faint">
           Rapport pre-match<span className="sr-only"> : {moi.clubNom} contre {adv.clubNom}</span>
         </h1>
-        <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
           <div className="flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:justify-end sm:text-right">
-            <div className="min-w-0 sm:order-1">
+            <div className="min-w-0 w-full sm:w-auto sm:order-1">
               <div className="truncate font-display text-xl font-bold text-ink sm:text-2xl">{moi.clubNom}</div>
               <div className="text-xs text-muted">{moi.equipeNom}</div>
             </div>
@@ -90,7 +90,7 @@ export default async function RapportPrematch({
           <div className="text-center font-display text-sm font-bold text-faint">VS</div>
           <div className="flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:text-left">
             <ClubBadge clubId={adv.clubId} size={56} />
-            <div className="min-w-0">
+            <div className="min-w-0 w-full sm:w-auto">
               <div className="truncate font-display text-xl font-bold text-ink sm:text-2xl">{adv.clubNom}</div>
               <div className="text-xs text-muted">{adv.rang !== null ? `${adv.rang}e du classement · ${adv.pts} pts` : "Hors classement"}</div>
             </div>

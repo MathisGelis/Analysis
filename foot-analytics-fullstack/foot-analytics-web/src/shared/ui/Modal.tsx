@@ -45,9 +45,9 @@ export function Modal({
     >
       {/* Wrapper qui centre verticalement le contenu sur la hauteur du
           viewport, avec un padding qui permet aussi le scroll en interne. */}
-      <div className="min-h-full flex items-center justify-center p-4">
+      <div className="min-h-full flex items-center justify-center p-2 sm:p-4">
         <div
-          className={`panel-pop pop-in w-full ${maxWidth} p-6 my-auto`}
+          className={`panel-pop pop-in w-full ${maxWidth} p-4 sm:p-6 my-auto`}
           onClick={(e) => e.stopPropagation()}
         >
           {children}

@@ -116,11 +116,11 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
       </div>
 
       {/* En-tete match */}
-      <header className="panel p-6 relative overflow-hidden">
+      <header className="panel p-4 sm:p-6 relative overflow-hidden">
         <h1 className="sr-only">{dom.nom} contre {ext.nom}</h1>
         <div className="absolute -top-24 -right-24 w-80 h-80 bg-accent/5 rounded-full blur-3xl"/>
-        <div className="relative flex items-center justify-between gap-6 flex-wrap">
-          <Link href={`/club/${dom.id}`} className="flex items-center gap-3 flex-1 min-w-0 hover:text-accent">
+        <div className="relative flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
+          <Link href={`/club/${dom.id}`} className="flex items-center gap-3 sm:flex-1 min-w-0 w-full sm:w-auto justify-center sm:justify-start hover:text-accent">
             <ClubBadge clubId={dom.id} size={64}/>
             <div>
               <div className="font-display text-xl font-bold text-ink">{dom.nom}</div>
@@ -134,7 +134,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
             <div className="text-[10px] uppercase tracking-[0.18em] text-faint mb-1">
               {LIBELLE_STATUT[statut] ?? "Resultat final"}
             </div>
-            <div className="font-display text-6xl font-black text-ink tabular-nums leading-none">
+            <div className="font-display text-5xl sm:text-6xl font-black text-ink tabular-nums leading-none">
               {LIBELLE_STATUT[statut]
                 ? <span className="text-faint">VS</span>
                 : <>{m.scoreDom}<span className="text-muted mx-3 font-light">–</span>{m.scoreExt}</>}
@@ -145,7 +145,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
             </div>
           </div>
 
-          <Link href={`/club/${ext.id}`} className="flex items-center gap-3 flex-1 min-w-0 justify-end hover:text-accent">
+          <Link href={`/club/${ext.id}`} className="flex items-center gap-3 sm:flex-1 min-w-0 w-full sm:w-auto justify-center sm:justify-end hover:text-accent">
             <div className="text-right">
               <div className="font-display text-xl font-bold text-ink">{ext.nom}</div>
               <div className="text-[11px] text-faint uppercase tracking-wider">

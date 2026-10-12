@@ -37,6 +37,8 @@ export const metadata: Metadata = {
 // Couleur de la barre du navigateur mobile : celle du fond, nuit ou jour (valeurs litterales
 // obligatoires ici : cette meta ne lit pas les variables CSS).
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#070A12" },
     { media: "(prefers-color-scheme: light)", color: "#F4F6FB" },

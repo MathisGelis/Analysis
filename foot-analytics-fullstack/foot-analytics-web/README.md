@@ -128,6 +128,12 @@ haut : elle ne trouve que des fiches (joueurs et entraineurs par recherche floue
 clubs, arbitres). **Ctrl/Cmd + K** (ou `/`) y place le curseur. `prefers-reduced-motion`
 desactive les animations.
 
+**Responsive** (mobile, tablette, portrait et paysage) : le calendrier devient une liste d'agenda
+sous 768 px, les tableaux defilent dans leur panneau, les en-tetes de match s'empilent, et sur
+ecran tactile les boutons et champs font au moins 44 px (champs a 16 px : pas de zoom iOS). Le
+parcours e2e « responsive » verifie qu'aucune page ne deborde de l'ecran en 360, 390, 768, 1024 et
+844x390.
+
 ```bash
 npm run lint      # ESLint 10 (config flat : regles Next core-web-vitals, hooks React, a11y JSX) sur src, tests et e2e
 ```

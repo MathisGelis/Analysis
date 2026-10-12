@@ -474,6 +474,12 @@ body::before {
   .table-fm { min-width: 560px; }
 }
 
+/* Ecrans tactiles : cibles d'au moins 44 px, et champs a 16 px (en dessous, iOS zoome la page au focus). */
+@media (pointer: coarse) {
+  .btn, .inp, .select-fm { min-height: 44px; }
+  .inp, .select-fm, input, textarea, select { font-size: 16px; }
+}
+
 /* ----- Barre de defilement discrete ---------------------------- */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
