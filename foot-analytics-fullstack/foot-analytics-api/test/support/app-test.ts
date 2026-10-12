@@ -40,6 +40,7 @@ import { SaisonsModule } from "@/features/saisons/saisons.module";
 import { UtilisateursModule } from "@/features/utilisateurs/utilisateurs.module";
 import { TactiquesModule } from "@/features/tactiques/tactiques.module";
 import { IaModule } from "@/features/ia/ia.module";
+import { SanteModule } from "@/features/sante/sante.module";
 import { SeedModule } from "@/features/seed/seed.module";
 
 import { fabriques, optionsBaseTest } from "./test-db";
@@ -68,7 +69,7 @@ export async function creerAppTest(): Promise<AppTest> {
       TypeOrmModule.forRoot(options),
       AccesModule, SeedModule, ClubsModule, EquipesModule, JoueursModule, MatchsModule, EntrainementsModule,
       BlessuresModule, ScoutingModule, ClassementModule, StatsModule, FmiModule, DerivationModule, ArbitresModule,
-      AnalyseModule, CoachsModule, SaisonsModule, AuthModule, UtilisateursModule, TactiquesModule, IaModule,
+      AnalyseModule, CoachsModule, SaisonsModule, AuthModule, UtilisateursModule, TactiquesModule, IaModule, SanteModule,
     ],
     providers: [
       { provide: APP_GUARD, useClass: JwtAuthGuard },

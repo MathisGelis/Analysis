@@ -1,0 +1,26 @@
+# Blueprint Render : l'API Foot Analytics (Docker). Le front est sur Vercel, la base sur Supabase.
+#   Render > New > Blueprint > choisir ce depot : les variables marquees "sync: false" sont demandees a la creation.
+services:
+  - type: web
+    name: foot-analytics-api
+    runtime: docker
+    region: frankfurt                # proche de Supabase eu-west-1 (Irlande)
+    plan: starter                    # toujours allume : le reentrainement IA planifie (mercredi 5 h) l'exige
+    rootDir: foot-analytics-fullstack/foot-analytics-api
+    dockerfilePath: ./foot-analytics-fullstack/foot-analytics-api/Dockerfile
+    dockerContext: ./foot-analytics-fullstack/foot-analytics-api
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DB_TYPE
+        value: postgres
+      - key: DATABASE_URL          # chaine "Session pooler" Supabase (port 5432), avec le vrai mot de passe
+        sync: false
+      - key: JWT_SECRET            # genere par Render (long, aleatoire)
+        generateValue: true
+      - key: CORS_ORIGIN           # URL du front Vercel, sans slash final (ex : https://foot-analytics.vercel.app)
+        sync: false
+      - key: AUTO_SEED
+        value: "false"
+      - key: DB_MIGRATIONS_RUN
+        value: "true"

@@ -22,6 +22,10 @@ describe("API : acces", () => {
   afterEach(() => t.fermer());
 
   describe("authentification", () => {
+    it("la sonde de sante est publique et ne livre aucune donnee", async () => {
+      expect(await t.appel()("GET", "/health")).toEqual({ statut: 200, corps: { ok: true } });
+    });
+
     it("sans jeton : 401", async () => {
       expect((await t.appel()("GET", "/clubs")).statut).toBe(401);
     });

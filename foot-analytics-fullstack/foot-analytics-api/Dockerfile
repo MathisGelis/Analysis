@@ -35,5 +35,5 @@ COPY package.json ./
 USER node
 EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s \
-  CMD node -e "fetch('http://localhost:'+process.env.PORT+'/api').then(()=>process.exit(0)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://localhost:'+process.env.PORT+'/api/health').then((r)=>{if(!r.ok)throw 1}).then(()=>process.exit(0)).catch(()=>process.exit(1))"
 CMD ["node", "dist/main.js"]

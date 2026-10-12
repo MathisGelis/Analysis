@@ -27,6 +27,7 @@ import { AccesModule } from "@/features/acces/acces.module";
 import { UtilisateursModule } from "@/features/utilisateurs/utilisateurs.module";
 import { TactiquesModule } from "@/features/tactiques/tactiques.module";
 import { IaModule } from "@/features/ia/ia.module";
+import { SanteModule } from "@/features/sante/sante.module";
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { IaModule } from "@/features/ia/ia.module";
     UtilisateursModule,
     TactiquesModule,
     IaModule,
+    SanteModule,
   ],
   providers: [
     // Guard global : toute requete sous /api requiert un JWT valide.
