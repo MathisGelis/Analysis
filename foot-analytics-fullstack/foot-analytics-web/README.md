@@ -129,7 +129,7 @@ clubs, arbitres). **Ctrl/Cmd + K** (ou `/`) y place le curseur. `prefers-reduced
 desactive les animations.
 
 **Responsive** (mobile, tablette, portrait et paysage) : le calendrier devient une liste d'agenda
-sous 768 px, les tableaux defilent dans leur panneau, les en-tetes de match s'empilent, et sur
+sous 768 px, les tableaux tiennent dans l'ecran du telephone (colonnes secondaires masquees avec `max-sm:hidden`, le detail complet reste sur tablette et ordinateur), les en-tetes de match s'empilent, et sur
 ecran tactile les boutons et champs font au moins 44 px (champs a 16 px : pas de zoom iOS). Le
 parcours e2e « responsive » verifie qu'aucune page ne deborde de l'ecran en 360, 390, 768, 1024 et
 844x390.

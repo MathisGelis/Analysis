@@ -211,6 +211,7 @@ function OverviewPanel({
               label: r.journee, a: r.butsMarques, b: r.butsEncaisses,
             }))}
             legend={["Marques", "Encaisses"]}
+            afficherLegende={false}
             height={210}
           />
         )}
@@ -330,13 +331,13 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
         <thead>
           <tr>
             <th>#</th><th>Joueur</th><th>Poste</th>
-            <th className="text-center">Mat.</th><th className="text-center">Titu</th>
-            {isMine && <th>Minutes</th>}
-            <th>Note</th><th>Fatigue</th>
+            <th className="text-center">Mat.</th><th className="text-center max-sm:hidden">Titu</th>
+            {isMine && <th className="max-sm:hidden">Minutes</th>}
+            <th className="max-sm:hidden">Note</th><th className="max-sm:hidden">Fatigue</th>
             <th className="text-center" title="Buts">B</th>
-            <th className="text-center" title="Passes decisives">PD</th>
+            <th className="text-center max-sm:hidden" title="Passes decisives">PD</th>
             <th className="text-center">CJ</th><th className="text-center">CR</th>
-            <th>Statut</th><th>Postes joues</th>
+            <th className="max-sm:hidden">Statut</th><th className="max-sm:hidden">Postes joues</th>
           </tr>
         </thead>
         <tbody>
@@ -354,22 +355,22 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
               </td>
               <td><span className="badge">{j.poste ?? "—"}</span></td>
               <td className="text-center tabular-nums">{j.matchs}</td>
-              <td className="text-center tabular-nums">{j.titularisations}</td>
-              {isMine && <td className="tabular-nums text-muted">{j.minutes}'</td>}
-              <td className="font-semibold text-accent tabular-nums">{j.noteMoyenne?.toFixed(1)}</td>
-              <td>
+              <td className="text-center tabular-nums max-sm:hidden">{j.titularisations}</td>
+              {isMine && <td className="tabular-nums text-muted max-sm:hidden">{j.minutes}'</td>}
+              <td className="font-semibold text-accent tabular-nums max-sm:hidden">{j.noteMoyenne?.toFixed(1)}</td>
+              <td className="max-sm:hidden">
                 <FatigueBar score={j.scoreFatigue} detail={j.fatigueDetail} largeur="w-12" />
               </td>
               <td className="text-center text-accent font-mono">{j.buts || ""}</td>
-              <td className="text-center text-sky font-mono">{j.passesDecisives || ""}</td>
+              <td className="text-center text-sky font-mono max-sm:hidden">{j.passesDecisives || ""}</td>
               <td className="text-center text-amber font-mono">{j.cartonsJaunes || ""}</td>
               <td className="text-center text-danger font-mono">{j.cartonsRouges || ""}</td>
-              <td>
+              <td className="max-sm:hidden">
                 {j.statutMutation && (
                   <span className={`badge ${classeBadgeMutation(j.statutMutation)}`}>{j.statutMutation}</span>
                 )}
               </td>
-              <td className="text-[10px] text-faint font-mono">{j.postes}</td>
+              <td className="text-[10px] text-faint font-mono max-sm:hidden">{j.postes}</td>
             </tr>
           ))}
         </tbody>
@@ -619,6 +620,7 @@ function ScoutingPanel({
               label: m.journee, a: m.butsMarques, b: m.butsEncaisses,
             }))}
             legend={["Marques","Encaisses"]}
+            afficherLegende={false}
             height={200}
           />
         </section>

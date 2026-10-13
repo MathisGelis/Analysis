@@ -475,6 +475,19 @@ body::before {
   /* Tableaux a peu de colonnes : ils tiennent dans l'ecran, sans defilement lateral. */
   .table-fm.table-fm-compact { min-width: 0; }
 }
+/* Telephone : tous les tableaux tiennent dans l'ecran. Cellules serrees, texte qui passe a la ligne, colonnes
+   secondaires masquees (classe max-sm:hidden posee sur leurs <th> et <td>) ; le detail complet reste a une
+   tablette ou un ordinateur de distance. */
+@media (max-width: 639px) {
+  .table-fm, .table-fm.table-fm-compact { min-width: 0; width: 100%; }
+  .table-fm thead th { padding: 8px 4px; font-size: 10px; letter-spacing: .04em; }
+  .table-fm tbody td, .table-dense tbody td { padding: 9px 4px; font-size: 12px; }
+  .table-dense thead th { padding-left: 4px; padding-right: 4px; }
+  .table-fm thead th button svg { display: none; }
+  .table-fm thead th:first-child, .table-fm tbody td:first-child { padding-left: 2px; }
+  .table-fm .col-fixe { position: static; }
+  .panel:has(table.table-fm) { padding-left: 12px; padding-right: 12px; }
+}
 
 /* Ecrans tactiles : cibles d'au moins 44 px, et champs a 16 px (en dessous, iOS zoome la page au focus). */
 @media (pointer: coarse) {

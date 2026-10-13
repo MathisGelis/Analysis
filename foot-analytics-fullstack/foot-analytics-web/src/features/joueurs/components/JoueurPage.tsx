@@ -255,8 +255,8 @@ export default async function JoueurPage({
                   <table className="table-fm">
                     <thead>
                       <tr>
-                        <th>Journee</th><th>Adversaire</th><th>Score</th>
-                        <th>Statut</th><th className="text-right">Min.</th><th>Faits</th>
+                        <th>J</th><th>Adversaire</th><th>Score</th>
+                        <th className="max-sm:hidden">Statut</th><th className="text-right max-sm:hidden">Min.</th><th>Faits</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -275,13 +275,13 @@ export default async function JoueurPage({
                                 {m.scoreEquipe}–{m.scoreAdversaire}
                               </Link>
                             </td>
-                            <td>
+                            <td className="max-sm:hidden">
                               <span className={`badge ${m.titulaire ? "badge-accent" : ""}`}>
                                 {m.titulaire ? "Titulaire" : "Remplacant"}
                               </span>
                             </td>
-                            <td className="text-right font-mono tabular-nums text-muted">{m.minutes}'</td>
-                            <td className="text-xs whitespace-nowrap">
+                            <td className="text-right font-mono tabular-nums text-muted max-sm:hidden">{m.minutes}'</td>
+                            <td className="text-xs">
                               {m.buts > 0 && <span className="text-accent mr-1.5">{m.buts} but{m.buts > 1 ? "s" : ""}</span>}
                               {m.passesDecisives > 0 && <span className="text-sky mr-1.5">{m.passesDecisives} PD</span>}
                               {m.cartonsJaunes > 0 && <span className="text-amber mr-1.5">CJ</span>}

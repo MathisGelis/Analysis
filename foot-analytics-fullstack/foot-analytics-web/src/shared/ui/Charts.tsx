@@ -34,11 +34,13 @@ interface BarsProps {
   data: { label: string; a: number; b: number }[];
   height?: number;
   legend?: [string, string];
+  /** false : la legende visible est masquee (le tableau pour lecteurs d'ecran reste). */
+  afficherLegende?: boolean;
   colorA?: string;
   colorB?: string;
 }
 export function BarsChart({
-  data, height = 220, legend = ["A", "B"], colorA = C.s1, colorB = C.s2,
+  data, height = 220, legend = ["A", "B"], afficherLegende = true, colorA = C.s1, colorB = C.s2,
 }: BarsProps) {
   const [survol, setSurvol] = useState<number | null>(null);
   const id = useId();
@@ -97,10 +99,12 @@ export function BarsChart({
           </div>
         )}
       </div>
-      <div className="mt-2 flex gap-4 px-1 text-[12px] text-muted">
-        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: colorA }} />{legend[0]}</span>
-        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: colorB }} />{legend[1]}</span>
-      </div>
+      {afficherLegende && (
+        <div className="mt-2 flex gap-4 px-1 text-[12px] text-muted">
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: colorA }} />{legend[0]}</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: colorB }} />{legend[1]}</span>
+        </div>
+      )}
       {/* Vue tableau pour les lecteurs d'ecran. */}
       <table className="sr-only">
         <caption>{legend[0]} et {legend[1]}</caption>

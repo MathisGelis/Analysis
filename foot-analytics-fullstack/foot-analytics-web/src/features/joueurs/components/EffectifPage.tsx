@@ -170,8 +170,8 @@ export default function EffectifPage() {
               <ThTri cle="minutes" tri={tri} onTri={trierPar} className="hidden min-[1280px]:table-cell">Minutes</ThTri>
               <ThTri cle="note" tri={tri} onTri={trierPar} className="hidden min-[1440px]:table-cell">Note</ThTri>
               <ThTri cle="fatigue" tri={tri} onTri={trierPar} className="hidden lg:table-cell">Fatigue</ThTri>
-              <ThTri cle="buts" tri={tri} onTri={trierPar} className="text-center" titre="Buts">B</ThTri>
-              <ThTri cle="passes" tri={tri} onTri={trierPar} className="text-center" titre="Passes decisives">PD</ThTri>
+              <ThTri cle="buts" tri={tri} onTri={trierPar} className="text-center max-sm:hidden" titre="Buts">B</ThTri>
+              <ThTri cle="passes" tri={tri} onTri={trierPar} className="text-center max-sm:hidden" titre="Passes decisives">PD</ThTri>
               <ThTri cle="jaunes" tri={tri} onTri={trierPar} titre="Cartons jaunes">CJ</ThTri>
               <ThTri cle="rouges" tri={tri} onTri={trierPar} titre="Cartons rouges">CR</ThTri>
               <ThTri cle="statut" tri={tri} onTri={trierPar} className="hidden min-[1440px]:table-cell">Statut</ThTri>
@@ -183,10 +183,10 @@ export default function EffectifPage() {
             {data.map((j)=>(
               <tr key={j.id}>
                 <td>
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-panel3 font-display text-sm font-bold text-muted"
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <span className="grid h-7 w-7 shrink-0 max-sm:hidden sm:h-8 sm:w-8 place-items-center rounded-lg bg-panel3 font-display text-sm font-bold text-muted"
                       title="Numero le plus porte cette saison">{j.numeroFavori ?? "—"}</span>
-                    <div className="min-w-0 max-w-[13rem]">
+                    <div className="min-w-0 max-w-[9rem] sm:max-w-[13rem]">
                       <Link href={`/joueur/${j.id}`} className="font-semibold leading-snug text-ink transition-colors hover:text-accent">
                         {j.prenom} {j.nom}
                       </Link>
@@ -204,14 +204,14 @@ export default function EffectifPage() {
                 <td className="hidden lg:table-cell">
                   <FatigueBar score={j.scoreFatigue} detail={j.fatigueDetail} />
                 </td>
-                <td className="text-center">
+                <td className="text-center max-sm:hidden">
                   <Stepper
                     value={j.buts ?? 0}
                     onChange={(v) => patchStat(j.id, { buts: v })}
                     color="accent"
                   />
                 </td>
-                <td className="text-center">
+                <td className="text-center max-sm:hidden">
                   <Stepper
                     value={j.passesDecisives ?? 0}
                     onChange={(v) => patchStat(j.id, { passesDecisives: v })}
@@ -233,11 +233,11 @@ export default function EffectifPage() {
                 </td>
                 <td className="col-fixe">
                   <div className="flex items-center gap-1 justify-end">
-                    <button className="btn !p-2" onClick={()=>setEdit(j)}
+                    <button className="btn !p-1.5 sm:!p-2" onClick={()=>setEdit(j)}
                       aria-label={`Modifier ${j.prenom} ${j.nom}`} title="Modifier">
                       <Pencil size={13}/>
                     </button>
-                    <button className="btn !p-2 hover:!border-danger/50 hover:!text-danger" onClick={()=>handleDelete(j)}
+                    <button className="btn !p-1.5 sm:!p-2 hover:!border-danger/50 hover:!text-danger" onClick={()=>handleDelete(j)}
                       aria-label={`Supprimer ${j.prenom} ${j.nom}`} title="Supprimer">
                       <Trash2 size={13}/>
                     </button>
