@@ -106,11 +106,13 @@ export function BarsChart({
         </div>
       )}
       {/* Vue tableau pour les lecteurs d'ecran. */}
-      <table className="sr-only">
+      <div className="sr-only">
+      <table>
         <caption>{legend[0]} et {legend[1]}</caption>
         <thead><tr><th>Groupe</th><th>{legend[0]}</th><th>{legend[1]}</th></tr></thead>
         <tbody>{data.map((d, i) => <tr key={i}><td>{d.label}</td><td>{d.a}</td><td>{d.b}</td></tr>)}</tbody>
       </table>
+      </div>
     </div>
   );
 }
