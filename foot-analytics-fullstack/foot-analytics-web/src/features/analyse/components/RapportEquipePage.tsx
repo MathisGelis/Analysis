@@ -141,9 +141,9 @@ export default async function RapportEquipe({
       )}
 
       {rapport.matchsAnalyses > 0 && <>
-      <nav aria-label="Sections du rapport" className="-mt-2 flex gap-2 overflow-x-auto pb-1">
+      <nav aria-label="Sections du rapport" className="-mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         {ancres.map(([id, label]) => (
-          <a key={id} href={`#${id}`} className="badge shrink-0 hover:border-accent/40 hover:text-accent">{label}</a>
+          <a key={id} href={`#${id}`} className="badge justify-start py-2 hover:border-accent/40 hover:text-accent sm:justify-center sm:py-1">{label}</a>
         ))}
       </nav>
 
@@ -411,7 +411,7 @@ export default async function RapportEquipe({
                 <tr>
                   <th>#</th><th>Joueur</th><th>Poste</th>
                   {rapport.compoProbableSource === "modele" && <th className="text-right">Chance</th>}
-                  <th className="text-right">Titularisations</th>
+                  <th className="text-right"><span className="max-sm:hidden">Titularisations</span><span className="sm:hidden">Titu.</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -533,11 +533,11 @@ export default async function RapportEquipe({
                 <th>Nom</th>
                 <th>Fonction</th>
                 <th className="text-center">Matchs</th>
-                <th className="text-center">V-N-D</th>
+                <th className="text-center max-sm:hidden">V-N-D</th>
                 <th className="text-right">% V</th>
-                <th className="text-center">CJ</th>
-                <th className="text-center">CR</th>
-                <th>Periode</th>
+                <th className="text-center max-sm:hidden">CJ</th>
+                <th className="text-center max-sm:hidden">CR</th>
+                <th className="max-sm:hidden">Periode</th>
               </tr>
             </thead>
             <tbody>
@@ -557,10 +557,10 @@ export default async function RapportEquipe({
                         : ""
                       }`}>{c.fonctionPrincipale}</span>
                     ) : <span className="text-faint">—</span>}
-                    <span className="text-[10px] text-faint ml-2">{c.fonctions}</span>
+                    <span className="text-[10px] text-faint ml-2 max-sm:hidden">{c.fonctions}</span>
                   </td>
                   <td className="text-center tabular-nums">{c.matchsPresent}</td>
-                  <td className="text-center text-[11px] tabular-nums">
+                  <td className="text-center text-[11px] tabular-nums max-sm:hidden">
                     <span className="text-win">{c.v}</span>-
                     <span className="text-draw">{c.n}</span>-
                     <span className="text-loss">{c.d}</span>
@@ -569,9 +569,9 @@ export default async function RapportEquipe({
                     c.txReussite >= 60 ? "text-accent"
                     : c.txReussite >= 30 ? "text-amber" : "text-danger"
                   }`}>{c.txReussite}%</td>
-                  <td className="text-center text-amber font-mono">{c.cartonsJaunes || ""}</td>
-                  <td className="text-center text-danger font-mono">{c.cartonsRouges || ""}</td>
-                  <td className="text-[10px] text-faint">
+                  <td className="text-center text-amber font-mono max-sm:hidden">{c.cartonsJaunes || ""}</td>
+                  <td className="text-center text-danger font-mono max-sm:hidden">{c.cartonsRouges || ""}</td>
+                  <td className="text-[10px] text-faint max-sm:hidden">
                     {c.premierMatch && c.dernierMatch ? (
                       c.premierMatch === c.dernierMatch ? c.premierMatch
                       : `${c.premierMatch} → ${c.dernierMatch}`
@@ -599,9 +599,9 @@ export default async function RapportEquipe({
             <thead>
               <tr>
                 <th>Ligne</th><th>Joueurs</th>
-                <th className="text-center">Matchs</th>
+                <th className="text-center max-sm:hidden">Matchs</th>
                 <th className="text-center">V-N-D</th>
-                <th className="text-center">BP/BC</th>
+                <th className="text-center max-sm:hidden">BP/BC</th>
                 <th className="text-right">% V</th>
               </tr>
             </thead>
@@ -616,13 +616,13 @@ export default async function RapportEquipe({
                     }`}>{p.type}</span>
                   </td>
                   <td className="text-xs font-semibold">{p.joueurs.join(" + ")}</td>
-                  <td className="text-center tabular-nums">{p.matchsEnsemble}</td>
+                  <td className="text-center tabular-nums max-sm:hidden">{p.matchsEnsemble}</td>
                   <td className="text-center text-[11px] tabular-nums">
                     <span className="text-win">{p.v}</span>-
                     <span className="text-draw">{p.n}</span>-
                     <span className="text-loss">{p.d}</span>
                   </td>
-                  <td className="text-center font-mono text-xs">{p.bp}-{p.bc}</td>
+                  <td className="text-center font-mono text-xs max-sm:hidden">{p.bp}-{p.bc}</td>
                   <td className={`text-right font-display font-bold tabular-nums ${
                     p.txReussite >= 60 ? "text-accent"
                     : p.txReussite >= 30 ? "text-amber" : "text-danger"
@@ -651,11 +651,11 @@ export default async function RapportEquipe({
           <thead>
             <tr>
               <th>Joueur</th>
-              <th>Poste</th>
-              <th className="text-center">Matchs avec</th>
-              <th className="text-center">Sans</th>
-              <th className="text-right">PPM avec</th>
-              <th className="text-right">PPM sans</th>
+              <th className="max-sm:hidden">Poste</th>
+              <th className="text-center max-sm:hidden">Matchs avec</th>
+              <th className="text-center max-sm:hidden">Sans</th>
+              <th className="text-right max-sm:hidden">PPM avec</th>
+              <th className="text-right max-sm:hidden">PPM sans</th>
               <th className="text-right">Delta</th>
               <th className="text-right">Impact pondere</th>
             </tr>
@@ -668,11 +668,11 @@ export default async function RapportEquipe({
                     <span className="text-faint">{i.prenom}</span> {i.nom}
                   </Link>
                 </td>
-                <td><span className="badge text-[10px]">{i.poste ?? "—"}</span></td>
-                <td className="text-center tabular-nums">{i.matchsAvec}</td>
-                <td className="text-center tabular-nums text-faint">{i.matchsSans}</td>
-                <td className="text-right tabular-nums">{i.pointsParMatchAvec.toFixed(2)}</td>
-                <td className="text-right tabular-nums text-faint">{i.pointsParMatchSans.toFixed(2)}</td>
+                <td className="max-sm:hidden"><span className="badge text-[10px]">{i.poste ?? "—"}</span></td>
+                <td className="text-center tabular-nums max-sm:hidden">{i.matchsAvec}</td>
+                <td className="text-center tabular-nums text-faint max-sm:hidden">{i.matchsSans}</td>
+                <td className="text-right tabular-nums max-sm:hidden">{i.pointsParMatchAvec.toFixed(2)}</td>
+                <td className="text-right tabular-nums text-faint max-sm:hidden">{i.pointsParMatchSans.toFixed(2)}</td>
                 <td className={`text-right tabular-nums font-display font-bold ${
                   i.delta > 0.5 ? "text-accent"
                   : i.delta < -0.5 ? "text-danger" : ""

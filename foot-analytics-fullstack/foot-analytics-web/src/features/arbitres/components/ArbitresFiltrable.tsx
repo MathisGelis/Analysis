@@ -261,14 +261,14 @@ export function ArbitresFiltrable({
             <thead>
               <tr>
                 <th>Arbitre</th>
-                <th className="text-center">Roles</th>
+                <th className="text-center max-sm:hidden">Roles</th>
                 <th className="text-center" title="Matchs arbitres au centre">Princ.</th>
-                <th className="text-center">Officies</th>
-                <th className="text-center">CJ donnes</th>
-                <th className="text-center">CR donnes</th>
-                <th>Profil</th>
-                <th>Note moy.</th>
-                <th>Motifs frequents</th>
+                <th className="text-center" title="Matchs officies"><span className="max-sm:hidden">Officies</span><span className="sm:hidden">Match</span></th>
+                <th className="text-center" title="Cartons jaunes donnes"><span className="max-sm:hidden">CJ donnes</span><span className="sm:hidden">CJ</span></th>
+                <th className="text-center" title="Cartons rouges donnes"><span className="max-sm:hidden">CR donnes</span><span className="sm:hidden">CR</span></th>
+                <th className="max-sm:hidden">Profil</th>
+                <th className="max-sm:hidden">Note moy.</th>
+                <th className="max-sm:hidden">Motifs frequents</th>
                 <th className="text-right"><span className="sr-only">Fiche</span></th>
               </tr>
             </thead>
@@ -296,7 +296,7 @@ export function ArbitresFiltrable({
                         <span className="text-faint mr-1">{a.prenom}</span>{a.nom}
                       </Link>
                     </td>
-                    <td className="text-center">
+                    <td className="text-center max-sm:hidden">
                       <div className="flex gap-1 justify-center flex-wrap">
                         {rolesArr.map((r) => (
                           <span key={r} className="badge text-[9px]">
@@ -309,7 +309,7 @@ export function ArbitresFiltrable({
                     <td className="text-center tabular-nums">{s.matchsOfficies}</td>
                     <td className="text-center text-amber font-mono">{s.cartonsJaunesDonnes || ""}</td>
                     <td className="text-center text-danger font-mono">{s.cartonsRougesDonnes || ""}</td>
-                    <td>
+                    <td className="max-sm:hidden">
                       {s.profil ? (
                         <span className={`badge ${
                           s.profil === "Strict" ? "badge-danger"
@@ -317,10 +317,10 @@ export function ArbitresFiltrable({
                         }`}>{s.profil}</span>
                       ) : <span className="text-faint">—</span>}
                     </td>
-                    <td className="font-semibold text-accent tabular-nums">
+                    <td className="font-semibold text-accent tabular-nums max-sm:hidden">
                       {s.noteMoyenne != null ? s.noteMoyenne.toFixed(1) : <span className="text-faint">—</span>}
                     </td>
-                    <td className="text-[11px] text-faint">{s.motifsTop ?? ""}</td>
+                    <td className="text-[11px] text-faint max-sm:hidden">{s.motifsTop ?? ""}</td>
                     <td className="text-right">
                       <Link href={`/arbitres/${a.id}`} className="btn text-xs"
                         aria-label={`Fiche de ${[a.prenom, a.nom].filter(Boolean).join(" ")}`}>

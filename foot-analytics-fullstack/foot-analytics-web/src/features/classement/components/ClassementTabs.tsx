@@ -58,15 +58,15 @@ export function ClassementTabs({
 /*                       Table de classement                      */
 /* ============================================================ */
 type ClassementKey = "rang"|"clubNom"|"pts"|"joues"|"v"|"n"|"d"|"bp"|"bc"|"diff";
-const CLASSEMENT_COLS: { key: ClassementKey; label: string; align?: string }[] = [
+const CLASSEMENT_COLS: { key: ClassementKey; label: string; align?: string; secondaire?: boolean }[] = [
   { key: "rang",    label: "#" },
   { key: "clubNom", label: "Club" },
   { key: "joues",   label: "J",   align: "text-center" },
   { key: "v",       label: "V",   align: "text-center" },
   { key: "n",       label: "N",   align: "text-center" },
   { key: "d",       label: "D",   align: "text-center" },
-  { key: "bp",      label: "BP",  align: "text-center" },
-  { key: "bc",      label: "BC",  align: "text-center" },
+  { key: "bp",      label: "BP",  align: "text-center", secondaire: true },
+  { key: "bc",      label: "BC",  align: "text-center", secondaire: true },
   { key: "diff",    label: "Diff",align: "text-right" },
   { key: "pts",     label: "Pts", align: "text-right" },
 ];
@@ -101,7 +101,7 @@ function TableClassement({ classement, clubs, ownClubId }:
         <thead>
           <tr>
             {CLASSEMENT_COLS.map((c) => (
-              <th key={c.key} className={`${c.align ?? ""}`}>
+              <th key={c.key} className={`${c.align ?? ""} ${c.secondaire ? "max-sm:hidden" : ""}`}>
                 <SortHeader
                   label={c.label}
                   active={sortKey === c.key}
@@ -110,7 +110,7 @@ function TableClassement({ classement, clubs, ownClubId }:
                 />
               </th>
             ))}
-            <th>Forme</th>
+            <th className="max-sm:hidden">Forme</th>
           </tr>
         </thead>
         <tbody>
@@ -127,13 +127,13 @@ function TableClassement({ classement, clubs, ownClubId }:
               <td className="text-center tabular-nums text-win">{l.v}</td>
               <td className="text-center tabular-nums text-draw">{l.n}</td>
               <td className="text-center tabular-nums text-loss">{l.d}</td>
-              <td className="text-center tabular-nums">{l.bp}</td>
-              <td className="text-center tabular-nums">{l.bc}</td>
+              <td className="text-center tabular-nums max-sm:hidden">{l.bp}</td>
+              <td className="text-center tabular-nums max-sm:hidden">{l.bc}</td>
               <td className={`text-right tabular-nums ${l.diff>=0?"text-win":"text-loss"}`}>
                 {l.diff>=0?"+":""}{l.diff}
               </td>
               <td className="text-right font-display font-bold">{l.pts}</td>
-              <td><FormeStrip values={(l.forme ?? []) as Issue[]}/></td>
+              <td className="max-sm:hidden"><FormeStrip values={(l.forme ?? []) as Issue[]}/></td>
             </tr>
           ))}
         </tbody>
@@ -156,18 +156,18 @@ type TeamRow = {
 };
 
 type TeamKey = keyof TeamRow;
-const TEAM_COLS: { key: TeamKey; label: string; align?: string; title?: string }[] = [
+const TEAM_COLS: { key: TeamKey; label: string; align?: string; title?: string; secondaire?: boolean }[] = [
   { key: "clubNom",     label: "Club" },
   { key: "joues",       label: "J",   align: "text-center" },
   { key: "bp",          label: "BP",  align: "text-center" },
   { key: "bc",          label: "BC",  align: "text-center" },
   { key: "diff",        label: "Diff",align: "text-right" },
-  { key: "bpMoy",       label: "BP/m",align: "text-right", title: "Buts marques par match" },
-  { key: "bcMoy",       label: "BC/m",align: "text-right", title: "Buts encaisses par match" },
-  { key: "domV",        label: "Dom V", align: "text-center" },
-  { key: "extV",        label: "Ext V", align: "text-center" },
-  { key: "cleanSheets", label: "CS",  align: "text-center", title: "Clean sheets (BC = 0)" },
-  { key: "bigWins",     label: "Larges V", align: "text-center", title: "Victoires de 3 buts ou plus" },
+  { key: "bpMoy",       label: "BP/m",align: "text-right", title: "Buts marques par match", secondaire: true },
+  { key: "bcMoy",       label: "BC/m",align: "text-right", title: "Buts encaisses par match", secondaire: true },
+  { key: "domV",        label: "Dom V", align: "text-center", secondaire: true },
+  { key: "extV",        label: "Ext V", align: "text-center", secondaire: true },
+  { key: "cleanSheets", label: "CS",  align: "text-center", title: "Clean sheets (BC = 0)", secondaire: true },
+  { key: "bigWins",     label: "Larges V", align: "text-center", title: "Victoires de 3 buts ou plus", secondaire: true },
 ];
 
 function TeamStats({ matchs, clubs, ownClubId }:
@@ -255,7 +255,7 @@ function TeamStats({ matchs, clubs, ownClubId }:
           <thead>
             <tr>
               {TEAM_COLS.map((c) => (
-                <th key={c.key} className={c.align ?? ""} title={c.title}>
+                <th key={c.key} className={`${c.align ?? ""} ${c.secondaire ? "max-sm:hidden" : ""}`} title={c.title}>
                   <SortHeader
                     label={c.label}
                     active={sortKey === c.key}
@@ -281,12 +281,12 @@ function TeamStats({ matchs, clubs, ownClubId }:
                 <td className={`text-right tabular-nums ${r.diff>=0?"text-win":"text-loss"}`}>
                   {r.diff>=0?"+":""}{r.diff}
                 </td>
-                <td className="text-right tabular-nums">{r.bpMoy.toFixed(2)}</td>
-                <td className="text-right tabular-nums">{r.bcMoy.toFixed(2)}</td>
-                <td className="text-center tabular-nums text-win">{r.domV}</td>
-                <td className="text-center tabular-nums text-win">{r.extV}</td>
-                <td className="text-center tabular-nums">{r.cleanSheets}</td>
-                <td className="text-center tabular-nums">{r.bigWins}</td>
+                <td className="text-right tabular-nums max-sm:hidden">{r.bpMoy.toFixed(2)}</td>
+                <td className="text-right tabular-nums max-sm:hidden">{r.bcMoy.toFixed(2)}</td>
+                <td className="text-center tabular-nums text-win max-sm:hidden">{r.domV}</td>
+                <td className="text-center tabular-nums text-win max-sm:hidden">{r.extV}</td>
+                <td className="text-center tabular-nums max-sm:hidden">{r.cleanSheets}</td>
+                <td className="text-center tabular-nums max-sm:hidden">{r.bigWins}</td>
               </tr>
             ))}
           </tbody>
@@ -318,18 +318,18 @@ type PlayerRow = JoueurClassement & { clubNom: string };
 type PlayerKey = "clubNom"|"prenom"|"nom"|"matchs"|"titularisations"|"minutes"
   |"buts"|"passesDecisives"|"cartonsJaunes"|"cartonsRouges"|"noteMoyenne"|"scoreFatigue";
 
-const PLAYER_COLS: { key: PlayerKey; label: string; align?: string }[] = [
+const PLAYER_COLS: { key: PlayerKey; label: string; align?: string; secondaire?: boolean }[] = [
   { key: "nom",             label: "Joueur" },
   { key: "clubNom",         label: "Club" },
   { key: "matchs",          label: "Mat.", align: "text-center" },
-  { key: "titularisations", label: "Titu", align: "text-center" },
-  { key: "minutes",         label: "Min.", align: "text-center" },
+  { key: "titularisations", label: "Titu", align: "text-center", secondaire: true },
+  { key: "minutes",         label: "Min.", align: "text-center", secondaire: true },
   { key: "buts",            label: "B",    align: "text-center" },
   { key: "passesDecisives", label: "PD",   align: "text-center" },
-  { key: "cartonsJaunes",   label: "CJ",   align: "text-center" },
-  { key: "cartonsRouges",   label: "CR",   align: "text-center" },
+  { key: "cartonsJaunes",   label: "CJ",   align: "text-center", secondaire: true },
+  { key: "cartonsRouges",   label: "CR",   align: "text-center", secondaire: true },
   { key: "noteMoyenne",     label: "Note", align: "text-right" },
-  { key: "scoreFatigue",    label: "Fatigue", align: "text-right" },
+  { key: "scoreFatigue",    label: "Fatigue", align: "text-right", secondaire: true },
 ];
 
 function PlayerStats({ joueurs, clubs, ownClubId }:
@@ -359,7 +359,7 @@ function PlayerStats({ joueurs, clubs, ownClubId }:
         <thead>
           <tr>
             {PLAYER_COLS.map((c) => (
-              <th key={c.key} className={c.align ?? ""}>
+              <th key={c.key} className={`${c.align ?? ""} ${c.secondaire ? "max-sm:hidden" : ""}`}>
                 <SortHeader
                   label={c.label}
                   active={sortKey === c.key}
@@ -405,20 +405,20 @@ function PlayerStats({ joueurs, clubs, ownClubId }:
                 </Link>
               </td>
               <td className="text-center tabular-nums">{j.matchs}</td>
-              <td className="text-center tabular-nums">{j.titularisations}</td>
-              <td className="text-center tabular-nums text-muted">{j.minutes}</td>
+              <td className="text-center tabular-nums max-sm:hidden">{j.titularisations}</td>
+              <td className="text-center tabular-nums text-muted max-sm:hidden">{j.minutes}</td>
               <td className={`text-center tabular-nums ${isMine ? "text-accent" : ""}`}>
                 {showOff(j.buts)}
               </td>
               <td className={`text-center tabular-nums ${isMine ? "text-sky" : ""}`}>
                 {showOff(j.passesDecisives)}
               </td>
-              <td className="text-center tabular-nums text-amber">{j.cartonsJaunes || ""}</td>
-              <td className="text-center tabular-nums text-danger">{j.cartonsRouges || ""}</td>
+              <td className="text-center tabular-nums text-amber max-sm:hidden">{j.cartonsJaunes || ""}</td>
+              <td className="text-center tabular-nums text-danger max-sm:hidden">{j.cartonsRouges || ""}</td>
               <td className="text-right font-semibold text-accent tabular-nums">
                 {j.noteMoyenne != null ? j.noteMoyenne.toFixed(1) : "—"}
               </td>
-              <td className="text-right">
+              <td className="text-right max-sm:hidden">
                 <div className="inline-flex justify-end">
                   <FatigueBar score={j.scoreFatigue} detail={j.fatigueDetail} largeur="w-12" />
                 </div>

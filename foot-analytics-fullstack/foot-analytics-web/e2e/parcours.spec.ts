@@ -1424,6 +1424,12 @@ test("responsive : aucune page ne deborde de l'ecran, sur mobile et tablette (po
           const largeur = window.innerWidth;
           const sortis: string[] = [];
           if (document.documentElement.scrollWidth - largeur > 1) sortis.push(`PAGE scrollWidth=${document.documentElement.scrollWidth}`);
+          // Telephone : un tableau ne doit pas etre rogne dans son panneau (contenu plus large que le cadre).
+          if (largeur < 640) {
+            for (const el of Array.from(document.querySelectorAll<HTMLElement>(".panel"))) {
+              if (getComputedStyle(el).overflowX !== "hidden" && el.scrollWidth - el.clientWidth > 1) sortis.push(`PANNEAU rogne ${el.scrollWidth - el.clientWidth}px : ${el.textContent?.trim().slice(0, 40)}`);
+            }
+          }
           for (const el of Array.from(document.body.querySelectorAll<HTMLElement>("*"))) {
             const r = el.getBoundingClientRect();
             if (r.width === 0 || r.height === 0) continue;

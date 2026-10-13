@@ -150,7 +150,8 @@ export function CourbeGlissante({
         </span>
       </div>
 
-      <table className="sr-only">
+      <div className="sr-only">
+      <table>
         <caption>{series.map((s) => s.label).join(" et ")} ({unite})</caption>
         <thead><tr><th>Match</th><th>Score</th>{series.map((s) => <th key={s.label}>{s.label}</th>)}</tr></thead>
         <tbody>
@@ -159,6 +160,7 @@ export function CourbeGlissante({
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

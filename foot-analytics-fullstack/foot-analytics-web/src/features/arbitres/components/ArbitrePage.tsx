@@ -234,11 +234,11 @@ export default async function ArbitreDetail({
                   <tr key={p.id}>
                     <td className="font-mono text-muted">{m.journee ?? "—"}</td>
                     <td>
-                      <div className="flex items-center gap-2">
-                        {dom && <ClubBadge clubId={dom.id} size={16}/>}
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        {dom && <ClubBadge clubId={dom.id} size={16} className="max-sm:hidden"/>}
                         <span className="text-sm">{dom?.nom ?? m.clubDom}</span>
                         <span className="text-faint">vs</span>
-                        {ext && <ClubBadge clubId={ext.id} size={16}/>}
+                        {ext && <ClubBadge clubId={ext.id} size={16} className="max-sm:hidden"/>}
                         <span className="text-sm">{ext?.nom ?? m.clubExt}</span>
                       </div>
                     </td>

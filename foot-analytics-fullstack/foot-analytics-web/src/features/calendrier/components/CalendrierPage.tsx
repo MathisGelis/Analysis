@@ -334,7 +334,7 @@ function CalendrierContent() {
                     return (
                       <Link href={`/matchs/${m.id}`} key={m.id}
                         className="block px-1.5 py-1 rounded-sm text-[10px] leading-tight
-                          bg-accent/15 text-accent border border-accent/30 hover:bg-accent/25">
+                          bg-accent/15 text-ink border border-accent/40 hover:bg-accent/25">
                         <div className="flex items-center gap-1">
                           {advId && <ClubBadge clubId={advId} size={12}/>}
                           <span className="font-bold truncate flex-1">{adv?.nom ?? advId}</span>
@@ -354,9 +354,9 @@ function CalendrierContent() {
                       disabled={lectureSeule}
                       title={lectureSeule ? "Saison archivee : consultation seule" : "Modifier la seance"}
                       className="block w-full text-left px-1.5 py-1 rounded-sm text-[10px] leading-tight
-                        bg-amber/10 text-amber border border-amber/20 enabled:hover:bg-amber/20">
+                        bg-amber/15 text-ink border border-amber/40 enabled:hover:bg-amber/25">
                       <div className="flex items-center gap-1">
-                        <Dumbbell size={9}/>
+                        <Dumbbell size={9} className="text-amber"/>
                         <span className="font-bold truncate">{s.type ?? "Entr."}</span>
                         <span className="ml-auto text-[9px] text-muted">{s.heure ?? ""}</span>
                       </div>
@@ -369,9 +369,9 @@ function CalendrierContent() {
                   {aList.map((a) => (
                     <div key={a.id}
                       className="px-1.5 py-1 rounded-sm text-[10px] leading-tight
-                        bg-sky/10 text-sky border border-sky/20 group/autre relative">
+                        bg-sky/15 text-ink border border-sky/40 group/autre relative">
                       <div className="flex items-center gap-1">
-                        <FileText size={9}/>
+                        <FileText size={9} className="text-sky"/>
                         <span className="font-bold truncate flex-1">{a.titre}</span>
                         <span className="text-[9px] text-muted">{a.heure ?? ""}</span>
                         <button onClick={() => removeAutre(a.id)}

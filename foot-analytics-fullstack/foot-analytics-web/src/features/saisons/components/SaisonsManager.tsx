@@ -154,12 +154,12 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
             creee automatiquement depuis la date des matchs.
           </p>
         ) : (
-          <table className="table-fm">
+          <table className="table-fm table-fm-compact table-dense">
             <thead>
               <tr>
                 <th>Saison</th>
                 <th>Statut</th>
-                <th className="text-center">Annee debut</th>
+                <th className="hidden text-center sm:table-cell">Annee debut</th>
                 <th className="text-center">Equipes</th>
                 <th className="text-right"><span className="sr-only">Actions</span></th>
               </tr>
@@ -167,7 +167,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
             <tbody>
               {saisons.map((s) => (
                 <tr key={s.id} className={s.actif ? "is-mine" : ""}>
-                  <td className="font-display font-bold">
+                  <td className="font-display font-bold whitespace-nowrap">
                     {s.actif && <Star size={11} className="inline text-accent mr-1.5"/>}
                     {s.nom}
                   </td>
@@ -177,11 +177,11 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
                       : s.statut === "terminee" ? "" : "badge-amber"
                     }`}>{LIBELLE_STATUT[s.statut] ?? s.statut}</span>
                   </td>
-                  <td className="text-center tabular-nums">{s.anneeDebut}</td>
+                  <td className="hidden text-center tabular-nums sm:table-cell">{s.anneeDebut}</td>
                   <td className="text-center tabular-nums">
                     {equipesParSaison(s.id).length}
                   </td>
-                  <td className="text-right">
+                  <td className="text-right whitespace-nowrap">
                     {s.actif ? (
                       <span className="text-xs text-accent flex items-center justify-end gap-1">
                         <Check size={11}/> Active

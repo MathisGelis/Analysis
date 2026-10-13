@@ -58,11 +58,13 @@ export function BlessuresParMois({ mois }: { mois: ResumeBlessures["parMois"] })
       <div className="mt-1.5 flex gap-1.5 text-[10px] text-faint" aria-hidden="true">
         {mois.map((m) => <span key={m.mois} className="flex-1 text-center">{m.libelle}</span>)}
       </div>
-      <table className="sr-only">
+      <div className="sr-only">
+      <table>
         <caption>Blessures par mois</caption>
         <thead><tr><th>Mois</th><th>Blessures</th></tr></thead>
         <tbody>{mois.map((m) => <tr key={m.mois}><td>{m.libelle}</td><td>{m.n}</td></tr>)}</tbody>
       </table>
+      </div>
     </div>
   );
 }

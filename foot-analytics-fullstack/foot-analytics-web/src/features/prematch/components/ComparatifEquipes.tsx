@@ -22,12 +22,19 @@ const rang = (r: number | null) => (r === null ? "—" : r === 1 ? "1er" : `${r}
 
 function Ligne({ label, moi, adv, avantage }: { label: string; moi: ReactNode; adv: ReactNode; avantage?: Cote }) {
   const style = (c: "moi" | "adv") => (avantage === c ? "font-bold text-accent" : "text-ink");
+  const libelle = "text-[11px] font-semibold uppercase tracking-[0.08em] text-faint";
   return (
-    <tr className="border-t border-line">
-      <td className={`w-[38%] py-2.5 pr-3 text-right tabular-nums ${style("moi")}`}>{moi}</td>
-      <th scope="row" className="w-[24%] px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-faint">{label}</th>
-      <td className={`w-[38%] py-2.5 pl-3 text-left tabular-nums ${style("adv")}`}>{adv}</td>
-    </tr>
+    <>
+      {/* Telephone : le critere passe au-dessus des deux valeurs, qui se partagent la largeur a egalite. */}
+      <tr className="border-t border-line sm:hidden">
+        <th colSpan={3} scope="colgroup" className={`px-2 pt-2.5 text-center ${libelle}`}>{label}</th>
+      </tr>
+      <tr className="sm:border-t sm:border-line">
+        <td className={`py-2.5 pr-3 text-right tabular-nums max-sm:w-1/2 max-sm:pt-1 sm:w-[38%] ${style("moi")}`}>{moi}</td>
+        <th scope="row" className={`px-2 py-2.5 text-center max-sm:hidden sm:w-[24%] ${libelle}`}>{label}</th>
+        <td className={`py-2.5 pl-3 text-left tabular-nums max-sm:w-1/2 max-sm:pt-1 sm:w-[38%] ${style("adv")}`}>{adv}</td>
+      </tr>
+    </>
   );
 }
 
@@ -48,9 +55,9 @@ export function ComparatifEquipes({
       <caption className="sr-only">Comparaison de {moi.nom} et {adv.nom}</caption>
       <thead>
         <tr>
-          <th scope="col" className="w-[38%] pb-3 pr-3 text-right font-display text-base font-bold text-ink">{moi.nom}</th>
-          <td className="w-[24%]" />
-          <th scope="col" className="w-[38%] pb-3 pl-3 text-left font-display text-base font-bold text-ink">{adv.nom}</th>
+          <th scope="col" className="pb-3 pr-3 text-right font-display text-base font-bold text-ink max-sm:w-1/2 sm:w-[38%]">{moi.nom}</th>
+          <td className="w-[24%] max-sm:hidden" />
+          <th scope="col" className="pb-3 pl-3 text-left font-display text-base font-bold text-ink max-sm:w-1/2 sm:w-[38%]">{adv.nom}</th>
         </tr>
       </thead>
       <tbody>

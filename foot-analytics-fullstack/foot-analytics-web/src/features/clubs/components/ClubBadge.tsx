@@ -49,7 +49,7 @@ export function ClubBadge({ clubId, size = 28, className = "" }: Props) {
       className={`inline-flex items-center justify-center shrink-0 ${className}`}
       style={{ width: size, height: size }}
     >
-      <svg viewBox="0 0 32 32" width={size} height={size} aria-hidden="true">
+      <svg viewBox="0 0 32 32" width={size} height={size} style={{ maxWidth: "100%", height: "auto" }} aria-hidden="true">
         <defs>
           <clipPath id={clipId}><path d={ECU} /></clipPath>
         </defs>
