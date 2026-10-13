@@ -111,11 +111,11 @@ export default function AdminUtilisateurs() {
               <tr>
                 <th>Login</th>
                 <th>Nom</th>
-                {!estReferent && <th>Role</th>}
-                {!estReferent && <th>Club</th>}
-                <th>Equipes</th>
-                <th>Saisons</th>
-                <th>Cree par</th>
+                {!estReferent && <th className="max-sm:hidden">Role</th>}
+                {!estReferent && <th className="max-sm:hidden">Club</th>}
+                <th className="max-sm:hidden">Equipes</th>
+                <th className="max-sm:hidden">Saisons</th>
+                <th className="max-sm:hidden">Cree par</th>
                 <th>Statut</th>
                 <th></th>
               </tr>
@@ -133,24 +133,24 @@ export default function AdminUtilisateurs() {
                     <td className="font-mono font-bold">{u.login}</td>
                     <td>{u.prenom} {u.nom}</td>
                     {!estReferent && (
-                      <td>
+                      <td className="max-sm:hidden">
                         <span className={`badge ${u.role === "admin" || u.role === "referent" ? "badge-accent" : ""}`}>
                           {LIBELLE_ROLE[u.role] ?? u.role}
                         </span>
                       </td>
                     )}
                     {!estReferent && (
-                      <td className="text-xs text-muted">
+                      <td className="text-xs text-muted max-sm:hidden">
                         {u.role === "admin" ? "—" : (club?.nom ?? "—")}
                       </td>
                     )}
-                    <td className="text-xs text-muted">
+                    <td className="text-xs text-muted max-sm:hidden">
                       {userEqs.length === 0 ? (u.role === "admin" ? "—" : "Toutes") : userEqs.join(" · ")}
                     </td>
-                    <td className="text-xs text-muted">
+                    <td className="text-xs text-muted max-sm:hidden">
                       {u.role === "user" ? resumeSaisons(u, saisons) : "—"}
                     </td>
-                    <td className="text-xs" data-testid={`createur-${u.login}`}>
+                    <td className="text-xs max-sm:hidden" data-testid={`createur-${u.login}`}>
                       {u.createur ? (
                         <>
                           <div className="text-ink">{u.createur.prenom} {u.createur.nom}</div>

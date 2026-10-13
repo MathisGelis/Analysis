@@ -294,22 +294,22 @@ export default function IaPage() {
             <section className="panel p-5" aria-label="Historique des entrainements" data-testid="historique-ia">
               <h2 className="font-display text-lg font-bold text-ink">Historique</h2>
               <div className="mt-3 overflow-x-auto">
-                <table className="table-fm">
-                  <thead><tr><th>Date</th><th>Statut</th><th>Modele</th><th>Face a l'actif</th><th className="text-right">Titulaires predits</th><th className="text-right">Meilleur repere</th><th><span className="sr-only">Actions</span></th></tr></thead>
+                <table className="table-fm table-fm-compact">
+                  <thead><tr><th>Date</th><th>Statut</th><th className="max-sm:hidden">Modele</th><th>Face a l'actif</th><th className="text-right max-sm:hidden">Titulaires predits</th><th className="text-right max-sm:hidden">Meilleur repere</th><th><span className="sr-only">Actions</span></th></tr></thead>
                   <tbody>
                     {liste.map((e) => (
                       <tr key={e.id} className={detail?.id === e.id ? "is-mine" : ""}>
                         <td className="whitespace-nowrap text-sm">{dateHeure(e.creeLe)}{e.declencheur === "auto" && <span className="badge ml-2 text-[10px]" title="Reentrainement automatique">Auto</span>}</td>
                         <td><span className={`badge text-[10px] ${BADGE[e.statut]}`}>{LIBELLE_STATUT[e.statut]}</span></td>
-                        <td className="text-sm">{e.modele ? <>{e.modele.nom}{e.modele.actif && <span className="badge badge-accent ml-2 text-[10px]">Actif</span>}</> : <span className="text-faint">—</span>}</td>
+                        <td className="text-sm max-sm:hidden">{e.modele ? <>{e.modele.nom}{e.modele.actif && <span className="badge badge-accent ml-2 text-[10px]">Actif</span>}</> : <span className="text-faint">—</span>}</td>
                         <td className="text-sm">
                           {(() => {
                             const b = badgeDecision(e.decision);
                             return b ? <span className={`badge text-[10px] ${BADGE_DECISION[b.ton]}`} title={e.decision?.raison}>{b.texte}</span> : <span className="text-faint">—</span>;
                           })()}
                         </td>
-                        <td className="text-right font-mono text-sm">{e.modele ? pct(e.modele.resume.onze) : "—"}</td>
-                        <td className="text-right font-mono text-sm text-muted">{e.modele ? pct(e.modele.resume.referenceOnze) : "—"}</td>
+                        <td className="text-right font-mono text-sm max-sm:hidden">{e.modele ? pct(e.modele.resume.onze) : "—"}</td>
+                        <td className="text-right font-mono text-sm text-muted max-sm:hidden">{e.modele ? pct(e.modele.resume.referenceOnze) : "—"}</td>
                         <td className="text-right">
                           {e.statut === "termine" && (
                             <button type="button" className="btn text-xs" onClick={() => voir(e.id)} disabled={detail?.id === e.id}>Voir</button>

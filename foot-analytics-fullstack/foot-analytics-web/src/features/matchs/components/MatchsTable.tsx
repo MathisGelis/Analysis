@@ -177,12 +177,12 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
           <thead>
             <tr>
               <th>J</th>
-              <th>Date</th>
+              <th className="max-sm:hidden">Date</th>
               <th>Recevant</th>
               <th className="text-center">Score</th>
               <th>Visiteur</th>
-              <th>Compet.</th>
-              <th>FMI</th>
+              <th className="max-sm:hidden">Compet.</th>
+              <th className="max-sm:hidden">FMI</th>
               <th><span className="sr-only">Ouvrir</span></th>
             </tr>
           </thead>
@@ -195,11 +195,12 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
                 <tr key={m.id}>
                   <td className="font-mono text-muted">
                     {m.journee && m.journee !== "—" ? `J${m.journee}` : "—"}
+                    <div className="text-[10px] font-sans text-faint sm:hidden">{(m.date || "").slice(0, 5)}</div>
                   </td>
-                  <td className="text-xs text-muted">{m.date || "—"}</td>
+                  <td className="text-xs text-muted max-sm:hidden">{m.date || "—"}</td>
                   <td>
                     <Link href={`/club/${m.clubDom}`} className="flex items-center gap-2 hover:text-accent">
-                      <ClubBadge clubId={m.clubDom} size={20}/>
+                      <ClubBadge clubId={m.clubDom} size={20} className="max-sm:hidden"/>
                       <span className="font-semibold">{dom?.nom}</span>
                     </Link>
                   </td>
@@ -208,15 +209,15 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
                   </td>
                   <td>
                     <Link href={`/club/${m.clubExt}`} className="flex items-center gap-2 hover:text-accent">
-                      <ClubBadge clubId={m.clubExt} size={20}/>
+                      <ClubBadge clubId={m.clubExt} size={20} className="max-sm:hidden"/>
                       <span className="font-semibold">{ext?.nom}</span>
                     </Link>
                   </td>
-                  <td><span className="badge">{m.competition}</span></td>
-                  <td>{isFmi && <span className="badge badge-accent">FMI</span>}</td>
+                  <td className="max-sm:hidden"><span className="badge">{m.competition}</span></td>
+                  <td className="max-sm:hidden">{isFmi && <span className="badge badge-accent">FMI</span>}</td>
                   <td className="text-right">
                     <div className="inline-flex items-center gap-1">
-                      <Link href={`/matchs/${m.id}`} className="btn text-xs">Detail</Link>
+                      <Link href={`/matchs/${m.id}`} className="btn text-xs max-sm:!px-2 max-sm:!py-1.5">Detail</Link>
                       {m.modifiable !== false && <DeleteMatchButton matchId={m.id} label={`J${m.journee} ${m.scoreDom}-${m.scoreExt}`}/>}
                     </div>
                   </td>
