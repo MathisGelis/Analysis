@@ -176,7 +176,7 @@ export function BlessuresEditeur({
       <BlessureModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSaved={reload}
+        onSaved={async () => { await reload(); notifier.succes(editing ? "Blessure modifiee." : "Blessure enregistree."); }}
         blessure={editing}
         joueurs={joueurs}
         joueurId={joueurId}
