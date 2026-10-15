@@ -195,7 +195,7 @@ export function SeanceModal({
 
       {/* selection joueurs presents */}
       <div className="mt-5 panel-inset p-3">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
             <Users size={14} className="text-accent"/>
             <span className="font-display font-bold text-ink text-sm">

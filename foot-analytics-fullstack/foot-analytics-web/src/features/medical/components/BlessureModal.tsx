@@ -183,7 +183,7 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
 
   return (
     <Modal open={open} onClose={onClose}>
-      <div className="space-y-3 min-w-[28rem] max-w-[32rem]">
+      <div className="space-y-3 w-full max-w-[32rem]">
         <h2 className="font-display text-xl font-bold text-ink">
           {isEdit ? "Modifier la blessure" : "Ajouter une blessure"}
         </h2>

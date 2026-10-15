@@ -282,6 +282,25 @@ test("medical : blessures puis fatigue sur la saison en cours, resume des blessu
   await expect(page.getByTestId("suivi-chiffres").locator(".panel", { hasText: "Blesses" })).toContainText("1");   // la seule sans retour
   await expect(page.getByText("Blessures (2)")).toBeVisible();                        // les deux de la saison, pas celle de 2025
 
+  // Saisie par la modale, sur telephone puis tablette : le formulaire tient dans l'ecran (boutons atteignables) et l'enregistrement aboutit.
+  // Meme joueur, periode ouverte comme celle du 2 novembre : le chevauchement est signale, puis confirme.
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.getByRole("button", { name: /Ajouter/ }).first().click();
+  const modaleBlessure = page.locator(".panel-pop");
+  await expect(modaleBlessure.getByRole("heading", { name: "Ajouter une blessure" })).toBeVisible();
+  await choisir(modaleBlessure.getByRole("combobox", { name: "Joueur" }), nomJoueur);
+  await choisir(modaleBlessure.getByRole("combobox", { name: "Region" }), "Genou gauche");
+  const largeurModale = await modaleBlessure.evaluate((m) => ({ debordement: m.scrollWidth - m.clientWidth, droite: m.getBoundingClientRect().right, ecran: innerWidth }));
+  expect(largeurModale.debordement).toBeLessThanOrEqual(1);
+  expect(largeurModale.droite).toBeLessThanOrEqual(largeurModale.ecran);
+  await modaleBlessure.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(modaleBlessure).toContainText("chevauche");
+  await modaleBlessure.getByRole("button", { name: "Enregistrer quand meme" }).click();
+  await expect(modaleBlessure).toHaveCount(0);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await expect(page.getByText("Blessures (3)")).toBeVisible();
+  await expect(page.getByText("Genou gauche")).toBeVisible();
+
   // Saison precedente (2024-2025) : le resume. Un joueur de l'equipe de l'archive, deux blessures dans la saison.
   const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { equipe2425: string };
   const cree = await (await appeler(`/joueurs/equipe/${fixtures.equipe2425}/create`, {
