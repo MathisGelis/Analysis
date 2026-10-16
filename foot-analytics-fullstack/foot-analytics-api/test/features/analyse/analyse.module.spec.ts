@@ -4,6 +4,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { OPTIONS_ENTITES } from "@/database/entities";
 import { AnalyseModule } from "@/features/analyse/analyse.module";
+import { AuditModule } from "@/features/audit/audit.module";
 import { AnalyseService } from "@/features/analyse/analyse.service";
 import { PrematchService } from "@/features/analyse/prematch.service";
 
@@ -11,6 +12,7 @@ import { PrematchService } from "@/features/analyse/prematch.service";
   imports: [
     TypeOrmModule.forRoot({ type: "sqljs", ...OPTIONS_ENTITES, synchronize: true, dropSchema: true }),
     AnalyseModule,
+    AuditModule,               // global dans l'application (journal d'audit des exports)
   ],
 })
 class RacineTest {}

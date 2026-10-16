@@ -46,9 +46,9 @@ export class SeedService implements OnApplicationBootstrap {
     await this.run();
   }
 
-  /** Vide puis re-remplit toutes les tables a partir des donnees reelles. */
+  /** Vide puis re-remplit toutes les tables avec les donnees de demonstration (fictives). */
   async run() {
-    this.log.log("Peuplement de la base avec les donnees reelles...");
+    this.log.log("Peuplement de la base avec les donnees de demonstration (fictives)...");
 
     await this.clubs.save(SEED.clubs as any);
     await this.equipes.save(SEED.equipes as any);

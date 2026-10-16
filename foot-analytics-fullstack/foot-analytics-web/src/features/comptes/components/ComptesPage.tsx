@@ -14,7 +14,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/shared/lib/api";
-import { getCachedUser, type User } from "@/features/auth/lib/auth";
+import type { User } from "@/features/auth/lib/auth";
+import { useUtilisateur } from "@/features/auth/lib/session-context";
 import { AdminOnglets } from "@/shared/ui/AdminOnglets";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
@@ -48,15 +49,13 @@ export default function AdminUtilisateurs() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
-  const [moi, setMoi] = useState<User | null>(null);
+  const moi = useUtilisateur();
   const estReferent = moi?.role === "referent";
 
   // Verifier le role cote client (UX); le guard reel est cote backend.
   useEffect(() => {
-    const u = getCachedUser();
-    setMoi(u);
-    if (u && u.role !== "admin" && u.role !== "referent") router.replace("/");
-  }, [router]);
+    if (moi && moi.role !== "admin" && moi.role !== "referent") router.replace("/");
+  }, [moi, router]);
 
   async function reload() {
     setLoading(true);
@@ -165,10 +164,14 @@ export default function AdminUtilisateurs() {
                         <span className="text-faint" title="Compte anterieur au suivi du createur, ou creation initiale">—</span>
                       )}
                     </td>
-                    <td>
-                      {u.mustChangePassword
-                        ? <span className="badge badge-amber text-[10px]">Mdp a changer</span>
-                        : <span className="badge text-[10px]">Actif</span>}
+                    <td data-testid={`statut-${u.login}`}>
+                      {u.actif === false
+                        ? <span className="badge badge-danger text-[10px]" title={u.desactiveLe ? `Desactive le ${dateFr(u.desactiveLe)}` : undefined}>Desactive</span>
+                        : u.verrouille
+                          ? <span className="badge badge-danger text-[10px]" title="Trop d'echecs de connexion : verrouille quelques minutes">Verrouille</span>
+                          : u.mustChangePassword
+                            ? <span className="badge badge-amber text-[10px]">Mdp a changer</span>
+                            : <span className="badge text-[10px]">Actif</span>}
                     </td>
                     <td className="text-right">
                       <div className="flex gap-1 justify-end">
@@ -230,7 +233,8 @@ function UserForm({
   // Saisons : saison actuelle seule (defaut d'un nouveau compte), saisons passees choisies, ou toutes.
   const [mode, setMode] = useState<ModeSaisons>(() => (user?.id ? modeSaisons(user) : "courante"));
   const [saisonsChoisies, setSaisonsChoisies] = useState<Set<string>>(() => new Set(user?.saisonIds ?? []));
-  const [resetPassword, setResetPassword] = useState("");
+  const [reinitialiser, setReinitialiser] = useState(false);
+  const [actif, setActif] = useState<boolean>(user?.actif !== false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
@@ -267,9 +271,12 @@ function UserForm({
         payload.equipeIds = role === "admin" || role === "referent" ? [] : idsDesNiveaux(niveaux, cochees);
         if (role === "user") Object.assign(payload, accesSaisons);
         if (estReferent) delete payload.role;     // un referent ne change pas le role d'un compte
-        if (resetPassword) payload.resetPassword = resetPassword;
-        await api.updateUtilisateur(user.id, payload);
-        onSaved();
+        if (reinitialiser) payload.reinitialiserMotDePasse = true;
+        if (actif !== (user.actif !== false)) payload.actif = actif;
+        const res = await api.updateUtilisateur(user.id, payload);
+        // Mot de passe reinitialise : on l'affiche une seule fois, comme a la creation.
+        if (res?.initialPassword) setCreatedPassword(res.initialPassword);
+        else onSaved();
       } else {
         const res = await api.createUtilisateur({
           prenom, nom, role,
@@ -291,11 +298,12 @@ function UserForm({
       <Modal open={true} onClose={() => { onSaved(); }} maxWidth="max-w-md">
         <div className="space-y-4">
           <h2 className="font-display text-xl font-bold text-ink flex items-center gap-2">
-            <KeyRound size={18} className="text-accent"/> Compte cree
+            <KeyRound size={18} className="text-accent"/> {isEdit ? "Mot de passe reinitialise" : "Compte cree"}
           </h2>
           <p className="text-sm text-muted">
-            Communique ces credentials {estReferent ? "a ton educateur" : "au nouvel utilisateur"}. Le mot de
-            passe devra etre change a sa premiere connexion.
+            Communique ces identifiants {estReferent ? "a ton educateur" : isEdit ? "a l'utilisateur" : "au nouvel utilisateur"} de
+            vive voix ou par un canal prive (jamais dans un groupe). Le mot de passe est a usage unique : il devra le
+            changer a sa premiere connexion. Il ne sera plus affiche ensuite.
           </p>
           <div className="panel-inset p-4 space-y-2">
             <div>
@@ -303,8 +311,8 @@ function UserForm({
               <div className="font-mono font-bold text-lg tracking-wider">{login}</div>
             </div>
             <div>
-              <span className="text-[10px] uppercase tracking-wider text-faint">Mot de passe initial</span>
-              <div className="font-mono font-bold text-lg text-amber">{createdPassword}</div>
+              <span className="text-[10px] uppercase tracking-wider text-faint">Mot de passe temporaire</span>
+              <div className="font-mono font-bold text-lg text-amber" data-testid="mot-de-passe-temporaire">{createdPassword}</div>
             </div>
           </div>
           <button className="btn btn-accent w-full" onClick={onSaved}>OK</button>
@@ -446,12 +454,27 @@ function UserForm({
         )}
 
         {isEdit && (
-          <Field label="Reinitialiser le mot de passe (optionnel)">
-            <input className="select-fm" placeholder="Laisser vide pour ne pas changer"
-              value={resetPassword} onChange={(e) => setResetPassword(e.target.value)}/>
-            <p className="text-[10px] text-faint mt-1">
-              Si renseigne, l'utilisateur devra le changer a sa prochaine connexion.
-            </p>
+          <Field label="Securite du compte">
+            <label className="flex items-start gap-2 text-sm text-ink">
+              <input type="checkbox" className="mt-1" checked={reinitialiser} onChange={(e) => setReinitialiser(e.target.checked)}/>
+              <span>
+                Reinitialiser le mot de passe
+                <span className="block text-[10px] text-faint">
+                  Un mot de passe temporaire est tire au hasard et affiche une fois ; ses sessions en cours sont fermees.
+                </span>
+              </span>
+            </label>
+            {user?.id !== acteur?.id && (
+              <label className="mt-2 flex items-start gap-2 text-sm text-ink">
+                <input type="checkbox" className="mt-1" checked={actif} onChange={(e) => setActif(e.target.checked)}/>
+                <span>
+                  Compte actif
+                  <span className="block text-[10px] text-faint">
+                    Desactive, il ne peut plus se connecter (desactivation automatique apres 12 mois sans connexion).
+                  </span>
+                </span>
+              </label>
+            )}
           </Field>
         )}
 

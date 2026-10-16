@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Brain, CalendarClock, CircleCheck, Play, Power, Square, Trash2 } from "lucide-react";
 
-import { getCachedUser } from "@/features/auth/lib/auth";
+import { useUtilisateur } from "@/features/auth/lib/session-context";
 import { api, messageApi } from "@/shared/lib/api";
 import { useFeedback } from "@/shared/lib/feedback-context";
 import { AdminOnglets } from "@/shared/ui/AdminOnglets";
@@ -38,10 +38,10 @@ export default function IaPage() {
   const dernierStatutVu = useRef<string | null>(null);
 
   // Le role est verifie ici pour la commodite (redirection) ; le vrai garde est cote serveur.
+  const moi = useUtilisateur();
   useEffect(() => {
-    const u = getCachedUser();
-    if (u && u.role !== "admin") router.replace("/");
-  }, [router]);
+    if (moi && moi.role !== "admin") router.replace("/");
+  }, [moi, router]);
 
   const voir = useCallback(async (id: string) => {
     try { setDetail(await api.iaEntrainement(id)); }

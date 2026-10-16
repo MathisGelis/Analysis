@@ -5,22 +5,17 @@
 // des comptes (Administration pour l'admin, Mes educateurs pour le referent de club) et deconnexion.
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
 
-import { clearSession, getCachedUser, User } from "@/features/auth/lib/auth";
+import { deconnecter } from "@/features/auth/lib/auth";
+import { useUtilisateur } from "@/features/auth/lib/session-context";
 import { lienGestionComptes } from "@/features/shell/lib/navigation";
 
 export function UserBadge({ compact = false }: { compact?: boolean }) {
-  const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => { setUser(getCachedUser()); }, []);
+  const user = useUtilisateur();
 
   function logout() {
-    clearSession();
-    router.replace("/login");
+    void deconnecter();
   }
 
   if (!user) return <div className="px-4 py-3 text-xs text-faint">{compact ? "" : "Non connecte"}</div>;

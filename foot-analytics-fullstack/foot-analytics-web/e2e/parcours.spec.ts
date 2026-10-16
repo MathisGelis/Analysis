@@ -8,6 +8,9 @@ import path from "node:path";
 import { API_URL, WEB_PORT } from "../playwright.config";
 import { FIXTURES, MOT_DE_PASSE } from "./global-setup";
 
+/** Mot de passe choisi par les comptes crees pendant les parcours (respecte la politique : 12 caracteres, pas courant). */
+const MDP_COMPTE = "Ma phrase de passe 1";
+
 test.describe.configure({ mode: "serial" });
 
 // UNE session partagee par tous les parcours : cookies (equipe, saison) et
@@ -189,7 +192,12 @@ test("tactique : composition sur l'effectif reel, regle des mutes imposee, plan 
   // Effectif de l'equipe choisie : 7 mutes, 3 mutes hors delai (donc 10 au total, plus que le maximum de 6),
   // et 9 joueurs sans mutation. Crees par l'API avec le jeton de la session.
   const equipeId = (await contexte.cookies()).find((c) => c.name === "ownEquipeId")!.value;
-  const token = await page.evaluate(() => localStorage.getItem("fa.token"));
+  // Le jeton de la session du navigateur est dans un cookie HttpOnly (illisible par la page) : on en ouvre une par l'API.
+  expect(await page.evaluate(() => localStorage.getItem("fa.token"))).toBeNull();
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
   const creer = async (prenom: string, nom: string, poste: string, statutMutation: string) => {
     const res = await fetch(`${API_URL}/joueurs/equipe/${equipeId}/create`, {
       method: "POST",
@@ -623,9 +631,9 @@ test("systeme de jeu : un educateur d'un autre club renseigne un systeme vide, j
   const connexion = await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login: educ.login, password: educ.initialPassword }),
   })).json();
-  await appeler(connexion.token, "/auth/change-password", { method: "POST", body: JSON.stringify({ oldPassword: educ.initialPassword, newPassword: "Tiers12345" }) });
+  await appeler(connexion.token, "/auth/change-password", { method: "POST", body: JSON.stringify({ oldPassword: educ.initialPassword, newPassword: MDP_COMPTE }) });
   const jeton = (await (await fetch(`${API_URL}/auth/login`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login: educ.login, password: "Tiers12345" }),
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login: educ.login, password: MDP_COMPTE }),
   })).json()).token;
 
   const ctx = await browser.newContext();
@@ -634,7 +642,7 @@ test("systeme de jeu : un educateur d'un autre club renseigne un systeme vide, j
   try {
     await a.goto("/login");
     await a.locator("input[placeholder=MLEMAIRE]").fill(educ.login);
-    await a.locator("input[type=password]").fill("Tiers12345");
+    await a.locator("input[type=password]").fill(MDP_COMPTE);
     await a.locator("button[type=submit]").click();
     await a.waitForURL((u) => u.pathname === "/");
 
@@ -1094,9 +1102,13 @@ test("referent de club : cree les comptes de ses educateurs, sans rien voir ni p
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ login: "RREFERENTE", password: referent.initialPassword }),
   })).json();
-  await appeler("/auth/change-password", connexion.token, {
-    method: "POST", body: JSON.stringify({ oldPassword: referent.initialPassword, newPassword: "Referent123" }),
+  const change = await appeler("/auth/change-password", connexion.token, {
+    method: "POST", body: JSON.stringify({ oldPassword: referent.initialPassword, newPassword: MDP_COMPTE }),
   });
+  // Changer de mot de passe ferme toutes les sessions du compte (le jeton temporaire est revoque) : on prend le nouveau.
+  const ancienJeton = connexion.token;
+  connexion.token = (await change.json()).token;
+  expect((await appeler("/auth/me", ancienJeton)).status).toBe(401);
 
   // Session du referent, dans son propre navigateur.
   const ctx = await browser.newContext();
@@ -1104,7 +1116,7 @@ test("referent de club : cree les comptes de ses educateurs, sans rien voir ni p
   try {
     await p.goto("/login");
     await p.locator("input[placeholder=MLEMAIRE]").fill("RREFERENTE");
-    await p.locator("input[type=password]").fill("Referent123");
+    await p.locator("input[type=password]").fill(MDP_COMPTE);
     await p.locator("button[type=submit]").click();
     await p.waitForURL((u) => u.pathname === "/");
 
@@ -1135,10 +1147,14 @@ test("referent de club : cree les comptes de ses educateurs, sans rien voir ni p
       await modale.getByPlaceholder("Mathis").fill(prenom);
       await modale.getByPlaceholder("Lemaire").fill(nom);
       await modale.getByRole("button", { name: "Creer le compte" }).click();
-      await expect(modale.getByText("Mot de passe initial")).toBeVisible();
+      await expect(modale.getByText("Mot de passe temporaire")).toBeVisible();
+      // Tire au hasard, affiche une seule fois.
+      const temporaire = (await modale.getByTestId("mot-de-passe-temporaire").textContent()) ?? "";
+      expect(temporaire).toMatch(/^\S{4}-\S{4}-\S{4}-\S{4}$/);
       await modale.getByRole("button", { name: "OK" }).click();
+      return temporaire;
     };
-    await creer("Luc", "Durand");
+    const temporaireLuc = await creer("Luc", "Durand");
     await creer("Lea", "Moreau");
     await expect(p.getByRole("cell", { name: "LDURAND", exact: true })).toBeVisible();
     await expect(p.getByRole("cell", { name: "LMOREAU", exact: true })).toBeVisible();
@@ -1157,13 +1173,22 @@ test("referent de club : cree les comptes de ses educateurs, sans rien voir ni p
     expect((await appeler(`/utilisateurs/${educVoisin.id}`, connexion.token, { method: "DELETE" })).status).toBe(404);
     expect((await appeler(`/utilisateurs/${referent.id}`, connexion.token, { method: "PATCH", body: JSON.stringify({ role: "admin" }) })).status).toBe(404);
 
-    // L'educateur cree se connecte, rattache au club du referent, avec un mot de passe a changer.
-    const educ = await (await fetch(`${API_URL}/auth/login`, {
+    // L'educateur cree se connecte, rattache au club du referent, avec un mot de passe a changer ; l'ancien mot de
+    // passe commun ne marche pas.
+    const commun = await fetch(`${API_URL}/auth/login`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ login: "LDURAND", password: "Bienvenue1" }),
+    });
+    expect(commun.status).toBe(401);
+    const educ = await (await fetch(`${API_URL}/auth/login`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ login: "LDURAND", password: temporaireLuc }),
     })).json();
     expect(educ.user).toMatchObject({ role: "user", clubId, mustChangePassword: true });
     expect((await appeler("/utilisateurs", educ.token)).status).toBe(403);       // un educateur ne gere aucun compte
+    const bloque = await appeler("/matchs", educ.token);                           // le mot de passe temporaire ne sert qu'a en choisir un
+    expect(bloque.status).toBe(403);
+    expect((await bloque.json()).code).toBe("MOT_DE_PASSE_A_CHANGER");
   } finally {
     await ctx.close();
     // Menage : la suite des parcours repart sans ces comptes ni ce club.
@@ -1209,7 +1234,8 @@ test("comptes : equipe de la saison actuelle sans la poule, saisons de l'histori
   await expect(saisons.getByRole("checkbox")).toHaveCount(1);                                 // seules les saisons passees se choisissent
   await expect(modale.getByTestId("resume-saisons")).toContainText("+ 2024-2025");
   await modale.getByRole("button", { name: "Creer le compte" }).click();
-  await expect(modale.getByText("Mot de passe initial")).toBeVisible();
+  await expect(modale.getByText("Mot de passe temporaire")).toBeVisible();
+  const temporaireEric = (await modale.getByTestId("mot-de-passe-temporaire").textContent()) ?? "";
   await modale.getByRole("button", { name: "OK" }).click();
 
   // La liste : equipe sans poule, saisons, createur (l'administrateur connecte).
@@ -1246,14 +1272,14 @@ test("comptes : equipe de la saison actuelle sans la poule, saisons de l'histori
     })).json()).token;
     await fetch(`${API_URL}/auth/change-password`, {
       method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${jeton}` },
-      body: JSON.stringify({ oldPassword: initial, newPassword: "Educateur123" }),
+      body: JSON.stringify({ oldPassword: initial, newPassword: MDP_COMPTE }),
     });
     const ctx = await browser.newContext();
     const p = await ctx.newPage();
     try {
       await p.goto("/login");
       await p.locator("input[placeholder=MLEMAIRE]").fill(login);
-      await p.locator("input[type=password]").fill("Educateur123");
+      await p.locator("input[type=password]").fill(MDP_COMPTE);
       await p.locator("button[type=submit]").click();
       await p.waitForURL((u) => u.pathname === "/");
       await selecteur(p).click();
@@ -1268,13 +1294,13 @@ test("comptes : equipe de la saison actuelle sans la poule, saisons de l'histori
       await ctx.close();
     }
   };
-  expect(await saisonsVues("ECOACH", "Bienvenue1")).toEqual({ passee: 1, suivante: 1 });   // actuelle + 2024-2025 choisie + saison a venir
-  expect(await saisonsVues("FSEUL", "Bienvenue1")).toEqual({ passee: 0, suivante: 1 });    // l'historique reste ferme
+  expect(await saisonsVues("ECOACH", temporaireEric)).toEqual({ passee: 1, suivante: 1 });   // actuelle + 2024-2025 choisie + saison a venir
+  expect(await saisonsVues("FSEUL", fred.initialPassword)).toEqual({ passee: 0, suivante: 1 });    // l'historique reste ferme
 
   // Et c'est l'API qui le garantit, pas le front : avec le jeton de l'educateur, la saison fermee est introuvable, ses equipes et ses
   // matchs ne sortent pas, et les operations qui concernent tout le monde sont refusees.
   const jetonDe = async (login: string) => (await (await fetch(`${API_URL}/auth/login`, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login, password: "Educateur123" }),
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login, password: MDP_COMPTE }),
   })).json()).token as string;
   const lire = async (jeton: string, chemin: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
     ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${jeton}` },

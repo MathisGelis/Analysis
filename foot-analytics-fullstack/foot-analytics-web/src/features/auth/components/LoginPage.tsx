@@ -10,7 +10,6 @@ import { useSearchParams } from "next/navigation";
 import { LogIn } from "lucide-react";
 
 import { api } from "@/shared/lib/api";
-import { setSession } from "@/features/auth/lib/auth";
 import { cheminInterne } from "@/features/auth/lib/redirection";
 
 import { AuthShell } from "./AuthShell";
@@ -28,15 +27,15 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true); setError(null);
     try {
+      // Le serveur Next range les jetons dans des cookies HttpOnly : la page ne recoit que le profil.
       const res = await api.authLogin(login.trim().toUpperCase(), password);
-      setSession(res.token, res.user);
       const dest = res.user.mustChangePassword
         ? `/change-password?from=${encodeURIComponent(from)}`
         : from;
       // window.location.href (et non router.replace) pour forcer un
-      // full reload : les Server Components doivent re-rendre avec le
-      // nouveau cookie `fa_token`, sinon les pages metier affichent
-      // encore l'etat "non connecte" jusqu'au prochain F5 manuel.
+      // full reload : les Server Components doivent re-rendre avec la
+      // nouvelle session, sinon les pages metier affichent encore
+      // l'etat "non connecte" jusqu'au prochain F5 manuel.
       window.location.href = dest;
     } catch (e: any) {
       setError(e?.message ?? "Erreur de connexion");

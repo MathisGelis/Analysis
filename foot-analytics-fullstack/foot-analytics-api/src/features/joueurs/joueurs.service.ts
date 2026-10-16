@@ -582,7 +582,7 @@ export class JoueursService {
     list.add(equipeId);
     j.equipesAttachees = [...list];
     const saved = await this.recalculerStatutMutation(await this.repo.save(j));
-    this.log.debug(`[attach] joueur=${j.prenom} ${j.nom} (${joueurId}) -> equipe=${eq.nom} (${equipeId}) | equipesAttachees=[${saved.equipesAttachees.join(",")}]`);
+    this.log.debug(`[attach] joueur ${joueurId} -> equipe ${equipeId} (${saved.equipesAttachees.length} equipe(s) attachee(s))`);
     return saved;
   }
 

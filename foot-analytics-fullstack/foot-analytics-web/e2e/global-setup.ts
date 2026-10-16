@@ -1,6 +1,6 @@
 // Prepare la base de test par l'API (une seule fois, avant les parcours) :
-//  - le compte admin cree au demarrage (AADMIN / Bienvenue1) change son mot de
-//    passe, pour ne pas etre redirige vers /change-password a chaque connexion ;
+//  - le compte admin cree au demarrage (AADMIN, mot de passe initial de ADMIN_INITIAL_PASSWORD, a usage unique)
+//    choisit son mot de passe, pour ne pas etre redirige vers /change-password a chaque connexion ;
 //  - saisons 2024-2025 (archivee, avec equipe), 2025-2026 (active, avec equipe) et
 //    2026-2027 (creee au demarrage par l'API, sans equipe pour le club) ;
 //  - un club avec une equipe Seniors D2 Poule C sur 2025-2026 (Poule B en 2024-2025)
@@ -8,7 +8,7 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { API_URL } from "../playwright.config";
+import { API_URL, MOT_DE_PASSE_INITIAL } from "../playwright.config";
 
 export const MOT_DE_PASSE = "E2e-Passw0rd!";
 export const FIXTURES = path.join(__dirname, ".tmp", "fixtures.json");
@@ -29,10 +29,10 @@ async function appel<T>(chemin: string, token: string | null, methode = "GET", c
 
 export default async function globalSetup() {
   const premiere = await appel<{ token: string }>("/auth/login", null, "POST", {
-    login: "AADMIN", password: "Bienvenue1",
+    login: "AADMIN", password: MOT_DE_PASSE_INITIAL,
   });
   await appel("/auth/change-password", premiere.token, "POST", {
-    oldPassword: "Bienvenue1", newPassword: MOT_DE_PASSE,
+    oldPassword: MOT_DE_PASSE_INITIAL, newPassword: MOT_DE_PASSE,
   });
   const { token } = await appel<{ token: string }>("/auth/login", null, "POST", {
     login: "AADMIN", password: MOT_DE_PASSE,

@@ -24,7 +24,7 @@ export interface ContexteAccesPages {
 export const PAGES_SAISON_EN_COURS: readonly string[] = ["/calendrier", "/entrainements", "/tactique", "/ia", "/rapports/prematch"];
 
 /** Pages reservees a l'administrateur. */
-export const PAGES_ADMIN: readonly string[] = ["/saisons", "/admin/ia"];
+export const PAGES_ADMIN: readonly string[] = ["/saisons", "/admin/ia", "/admin/journal"];
 
 const sousChemin = (chemin: string, prefixe: string) => chemin === prefixe || chemin.startsWith(`${prefixe}/`);
 

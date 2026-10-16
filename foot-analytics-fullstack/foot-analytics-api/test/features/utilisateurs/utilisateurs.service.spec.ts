@@ -5,6 +5,9 @@ import * as bcrypt from "bcryptjs";
 import { Equipe } from "@/features/equipes/equipe.entity";
 import { Saison } from "@/features/saisons/saison.entity";
 import { Utilisateur } from "@/features/utilisateurs/utilisateur.entity";
+import { Session } from "@/features/auth/session.entity";
+import { JournalAudit } from "@/features/audit/journal-audit.entity";
+import { JournalAuditService } from "@/features/audit/journal-audit.service";
 import { creerBaseTest, fabriques } from "@test/support/test-db";
 import { UtilisateursService } from "@/features/utilisateurs/utilisateurs.service";
 
@@ -15,7 +18,10 @@ describe("UtilisateursService : referent de club", () => {
 
   beforeEach(async () => {
     ds = await creerBaseTest();
-    svc = new UtilisateursService(ds.getRepository(Utilisateur), ds.getRepository(Equipe), ds.getRepository(Saison));
+    svc = new UtilisateursService(
+      ds.getRepository(Utilisateur), ds.getRepository(Equipe), ds.getRepository(Saison), ds.getRepository(Session),
+      new JournalAuditService(ds.getRepository(JournalAudit)),
+    );
     f = fabriques(ds);
   });
   afterEach(() => ds.destroy());
@@ -112,11 +118,14 @@ describe("UtilisateursService : referent de club", () => {
     it("le referent gere ses educateurs : equipes, nom, mot de passe", async () => {
       const c = await contexte();
 
-      const maj = await svc.update(c.actA, c.educA.id, { equipeIds: [c.seniorsA.id, c.u20A.id], resetPassword: "Nouveau12" });
+      const maj: any = await svc.update(c.actA, c.educA.id, { equipeIds: [c.seniorsA.id, c.u20A.id], reinitialiserMotDePasse: true });
 
       expect(maj).toMatchObject({ equipeIds: [c.seniorsA.id, c.u20A.id], mustChangePassword: true, clubId: c.clubA.id });
+      expect(maj.initialPassword).toMatch(/^[A-Za-z0-9]{4}(-[A-Za-z0-9]{4}){3}$/);       // tire au hasard, renvoye une fois
       const relu = await ds.getRepository(Utilisateur).findOneByOrFail({ id: c.educA.id });
-      expect(await bcrypt.compare("Nouveau12", relu.passwordHash)).toBe(true);
+      expect(await bcrypt.compare(maj.initialPassword, relu.passwordHash)).toBe(true);
+      expect(relu.versionJeton).toBe(1);                                                // ses jetons d'acces tombent
+      expect("initialPassword" in (await svc.update(c.actA, c.educA.id, { prenom: "Luc" }))).toBe(false);
       const renomme = await svc.update(c.actA, c.educA.id, { prenom: "Lucas" });
       expect(renomme.login).toBe("LDURAND");                       // 1re lettre du prenom : L (Luc -> Lucas)
     });

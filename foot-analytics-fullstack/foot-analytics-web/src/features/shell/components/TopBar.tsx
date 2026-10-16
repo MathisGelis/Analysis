@@ -11,7 +11,7 @@ import { useTheme } from "@/features/shell/lib/theme-context";
 import { titrePage } from "@/features/shell/lib/navigation";
 import { ClubBadge } from "@/features/clubs/components/ClubBadge";
 import { RechercheGlobale } from "@/features/recherche/components/RechercheGlobale";
-import { getCachedUser } from "@/features/auth/lib/auth";
+import { useUtilisateur } from "@/features/auth/lib/session-context";
 import type { Club } from "@/shared/lib/types";
 
 import { SettingsDrawer } from "./SettingsDrawer";
@@ -30,8 +30,7 @@ export function TopBar({ onOuvrirMenu }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Seul un admin peut changer de club entraine ; un utilisateur simple est
   // verrouille sur son club par ses droits.
-  const [isAdmin, setIsAdmin] = useState(false);
-  useEffect(() => { setIsAdmin(getCachedUser()?.role === "admin"); }, []);
+  const isAdmin = useUtilisateur()?.role === "admin";
 
   useEffect(() => { api.clubs().then(setClubs).catch(() => {}); }, []);
 

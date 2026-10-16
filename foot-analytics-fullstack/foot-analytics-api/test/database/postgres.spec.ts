@@ -1,5 +1,6 @@
 import { join } from "node:path";
 
+import { ALL_ENTITIES } from "@/database/entities";
 import { connexionPostgres, hoteDe, lireCertificat, MIGRATIONS, modeSsl, optionsSsl } from "@/database/postgres";
 
 describe("modeSsl", () => {
@@ -57,7 +58,7 @@ describe("connexionPostgres", () => {
   it("taille du pool reglable ; entites et generateur d'identifiants toujours declares", () => {
     const o = connexionPostgres({ DATABASE_URL: "postgres://u@localhost/foot", DB_POOL_MAX: "4" });
     expect(o.extra).toEqual({ max: 4 });
-    expect((o.entities as unknown[]).length).toBe(21);
+    expect((o.entities as unknown[]).length).toBe(ALL_ENTITIES.length);
     expect(o.subscribers).toHaveLength(1);
   });
 });

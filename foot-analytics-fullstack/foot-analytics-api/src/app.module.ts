@@ -28,6 +28,8 @@ import { UtilisateursModule } from "@/features/utilisateurs/utilisateurs.module"
 import { TactiquesModule } from "@/features/tactiques/tactiques.module";
 import { IaModule } from "@/features/ia/ia.module";
 import { SanteModule } from "@/features/sante/sante.module";
+import { LimiteurGuard, LimitesModule } from "@/features/limites/limites.module";
+import { AuditModule } from "@/features/audit/audit.module";
 
 @Module({
   imports: [
@@ -55,6 +57,8 @@ import { SanteModule } from "@/features/sante/sante.module";
     TactiquesModule,
     IaModule,
     SanteModule,
+    LimitesModule,
+    AuditModule,
   ],
   providers: [
     // Guard global : toute requete sous /api requiert un JWT valide.
@@ -62,6 +66,8 @@ import { SanteModule } from "@/features/sante/sante.module";
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     // Puis le perimetre du compte (role, club, equipes, saisons), lu en base : voir features/acces.
     { provide: APP_GUARD, useClass: AccesGuard },
+    // Enfin les limites de debit, par compte une fois celui-ci connu : voir features/limites.
+    { provide: APP_GUARD, useClass: LimiteurGuard },
   ],
 })
 export class AppModule {}

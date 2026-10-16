@@ -32,6 +32,17 @@ function norm(s?: string | null): string {
 
 const execFileAsync = promisify(execFile);
 
+/**
+ * Resume d'une erreur pour le journal du serveur, sans donnee personnelle : la sortie du parseur ou le message d'une
+ * erreur de base peuvent citer un nom lu sur la feuille. On garde le code de sortie et le type d'erreur.
+ */
+export function resumeErreur(e: any): string {
+  const code = e?.code != null ? `code ${e.code}` : null;
+  const derniere = String(e?.stderr ?? "").trim().split("\n").pop() ?? "";
+  const type = (derniere.match(/^([A-Za-z_][\w.]*(Error|Exception))\b/) ?? [])[1] ?? e?.name ?? "Error";
+  return [type, code].filter(Boolean).join(", ");
+}
+
 @Injectable()
 export class FmiService {
   private readonly log = new Logger("FMI");
@@ -60,7 +71,7 @@ export class FmiService {
       });
       return JSON.parse(stdout);
     } catch (e: any) {
-      this.log.error(`Echec parsing FMI: ${e.message}`);
+      this.log.error(`Echec parsing FMI : ${resumeErreur(e)}`);
       throw new BadRequestException(
         "Impossible de parser ce PDF. Verifiez qu'il s'agit bien d'une FMI FFF " +
         "et que Python + pdfplumber sont installes (voir parser/requirements.txt).",
@@ -133,7 +144,7 @@ export class FmiService {
       }
       return results;
     } catch (e: any) {
-      this.log.error(`Echec parsing batch FMI: ${e.message}`);
+      this.log.error(`Echec parsing batch FMI : ${resumeErreur(e)}`);
       throw new BadRequestException(
         "Impossible de parser ces PDF en batch. Verifiez Python + pdfplumber.",
       );
@@ -499,7 +510,7 @@ export class FmiService {
           });
         }
       } catch (e: any) {
-        this.log.warn(`Arbitre "${nom}" non enregistre (FMI ${parsed.numero_match}) : ${e.message}`);
+        this.log.warn(`Un arbitre non enregistre (FMI ${parsed.numero_match}) : ${resumeErreur(e)}`);
         rapport.avertissements.push(`arbitre "${nom}" non enregistre`);
       }
     }
@@ -533,7 +544,7 @@ export class FmiService {
         }
       } catch (e: any) {
         // Un coach mal parse ne doit pas faire echouer l'import.
-        this.log.warn(`Encadrant "${nomComplet}" non enregistre (FMI ${parsed.numero_match}) : ${e.message}`);
+        this.log.warn(`Un encadrant non enregistre (FMI ${parsed.numero_match}) : ${resumeErreur(e)}`);
         rapport.avertissements.push(`encadrant "${nomComplet}" non enregistre`);
       }
     }

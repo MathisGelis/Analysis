@@ -23,7 +23,8 @@ import { OwnEquipeProvider } from "@/features/equipes/lib/own-equipe-context";
 import { OwnClubProvider } from "@/features/equipes/lib/own-club-context";
 import { getOwnClubIdServer } from "@/features/equipes/lib/own-club";
 import { getOwnEquipeIdServer, getOwnSaisonIdServer } from "@/features/equipes/lib/own-equipe";
-import { getCurrentUserServer } from "@/features/auth/lib/auth";
+import { getCurrentUserServer, type User } from "@/features/auth/lib/auth";
+import { SessionProvider } from "@/features/auth/lib/session-context";
 import { AccesProvider } from "@/features/shell/lib/acces-context";
 import { ClubsProvider } from "@/features/clubs/lib/clubs-context";
 import { api } from "@/shared/lib/api";
@@ -51,10 +52,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // (barre laterale, recherche, selecteur d'equipe) n'a de sens qu'apres
   // connexion. Sur /login elle affichait "Non connecte" et declenchait des
   // appels API refuses.
+  // Un compte au mot de passe temporaire n'a encore acces a rien : pas de coquille, seulement /change-password.
   const utilisateur = await getCurrentUserServer();
-  const connecte = utilisateur !== null;
+  const connecte = utilisateur !== null && !utilisateur.doitChanger;
   // Clubs pour les ecussons (ClubBadge n'a que l'id du club) ; saisons pour la navigation (pages fermees sur une saison passee).
   const [clubs, saisons] = connecte ? await Promise.all([api.clubs(), api.saisons()]) : [[], []];
+  // Profil pour les Client Components (nom, role...), lu avec le jeton du cookie HttpOnly.
+  const profil: User | null = utilisateur ? await api.authMe().catch(() => null) : null;
   // Lecture cookies serveur -> injectee dans les providers.
   // Ces valeurs se rafraichissent a chaque router.refresh(), donc quand
   // le switcher persist un nouveau choix + refresh, tout le Client tree
@@ -71,6 +75,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <ThemeProvider initialTheme={initialTheme}>
+          <SessionProvider utilisateur={profil}>
           <OwnClubProvider value={initialClubId}>
             <OwnEquipeProvider
               initialEquipeId={initialEquipeId}
@@ -92,6 +97,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </ClubsProvider>
             </OwnEquipeProvider>
           </OwnClubProvider>
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>

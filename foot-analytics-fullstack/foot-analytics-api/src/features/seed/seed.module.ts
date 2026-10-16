@@ -7,17 +7,21 @@ import { Acces } from "@/features/acces/acces.decorator";
 import { AccesModule } from "@/features/acces/acces.module";
 import { AccesService } from "@/features/acces/acces.service";
 import { ContexteAcces } from "@/features/acces/contexte-acces";
+import { JournalAuditService } from "@/features/audit/journal-audit.service";
 
 import { SeedService } from "./seed.service";
 
 @Controller("seed")
 class SeedController {
-  constructor(private seed: SeedService, private acces: AccesService) {}
-  // Reinitialise la base avec les donnees de demonstration : efface TOUT, donc reserve a l'administrateur.
+  constructor(private seed: SeedService, private acces: AccesService, private journal: JournalAuditService) {}
+  // Reinitialise la base avec les donnees de demonstration : efface les donnees sportives (pas les comptes ni le journal
+  // d'audit), donc reserve a l'administrateur, et trace.
   @Post("reset")
-  reset(@Acces() ctx: ContexteAcces) {
+  async reset(@Acces() ctx: ContexteAcces) {
     this.acces.exigerAdmin(ctx);
-    return this.seed.reset();
+    const r = await this.seed.reset();
+    await this.journal.noter("donnees.reinitialisation", { acteur: ctx.compte });
+    return r;
   }
 }
 

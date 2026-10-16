@@ -5,13 +5,14 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from "@
 import { Acces } from "@/features/acces/acces.decorator";
 import { AccesService } from "@/features/acces/acces.service";
 import { ContexteAcces } from "@/features/acces/contexte-acces";
+import { JournalAuditService } from "@/features/audit/journal-audit.service";
 
 import { CreateJoueurDto, StatEquipeDto, UpdateJoueurDto } from "./joueurs.dto";
 import { JoueursService } from "./joueurs.service";
 
 @Controller("joueurs")
 export class JoueursController {
-  constructor(private svc: JoueursService, private acces: AccesService) {}
+  constructor(private svc: JoueursService, private acces: AccesService, private journal: JournalAuditService) {}
 
   // Les fiches de joueurs sont des donnees de championnat (scouting) : lisibles par tous. Ce que le staff d'un club a saisi
   // ou calcule en prive (commentaire, fatigue, morphologie...) n'est montre que pour les joueurs de SON club.
@@ -66,9 +67,14 @@ export class JoueursController {
     return this.svc.createDansEquipe(equipeId, ctx.admin ? body : { ...body, clubId: equipe.clubId });
   }
 
+  // La fiche d'un joueur d'un autre club est tracee (journal d'audit) : des consultations en serie levent une alerte.
   @Get(":id")
   async get(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
-    return ctx.masquerPrive(await this.svc.findOne(id));
+    const j = await this.svc.findOne(id);
+    if (j && !ctx.gereClub(j.clubId)) {
+      await this.journal.noter("joueur.consultation_autre_club", { acteur: ctx.compte, cible: `joueur:${j.id}`, cibleClubId: j.clubId ?? null });
+    }
+    return ctx.masquerPrive(j);
   }
 
   /** GET /joueurs/:id/numeros : { "6": 3, "8": 5 } repartition des

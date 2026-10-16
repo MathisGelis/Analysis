@@ -2,24 +2,34 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe, Logger } from "@nestjs/common";
+import type { NestExpressApplication } from "@nestjs/platform-express";
+import helmet from "helmet";
 
 import { AuthService } from "@/features/auth/auth.service";
 import { BootstrapService } from "@/features/saisons/bootstrap.service";
 import { niveauxDeLog } from "@/common/log-level";
 import { EquipesService } from "@/features/equipes/equipes.service";
+import { confianceProxy } from "@/features/limites/ip-client";
 
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { logger: niveauxDeLog() });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: niveauxDeLog() });
+  const production = process.env.NODE_ENV === "production";
+
+  // Derriere un proxy (Render, etc.), req.ip suit X-Forwarded-For sur TRUST_PROXY sauts : voir features/limites.
+  app.set("trust proxy", confianceProxy());
+  app.disable("x-powered-by");
+  // En-tetes de securite (HSTS, nosniff, frame-ancestors, referrer...). L'API ne sert que du JSON et des fichiers.
+  app.use(helmet());
 
   // Prefixe global : toutes les routes sous /api
   app.setGlobalPrefix("api");
 
-  // CORS pour autoriser le front Next.js. On accepte les origines listees
-  // dans CORS_ORIGIN, et par commodite tout localhost / 127.0.0.1 (quel que
-  // soit le port, car Next bascule sur 3001, 3002… si 3000 est occupe).
-  const allowList = (process.env.CORS_ORIGIN ?? "http://localhost:3000")
+  // CORS : le navigateur passe par le serveur Next (BFF, meme origine) et n'appelle plus l'API directement ; seules
+  // les origines de CORS_ORIGIN sont acceptees. Hors production, tout localhost / 127.0.0.1 en plus (quel que soit le
+  // port, car Next bascule sur 3001, 3002... si 3000 est occupe).
+  const allowList = (process.env.CORS_ORIGIN ?? (production ? "" : "http://localhost:3000"))
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
@@ -28,7 +38,7 @@ async function bootstrap() {
       if (
         !origin ||
         allowList.includes(origin) ||
-        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+        (!production && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin))
       ) {
         cb(null, true);
       } else {
@@ -49,8 +59,7 @@ async function bootstrap() {
     }),
   );
 
-  // Cree le compte admin par defaut si la table utilisateurs est vide.
-  // Log les credentials dans la console (a transmettre au coach).
+  // Base vide : cree le compte administrateur initial (mot de passe a usage unique, voir AuthService.bootstrapAdmin).
   try { await app.get(AuthService).bootstrapAdmin(); }
   catch (e) { new Logger("Bootstrap").error(`bootstrap admin: ${(e as Error).message}`); }
 

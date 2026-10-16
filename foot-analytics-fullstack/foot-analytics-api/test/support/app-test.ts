@@ -42,6 +42,8 @@ import { TactiquesModule } from "@/features/tactiques/tactiques.module";
 import { IaModule } from "@/features/ia/ia.module";
 import { SanteModule } from "@/features/sante/sante.module";
 import { SeedModule } from "@/features/seed/seed.module";
+import { LimiteurGuard, LimitesModule } from "@/features/limites/limites.module";
+import { AuditModule } from "@/features/audit/audit.module";
 
 import { fabriques, optionsBaseTest } from "./test-db";
 
@@ -61,6 +63,7 @@ export interface AppTest {
 
 export async function creerAppTest(): Promise<AppTest> {
   process.env.AUTO_SEED = "false";             // pas de donnees de demonstration : le test construit son propre monde
+  process.env.ENTRETIEN_AUTO = "false";        // pas d'entretien planifie des comptes : les tests l'appellent a la main
   const { options, supprimer } = await optionsBaseTest();
 
   @Module({
@@ -70,10 +73,12 @@ export async function creerAppTest(): Promise<AppTest> {
       AccesModule, SeedModule, ClubsModule, EquipesModule, JoueursModule, MatchsModule, EntrainementsModule,
       BlessuresModule, ScoutingModule, ClassementModule, StatsModule, FmiModule, DerivationModule, ArbitresModule,
       AnalyseModule, CoachsModule, SaisonsModule, AuthModule, UtilisateursModule, TactiquesModule, IaModule, SanteModule,
+      LimitesModule, AuditModule,
     ],
     providers: [
       { provide: APP_GUARD, useClass: JwtAuthGuard },
       { provide: APP_GUARD, useClass: AccesGuard },
+      { provide: APP_GUARD, useClass: LimiteurGuard },
     ],
   })
   class AppDeTest {}

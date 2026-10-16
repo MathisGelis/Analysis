@@ -33,10 +33,27 @@ export class AccesService {
     @InjectRepository(Joueur) private joueurs: Repository<Joueur>,
   ) {}
 
+  /**
+   * Le compte du jeton, d'apres la base : 401 s'il a ete supprime ou desactive, ou si le jeton a ete revoque (sa version
+   * n'est plus celle du compte : deconnexion de tous les appareils, mot de passe change).
+   */
+  async compte(jeton: { sub: string; v?: number }): Promise<Utilisateur> {
+    const u = await this.users.findOne({ where: { id: jeton.sub } });
+    if (!u) throw new UnauthorizedException("Compte inconnu ou supprime");
+    if (u.desactiveLe) throw new UnauthorizedException("Compte desactive");
+    if ((jeton.v ?? -1) !== (u.versionJeton ?? 0)) throw new UnauthorizedException("Session revoquee : reconnecte-toi.");
+    return u;
+  }
+
   /** Le perimetre du compte, d'apres la base. */
   async contexte(userId: string): Promise<ContexteAcces> {
     const u = await this.users.findOne({ where: { id: userId } });
     if (!u) throw new UnauthorizedException("Compte inconnu ou supprime");
+    return this.contexteDe(u);
+  }
+
+  /** Le perimetre d'un compte deja charge. */
+  async contexteDe(u: Utilisateur): Promise<ContexteAcces> {
     const equipeIds = u.equipeIds ?? [];
     const restreint = u.role === "user" && u.toutesSaisons === false;
     const [attribuees, saisons] = await Promise.all([

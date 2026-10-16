@@ -25,6 +25,8 @@ export class UpdateUserDto {
   @IsOptional() @IsArray() equipeIds?: string[];
   @IsOptional() @IsBoolean() toutesSaisons?: boolean;
   @IsOptional() @IsArray() @IsString({ each: true }) saisonIds?: string[];
-  // Si fourni, reset le mdp et force mustChangePassword=true.
-  @IsOptional() @IsString() resetPassword?: string;
+  /** Vrai : nouveau mot de passe temporaire tire au hasard (renvoye une fois), sessions du compte fermees. */
+  @IsOptional() @IsBoolean() reinitialiserMotDePasse?: boolean;
+  /** Faux : desactive le compte (plus de connexion, sessions fermees) ; vrai : le reactive. */
+  @IsOptional() @IsBoolean() actif?: boolean;
 }
