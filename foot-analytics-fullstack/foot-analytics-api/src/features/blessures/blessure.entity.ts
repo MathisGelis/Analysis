@@ -11,7 +11,6 @@ export class Blessure {
   @PrimaryColumn({ type: "varchar" }) id: string;
   @Index() @Column({ name: "joueur_id" }) joueurId: string;
   @Index() @Column({ type: "varchar", nullable: true }) clubId: string | null;
-  @Column({ nullable: true }) joueurNom: string;
   @Column({ nullable: true }) localisation: string;
   @Column({ nullable: true }) gravite: string;
   @Column({ nullable: true }) dateDebut: string;
@@ -20,6 +19,5 @@ export class Blessure {
   // Champ texte libre pour notes complementaires : "IRM prevu",
   // "Recoit physiothérapie", "Reprise progressive", etc.
   @Column({ type: "text", nullable: true }) details: string;
-  @Column({ type: "int", nullable: true }) risqueRecidive: number;
   @CreateDateColumn() createdAt: Date;
 }

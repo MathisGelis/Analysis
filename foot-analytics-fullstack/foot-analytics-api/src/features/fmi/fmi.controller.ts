@@ -1,9 +1,13 @@
 // src/features/fmi/fmi.controller.ts
 
 import {
-  BadRequestException, Controller, Post, Query, UploadedFile, UploadedFiles, UseInterceptors,
+  BadRequestException, Controller, Post, Query, UploadedFile, UploadedFiles, UseGuards, UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
+
+import { Acces } from "@/features/acces/acces.decorator";
+import { AdministrateurGuard } from "@/features/acces/administrateur.guard";
+import { ContexteAcces } from "@/features/acces/contexte-acces";
 
 import { FmiService } from "./fmi.service";
 
@@ -14,8 +18,10 @@ export class FmiController {
   // POST /fmi/parse  (multipart, champ "file") -> dry-run, ne cree rien en base.
   // Utile pour diagnostiquer une FMI qui ne s'importe pas correctement :
   // retourne le JSON brut tel que le parser le voit, plus un diagnostic
-  // sur les champs vitaux.
+  // sur les champs vitaux. Reserve a l'administrateur : la sortie brute contient toutes les donnees de la feuille
+  // (licences des deux equipes et des officiels), sans le filtrage de la matrice de visibilite.
   @Post("parse")
+  @UseGuards(AdministrateurGuard)
   @UseInterceptors(FileInterceptor("file"))
   async parseDebug(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException("Aucun fichier recu (champ 'file').");
@@ -54,22 +60,24 @@ export class FmiController {
   @Post("import")
   @UseInterceptors(FileInterceptor("file"))
   async import(
+    @Acces() ctx: ContexteAcces,
     @UploadedFile() file: Express.Multer.File,
     @Query("recompute") recompute?: string,
   ) {
     if (!file) throw new BadRequestException("Aucun fichier recu (champ 'file').");
-    return this.svc.importPdf(file.buffer, file.originalname, recompute !== "false");
+    return this.svc.importPdf(file.buffer, file.originalname, recompute !== "false", ctx.compte);
   }
 
   // POST /fmi/import-batch  (multipart, champ "files" repete) -> dossier complet
   @Post("import-batch")
   @UseInterceptors(FilesInterceptor("files", 1000))
-  async importBatch(@UploadedFiles() files: Express.Multer.File[]) {
+  async importBatch(@Acces() ctx: ContexteAcces, @UploadedFiles() files: Express.Multer.File[]) {
     if (!files?.length) {
       throw new BadRequestException("Aucun fichier recu (champ 'files').");
     }
     return this.svc.importMany(
       files.map((f) => ({ buffer: f.buffer, originalname: f.originalname })),
+      ctx.compte,
     );
   }
 }

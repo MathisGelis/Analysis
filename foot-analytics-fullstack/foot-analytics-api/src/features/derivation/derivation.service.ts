@@ -311,19 +311,14 @@ export class DerivationService implements OnApplicationBootstrap {
       }
     }
 
-    // Blessures par joueur (id, sinon nom), dans le club qui les a saisies : antecedents, statut du moment, retour recent.
+    // Blessures par joueur, dans le club qui les a saisies : antecedents, statut du moment, retour recent.
     const blessuresParJoueur = new Map<string, number>();
-    const blessuresParNom = new Map<string, number>();
     const indisponibles = new Set<string>();
     const enReprise = new Set<string>();
     const finBlessure = new Map<string, Date>();
     for (const b of blessuresAll) {
       const k = `${b.clubId}|${b.joueurId}`;
       blessuresParJoueur.set(k, (blessuresParJoueur.get(k) ?? 0) + 1);
-      if (b.joueurNom) {
-        const kn = `${b.clubId}|${norm(b.joueurNom)}`;
-        blessuresParNom.set(kn, (blessuresParNom.get(kn) ?? 0) + 1);
-      }
       if (b.statut && /indisp/i.test(b.statut)) indisponibles.add(k);
       if (b.statut && /reprise/i.test(b.statut)) enReprise.add(k);
       const fin = parseDateAny(b.retourEstime);
@@ -349,7 +344,7 @@ export class DerivationService implements OnApplicationBootstrap {
         efforts,
         indisponible: k ? indisponibles.has(k) : false,
         enReprise: k ? enReprise.has(k) : false,
-        blessuresAnt: k ? blessuresParJoueur.get(k) ?? 0 : blessuresParNom.get(`${a.clubId}|${norm(a.nom)}`) ?? 0,
+        blessuresAnt: k ? blessuresParJoueur.get(k) ?? 0 : 0,
         finDerniereBlessure: k ? finBlessure.get(k) ?? null : null,
         age: ageDe(found?.dateNaissance),
         // Les seances ne sont connues que pour mon effectif : ailleurs la fatigue est une estimation sur les matchs.
@@ -585,7 +580,7 @@ export class DerivationService implements OnApplicationBootstrap {
         // buts / passes : on conserve les valeurs saisies manuellement.
         buts: (found as any)?.buts ?? 0,
         passesDecisives: (found as any)?.passesDecisives ?? 0,
-        blessuresAnt: found?.id ? blessuresParJoueur.get(`${a.clubId}|${found.id}`) ?? 0 : blessuresParNom.get(`${a.clubId}|${norm(a.nom)}`) ?? 0,
+        blessuresAnt: found?.id ? blessuresParJoueur.get(`${a.clubId}|${found.id}`) ?? 0 : 0,
         noteMoyenne,
         ...fatigue,
         postes,

@@ -42,6 +42,11 @@ export class MatchsService {
     @InjectRepository(EvenementMatch) private evts: Repository<EvenementMatch>,
   ) {}
 
+  /** Provenance d'une feuille de match : date de l'import et compte importateur. */
+  async noterImportFmi(id: string, par: string | null): Promise<void> {
+    await this.repo.update(id, { fmiImporteeLe: new Date().toISOString(), fmiImporteePar: par });
+  }
+
   findAll(clubId?: string) {
     const qb = this.repo.createQueryBuilder("m").orderBy("m.journee", "ASC");
     if (clubId) {

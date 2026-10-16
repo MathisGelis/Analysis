@@ -359,7 +359,7 @@ describe("API : acces", () => {
       expect((await t.appel(p.courant)("GET", `/blessures/${m.blessure24.id}`)).statut).toBe(404);
       expect((await t.appel(p.libre)("GET", `/blessures/${m.blessure24.id}`)).statut).toBe(200);
 
-      const neuve = { joueurId: m.joueurOl.id, joueurNom: "DURAND Luc", localisation: "Dos", dateDebut: "2026-10-02", statut: "Indisponible", forcer: true };
+      const neuve = { joueurId: m.joueurOl.id, localisation: "Dos", dateDebut: "2026-10-02", statut: "Indisponible", forcer: true };
       expect((await t.appel(p.libre)("POST", "/blessures", { ...neuve, joueurId: m.joueurMions.id })).statut).toBe(403);
       expect((await t.appel(p.courant)("POST", "/blessures", { ...neuve, dateDebut: "2024-10-02" })).statut).toBe(404);
       const creee = await t.appel(p.libre)("POST", "/blessures", neuve);

@@ -21,6 +21,8 @@ import { EquipesService } from "@/features/equipes/equipes.service";
 import { MatchsService } from "@/features/matchs/matchs.service";
 import { SaisonsService } from "@/features/saisons/saisons.service";
 import { FmiService } from "@/features/fmi/fmi.service";
+import { JournalAudit } from "@/features/audit/journal-audit.entity";
+import { JournalAuditService } from "@/features/audit/journal-audit.service";
 // Sortie reelle du parser Python sur parser/tests/fixtures/FMI_reference_anonyme.pdf (feuille anonymisee).
 import neuville from "@test/support/fixtures/fmi-reference.parsed.json";
 
@@ -81,10 +83,28 @@ describe("FmiService - import de lot", () => {
     expect(rebuildAll).toHaveBeenCalledTimes(1);
   });
 
+  it("minimisation et provenance : la localisation d'une blessure n'est pas conservee ; date et compte importateur notes, import trace", async () => {
+    const journal = new JournalAuditService(ds.getRepository(JournalAudit));
+    (svc as any).journal = journal;
+    lot({ originalname: "a.pdf", parsed: fmi() });
+
+    await svc.importMany(fichiers(1), { id: "compte-importateur", role: "user", clubId: null });
+
+    const blessure = (await ds.getRepository(EvenementMatch).find()).find((e) => e.type === "blessure")!;
+    expect(blessure).toMatchObject({ joueur: "LAZIBU Kabum", minute: 90 });
+    expect(blessure.sousType ?? null).toBeNull();                                    // pas de "Cheville droite"
+    const match = await ds.getRepository(Match).findOneByOrFail({ numeroFmi: "53415223" });
+    expect(match.fmiImporteePar).toBe("compte-importateur");
+    expect(match.fmiImporteeLe).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    const [trace] = (await journal.lister({ action: "fmi.import" })).items;
+    expect(trace).toMatchObject({ utilisateurId: "compte-importateur", cible: `match:${match.id}`, details: { numeroFmi: "53415223", miseAJour: false } });
+    expect(JSON.stringify(trace)).not.toMatch(/LAZIBU|Cheville|99\d{8}/);
+  });
+
   it("cartons verts (fair-play) : enregistres a part, jamais parmi les sanctions", async () => {
     const parsed = fmi({
       cartons_verts: [
-        { equipe: "Neuville S/S 2", licence: "9931946159", joueur: "ZIPUTOZ Manokalil", numero: 4, motif: "", couleur: "vert", minute: 34, arret: 0 },
+        { equipe: "Neuville S/S 2", licence: "9976714585", joueur: "LUDENOZ Dofufulik", numero: 4, motif: "", couleur: "vert", minute: 34, arret: 0 },
       ],
     });
     lot({ originalname: "a.pdf", parsed });
@@ -95,7 +115,7 @@ describe("FmiService - import de lot", () => {
     expect(evts.filter((e) => e.type === "carton")).toHaveLength(6);       // les 6 sanctions de la feuille, pas une de plus
     const vert = evts.filter((e) => e.type === "carton_vert");
     expect(vert).toHaveLength(1);
-    expect(vert[0]).toMatchObject({ sousType: "vert", joueur: "ZIPUTOZ Manokalil", minute: 34 });
+    expect(vert[0]).toMatchObject({ sousType: "vert", joueur: "LUDENOZ Dofufulik", minute: 34 });
   });
 
   it("n'invente aucune formation et ne reecrase pas celle saisie a la main", async () => {

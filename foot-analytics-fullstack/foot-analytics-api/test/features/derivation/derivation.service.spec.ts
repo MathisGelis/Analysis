@@ -423,7 +423,7 @@ describe("DerivationService - cartons et arbitres", () => {
     it("joueur indisponible : pas de score de fatigue", async () => {
       figerLHorloge(new Date(2026, 9, 14, 12));
       const { zaz } = await equipeAvecCharge();
-      await ds.getRepository(Blessure).save({ joueurId: zaz.id, clubId: zaz.clubId, joueurNom: "ZAZ Ben", statut: "Indisponible", dateDebut: jour(1) });
+      await ds.getRepository(Blessure).save({ joueurId: zaz.id, clubId: zaz.clubId, statut: "Indisponible", dateDebut: jour(1) });
 
       await svc.recomputeJoueurs();
 
@@ -435,7 +435,7 @@ describe("DerivationService - cartons et arbitres", () => {
     it("une blessure saisie par un autre club (ancien club du joueur) ne suit pas le joueur", async () => {
       figerLHorloge(new Date(2026, 9, 14, 12));
       const { zaz } = await equipeAvecCharge();
-      await ds.getRepository(Blessure).save({ joueurId: zaz.id, clubId: "ancien-club", joueurNom: "ZAZ Ben", statut: "Indisponible", dateDebut: jour(1) });
+      await ds.getRepository(Blessure).save({ joueurId: zaz.id, clubId: "ancien-club", statut: "Indisponible", dateDebut: jour(1) });
 
       await svc.recomputeJoueurs();
 

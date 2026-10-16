@@ -7,7 +7,7 @@
 // automatiquement a partir des matchs (sauf si recompute=false, utile pour
 // les gros lots ou l'on recalcule une seule fois a la fin).
 
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -15,6 +15,7 @@ import { mkdtemp, writeFile, rm } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 
+import { ActeurAudit, JournalAuditService } from "@/features/audit/journal-audit.service";
 import { MatchsService } from "@/features/matchs/matchs.service";
 import { ClubsService } from "@/features/clubs/clubs.service";
 import { DerivationService } from "@/features/derivation/derivation.service";
@@ -56,7 +57,19 @@ export class FmiService {
     private coachs: CoachsService,
     private equipes: EquipesService,
     private saisons: SaisonsService,
+    @Optional() private journal?: JournalAuditService,
   ) {}
+
+  /**
+   * Provenance d'une feuille importee : date d'import et compte importateur sur le match, et une trace d'audit sans
+   * donnee personnelle (numero de la rencontre, identifiant du match, nouvelle feuille ou mise a jour).
+   */
+  private async noterProvenance(match: { id: string; numeroFmi?: string | null }, reimport: boolean, acteur?: ActeurAudit | null) {
+    await this.matchs.noterImportFmi(match.id, acteur?.id ?? null);
+    await this.journal?.noter("fmi.import", {
+      acteur, cible: `match:${match.id}`, details: { numeroFmi: match.numeroFmi ?? null, miseAJour: reimport },
+    });
+  }
 
   /** Execute le parser Python sur un buffer PDF et renvoie le JSON parse. */
   async parseBuffer(buffer: Buffer, filename: string): Promise<any> {
@@ -398,9 +411,11 @@ export class FmiService {
         equipe: isRecev(s.equipe) ? "dom" : "ext",
       });
     }
+    // Minimisation : la feuille note la localisation d'une blessure ; on ne garde que l'evenement (il explique un
+    // remplacement), jamais la donnee de sante.
     for (const b of parsed.blessures ?? []) {
       evenements.push({
-        type: "blessure", sousType: b.localisation, minute: b.minute,
+        type: "blessure", minute: b.minute,
         arret: b.arret ?? 0, joueur: b.joueur,
         equipe: isRecev(b.equipe) ? "dom" : "ext",
       });
@@ -561,10 +576,11 @@ export class FmiService {
   }
 
   /** Import d'une seule feuille. recompute=true -> derive effectifs+classement. */
-  async importPdf(buffer: Buffer, filename: string, recompute = true) {
+  async importPdf(buffer: Buffer, filename: string, recompute = true, acteur?: ActeurAudit | null) {
     const parsed = await this.parseBuffer(buffer, filename);
     const rapport = { avertissements: [] as string[] };
     const match = await this.importParsed(parsed, undefined, rapport);
+    await this.noterProvenance(match, (match as any).__reimport === true, acteur);
     if (recompute) await this.derivation.rebuildAll();
     return {
       ok: true,
@@ -587,7 +603,7 @@ export class FmiService {
    *     code (si echec) : "parse_impossible" | "fmi_invalide" | "erreur_interne",
    *     erreur (si echec), avertissements: string[], matchId, numeroFmi, resume }
    */
-  async importMany(files: { buffer: Buffer; originalname: string }[]) {
+  async importMany(files: { buffer: Buffer; originalname: string }[], acteur?: ActeurAudit | null) {
     // Phase 1 : parsing en batch. Un seul lancement Python pour tous les
     // fichiers -> on economise N * 230ms de startup pdfplumber.
     const parsedResults = await this.parseBuffersBatch(files);
@@ -619,6 +635,7 @@ export class FmiService {
       try {
         const match = await this.importParsed(pr.parsed, cache, rapport);
         const reimport = (match as any).__reimport === true;
+        await this.noterProvenance(match, reimport, acteur);
         results.push({
           fichier: pr.originalname, ok: true,
           statut: reimport ? "mis_a_jour" : "importe",
