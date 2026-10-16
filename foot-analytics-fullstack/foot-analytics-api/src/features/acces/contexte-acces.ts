@@ -19,6 +19,8 @@
 
 import { anneeDebutPourDate } from "@/common/saison-date";
 
+import { sansChampsPrives } from "./visibilite";
+
 export interface CompteAcces {
   id: string;
   role: string;
@@ -74,11 +76,8 @@ export function saisonsOuvertes(compte: Pick<CompteAcces, "role" | "toutesSaison
   return new Set(saisons.filter((s) => s.anneeDebut >= actuelle.anneeDebut || cochees.has(s.id)).map((s) => s.id));
 }
 
-/** Champs reserves au club qui les a saisis ou calcules : jamais montres pour un joueur d'un autre club. */
-export const CHAMPS_PRIVES_JOUEUR = [
-  "commentaire", "scoreFatigue", "fatigueEntree", "fatigueDetail", "acwr", "chargeAcute7j", "chargeChronic28j",
-  "tailleCm", "poidsKg", "piedFort", "blessuresAnt",
-] as const;
+/** Champs reserves au club du joueur (matrice de visibilite, voir visibilite.ts) : jamais montres a un autre club. */
+export { CHAMPS_PRIVES_JOUEUR } from "./visibilite";
 
 export class ContexteAcces {
   /** Annee de debut de la saison actuelle et des saisons passees cochees (pour juger une date), null si tout est ouvert. */
@@ -185,9 +184,6 @@ export class ContexteAcces {
 
   /** Retire d'un joueur d'un autre club ce qui est prive ; le joueur de mon club (et tout pour un admin) reste complet. */
   masquerPrive<T extends { clubId?: string | null }>(joueur: T): T {
-    if (this.gereClub(joueur.clubId)) return joueur;
-    const copie: Record<string, unknown> = { ...joueur };
-    for (const champ of CHAMPS_PRIVES_JOUEUR) if (champ in copie) copie[champ] = null;
-    return copie as T;
+    return this.gereClub(joueur.clubId) ? joueur : sansChampsPrives(joueur);
   }
 }

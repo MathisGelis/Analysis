@@ -22,6 +22,12 @@ services:
         generateValue: true
       - key: CORS_ORIGIN           # URL du front Vercel, sans slash final (ex : https://foot-analytics.vercel.app)
         sync: false
+      - key: BFF_SECRET            # secret partage avec le front (meme valeur dans Vercel) : adresse IP reelle des visiteurs
+        sync: false                #   pour les limites de connexion. Generer : openssl rand -hex 32
+      - key: TRUST_PROXY           # un proxy (Render) devant l'API : req.ip = l'adresse qui s'y connecte
+        value: "1"
+      - key: ALERTE_WEBHOOK_URL    # optionnel : webhook (Slack, Discord...) prevenu des alertes du journal d'audit
+        sync: false
       - key: AUTO_SEED
         value: "false"
       - key: DB_MIGRATIONS_RUN

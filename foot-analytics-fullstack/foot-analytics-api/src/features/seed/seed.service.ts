@@ -72,7 +72,9 @@ export class SeedService implements OnApplicationBootstrap {
     await this.rapports.save(SEED.rapports as any);
     await this.classement.save(SEED.classement as any);
     await this.entrainements.save(SEED.entrainements as any);
-    await this.blessures.save(SEED.blessures as any);
+    // Une blessure appartient au club qui l'a saisie : ici, le club du joueur.
+    const clubDuJoueur = new Map((SEED.joueurs as { id: string; clubId?: string | null }[]).map((j) => [j.id, j.clubId ?? null]));
+    await this.blessures.save((SEED.blessures as any[]).map((b) => ({ ...b, clubId: clubDuJoueur.get(b.joueurId) ?? null })));
 
     this.log.log(
       `Seed termine : ${SEED.clubs.length} clubs, ` +

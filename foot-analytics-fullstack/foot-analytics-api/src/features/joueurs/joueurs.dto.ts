@@ -1,6 +1,6 @@
 // src/features/joueurs/joueurs.dto.ts
 import {
-  IsIn, IsInt, IsNumber, IsOptional, IsString, Max, Min,
+  IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min,
 } from "class-validator";
 
 const STATUTS_VALIDES = [
@@ -63,4 +63,9 @@ export class UpdateJoueurDto {
 export class StatEquipeDto {
   @IsOptional() @IsInt() @Min(0) @Max(200) buts?: number | null;
   @IsOptional() @IsInt() @Min(0) @Max(200) passesDecisives?: number | null;
+}
+
+/** Recherche libre (nom, prenom, ou debut de licence dans son club). */
+export class RechercheDto {
+  @IsString() @MaxLength(100) q: string;
 }

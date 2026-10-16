@@ -1,6 +1,9 @@
 // src/middleware.ts
 //
-// Middleware execute AVANT tout rendu de page et devant le relais vers l'API. Trois responsabilites :
+// Middleware execute AVANT tout rendu de page et devant le relais vers l'API. Quatre responsabilites :
+//
+// 0. Content-Security-Policy par nonce sur chaque page (voir shared/lib/securite-http.ts) : le nonce est transmis aux
+//    Server Components (en-tete x-nonce) et Next l'appose sur ses propres scripts.
 //
 // 1. Session (voir features/auth/lib/session-serveur.ts) : le jeton d'acces vit dans un cookie HttpOnly ; expire ou
 //    presque, il est rafraichi ici avec le jeton de rafraichissement, et les nouveaux cookies sont poses dans la
@@ -22,6 +25,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { debug } from "@/shared/lib/debug";
+import { nouveauNonce, politiqueCsp } from "@/shared/lib/securite-http";
 import {
   COOKIE_ACCES, COOKIE_HERITE, effacerSession, entetesBff, jetonDeRequete, origineEtrangere, poserJetons, urlApi,
   type JetonsSession,
@@ -31,14 +35,38 @@ import { selectionValide } from "@/features/equipes/lib/selection-equipe";
 import type { Club, Equipe, Saison } from "@/shared/lib/types";
 
 const PREFIXE_RELAIS = "/api/backend";
+/** Pages ouvertes sans session (la CSP s'y applique quand meme). */
+const PAGES_PUBLIQUES = ["/login", "/change-password", "/confidentialite", "/mentions-legales"];
 
-// Les pages (sauf login, change-password, pages publiques) et le relais vers l'API. Pas les autres routes internes.
+// Toutes les pages et le relais vers l'API. Pas les autres routes internes ni les fichiers statiques.
 export const config = {
   matcher: [
     "/api/backend/:path*",
-    "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|assets|login|change-password|confidentialite|mentions-legales).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|assets).*)",
   ],
 };
+
+/**
+ * CSP de la requete : en-tetes a transmettre aux Server Components (x-nonce, et la politique elle-meme, d'ou Next tire
+ * le nonce de ses scripts) et a poser sur la reponse.
+ */
+function csp(req: NextRequest) {
+  const nonce = nouveauNonce();
+  const politique = politiqueCsp(nonce, process.env.NODE_ENV === "development");
+  const entetes = () => {
+    const h = new Headers(req.headers);
+    h.set("x-nonce", nonce);
+    h.set("content-security-policy", politique);
+    return h;
+  };
+  const poser = <R extends NextResponse>(res: R): R => {
+    res.headers.set("Content-Security-Policy", politique);
+    return res;
+  };
+  return { entetes, poser };
+}
+
+const estPublique = (chemin: string) => PAGES_PUBLIQUES.some((p) => chemin === p || chemin.startsWith(`${p}/`));
 
 async function getJson<T>(chemin: string, headers: HeadersInit): Promise<T> {
   const res = await fetch(`${urlApi()}${chemin}`, { headers, cache: "no-store" });
@@ -72,6 +100,11 @@ async function relayer(req: NextRequest): Promise<NextResponse> {
 export async function middleware(req: NextRequest) {
   if (req.nextUrl.pathname.startsWith(`${PREFIXE_RELAIS}/`)) return relayer(req);
 
+  const securite = csp(req);
+  if (estPublique(req.nextUrl.pathname)) {
+    return securite.poser(NextResponse.next({ request: { headers: securite.entetes() } }));
+  }
+
   const { jeton, payload, nouveaux, perdue } = await jetonDeRequete(req);
 
   // GARDE D'ACCES : sans session, on renvoie vers /login (avec la page demandee en "from").
@@ -102,7 +135,7 @@ export async function middleware(req: NextRequest) {
   if (aReposer) req.cookies.set(COOKIE_ACCES, aReposer.token);
   const suite = (cookies: [string, string, number][] = []) => {
     for (const [nom, valeur] of cookies) req.cookies.set(nom, valeur);
-    const res = NextResponse.next({ request: { headers: req.headers } });
+    const res = securite.poser(NextResponse.next({ request: { headers: securite.entetes() } }));
     for (const [nom, valeur, maxAge] of cookies) res.cookies.set(nom, valeur, { path: "/", maxAge, sameSite: "lax" });
     if (aReposer) poserJetons(res.cookies, aReposer);
     if (req.cookies.has(COOKIE_HERITE)) res.cookies.delete(COOKIE_HERITE);

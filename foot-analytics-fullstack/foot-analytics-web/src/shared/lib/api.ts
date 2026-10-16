@@ -366,7 +366,7 @@ export const api = {
     req<any[]>(`/coachs/match/${matchId}`, { fallback: [] }),
   /** Recherche d'entraineurs par nom (tous clubs) ; le club renvoye est le plus recent. */
   coachs: (q: string) => req<{ id: string; nom: string; prenom?: string | null; clubId?: string | null }[]>(
-    `/coachs/recherche?q=${encodeURIComponent(q)}`, { fallback: [] }),
+    "/coachs/recherche", { method: "POST", body: JSON.stringify({ q }), fallback: [] }),
   /** Fiche d'un entraineur : bilan (sur une saison, sinon toute la carriere), par saison, parcours, matchs. */
   ficheCoach: (id: string, saisonId?: string | null) =>
     req<FicheCoach | null>(`/coachs/${id}/fiche${saisonId ? `?saisonId=${saisonId}` : ""}`, { fallback: null }),
@@ -512,8 +512,9 @@ export const api = {
 
   /* ---- Joueurs : recherche + attache + creation dans equipe ---- */
   /** Recherche un joueur par nom dans toute la base (au moins 2 lettres). */
+  /** En POST : le nom cherche n'apparait dans aucune URL (journaux des serveurs). */
   searchJoueurs: (q: string) =>
-    req<any[]>(`/joueurs/search?q=${encodeURIComponent(q)}`, { fallback: [] }),
+    req<any[]>("/joueurs/recherche", { method: "POST", body: JSON.stringify({ q }), fallback: [] }),
   /** Attache un joueur existant a une equipe. */
   attachJoueur: (equipeId: string, joueurId: string) =>
     req<any>(`/joueurs/equipe/${equipeId}/attach/${joueurId}`, { method: "POST" }),

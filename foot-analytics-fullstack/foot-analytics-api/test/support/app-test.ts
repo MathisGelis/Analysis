@@ -11,13 +11,14 @@
 
 import "reflect-metadata";
 import { INestApplication, Module, ValidationPipe } from "@nestjs/common";
-import { NestFactory, APP_GUARD } from "@nestjs/core";
+import { NestFactory, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { DataSource, DeepPartial } from "typeorm";
 
 import { Utilisateur } from "@/features/utilisateurs/utilisateur.entity";
 import { AccesGuard } from "@/features/acces/acces.guard";
+import { VisibiliteInterceptor } from "@/features/acces/visibilite.interceptor";
 import { AccesModule } from "@/features/acces/acces.module";
 import { AuthModule } from "@/features/auth/auth.module";
 import { AuthService } from "@/features/auth/auth.service";
@@ -79,6 +80,7 @@ export async function creerAppTest(): Promise<AppTest> {
       { provide: APP_GUARD, useClass: JwtAuthGuard },
       { provide: APP_GUARD, useClass: AccesGuard },
       { provide: APP_GUARD, useClass: LimiteurGuard },
+      { provide: APP_INTERCEPTOR, useClass: VisibiliteInterceptor },
     ],
   })
   class AppDeTest {}

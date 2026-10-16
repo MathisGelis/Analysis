@@ -71,8 +71,9 @@ describe("preparerCandidats", () => {
 
   it("les titularisations d'une autre saison sont reperees", () => {
     const h = historique(0, { absence: 0 });
-    expect(preparerCandidats(h, "s25", 10).candidats[0].x[idx("ancienneSaison")]).toBe(0);
-    expect(preparerCandidats(h, "s26", 10).candidats[0].x[idx("ancienneSaison")]).toBe(1);
+    const titulaire = (saison: string) => preparerCandidats(h, saison, 10).candidats.find((c) => c.nom === "P1 JOUEUR0X1")!;
+    expect(titulaire("s25").x[idx("ancienneSaison")]).toBe(0);
+    expect(titulaire("s26").x[idx("ancienneSaison")]).toBe(1);
   });
 
   it("numeros hors convention (numeros de saison) : non exploitables", () => {

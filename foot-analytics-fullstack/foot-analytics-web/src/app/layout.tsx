@@ -12,7 +12,7 @@ import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { AppShell } from "@/features/shell/components/AppShell";
 import { NavProgress } from "@/features/shell/components/NavProgress";
@@ -33,6 +33,8 @@ export const metadata: Metadata = {
   title: "Foot Analytics — Console d'entraineur",
   description:
     "Analyse et suivi de saison pour staff de football amateur.",
+  // Application privee : aucune page indexee (voir aussi robots.txt et l'en-tete X-Robots-Tag).
+  robots: { index: false, follow: false, nocache: true },
 };
 
 // Couleur de la barre du navigateur mobile : celle du fond, nuit ou jour (valeurs litterales
@@ -67,11 +69,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const initialEquipeId = await getOwnEquipeIdServer();
   const initialSaisonId = await getOwnSaisonIdServer();
   const sidebarRepliee = (await cookies()).get("fa_sidebar")?.value === "replie";
+  // Nonce de la Content-Security-Policy (pose par le middleware) : seul ce script inline est autorise.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
     <html lang="fr" data-theme={initialTheme} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <body>
         <ThemeProvider initialTheme={initialTheme}>

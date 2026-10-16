@@ -50,9 +50,9 @@ export async function creerMonde(t: AppTest) {
   } as any);
 
   const bles = ds.getRepository(Blessure);
-  const blessure26 = await bles.save(bles.create({ joueurId: joueurOl.id, joueurNom: "DURAND Luc", localisation: "Cheville", dateDebut: "2026-09-20", statut: "Indisponible" }));
-  const blessure24 = await bles.save(bles.create({ joueurId: joueurOl.id, joueurNom: "DURAND Luc", localisation: "Genou", dateDebut: "2024-11-02", retourEstime: "2024-12-02", statut: "Retabli" }));
-  const blessureMions = await bles.save(bles.create({ joueurId: joueurMions.id, joueurNom: "MARTIN Paul", localisation: "Epaule", dateDebut: "2026-09-25", statut: "Indisponible" }));
+  const blessure26 = await bles.save(bles.create({ joueurId: joueurOl.id, clubId: ol.id, joueurNom: "DURAND Luc", localisation: "Cheville", dateDebut: "2026-09-20", statut: "Indisponible" }));
+  const blessure24 = await bles.save(bles.create({ joueurId: joueurOl.id, clubId: ol.id, joueurNom: "DURAND Luc", localisation: "Genou", dateDebut: "2024-11-02", retourEstime: "2024-12-02", statut: "Retabli" }));
+  const blessureMions = await bles.save(bles.create({ joueurId: joueurMions.id, clubId: mions.id, joueurNom: "MARTIN Paul", localisation: "Epaule", dateDebut: "2026-09-25", statut: "Indisponible" }));
 
   const ent = ds.getRepository(Entrainement);
   const seance = (equipeId: string, date: string) => ent.save(ent.create({ equipeId, date, type: "Tactique", dureeMin: 90, intensite: 6, charge: 400 }));

@@ -1,13 +1,13 @@
 // src/features/joueurs/joueurs.controller.ts
 
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query } from "@nestjs/common";
 
 import { Acces } from "@/features/acces/acces.decorator";
 import { AccesService } from "@/features/acces/acces.service";
 import { ContexteAcces } from "@/features/acces/contexte-acces";
 import { JournalAuditService } from "@/features/audit/journal-audit.service";
 
-import { CreateJoueurDto, StatEquipeDto, UpdateJoueurDto } from "./joueurs.dto";
+import { CreateJoueurDto, RechercheDto, StatEquipeDto, UpdateJoueurDto } from "./joueurs.dto";
 import { JoueursService } from "./joueurs.service";
 
 @Controller("joueurs")
@@ -16,8 +16,10 @@ export class JoueursController {
 
   // Les fiches de joueurs sont des donnees de championnat (scouting) : lisibles par tous. Ce que le staff d'un club a saisi
   // ou calcule en prive (commentaire, fatigue, morphologie...) n'est montre que pour les joueurs de SON club.
+  // Anti-extraction : un club a la fois (la base entiere d'un coup est reservee a l'administrateur).
   @Get()
   async list(@Acces() ctx: ContexteAcces, @Query("clubId") clubId?: string, @Query("poste") poste?: string) {
+    if (!clubId && !ctx.admin) throw new BadRequestException("Precise le club (clubId).");
     return (await this.svc.findAll(clubId, poste)).map((j) => ctx.masquerPrive(j));
   }
 
@@ -40,10 +42,13 @@ export class JoueursController {
     return (await this.svc.championnat(equipeId)).map((j) => ctx.masquerPrive(j));
   }
 
-  // Recherche libre par nom (pour le modal d'ajout de joueur).
-  @Get("search")
-  async search(@Acces() ctx: ContexteAcces, @Query("q") q: string) {
-    return (await this.svc.search(q ?? "")).map((j) => ctx.masquerPrive(j));
+  // Recherche libre par nom (modal d'ajout de joueur, recherche globale). En POST : le nom cherche ne doit pas
+  // apparaitre dans une URL (journaux des serveurs et des proxys). Par numero de licence : seulement dans mon club.
+  @Post("recherche")
+  @HttpCode(200)
+  async search(@Acces() ctx: ContexteAcces, @Body() dto: RechercheDto) {
+    return (await this.svc.search(dto.q ?? "", 20, { licencesDuClub: ctx.admin ? undefined : ctx.clubId }))
+      .map((j) => ctx.masquerPrive(j));
   }
 
   // Attache un joueur existant a une equipe (de mon perimetre).

@@ -27,7 +27,7 @@ export class AnalyseController {
     @Query("equipeId") equipeId?: string,
     @Query("saisonId") saisonId?: string,
   ) {
-    return this.svc.rapportClub(clubId, await this.acces.portee(ctx, { equipeId, saisonId }));
+    return this.svc.rapportClub(clubId, await this.acces.portee(ctx, { equipeId, saisonId }), { donneesPrivees: ctx.gereClub(clubId) });
   }
 
   /** Dispositif joue (d'apres les matchs renseignes) et dernier onze d'un club, ou de l'une de ses equipes. */

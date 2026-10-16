@@ -1,6 +1,6 @@
 // src/app.module.ts
 import { Module } from "@nestjs/common";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
 
 import { DatabaseModule } from "@/database/database.module";
@@ -23,6 +23,7 @@ import { SaisonsModule } from "@/features/saisons/saisons.module";
 import { AuthModule } from "@/features/auth/auth.module";
 import { JwtAuthGuard } from "@/features/auth/auth.guards";
 import { AccesGuard } from "@/features/acces/acces.guard";
+import { VisibiliteInterceptor } from "@/features/acces/visibilite.interceptor";
 import { AccesModule } from "@/features/acces/acces.module";
 import { UtilisateursModule } from "@/features/utilisateurs/utilisateurs.module";
 import { TactiquesModule } from "@/features/tactiques/tactiques.module";
@@ -68,6 +69,8 @@ import { AuditModule } from "@/features/audit/audit.module";
     { provide: APP_GUARD, useClass: AccesGuard },
     // Enfin les limites de debit, par compte une fois celui-ci connu : voir features/limites.
     { provide: APP_GUARD, useClass: LimiteurGuard },
+    // Matrice de visibilite entre clubs, en filet de securite sur toutes les reponses : voir features/acces/visibilite.ts.
+    { provide: APP_INTERCEPTOR, useClass: VisibiliteInterceptor },
   ],
 })
 export class AppModule {}
