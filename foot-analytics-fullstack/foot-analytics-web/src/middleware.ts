@@ -36,7 +36,7 @@ import type { Club, Equipe, Saison } from "@/shared/lib/types";
 
 const PREFIXE_RELAIS = "/api/backend";
 /** Pages ouvertes sans session (la CSP s'y applique quand meme). */
-const PAGES_PUBLIQUES = ["/login", "/change-password", "/confidentialite", "/mentions-legales"];
+const PAGES_PUBLIQUES = ["/login", "/change-password", "/confidentialite", "/mentions-legales", "/cgu"];
 
 // Toutes les pages et le relais vers l'API. Pas les autres routes internes ni les fichiers statiques.
 export const config = {

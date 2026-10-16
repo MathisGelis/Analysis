@@ -17,6 +17,7 @@ import { ClubBadge } from "@/features/clubs/components/ClubBadge";
 import { InsightsGrid } from "@/features/analyse/components/InsightsGrid";
 import { OngletsDossier } from "@/features/rapports/components/OngletsDossier";
 import { Pitch } from "@/shared/ui/Pitch";
+import { AideDecision } from "@/features/legal/components/AideDecision";
 
 import { joueursSurTerrain, libellesPostes } from "../lib/onze-terrain";
 import { BoutonImprimer } from "./BoutonImprimer";
@@ -137,6 +138,7 @@ export default async function RapportPrematch({
         <Section titre="Projection du resultat" icone={<Target size={11} className="text-accent" />}
           aide="modele de Poisson sur les moyennes de buts des deux equipes">
           <ProjectionResultat r={r} />
+          <AideDecision className="mt-3" />
         </Section>
         <Section titre="Chez nous : joueurs a menager" icone={<HeartPulse size={11} className="text-accent" />}
           aide="les plus fatigues de l'effectif, charge des 28 derniers jours">
@@ -176,6 +178,7 @@ export default async function RapportPrematch({
         <div className="grid grid-cols-1 gap-6 md:grid-cols-12">
           <div className={r.systemeAdverse.probable && r.numeros?.onze.length ? "md:col-span-7" : "md:col-span-12"}>
             <SystemeProbable donnees={r.systemeAdverse} numeros={r.numeros} adversaire={adv.clubNom} />
+            <AideDecision className="mt-3" />
           </div>
           {r.systemeAdverse.probable && r.numeros && r.numeros.onze.length > 0 && (
             <div className="mx-auto w-full max-w-[300px] md:col-span-5">
@@ -209,6 +212,7 @@ export default async function RapportPrematch({
               aide={a.compoProbableSource === "modele"
                 ? `predit par l'IA (${a.compoProbableModele ?? "modele actif"}) : la chance de chaque joueur de commencer`
                 : r.numeros?.fiabilite.exploitable ? `un joueur par numero de maillot, sur ses ${r.numeros.matchs} dernieres feuilles` : "titulaires les plus utilises, par poste"}>
+              <AideDecision className="mb-3" />
               {(a.suspendus?.length ?? 0) > 0 && (
                 <p className="mb-2 text-[11px] text-amber" data-testid="suspendus">
                   Suspendu{a.suspendus!.length > 1 ? "s" : ""} (rouge au dernier match), absent{a.suspendus!.length > 1 ? "s" : ""} de ce onze : {a.suspendus!.join(", ")}.

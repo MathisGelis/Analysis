@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API_URL, WEB_PORT } from "../playwright.config";
 import { FIXTURES, MOT_DE_PASSE } from "./global-setup";
+import { VERSION_CGU } from "../src/features/legal/lib/legal";
 
 /** Mot de passe choisi par les comptes crees pendant les parcours (respecte la politique : 12 caracteres, pas courant). */
 const MDP_COMPTE = "Ma phrase de passe 1";
@@ -62,6 +63,19 @@ test("acces : un visiteur anonyme est renvoye vers /login, et une cible externe 
   const anonyme = await browser.newContext();
   const p = await anonyme.newPage();
   try {
+    await p.goto(`${base}/matchs`);
+    await expect(p).toHaveURL(`${base}/login?from=%2Fmatchs`);
+
+    // Pages legales publiques, liees depuis l'ecran de connexion ; CSP par nonce et noindex sur toutes les pages.
+    for (const [lien, titre] of [["Confidentialite", "Politique de confidentialite"], ["Mentions legales", "Mentions legales"], ["Conditions d'utilisation", "Conditions d'utilisation"]]) {
+      await p.goto(`${base}/login`);
+      await p.getByRole("navigation", { name: "Informations legales" }).getByRole("link", { name: lien }).click();
+      await expect(p.getByRole("heading", { level: 1, name: titre })).toBeVisible();
+    }
+    const reponse = await p.goto(`${base}/confidentialite`);
+    expect(reponse!.headers()["content-security-policy"]).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
+    expect(reponse!.headers()["x-robots-tag"]).toContain("noindex");
+    expect(reponse!.headers()["x-frame-options"]).toBe("DENY");
     await p.goto(`${base}/matchs`);
     await expect(p).toHaveURL(`${base}/login?from=%2Fmatchs`);
     // Pas de coquille (barre laterale) ni de donnees de demo sur la page de connexion.
@@ -631,7 +645,8 @@ test("systeme de jeu : un educateur d'un autre club renseigne un systeme vide, j
   const connexion = await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login: educ.login, password: educ.initialPassword }),
   })).json();
-  await appeler(connexion.token, "/auth/change-password", { method: "POST", body: JSON.stringify({ oldPassword: educ.initialPassword, newPassword: MDP_COMPTE }) });
+  const change = await (await appeler(connexion.token, "/auth/change-password", { method: "POST", body: JSON.stringify({ oldPassword: educ.initialPassword, newPassword: MDP_COMPTE }) })).json();
+  await appeler(change.token, "/auth/cgu", { method: "POST", body: JSON.stringify({ version: VERSION_CGU }) });
   const jeton = (await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login: educ.login, password: MDP_COMPTE }),
   })).json()).token;
@@ -1108,6 +1123,7 @@ test("referent de club : cree les comptes de ses educateurs, sans rien voir ni p
   // Changer de mot de passe ferme toutes les sessions du compte (le jeton temporaire est revoque) : on prend le nouveau.
   const ancienJeton = connexion.token;
   connexion.token = (await change.json()).token;
+  await appeler("/auth/cgu", connexion.token, { method: "POST", body: JSON.stringify({ version: VERSION_CGU }) });
   expect((await appeler("/auth/me", ancienJeton)).status).toBe(401);
 
   // Session du referent, dans son propre navigateur.
@@ -1282,6 +1298,16 @@ test("comptes : equipe de la saison actuelle sans la poule, saisons de l'histori
       await p.locator("input[type=password]").fill(MDP_COMPTE);
       await p.locator("button[type=submit]").click();
       await p.waitForURL((u) => u.pathname === "/");
+      // Premiere connexion : les conditions d'utilisation sont a accepter avant tout (case a cocher obligatoire),
+      // une seule fois par version.
+      const cgu = p.getByRole("dialog", { name: "Conditions d'utilisation" });
+      await expect(cgu).toBeVisible();
+      await expect(cgu.getByRole("button", { name: "Accepter et continuer" })).toBeDisabled();
+      await cgu.getByRole("checkbox").check();
+      await cgu.getByRole("button", { name: "Accepter et continuer" }).click();
+      await expect(cgu).toBeHidden();
+      await p.reload();
+      await expect(p.getByRole("dialog", { name: "Conditions d'utilisation" })).toHaveCount(0);
       await selecteur(p).click();
       const liste = p.getByRole("dialog", { name: "Choix de la saison et de l'equipe" });
       await expect(liste).toBeVisible();
