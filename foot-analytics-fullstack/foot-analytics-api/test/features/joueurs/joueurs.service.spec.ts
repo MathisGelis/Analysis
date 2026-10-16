@@ -563,7 +563,7 @@ describe("JoueursService", () => {
     beforeEach(async () => {
       await f.joueur({ nom: "KABIFUP", prenom: "Lumipi", licence: "9934825508" });
       await f.joueur({ nom: "MARCON", prenom: "Léo", licence: "9604000001" });
-      await f.joueur({ nom: "OLAGNIER", prenom: "Paul", licence: "9604000002" });
+      await f.joueur({ nom: "BIFARDI", prenom: "Paul", licence: "9604000002" });
       await f.joueur({ nom: "DUPONT", prenom: "Jean" });
     });
     const noms = (r: { nom: string }[]) => r.map((j) => j.nom);
@@ -574,22 +574,22 @@ describe("JoueursService", () => {
     });
 
     it("tolere une faute de frappe, les accents et l'ordre nom/prenom", async () => {
-      expect(noms(await svc.search("diagolla"))).toEqual(["KABIFUP"]);
+      expect(noms(await svc.search("kabifupp"))).toEqual(["KABIFUP"]);
       expect(noms(await svc.search("leo marcon"))).toEqual(["MARCON"]);
       expect(noms(await svc.search("Lumipi Kabifup"))).toEqual(["KABIFUP"]);
       expect(noms(await svc.search("dupond"))).toEqual(["DUPONT"]);
     });
 
     it("classe le prefixe avant la sous-chaine", async () => {
-      expect(noms(await svc.search("ola"))).toEqual(["OLAGNIER", "KABIFUP"]);
+      expect(noms(await svc.search("bif"))).toEqual(["BIFARDI", "KABIFUP"]);
     });
 
     it("recherche par debut de licence", async () => {
-      expect(noms(await svc.search("96040000"))).toEqual(["MARCON", "OLAGNIER"]);
+      expect(noms(await svc.search("96040000"))).toEqual(["BIFARDI", "MARCON"]);
     });
 
     it("respecte la limite", async () => {
-      expect(await svc.search("ola", 1)).toHaveLength(1);
+      expect(await svc.search("bif", 1)).toHaveLength(1);
     });
 
     it("ne renvoie rien pour un nom inconnu", async () => {

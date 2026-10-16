@@ -25,7 +25,7 @@ const RID_ICONE = "rId2";
 const COULEUR_ISSUE = { V: COULEUR.vert, N: COULEUR.gris, D: COULEUR.rouge } as const;
 const COULEUR_TON = { atout: COULEUR.vert, vigilance: COULEUR.rouge, info: COULEUR.gris, positif: COULEUR.vert, negatif: COULEUR.rouge, neutre: COULEUR.gris } as const;
 
-/** "VIGUSAGUZ KILOV" -> "VIGUSAGUZ B." pour tenir dans `max` caracteres. */
+/** "VIGUSAGUZ KILOV" -> "VIGUSAGUZ K." pour tenir dans `max` caracteres. */
 function abreger(nom: string, max: number): string {
   if (nom.length <= max) return nom;
   const mots = nom.split(" ");

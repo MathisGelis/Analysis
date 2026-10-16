@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Active une fois par clone : git config core.hooksPath .githooks
+exec "$(git rev-parse --show-toplevel)/scripts/verifier-depot.sh" --indexes

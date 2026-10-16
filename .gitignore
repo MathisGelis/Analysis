@@ -1,7 +1,16 @@
-# Donnees locales : jamais dans le depot
+# Donnees personnelles et locales : JAMAIS dans le depot (voir scripts/verifier-depot.sh, execute en CI).
+# Feuilles de match reelles, exports, bases de developpement.
+foot-analytics-fullstack/Data/
+Data/
+*.pdf
+# Seule exception : les feuilles ANONYMISEES par parser/outils/anonymiser_fmi.py, qui servent aux tests.
+!foot-analytics-fullstack/foot-analytics-api/parser/tests/fixtures/*_anonyme.pdf
 *.sqlite
 *.sqlite3
 *.db
+*.csv
+*.xlsx
+*.xls
 .env
 .env.local
 .env.*.local

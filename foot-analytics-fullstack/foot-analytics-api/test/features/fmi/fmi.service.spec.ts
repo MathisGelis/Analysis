@@ -21,8 +21,8 @@ import { EquipesService } from "@/features/equipes/equipes.service";
 import { MatchsService } from "@/features/matchs/matchs.service";
 import { SaisonsService } from "@/features/saisons/saisons.service";
 import { FmiService } from "@/features/fmi/fmi.service";
-// Sortie reelle du parser Python sur parser/FMI_Neuville1.pdf.
-import neuville from "@test/support/fixtures/fmi-neuville1.parsed.json";
+// Sortie reelle du parser Python sur parser/tests/fixtures/FMI_reference_anonyme.pdf (feuille anonymisee).
+import neuville from "@test/support/fixtures/fmi-reference.parsed.json";
 
 describe("FmiService - import de lot", () => {
   let ds: DataSource;
@@ -84,7 +84,7 @@ describe("FmiService - import de lot", () => {
   it("cartons verts (fair-play) : enregistres a part, jamais parmi les sanctions", async () => {
     const parsed = fmi({
       cartons_verts: [
-        { equipe: "Neuville S/S 2", licence: "9976714585", joueur: "LUDENOZ Dofufulik", numero: 4, motif: "", couleur: "vert", minute: 34, arret: 0 },
+        { equipe: "Neuville S/S 2", licence: "9931946159", joueur: "ZIPUTOZ Manokalil", numero: 4, motif: "", couleur: "vert", minute: 34, arret: 0 },
       ],
     });
     lot({ originalname: "a.pdf", parsed });
@@ -95,7 +95,7 @@ describe("FmiService - import de lot", () => {
     expect(evts.filter((e) => e.type === "carton")).toHaveLength(6);       // les 6 sanctions de la feuille, pas une de plus
     const vert = evts.filter((e) => e.type === "carton_vert");
     expect(vert).toHaveLength(1);
-    expect(vert[0]).toMatchObject({ sousType: "vert", joueur: "LUDENOZ Dofufulik", minute: 34 });
+    expect(vert[0]).toMatchObject({ sousType: "vert", joueur: "ZIPUTOZ Manokalil", minute: 34 });
   });
 
   it("n'invente aucune formation et ne reecrase pas celle saisie a la main", async () => {

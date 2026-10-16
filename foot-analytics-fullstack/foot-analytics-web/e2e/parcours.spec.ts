@@ -27,7 +27,7 @@ test.afterEach(() => {
 });
 test.afterAll(async () => { await contexte.close(); });
 
-const FMI = path.resolve(__dirname, "../../foot-analytics-api/parser/FMI_Neuville1.pdf");
+const FMI = path.resolve(__dirname, "../../foot-analytics-api/parser/tests/fixtures/FMI_reference_anonyme.pdf");
 
 /** Liste deroulante maison : on ouvre le declencheur puis on clique l'option par son libelle exact. */
 async function choisir(declencheur: Locator, libelle: string | RegExp) {
@@ -146,7 +146,7 @@ test("effectif 2026-2027 : ajout d'un joueur existant (recherche floue) puis d'u
 
   // Joueur existant, retrouve malgre la faute de frappe.
   await page.getByRole("button", { name: /Ajouter/ }).first().click();
-  await modale.getByPlaceholder(/Tape le nom/).fill("diagolla");
+  await modale.getByPlaceholder(/Tape le nom/).fill("kabifupp");
   await modale.getByRole("button", { name: /Ajouter$/ }).last().click();
   await expect(titreModale).toBeHidden();
   await expect(page.getByRole("link", { name: /KABIFUP/ })).toBeVisible();
@@ -1301,9 +1301,9 @@ test("recherche : Ctrl+K et / placent le curseur, fiches seulement, Entree ouvre
   const champ = page.getByRole("combobox", { name: /Rechercher/ });
   // Tape tout de suite apres le raccourci : aucune lettre ne doit se perdre.
   await page.keyboard.press("Control+k");
-  await page.keyboard.type("diagolla");
+  await page.keyboard.type("kabifupp");
   await expect(champ).toBeFocused();
-  await expect(champ).toHaveValue("diagolla");
+  await expect(champ).toHaveValue("kabifupp");
 
   // Les joueurs sont cherches cote serveur : une faute de frappe est toleree.
   await expect(page.getByRole("option", { name: /KABIFUP/ })).toBeVisible();
@@ -1395,7 +1395,7 @@ test("mobile : menu en tiroir, ferme apres navigation, sans debordement horizont
     await p.getByRole("button", { name: "Rechercher", exact: true }).click();
     const champ = p.getByRole("combobox", { name: /Rechercher/ });
     await expect(champ).toBeFocused();
-    await champ.fill("diagolla");
+    await champ.fill("kabifupp");
     await expect(p.getByRole("option", { name: /KABIFUP/ })).toBeVisible();
     await p.getByRole("button", { name: "Fermer", exact: true }).click();
     await expect(champ).toBeHidden();

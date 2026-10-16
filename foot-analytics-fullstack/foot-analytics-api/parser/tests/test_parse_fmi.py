@@ -15,10 +15,11 @@ import parse_fmi as p
 
 PARSER_DIR = Path(__file__).resolve().parent.parent
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
-REFERENCE = PARSER_DIR / "FMI_Neuville1.pdf"
+# Feuille reelle ANONYMISEE (outils/anonymiser_fmi.py) : noms, prenoms et licences fictifs, mise en page d'origine.
+REFERENCE = FIXTURES / "FMI_reference_anonyme.pdf"
 
-# Toutes les feuilles disponibles : la reference + celles deposees dans fixtures/.
-TOUS_LES_PDFS = [REFERENCE, *sorted(FIXTURES.glob("*.pdf"))]
+# Toutes les feuilles disponibles dans fixtures/ (dont la reference).
+TOUS_LES_PDFS = sorted(FIXTURES.glob("*.pdf"))
 
 
 @pytest.fixture(scope="module")
@@ -36,12 +37,12 @@ def test_fmi_neuville1_valeurs_exactes(neuville):
     assert d["heure"] == "15:00"
     assert d["competition"] == "Seniors D2 / Phase Unique"
     assert d["poule"] == "C"
-    assert d["terrain"] == "STADE VAFU OBOUSSIER 2"
+    assert d["terrain"] == "STADE JEAN OBOUSSIER 2"
     assert d["equipe_recevante"] == "Neuville S/S 2"
     assert d["equipe_visiteuse"] == "F.C. Meys Grezieu 1"
     assert (d["club_recevant_id"], d["club_visiteur_id"]) == ("504275", "560530")
     assert (d["score_recevant"], d["score_visiteur"]) == (2, 0)
-    assert d["source_fichier"] == "FMI_Neuville1.pdf"
+    assert d["source_fichier"] == "FMI_reference_anonyme.pdf"
 
 
 def test_fmi_neuville1_officiels_et_encadrement(neuville):
@@ -133,7 +134,7 @@ def test_minute(libelle, attendu):
 @pytest.mark.parametrize("token,attendu", [
     ("10 - KIFIRIS Nani", ("KIFIRIS", "Nani", 10)),
     ("LUDENOZ Dofufulik (Capitaine)", ("LUDENOZ", "Dofufulik", None)),
-    ("MOL BUDAV Eddy", ("MOL BUDAV", "Eddy", None)),
+    ("MOL BUDAV Fegu", ("MOL BUDAV", "Fegu", None)),
 ])
 def test_split_name(token, attendu):
     assert p._split_name(token) == attendu
@@ -217,7 +218,7 @@ def test_sanction_sans_icone_retombe_sur_le_motif():
     table = [
         ["Equipe", "N° licence", "NOM Prénom", "Motif", None, "Informations complémentaires", "Min (+)"],
         ["A", "9976714585", "4 - LUDENOZ Dofufulik", "", "Commet un acte de brutalité", "", "59' + 0'"],
-        ["A", "9953964748", "6 - MOL BUDAV Eddy", "", "Comportement antisportif", "", "19' + 0'"],
+        ["A", "9953964748", "6 - MOL BUDAV Fegu", "", "Comportement antisportif", "", "19' + 0'"],
     ]
     p._parse_discipline(table, ms)
     assert [c.couleur for c in ms.cartons] == ["rouge", "jaune"]
@@ -240,7 +241,7 @@ VIDE6 = ["", "", "", "", "", ""]
 def test_table_du_banc_sans_delegue_de_rencontre_est_reconnue():
     """Feuille ou aucun membre du banc n'est delegue (DR) : avant, le banc entier etait ignore."""
     table = [
-        ["DUPONT Vafu", "9940418087", "E", "MARTIN Luc", "9928669728", "E"],
+        ["DUPONT Jean", "9940418087", "E", "MARTIN Luc", "9928669728", "E"],
         ["BERNARD Paul", "9929068471", "D", "", "", ""],
         ["LEROY Marc", "9965216019", "M", "PETIT Yann", "2512345678", "A"],
         VIDE6,
@@ -249,7 +250,7 @@ def test_table_du_banc_sans_delegue_de_rencontre_est_reconnue():
     ms = p.MatchSheet()
     p._parse_staff(table, ms)
     assert [(s.nom_complet, s.fonction, s.equipe) for s in ms.encadrement] == [
-        ("DUPONT Vafu", "E", "recevante"), ("MARTIN Luc", "E", "visiteuse"),
+        ("DUPONT Jean", "E", "recevante"), ("MARTIN Luc", "E", "visiteuse"),
         ("BERNARD Paul", "D", "recevante"),
         ("LEROY Marc", "M", "recevante"), ("PETIT Yann", "A", "visiteuse"),
     ]
@@ -257,7 +258,7 @@ def test_table_du_banc_sans_delegue_de_rencontre_est_reconnue():
 
 @pytest.mark.parametrize("fonction", ["E/DR", "D/DR", "A/DR", "E / DR", "e/dr", "M", "DR"])
 def test_table_du_banc_reconnue_quelle_que_soit_la_fonction(fonction):
-    assert p._est_table_encadrement([["DUPONT Vafu", "9940418087", fonction, "", "", ""]])
+    assert p._est_table_encadrement([["DUPONT Jean", "9940418087", fonction, "", "", ""]])
 
 
 def test_table_du_banc_avec_un_seul_cote_renseigne():
@@ -272,7 +273,7 @@ def test_table_du_banc_avec_un_seul_cote_renseigne():
     # Arbitres et delegues : role, nom, licence.
     [["Arbitre centre", "DOPAMAD Defari", "9948075103", "Arbitre assistant 1", "LONIMIPE Pasek", "9912115739"]],
     # Licence valide mais pas de fonction de banc.
-    [["DUPONT Vafu", "9940418087", "Signature du capitaine", "", "", ""]],
+    [["DUPONT Jean", "9940418087", "Signature du capitaine", "", "", ""]],
 ])
 def test_ce_qui_n_est_pas_un_banc_n_est_pas_reconnu(table):
     assert not p._est_table_encadrement(table)
@@ -282,5 +283,5 @@ def test_reference_encadrement_complet(neuville):
     """La feuille de reference : les quatre membres du banc, avec leur cote et leur fonction."""
     staff = {(s["nom_complet"], s["fonction"], s["equipe"]) for s in neuville["encadrement"]}
     assert ("BUVORAS Nadi", "E/DR", "recevante") in staff
-    assert ("FEVUMAZ GIS LAGUREZ Vafu Philippe", "E", "visiteuse") in staff
+    assert ("FEVUMAZ GIS LAGUREZ Vafu Fotodolo", "E", "visiteuse") in staff
     assert len(staff) == 4

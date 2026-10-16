@@ -401,7 +401,7 @@ curl -X POST http://localhost:4000/api/entrainements \
 
 # Importer une feuille FMI
 curl -X POST http://localhost:4000/api/fmi/import \
-  -F "file=@parser/FMI_Neuville1.pdf"
+  -F "file=@parser/tests/fixtures/FMI_reference_anonyme.pdf"
 ```
 
 ## Tests
