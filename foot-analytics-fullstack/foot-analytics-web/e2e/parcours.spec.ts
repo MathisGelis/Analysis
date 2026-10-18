@@ -380,6 +380,43 @@ test("import FMI : la feuille est importee puis consultable", async () => {
   await expect(page.getByText("2–0")).toBeVisible();
 });
 
+test("recherche de joueurs : par saison, poste et situation, lien vers la fiche, criteres conserves au retour", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : les joueurs viennent de la FMI importee");
+
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "Navigation principale" });
+  await cliquerJusquaNavigation(nav.getByRole("link", { name: "Recherche joueurs", exact: true }), /\/recherche$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Recherche de joueurs" })).toBeVisible();
+
+  // La FMI importee est du 18/01/2026 : ses joueurs ont joue en 2025-2026, aucun n'a de feuille en 2026-2027.
+  await choisir(page.getByTestId("rj-saison"), /^2025-2026/);
+  await choisir(page.getByTestId("rj-cible"), /^2026-2027/);
+  await choisir(page.getByTestId("rj-situation"), "Sans club connu");
+  await page.getByTestId("rj-lancer").click();
+  const resultats = page.getByTestId("rj-resultats");
+  await expect(resultats.getByRole("heading", { level: 2 })).toHaveText(/^\d+ joueurs?$/);
+  const lignes = page.getByTestId("rj-table").locator("tbody tr");
+  expect(await lignes.count()).toBeGreaterThan(10);
+  await expect(resultats.getByText("Sans club connu").first()).toBeVisible();
+  await expect(page).toHaveURL(/saison=.+&cible=.+&situation=sans_club/);
+
+  // Attaquants seulement (postes de fiche, ou deduits des numeros).
+  await choisir(page.getByTestId("rj-poste"), "Attaquants");
+  await page.getByTestId("rj-lancer").click();
+  await expect(resultats.getByText(/^Attaquants · /)).toBeVisible();
+  const postes = await lignes.locator("td:nth-child(2)").allTextContents();
+  expect(postes.length).toBeGreaterThan(0);
+  expect(postes.every((p) => /^(AT|AG|AD)/.test(p.trim()))).toBe(true);
+
+  // La fiche du premier, puis retour : la meme recherche est relancee depuis l'URL.
+  const premier = lignes.first().getByRole("link");
+  const nom = (await premier.textContent())!.trim();
+  await cliquerJusquaNavigation(premier, /\/joueur\//);
+  await page.goBack();
+  await expect(page.getByTestId("rj-table").locator("tbody tr").first()).toContainText(nom);
+  await expect(page.getByTestId("rj-poste")).toHaveText(/Attaquants/);
+});
+
 test("rapport d'equipe : sans match analyse sur la saison, la page l'explique sans planter ni inventer de tendance", async () => {
   await page.goto("/rapports");
   await cliquerJusquaNavigation(page.getByRole("link", { name: /^Analyse d'equipe : OL Sud E2E/ }), /\/rapports\/equipe\//);
@@ -807,7 +844,7 @@ test("accessibilite : aucune violation axe sur les pages principales, en theme n
     headers: { Authorization: `Bearer ${token}` },
   })).json();
   const adversaire = clubs.find((c) => c.nom !== "OL Sud E2E");
-  const pages = ["/", "/rapports", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical", "/admin/ia",
+  const pages = ["/", "/rapports", "/recherche", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical", "/admin/ia",
     ...(adversaire ? [`/rapports/prematch/${adversaire.id}`] : [])];
 
   const violations: string[] = [];

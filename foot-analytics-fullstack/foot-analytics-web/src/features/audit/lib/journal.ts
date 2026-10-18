@@ -36,10 +36,12 @@ const LIBELLES: Record<string, string> = {
   "medical.ecriture": "Donnees medicales modifiees",
   "export.pptx": "Export PowerPoint",
   "joueur.consultation_autre_club": "Fiche d'un joueur d'un autre club",
+  "joueur.recherche_avancee": "Recherche avancee de joueurs",
   "fmi.import": "Import de feuille de match",
   "donnees.reinitialisation": "Donnees de demonstration rechargees",
   "alerte.consultations_massives": "ALERTE : consultations massives",
   "alerte.export_massif": "ALERTE : exports en serie",
+  "alerte.recherches_massives": "ALERTE : recherches avancees en serie",
   "alerte.echecs_connexion": "ALERTE : echecs de connexion repetes",
 };
 
@@ -60,6 +62,7 @@ export const CATEGORIES: { valeur: string; libelle: string }[] = [
   { valeur: "medical.*", libelle: "Medical" },
   { valeur: "export.*", libelle: "Exports" },
   { valeur: "joueur.consultation_autre_club", libelle: "Fiches d'autres clubs" },
+  { valeur: "joueur.recherche_avancee", libelle: "Recherches avancees" },
   { valeur: "fmi.*", libelle: "Imports FMI" },
 ];
 
@@ -85,6 +88,7 @@ export function resumeDetails(t: Pick<TraceAudit, "action" | "details">): string
   if (typeof d.motif === "string") return MOTIFS_ECHEC[d.motif] ?? d.motif;
   if (Array.isArray(d.champs)) return `champs : ${d.champs.join(", ")}`;
   if (typeof d.pages === "number") return `${d.pages} page(s)`;
+  if (typeof d.resultats === "number") return `${d.resultats} joueur(s) trouve(s)`;
   if (typeof d.role === "string") return `role : ${d.role}`;
   return "";
 }

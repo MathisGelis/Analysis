@@ -98,6 +98,9 @@ describe("isolation entre clubs : toutes les routes, tous les roles", () => {
           const r = await appeler("POST", "/joueurs/recherche", { q });
           reponses.push({ chemin: `recherche ${q}`, corps: r.corps });
         }
+        const avancee = await appeler("POST", "/joueurs/recherche-avancee", { saisonId: m.s26.id, situationSaisonId: m.s25.id });
+        expect({ role, avancee: avancee.statut, trouves: avancee.corps.total }).toEqual({ role, avancee: 200, trouves: 2 });
+        reponses.push({ chemin: "recherche avancee", corps: avancee.corps });
 
         for (const { chemin, corps } of reponses) {
           const texte = JSON.stringify(corps);

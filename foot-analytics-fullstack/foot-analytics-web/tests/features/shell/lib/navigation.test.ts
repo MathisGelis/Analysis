@@ -22,7 +22,7 @@ describe("construireNavigation", () => {
     const liens = construireNavigation("c").flatMap((s) => s.items);
     expect(liens.map((l) => l.href)).not.toContain("/scouting");
     expect(liens.map((l) => l.href)).not.toContain("/ia");
-    expect(construireNavigation("c").find((s) => s.section === "Analyse")?.items.map((l) => l.label)).toEqual(["Rapports"]);
+    expect(construireNavigation("c").find((s) => s.section === "Analyse")?.items.map((l) => l.label)).toEqual(["Rapports", "Recherche joueurs"]);
     expect(liens.find((l) => l.href === "/medical")?.label).toBe("Medical");
   });
   it("la gestion des comptes n'est dans aucun menu : elle est en bas de la barre laterale, pour tous les roles", () => {

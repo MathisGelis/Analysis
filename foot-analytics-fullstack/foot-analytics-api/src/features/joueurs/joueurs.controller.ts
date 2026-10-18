@@ -1,13 +1,15 @@
 // src/features/joueurs/joueurs.controller.ts
 
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query } from "@nestjs/common";
+import {
+  BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Put, Query,
+} from "@nestjs/common";
 
 import { Acces } from "@/features/acces/acces.decorator";
 import { AccesService } from "@/features/acces/acces.service";
 import { ContexteAcces } from "@/features/acces/contexte-acces";
 import { JournalAuditService } from "@/features/audit/journal-audit.service";
 
-import { CreateJoueurDto, RechercheDto, StatEquipeDto, UpdateJoueurDto } from "./joueurs.dto";
+import { CreateJoueurDto, RechercheAvanceeDto, RechercheDto, StatEquipeDto, UpdateJoueurDto } from "./joueurs.dto";
 import { JoueursService } from "./joueurs.service";
 
 @Controller("joueurs")
@@ -49,6 +51,33 @@ export class JoueursController {
   async search(@Acces() ctx: ContexteAcces, @Body() dto: RechercheDto) {
     return (await this.svc.search(dto.q ?? "", 20, { licencesDuClub: ctx.admin ? undefined : ctx.clubId }))
       .map((j) => ctx.masquerPrive(j));
+  }
+
+  /** Valeurs du formulaire de recherche avancee : saisons ouvertes au compte, niveaux (categorie, division) de chacune. */
+  @Get("recherche-avancee/options")
+  optionsRecherche(@Acces() ctx: ContexteAcces) {
+    return this.svc.optionsRecherche((s) => ctx.voitSaison(s));
+  }
+
+  // Recherche avancee par criteres (voir recherche-avancee.ts) : donnees de championnat seulement (feuilles de match,
+  // postes), jamais au-dela des saisons ouvertes au compte. Au plus 100 joueurs ; chaque recherche est tracee (criteres et
+  // nombre de resultats), des recherches en serie levent une alerte.
+  @Post("recherche-avancee")
+  @HttpCode(200)
+  async rechercheAvancee(@Acces() ctx: ContexteAcces, @Body() dto: RechercheAvanceeDto) {
+    if (!ctx.voitSaison(dto.saisonId) || (dto.situationSaisonId && !ctx.voitSaison(dto.situationSaisonId))) {
+      throw new NotFoundException("Saison introuvable");
+    }
+    const r = await this.svc.rechercheAvancee(dto);
+    await this.journal.noter("joueur.recherche_avancee", {
+      acteur: ctx.compte, cibleClubId: dto.clubId ?? null,
+      details: {
+        saisonId: dto.saisonId, categorie: dto.categorie ?? null, division: dto.division ?? null, postes: dto.postes ?? null,
+        minMatchs: dto.minMatchs ?? null, situationSaisonId: dto.situationSaisonId ?? null, situation: dto.situation ?? null,
+        resultats: r.total,
+      },
+    });
+    return r;
   }
 
   // Attache un joueur existant a une equipe (de mon perimetre).

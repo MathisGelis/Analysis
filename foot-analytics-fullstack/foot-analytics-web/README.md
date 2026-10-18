@@ -69,6 +69,7 @@ Fair-play, Import FMI (upload reel vers le parseur du backend).
 | **Analytics** | xG vs G, heatmaps off/def, tendances |
 | **Calendrier** | Vue mois, matchs + entrainements ; ferme sur une saison anterieure a la saison en cours |
 | **Rapports** | **Point d'entree unique** : le prochain match en un clic et un dossier par club (pre-match avec ses predictions : projection du resultat, systeme et onze probables, pistes ; analyse d'equipe ; scouting). Le pre-match s'imprime en PDF et **s'exporte en PowerPoint** (pages au choix) |
+| **Recherche joueurs** | Recherche par criteres (`/recherche`) : poste (ligne ou poste precis), saison, categorie, division et club joues, matchs minimum, et situation une autre saison (sans club connu, meme club, autre club). Exemple : un attaquant qui a joue en U16 R2 la saison derniere et n'a pas de club connu cette saison. D'apres les feuilles de match importees ; les criteres sont dans l'URL (codes seulement), revenir d'une fiche rouvre la recherche |
 | **Import FMI** | Drag&drop PDF, simulation pipeline parser → base |
 
 ---
@@ -234,6 +235,7 @@ foot-analytics-web/
 │   │   ├── tactique/  analyse/  prematch/   # composition, rapport d'equipe, rapport pre-match (avec ses predictions)
 │   │   ├── rapports/             # point d'entree unique : dossier d'un club (pre-match, analyse, scouting)
 │   │   ├── arbitres/  coachs/  recherche/  fmi/
+│   │   ├── recherche-joueurs/    # recherche avancee par criteres (formulaire, URL, resultats)
 │   │   ├── dashboard/            # page d'accueil
 │   │   └── demo/                 # ecran Analytics de demonstration
 │   └── shared/

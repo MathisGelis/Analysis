@@ -15,6 +15,8 @@ describe("journal d'audit (mise en forme)", () => {
     expect(resumeDetails({ action: "alerte.consultations_massives", details: { nombre: 60, fenetreMin: 10, seuil: 60 } }))
       .toBe("60 en 10 min (seuil 60)");
     expect(resumeDetails({ action: "compte.modification", details: { champs: ["prenom", "equipeIds"] } })).toBe("champs : prenom, equipeIds");
+    expect(resumeDetails({ action: "joueur.recherche_avancee", details: { saisonId: "s25", resultats: 7 } })).toBe("7 joueur(s) trouve(s)");
+    expect(libelleAction("alerte.recherches_massives")).toBe("ALERTE : recherches avancees en serie");
     expect(resumeDetails({ action: "connexion.reussie", details: null })).toBe("");
   });
 
