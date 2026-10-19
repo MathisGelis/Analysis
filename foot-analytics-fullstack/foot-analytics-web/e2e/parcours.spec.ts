@@ -117,14 +117,17 @@ test("application installable : manifeste standalone, icones ballon, service wor
       expect({ chemin, statut: r.status() }).toEqual({ chemin, statut: 200 });
     }
 
-    // Le service worker s'installe ; sans reseau, une navigation affiche la page hors ligne (aucune donnee en cache).
+    // Le service worker s'installe et prend la main ; il n'a mis en cache que la page hors ligne et son icone (son
+    // comportement sans reseau est teste dans tests/pwa/sw.test.ts : Playwright ne coupe pas le reseau d'un service worker).
     await p.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
-    await p.reload();                                     // la page est maintenant controlee par le service worker
-    await p.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
-    await anonyme.setOffline(true);
-    await p.goto(`${base}/matchs`).catch(() => null);
-    await expect(p.getByRole("heading", { level: 1, name: "Pas de connexion" })).toBeVisible();
-    await anonyme.setOffline(false);
+    await p.reload();
+    expect(await p.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+    const enCache = await p.evaluate(async () => {
+      const cles = await caches.keys();
+      const urls = (await Promise.all(cles.map(async (c) => (await (await caches.open(c)).keys()).map((r) => new URL(r.url).pathname)))).flat();
+      return urls.sort();
+    });
+    expect(enCache).toEqual(["/icons/icon.svg", "/offline.html"]);
   } finally {
     await anonyme.close();
   }
