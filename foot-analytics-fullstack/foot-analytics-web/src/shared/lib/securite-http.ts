@@ -23,6 +23,9 @@ export function politiqueCsp(nonce: string, dev = false): string {
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     `connect-src 'self'${dev ? " ws: wss:" : ""}`,
+    // Application installable : son manifeste et son service worker (public/sw.js), servis par le site lui-meme.
+    "manifest-src 'self'",
+    "worker-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

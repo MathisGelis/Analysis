@@ -93,6 +93,43 @@ test("acces : un visiteur anonyme est renvoye vers /login, et une cible externe 
   }
 });
 
+test("application installable : manifeste standalone, icones ballon, service worker et page hors ligne, sans session", async ({ browser }) => {
+  const base = `http://localhost:${WEB_PORT}`;
+  const anonyme = await browser.newContext();
+  const p = await anonyme.newPage();
+  try {
+    await p.goto(`${base}/login`);
+    // Liens poses dans <head> : manifeste, favicon ballon, icone de l'ecran d'accueil iPhone.
+    const manifeste = await p.locator('link[rel="manifest"]').getAttribute("href");
+    expect(manifeste).toBe("/manifest.webmanifest");
+    await expect(p.locator('link[rel="icon"][href="/icons/icon.svg"]')).toHaveCount(1);
+    await expect(p.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", "/icons/apple-touch-icon.png");
+
+    // Lus sans session (le navigateur ne les demande pas toujours avec les cookies) : jamais redirige vers /login.
+    const m = await p.request.get(`${base}/manifest.webmanifest`, { maxRedirects: 0 });
+    expect(m.status()).toBe(200);
+    const json = await m.json();
+    expect(json).toMatchObject({ name: "Foot Analytics", display: "standalone", start_url: "/" });
+    expect(json.icons.map((i: { purpose: string }) => i.purpose)).toContain("maskable");
+    for (const chemin of ["/favicon.ico", "/icons/icon.svg", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-maskable-512.png",
+      "/icons/apple-touch-icon.png", "/sw.js", "/offline.html"]) {
+      const r = await p.request.get(`${base}${chemin}`, { maxRedirects: 0 });
+      expect({ chemin, statut: r.status() }).toEqual({ chemin, statut: 200 });
+    }
+
+    // Le service worker s'installe ; sans reseau, une navigation affiche la page hors ligne (aucune donnee en cache).
+    await p.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    await p.reload();                                     // la page est maintenant controlee par le service worker
+    await p.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    await anonyme.setOffline(true);
+    await p.goto(`${base}/matchs`).catch(() => null);
+    await expect(p.getByRole("heading", { level: 1, name: "Pas de connexion" })).toBeVisible();
+    await anonyme.setOffline(false);
+  } finally {
+    await anonyme.close();
+  }
+});
+
 test("connexion : refus d'un mauvais mot de passe puis acces, equipe choisie d'office", async () => {
   await page.goto("/login");
   await page.getByPlaceholder("MLEMAIRE").fill("AADMIN");

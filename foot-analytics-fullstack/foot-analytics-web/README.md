@@ -149,6 +149,19 @@ parcours e2e « responsive » verifie qu'aucune page ne deborde de l'ecran en 36
 npm run lint      # ESLint 10 (config flat : regles Next core-web-vitals, hooks React, a11y JSX) sur src, tests et e2e
 ```
 
+### Application installable (PWA)
+
+Le site s'installe comme une application et s'ouvre alors **sans la barre du navigateur** (mode `standalone`) :
+- **iPhone / iPad** : dans Safari, *Partager* puis *Sur l'ecran d'accueil* ;
+- **Android** : Chrome propose *Installer l'application* (ou menu ⋮ > *Ajouter a l'ecran d'accueil*) ;
+- **ordinateur** : icone d'installation dans la barre d'adresse de Chrome ou Edge.
+
+Fichiers : `src/app/manifest.ts` (nom, couleurs, icones), `public/icons/` et `public/favicon.ico` (ballon de foot),
+`public/sw.js` + `public/offline.html` (service worker enregistre en production par
+`features/shell/components/EnregistrementPwa.tsx`). Le service worker ne garde **que** la page hors ligne et son icone :
+aucune page ni donnee de joueur n'est conservee sur l'appareil ; sans reseau, l'application affiche « Pas de connexion ».
+Sur iPhone, l'application installee a ses propres cookies : il faut s'y connecter une premiere fois.
+
 ### Tests unitaires (Vitest)
 
 ```bash
