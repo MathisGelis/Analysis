@@ -228,19 +228,21 @@ describe("AnalyseService.rapportClub", () => {
         await f.joueur({ nom, prenom: "Jo", clubId: actif.moi.id, ...(fatigue === null ? {} : { scoreFatigue: fatigue }) });
         for (const m of actif.matchs.slice(0, 4)) await f.compo({ matchId: m.id, cote: "dom", nom, prenom: "Jo", numero: i + 2 });
       }
-      const r1 = await svc.rapportClub(actif.moi.id, { equipeId: actif.eq.id });
+      const r1 = await svc.rapportClub(actif.moi.id, { equipeId: actif.eq.id }, { donneesPrivees: true });
       expect(r1.perimetre).toMatchObject({ equipeNom: "Seniors D2 Poule C", saisonNom: "2025-2026", saisonActive: true, poule: "C" });
       expect(r1.fatigueMoy).toBe(50);                      // moyenne de 30, 50, 70 : DELTA n'a aucune donnee, il ne compte pas
+      // Rapport demande par un autre club : la fatigue (donnee privee du club analyse) n'y entre pas.
+      expect((await svc.rapportClub(actif.moi.id, { equipeId: actif.eq.id })).fatigueMoy).toBeNull();
 
       const archive = await saisonEnDeuxTemps(false, " archive");
-      const r2 = await svc.rapportClub(archive.moi.id, { equipeId: archive.eq.id });
+      const r2 = await svc.rapportClub(archive.moi.id, { equipeId: archive.eq.id }, { donneesPrivees: true });
       expect(r2.perimetre.saisonActive).toBe(false);
       expect(r2.fatigueMoy).toBeNull();
     });
 
     it("fatigue moyenne : null sans aucune donnee, jamais un 50 invente", async () => {
       const actif = await saisonEnDeuxTemps(true);
-      expect((await svc.rapportClub(actif.moi.id, { equipeId: actif.eq.id })).fatigueMoy).toBeNull();
+      expect((await svc.rapportClub(actif.moi.id, { equipeId: actif.eq.id }, { donneesPrivees: true })).fatigueMoy).toBeNull();
     });
 
     it("niveau des adversaires : rang au classement de la poule", async () => {

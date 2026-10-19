@@ -10,10 +10,14 @@
 export interface JwtPayload {
   sub?: string;
   login?: string;
-  role?: "admin" | "user" | string;
+  role?: "admin" | "referent" | "user" | string;
   clubId?: string | null;
   equipeIds?: string[] | null;
   exp?: number;
+  /** Version de jeton du compte (revocation, verifiee par l'API). */
+  v?: number;
+  /** Mot de passe temporaire pas encore change : tout renvoie vers /change-password. */
+  doitChanger?: boolean;
 }
 
 export function decoderPayloadJwt(token: string): JwtPayload | null {

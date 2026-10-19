@@ -5,7 +5,7 @@ import {
 } from "@/features/medical/lib/resume-blessures";
 
 const jour = (a: number, m: number, j: number) => Date.UTC(a, m - 1, j);
-const b = (id: string, joueurId: string, extra: Partial<BlessureSaison> = {}): BlessureSaison => ({ id, joueurId, joueurNom: `Joueur ${joueurId}`, ...extra });
+const b = (id: string, joueurId: string, extra: Partial<BlessureSaison> = {}): BlessureSaison => ({ id, joueurId, ...extra });
 const NOW = jour(2026, 3, 1);
 
 describe("lireJour", () => {
@@ -89,8 +89,8 @@ describe("resumerBlessures", () => {
     expect(n).toMatchObject({ "2025-09": 1, "2025-11": 2, "2026-02": 1, "2026-03": 1, "2025-10": 0 });
   });
 
-  it("par joueur : le plus touche d'abord, avec son nom d'effectif (a defaut celui de la blessure)", () => {
-    expect(r.parJoueur.map((j) => [j.nom, j.n, j.jours])).toEqual([["Luc Durand", 2, 30], ["Joueur c", 2, 18], ["Paul Martin", 1, 60]]);
+  it("par joueur : le plus touche d'abord, avec son nom d'effectif (la blessure ne recopie pas le nom)", () => {
+    expect(r.parJoueur.map((j) => [j.nom, j.n, j.jours])).toEqual([["Luc Durand", 2, 30], ["Joueur inconnu", 2, 18], ["Paul Martin", 1, 60]]);
   });
 
   it("rechutes : meme joueur, meme endroit, au moins deux fois", () => {

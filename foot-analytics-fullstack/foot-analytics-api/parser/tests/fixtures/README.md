@@ -5,7 +5,7 @@ Deposer ici les feuilles de match (FMI) qui servent de non-regression. Chaque
 (structure attendue d'une FMI valide) ; aucun autre changement de code n'est
 necessaire.
 
-Feuilles prevues (a copier depuis la machine du coach) :
+Feuilles prevues (a anonymiser puis copier depuis la machine du coach) :
 
 | Fichier | Saison | Cas couvert |
 |---|---|---|
@@ -14,8 +14,15 @@ Feuilles prevues (a copier depuis la machine du coach) :
 | `TEST_U20R2.pdf` | ? | U20 R2 (autre categorie) |
 | `TEST2024-2025.pdf` | 24-25 | ancienne saison, retrocompatibilite |
 
-`FMI_Neuville1.pdf` (deja dans `parser/`) est la feuille de reference dont les
-valeurs exactes sont verifiees dans `test_fmi_neuville1_valeurs_exactes`.
+`FMI_reference_anonyme.pdf` est la feuille de reference dont les valeurs exactes sont verifiees dans
+`test_fmi_neuville1_valeurs_exactes`. C'est une vraie FMI ANONYMISEE par `outils/anonymiser_fmi.py` : noms, prenoms
+et numeros de licence remplaces par des valeurs fictives, signatures effacees, metadonnees videes.
+
+**Ne jamais deposer ici une feuille reelle non anonymisee** : elle serait publiee dans le depot (donnees
+personnelles de joueurs, dont des mineurs). Anonymiser d'abord :
+
+    pip install pymupdf
+    python outils/anonymiser_fmi.py ~/feuilles/FMI_reelle.pdf tests/fixtures/FMI_xxx.pdf
 
 Pour figer les valeurs d'un nouveau PDF, ajouter un test dedie sur le modele
 de `test_fmi_neuville1_valeurs_exactes` (pas de snapshot JSON global : il

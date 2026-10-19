@@ -27,6 +27,11 @@ export function ClubsProvider({ clubs, children }: { clubs: Club[]; children: Re
   );
 }
 
+/** Tous les clubs connus du layout, par identifiant. */
+export function useClubsParId(): ReadonlyMap<string, Club> {
+  return useContext(Ctx);
+}
+
 /** Le club d'identifiant `id`, s'il est connu du layout. */
 export function useClub(id: string | null | undefined): Club | undefined {
   const parId = useContext(Ctx);

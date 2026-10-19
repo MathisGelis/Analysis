@@ -1,0 +1,413 @@
+{
+  "numero_match": "53415223",
+  "numero_affaire": "25545277",
+  "date": "18/01/2026",
+  "heure": "15:00",
+  "competition": "Seniors D2 / Phase Unique",
+  "journee": null,
+  "poule": "C",
+  "terrain": "STADE JEAN OBOUSSIER 2",
+  "equipe_recevante": "Neuville S/S 2",
+  "equipe_visiteuse": "F.C. Meys Grezieu 1",
+  "club_recevant_id": "504275",
+  "club_visiteur_id": "560530",
+  "score_recevant": 2,
+  "score_visiteur": 0,
+  "officiels": [
+    {
+      "role": "Arbitre centre",
+      "nom_complet": "DOPAMAD Defari",
+      "licence": "9948075103"
+    },
+    {
+      "role": "Arbitre assistant 1",
+      "nom_complet": "LONIMIPE Pasek",
+      "licence": "9912115739"
+    },
+    {
+      "role": "Arbitre assistant 2",
+      "nom_complet": "VUSOVORER Vafu Bifesa",
+      "licence": "9910542355"
+    },
+    {
+      "role": "Délégué principal",
+      "nom_complet": "ZUPADAG Segupivat",
+      "licence": "9936063198"
+    },
+    {
+      "role": "Délégué adjoint 1",
+      "nom_complet": "GAGUGISO Bugar",
+      "licence": "9955629053"
+    }
+  ],
+  "encadrement": [
+    {
+      "nom_complet": "BUVORAS Nadi",
+      "licence": "9940418087",
+      "fonction": "E/DR",
+      "equipe": "recevante"
+    },
+    {
+      "nom_complet": "FEVUMAZ GIS LAGUREZ Vafu Fotodolo",
+      "licence": "9928669728",
+      "fonction": "E",
+      "equipe": "visiteuse"
+    },
+    {
+      "nom_complet": "MOL BUDAV Nebodi",
+      "licence": "9929068471",
+      "fonction": "D",
+      "equipe": "recevante"
+    },
+    {
+      "nom_complet": "PORIMOP Nazela",
+      "licence": "9965216019",
+      "fonction": "D/DR",
+      "equipe": "visiteuse"
+    }
+  ],
+  "compo_recevante": [
+    {
+      "numero": 1,
+      "nom": "POKOREK",
+      "prenom": "Mekur",
+      "licence": "9962255817",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 2,
+      "nom": "VIGUSAGUZ KILOV",
+      "prenom": "Zamud",
+      "licence": "9910691378",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 3,
+      "nom": "FIKOSE",
+      "prenom": "Zapa",
+      "licence": "9945928813",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 4,
+      "nom": "LUDENOZ",
+      "prenom": "Dofufulik",
+      "licence": "9976714585",
+      "titulaire": true,
+      "capitaine": true
+    },
+    {
+      "numero": 5,
+      "nom": "ZITUL",
+      "prenom": "Kesanaz",
+      "licence": "9958478997",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 6,
+      "nom": "MOL BUDAV",
+      "prenom": "Fegu",
+      "licence": "9953964748",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 7,
+      "nom": "KURIZIS",
+      "prenom": "Kuvu",
+      "licence": "9939235836",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 8,
+      "nom": "BIMO",
+      "prenom": "Noduge",
+      "licence": "9943560125",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 9,
+      "nom": "FIKU",
+      "prenom": "Temaluri",
+      "licence": "9924200880",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 10,
+      "nom": "KIFIRIS",
+      "prenom": "Nani",
+      "licence": "9927908139",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 11,
+      "nom": "BILAZARUPA",
+      "prenom": "Lebud",
+      "licence": "9994287181",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 12,
+      "nom": "SAROPUV",
+      "prenom": "Fosise",
+      "licence": "9991806307",
+      "titulaire": false,
+      "capitaine": false
+    },
+    {
+      "numero": 13,
+      "nom": "TORONOFO",
+      "prenom": "Vipin",
+      "licence": "9918132692",
+      "titulaire": false,
+      "capitaine": false
+    },
+    {
+      "numero": 14,
+      "nom": "ZUPADAG",
+      "prenom": "Gupob",
+      "licence": "9917961573",
+      "titulaire": false,
+      "capitaine": false
+    }
+  ],
+  "compo_visiteuse": [
+    {
+      "numero": 1,
+      "nom": "DOPOTIN",
+      "prenom": "Zide",
+      "licence": "9940783537",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 2,
+      "nom": "KEFAP",
+      "prenom": "Nazela",
+      "licence": "9935502304",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 3,
+      "nom": "BELATIN",
+      "prenom": "Lagur",
+      "licence": "9911861625",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 4,
+      "nom": "NEKUGE",
+      "prenom": "Simote",
+      "licence": "9910411910",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 5,
+      "nom": "BIRIFEFEM",
+      "prenom": "Pamazo",
+      "licence": "9920331787",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 6,
+      "nom": "LAZIBU",
+      "prenom": "Ruliget",
+      "licence": "9964296552",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 7,
+      "nom": "LAZIBU",
+      "prenom": "Zide",
+      "licence": "9969178574",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 8,
+      "nom": "DUGESETE",
+      "prenom": "Kab",
+      "licence": "9914881281",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 9,
+      "nom": "MAREB",
+      "prenom": "Punatitu",
+      "licence": "9952517805",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 10,
+      "nom": "BOBUVONUVO",
+      "prenom": "Sir",
+      "licence": "9948418805",
+      "titulaire": true,
+      "capitaine": true
+    },
+    {
+      "numero": 11,
+      "nom": "RIBAZUK",
+      "prenom": "Pubi",
+      "licence": "9983922136",
+      "titulaire": true,
+      "capitaine": false
+    },
+    {
+      "numero": 12,
+      "nom": "LAZIBU",
+      "prenom": "Kabum",
+      "licence": "9937406960",
+      "titulaire": false,
+      "capitaine": false
+    },
+    {
+      "numero": 13,
+      "nom": "REPELEN",
+      "prenom": "Gekavogiv",
+      "licence": "9925091589",
+      "titulaire": false,
+      "capitaine": false
+    }
+  ],
+  "remplacements": [
+    {
+      "equipe": "recevante",
+      "sortant_licence": "9927908139",
+      "sortant_nom": "KIFIRIS Nani",
+      "entrant_licence": "9918132692",
+      "entrant_nom": "TORONOFO Vipin",
+      "minute": 31,
+      "arret": 0
+    },
+    {
+      "equipe": "visiteuse",
+      "sortant_licence": "9969178574",
+      "sortant_nom": "LAZIBU Zide",
+      "entrant_licence": "9925091589",
+      "entrant_nom": "REPELEN Gekavogiv",
+      "minute": 65,
+      "arret": 0
+    },
+    {
+      "equipe": "recevante",
+      "sortant_licence": "9994287181",
+      "sortant_nom": "BILAZARUPA Lebud",
+      "entrant_licence": "9991806307",
+      "entrant_nom": "SAROPUV Fosise",
+      "minute": 41,
+      "arret": 0
+    },
+    {
+      "equipe": "visiteuse",
+      "sortant_licence": "9910411910",
+      "sortant_nom": "NEKUGE Simote",
+      "entrant_licence": "9937406960",
+      "entrant_nom": "LAZIBU Kabum",
+      "minute": 80,
+      "arret": 0
+    },
+    {
+      "equipe": "recevante",
+      "sortant_licence": "9953964748",
+      "sortant_nom": "MOL BUDAV Fegu",
+      "entrant_licence": "9917961573",
+      "entrant_nom": "ZUPADAG Gupob",
+      "minute": 70,
+      "arret": 0
+    }
+  ],
+  "cartons": [
+    {
+      "equipe": "F.C. Meys Grezieu",
+      "licence": "9925091589",
+      "joueur": "REPELEN Gekavogiv",
+      "numero": 13,
+      "motif": "Enfreindre avec persistance les Pubi du Jeu",
+      "couleur": "jaune",
+      "minute": 90,
+      "arret": 3
+    },
+    {
+      "equipe": "Neuville S/S",
+      "licence": "9976714585",
+      "joueur": "LUDENOZ Dofufulik",
+      "numero": 4,
+      "motif": "Commet un acte de brutalité",
+      "couleur": "rouge",
+      "minute": 59,
+      "arret": 0
+    },
+    {
+      "equipe": "Neuville S/S",
+      "licence": "9953964748",
+      "joueur": "MOL BUDAV Fegu",
+      "numero": 6,
+      "motif": "Comportement antisportif",
+      "couleur": "jaune",
+      "minute": 19,
+      "arret": 0
+    },
+    {
+      "equipe": "Neuville S/S",
+      "licence": "9939235836",
+      "joueur": "KURIZIS Kuvu",
+      "numero": 7,
+      "motif": "Désapprobation en paroles ou en actes",
+      "couleur": "jaune",
+      "minute": 60,
+      "arret": 0
+    },
+    {
+      "equipe": "Neuville S/S",
+      "licence": "9918132692",
+      "joueur": "TORONOFO Vipin",
+      "numero": 13,
+      "motif": "Comportement antisportif",
+      "couleur": "jaune",
+      "minute": 90,
+      "arret": 4
+    },
+    {
+      "equipe": "Neuville S/S",
+      "licence": "9910691378",
+      "joueur": "VIGUSAGUZ KILOV Zamud",
+      "numero": 2,
+      "motif": "Retarder la reprise du jeu",
+      "couleur": "jaune",
+      "minute": 90,
+      "arret": 2
+    }
+  ],
+  "cartons_verts": [],
+  "blessures": [
+    {
+      "equipe": "F.C. Meys Grezieu",
+      "licence": "9937406960",
+      "joueur": "LAZIBU Kabum",
+      "numero": 12,
+      "localisation": "Cheville droite",
+      "complement": "",
+      "minute": 90,
+      "arret": 4
+    }
+  ],
+  "buteurs": [],
+  "source_fichier": "FMI_reference_anonyme.pdf"
+}

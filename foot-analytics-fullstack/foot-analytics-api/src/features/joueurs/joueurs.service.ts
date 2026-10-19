@@ -457,12 +457,17 @@ export class JoueursService {
    * Le scoring se fait en memoire : quelques milliers de joueurs au plus, et
    * un pre-filtre SQL LIKE ferait justement disparaitre les fautes de frappe.
    */
-  async search(q: string, limit = 20): Promise<JoueurRecherche[]> {
+  /**
+   * `licencesDuClub` : la recherche par numero de licence ne porte que sur les joueurs de ce club (la licence d'un
+   * joueur d'un autre club n'est pas visible : on ne la laisse pas non plus deviner). Absent : toute la base (admin).
+   */
+  async search(q: string, limit = 20, options: { licencesDuClub?: string | null } = {}): Promise<JoueurRecherche[]> {
     const needle = (q ?? "").trim();
     if (needle.length < 2) return [];
     const parLicence = /^\d{3,}$/.test(needle);
+    if (parLicence && "licencesDuClub" in options && options.licencesDuClub !== undefined && !options.licencesDuClub) return [];
 
-    const tous = await this.repo.find();
+    const tous = await this.repo.find(parLicence && options.licencesDuClub ? { where: { clubId: options.licencesDuClub } } : {});
     const trouves = tous
       .map((j) => ({
         j,
@@ -582,7 +587,7 @@ export class JoueursService {
     list.add(equipeId);
     j.equipesAttachees = [...list];
     const saved = await this.recalculerStatutMutation(await this.repo.save(j));
-    this.log.debug(`[attach] joueur=${j.prenom} ${j.nom} (${joueurId}) -> equipe=${eq.nom} (${equipeId}) | equipesAttachees=[${saved.equipesAttachees.join(",")}]`);
+    this.log.debug(`[attach] joueur ${joueurId} -> equipe ${equipeId} (${saved.equipesAttachees.length} equipe(s) attachee(s))`);
     return saved;
   }
 
@@ -654,7 +659,7 @@ export class JoueursService {
     if (j.licence) {
       qb.where("c.licence = :lic", { lic: j.licence });
     } else if (j.prenom) {
-      qb.where("LOWER(TRIM(c.nom)) = LOWER(TRIM(:nom)) DUB LOWER(TRIM(c.prenom)) = LOWER(TRIM(:prenom))",
+      qb.where("LOWER(TRIM(c.nom)) = LOWER(TRIM(:nom)) AND LOWER(TRIM(c.prenom)) = LOWER(TRIM(:prenom))",
         { nom: j.nom, prenom: j.prenom });
     } else {
       qb.where("LOWER(TRIM(c.nom)) = LOWER(TRIM(:nom))", { nom: j.nom });
@@ -675,7 +680,7 @@ export class JoueursService {
     if (j.licence) {
       qb.where("c.licence = :lic", { lic: j.licence });
     } else if (j.prenom) {
-      qb.where("LOWER(TRIM(c.nom)) = LOWER(TRIM(:nom)) DUB LOWER(TRIM(c.prenom)) = LOWER(TRIM(:prenom))",
+      qb.where("LOWER(TRIM(c.nom)) = LOWER(TRIM(:nom)) AND LOWER(TRIM(c.prenom)) = LOWER(TRIM(:prenom))",
         { nom: j.nom, prenom: j.prenom });
     } else {
       qb.where("LOWER(TRIM(c.nom)) = LOWER(TRIM(:nom))", { nom: j.nom });

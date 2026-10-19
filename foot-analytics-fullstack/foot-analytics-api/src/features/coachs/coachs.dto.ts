@@ -1,6 +1,6 @@
 // src/features/coachs/coachs.dto.ts
 
-import { IsIn, IsOptional, IsString } from "class-validator";
+import { IsIn, IsOptional, IsString, MaxLength } from "class-validator";
 
 export class CreateCoachDto {
   @IsString() nom: string;
@@ -19,4 +19,9 @@ export class CreateStaffMatchDto {
   @IsString() coachId: string;
   @IsIn(["dom", "ext"]) cote: "dom" | "ext";
   @IsOptional() @IsString() fonctions?: string;
+}
+
+/** Recherche d'un entraineur par nom. */
+export class RechercheCoachDto {
+  @IsString() @MaxLength(100) q: string;
 }

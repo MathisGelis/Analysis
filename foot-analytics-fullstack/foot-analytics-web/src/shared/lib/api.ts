@@ -1,7 +1,10 @@
 // src/shared/lib/api.ts
 //
 // Client d'acces au backend NestJS (foot-analytics-api).
-// - L'URL de base vient de NEXT_PUBLIC_API_URL (def. http://localhost:4000/api).
+// - Dans le navigateur : tout passe par le relais /api/backend du serveur Next (meme origine), qui ajoute le jeton
+//   d'acces du cookie HttpOnly (voir middleware.ts). Le navigateur ne connait ni le jeton ni l'adresse de l'API.
+// - Cote serveur (Server Components) : appel direct de l'API (API_URL, a defaut NEXT_PUBLIC_API_URL), avec le jeton
+//   lu dans le cookie.
 // - Chaque lecture a un repli ("fallback") sur les donnees locales de demo
 //   pour que l'app reste affichable meme si le backend n'est pas demarre.
 // - Les mutations (POST/PATCH/DELETE) requierent le backend.
@@ -21,13 +24,14 @@ import type { SituationClub } from "@/features/analyse/lib/situation-types";
 import type { PlanContreRealise } from "@/features/tactique/lib/plan-realise-types";
 import type { FicheCoach } from "@/features/coachs/lib/fiche-coach-types";
 import type { EntrainementDetail, EntrainementResume, EtatIa, ModeleListe, PlanningIa } from "@/features/ia/lib/ia-types";
+import type { PageJournal } from "@/features/audit/lib/journal";
 
 import type {
   Club, HistoriqueSaison, Joueur, LigneClassement, Match, MatchJoue, RapportScouting, TactiquePlan,
 } from "./types";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+const RELAIS = "/api/backend";
+const estServeur = () => typeof window === "undefined";
 
 type Json = Record<string, any>;
 
@@ -70,33 +74,28 @@ export function messageApi(e: unknown, defaut = "Erreur"): string {
 }
 
 /**
- * Recupere le JWT courant, peu importe le contexte d'execution :
- *  - Server Components / Route Handlers Next : depuis le cookie fa_token
- *    (importe `next/headers` dynamiquement pour ne pas crasher cote client)
- *  - Client Components / event handlers : depuis localStorage ("fa.token"
- *    pose par setSession() apres /auth/login)
- *
- * Renvoie undefined si pas de token (pre-login, anonyme...). L'appelant
- * decide ce qu'il en fait (header omis ou requete refusee).
- *
- * Utilisee par authHeaders(), donc par fetchApi() : lectures JSON comme
- * uploads FormData. Sans ce token, les requetes sont rejetees avec 401
- * par le JwtAuthGuard global.
+ * Cote serveur : URL de l'API et en-tete d'authentification (jeton d'acces du cookie HttpOnly, deja rafraichi par le
+ * middleware). Cote navigateur : le relais, sans en-tete (le cookie suit tout seul, le relais ajoute le jeton).
  */
-async function getAuthToken(): Promise<string | undefined> {
-  if (typeof window === "undefined") {
-    try {
-      const { cookies } = await import("next/headers");
-      return (await cookies()).get("fa_token")?.value;
-    } catch { return undefined; /* hors context server component */ }
+async function cibleEtEntetes(): Promise<{ base: string; entetes: Record<string, string> }> {
+  if (!estServeur()) return { base: RELAIS, entetes: {} };
+  try {
+    const { cookies } = await import("next/headers");
+    const { COOKIE_ACCES, urlApi } = await import("@/features/auth/lib/session-serveur");
+    const token = (await cookies()).get(COOKIE_ACCES)?.value;
+    return { base: urlApi(), entetes: token ? { Authorization: `Bearer ${token}` } : {} };
+  } catch {
+    // Hors contexte de requete (build) : pas de session.
+    const { urlApi } = await import("@/features/auth/lib/session-serveur");
+    return { base: urlApi(), entetes: {} };
   }
-  return localStorage.getItem("fa.token") ?? undefined;
 }
 
-/** En-tetes d'authentification (vide si pas de token). */
-async function authHeaders(): Promise<Record<string, string>> {
-  const token = await getAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+/** Navigateur : session perdue (revoquee, expiree) -> ecran de connexion, en revenant ensuite a la page courante. */
+function versConnexion(): void {
+  const ici = window.location.pathname + window.location.search;
+  if (window.location.pathname === "/login") return;
+  window.location.href = `/login?from=${encodeURIComponent(ici)}`;
 }
 
 /**
@@ -109,16 +108,31 @@ async function authHeaders(): Promise<Record<string, string>> {
  */
 async function fetchApi(path: string, init: RequestInit = {}): Promise<Response> {
   const estFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
-  return fetch(`${API_URL}${path}`, {
+  const { base, entetes } = await cibleEtEntetes();
+  const res = await fetch(`${base}${path}`, {
     // Lectures cote serveur Next : toujours frais (pas de cache fige).
     cache: "no-store",
     ...init,
     headers: {
       ...(estFormData ? {} : { "Content-Type": "application/json" }),
-      ...(await authHeaders()),
+      ...entetes,
       ...((init.headers as Record<string, string> | undefined) ?? {}),
     },
   });
+  if (res.status === 401 && !estServeur()) versConnexion();
+  return res;
+}
+
+/** Appel d'une route de session du serveur Next (/api/session/...) : erreur detaillee comme pour l'API. */
+async function session<T>(chemin: string, corps?: unknown): Promise<T> {
+  const res = await fetch(chemin, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: corps === undefined ? undefined : JSON.stringify(corps),
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new ApiError(res.status, chemin, json);
+  return json as T;
 }
 
 /**
@@ -352,7 +366,7 @@ export const api = {
     req<any[]>(`/coachs/match/${matchId}`, { fallback: [] }),
   /** Recherche d'entraineurs par nom (tous clubs) ; le club renvoye est le plus recent. */
   coachs: (q: string) => req<{ id: string; nom: string; prenom?: string | null; clubId?: string | null }[]>(
-    `/coachs/recherche?q=${encodeURIComponent(q)}`, { fallback: [] }),
+    "/coachs/recherche", { method: "POST", body: JSON.stringify({ q }), fallback: [] }),
   /** Fiche d'un entraineur : bilan (sur une saison, sinon toute la carriere), par saison, parcours, matchs. */
   ficheCoach: (id: string, saisonId?: string | null) =>
     req<FicheCoach | null>(`/coachs/${id}/fiche${saisonId ? `?saisonId=${saisonId}` : ""}`, { fallback: null }),
@@ -470,18 +484,22 @@ export const api = {
     return req<{ ok: boolean; supprime: boolean }>(`/tactiques?${qs}`, { method: "DELETE" });
   },
 
-  /* ---- Auth ---- */
+  /* ---- Auth (les jetons restent dans les cookies HttpOnly du serveur Next) ---- */
   authLogin: (login: string, password: string) =>
-    req<{ token: string; user: any }>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ login, password }),
-    }),
+    session<{ user: any }>("/api/session/login", { login, password }),
   authMe: () => req<any>("/auth/me"),
   authChangePassword: (oldPassword: string, newPassword: string) =>
-    req<any>("/auth/change-password", {
-      method: "POST",
-      body: JSON.stringify({ oldPassword, newPassword }),
-    }),
+    session<{ user: any }>("/api/session/mot-de-passe", { oldPassword, newPassword }),
+  /** Acceptation des conditions d'utilisation (version courante). */
+  accepterCgu: (version: string) => req<any>("/auth/cgu", { method: "POST", body: JSON.stringify({ version }) }),
+
+  /* ---- Journal d'audit (admin) ---- */
+  journalAudit: (filtres: { action?: string; utilisateurId?: string; page?: number; parPage?: number } = {}) => {
+    const qs = new URLSearchParams();
+    for (const [cle, valeur] of Object.entries(filtres)) if (valeur !== undefined && valeur !== "") qs.set(cle, String(valeur));
+    const s = qs.toString();
+    return req<PageJournal>(`/audit${s ? `?${s}` : ""}`);
+  },
 
   /* ---- Utilisateurs (admin) ---- */
   utilisateurs: () => req<any[]>("/utilisateurs", { fallback: [] }),
@@ -494,8 +512,9 @@ export const api = {
 
   /* ---- Joueurs : recherche + attache + creation dans equipe ---- */
   /** Recherche un joueur par nom dans toute la base (au moins 2 lettres). */
+  /** En POST : le nom cherche n'apparait dans aucune URL (journaux des serveurs). */
   searchJoueurs: (q: string) =>
-    req<any[]>(`/joueurs/search?q=${encodeURIComponent(q)}`, { fallback: [] }),
+    req<any[]>("/joueurs/recherche", { method: "POST", body: JSON.stringify({ q }), fallback: [] }),
   /** Attache un joueur existant a une equipe. */
   attachJoueur: (equipeId: string, joueurId: string) =>
     req<any>(`/joueurs/equipe/${equipeId}/attach/${joueurId}`, { method: "POST" }),

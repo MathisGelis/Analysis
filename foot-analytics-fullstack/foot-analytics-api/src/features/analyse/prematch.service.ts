@@ -174,8 +174,11 @@ export class PrematchService {
 
     const face = await this.historiqueFace(monEquipe, advClub.id);
 
-    // Rapport detaille de l'adversaire (sur ma saison, et son equipe de ma poule si on la connait).
-    const rap = await this.analyse.rapportClub(advClub.id, { equipeId: advEquipe?.id, saisonId: monEquipe.saisonId ?? undefined });
+    // Rapport detaille de l'adversaire (sur ma saison, et son equipe de ma poule si on la connait). Un autre club : sans
+    // ses donnees privees (fatigue de ses joueurs), voir acces/visibilite.ts.
+    const rap = await this.analyse.rapportClub(
+      advClub.id, { equipeId: advEquipe?.id, saisonId: monEquipe.saisonId ?? undefined }, { donneesPrivees: false },
+    );
     const analyse: RapportPrematch["analyse"] = rap.matchsAnalyses === 0 ? null : {
       matchsAnalyses: rap.matchsAnalyses,
       scoreDanger: rap.scoreDanger, scoreChaos: rap.scoreChaos, fatigueMoy: rap.fatigueMoy,

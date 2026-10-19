@@ -7,6 +7,7 @@
 import { BarChart3, FileUp, ShieldCheck } from "lucide-react";
 
 import { Logo } from "@/features/shell/components/Logo";
+import { LiensLegaux } from "@/features/legal/components/LiensLegaux";
 
 const ATOUTS = [
   { icon: FileUp, titre: "Import des feuilles de match", texte: "Glissez la FMI en PDF : compositions, cartons, remplacements et arbitres sont lus pour vous." },
@@ -59,6 +60,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             <div className="font-display text-xl font-bold text-ink">Foot Analytics</div>
           </div>
           {children}
+          <LiensLegaux className="mt-10" />
         </div>
       </div>
     </div>

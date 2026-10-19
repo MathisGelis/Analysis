@@ -11,13 +11,14 @@
 
 import "reflect-metadata";
 import { INestApplication, Module, ValidationPipe } from "@nestjs/common";
-import { NestFactory, APP_GUARD } from "@nestjs/core";
+import { NestFactory, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { DataSource, DeepPartial } from "typeorm";
 
 import { Utilisateur } from "@/features/utilisateurs/utilisateur.entity";
 import { AccesGuard } from "@/features/acces/acces.guard";
+import { VisibiliteInterceptor } from "@/features/acces/visibilite.interceptor";
 import { AccesModule } from "@/features/acces/acces.module";
 import { AuthModule } from "@/features/auth/auth.module";
 import { AuthService } from "@/features/auth/auth.service";
@@ -42,6 +43,8 @@ import { TactiquesModule } from "@/features/tactiques/tactiques.module";
 import { IaModule } from "@/features/ia/ia.module";
 import { SanteModule } from "@/features/sante/sante.module";
 import { SeedModule } from "@/features/seed/seed.module";
+import { LimiteurGuard, LimitesModule } from "@/features/limites/limites.module";
+import { AuditModule } from "@/features/audit/audit.module";
 
 import { fabriques, optionsBaseTest } from "./test-db";
 
@@ -61,6 +64,7 @@ export interface AppTest {
 
 export async function creerAppTest(): Promise<AppTest> {
   process.env.AUTO_SEED = "false";             // pas de donnees de demonstration : le test construit son propre monde
+  process.env.ENTRETIEN_AUTO = "false";        // pas d'entretien planifie des comptes : les tests l'appellent a la main
   const { options, supprimer } = await optionsBaseTest();
 
   @Module({
@@ -70,10 +74,13 @@ export async function creerAppTest(): Promise<AppTest> {
       AccesModule, SeedModule, ClubsModule, EquipesModule, JoueursModule, MatchsModule, EntrainementsModule,
       BlessuresModule, ScoutingModule, ClassementModule, StatsModule, FmiModule, DerivationModule, ArbitresModule,
       AnalyseModule, CoachsModule, SaisonsModule, AuthModule, UtilisateursModule, TactiquesModule, IaModule, SanteModule,
+      LimitesModule, AuditModule,
     ],
     providers: [
       { provide: APP_GUARD, useClass: JwtAuthGuard },
       { provide: APP_GUARD, useClass: AccesGuard },
+      { provide: APP_GUARD, useClass: LimiteurGuard },
+      { provide: APP_INTERCEPTOR, useClass: VisibiliteInterceptor },
     ],
   })
   class AppDeTest {}

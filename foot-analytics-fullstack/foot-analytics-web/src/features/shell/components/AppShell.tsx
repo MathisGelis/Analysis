@@ -10,6 +10,8 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { EVENEMENT_RECHERCHE } from "@/features/recherche/components/RechercheGlobale";
+import { AccordCgu } from "@/features/legal/components/AccordCgu";
+import { LiensLegaux } from "@/features/legal/components/LiensLegaux";
 
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
@@ -63,7 +65,11 @@ export function AppShell({
       <main className="relative z-10 min-w-0 flex-1">
         <TopBar onOuvrirMenu={() => setMobileOuvert(true)} />
         <div id="contenu" tabIndex={-1} className="mx-auto max-w-[1500px] px-4 py-6 outline-none sm:px-6 lg:px-8">{children}</div>
+        <footer className="mx-auto max-w-[1500px] px-4 pb-6 print:hidden sm:px-6 lg:px-8">
+          <LiensLegaux />
+        </footer>
       </main>
+      <AccordCgu />
     </div>
   );
 }

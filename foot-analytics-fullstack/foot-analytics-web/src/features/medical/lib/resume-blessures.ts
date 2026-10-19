@@ -11,7 +11,6 @@ const JOUR_MS = 86_400_000;
 export interface BlessureSaison {
   id: string;
   joueurId: string;
-  joueurNom?: string | null;
   localisation?: string | null;
   gravite?: string | null;
   dateDebut?: string | null;
@@ -105,7 +104,7 @@ export function resumerBlessures(
   blessures: readonly BlessureSaison[], anneeDebut: number, maintenant: number, noms: ReadonlyMap<string, string> = new Map(),
 ): ResumeBlessures {
   const fenetre = fenetreSaison(anneeDebut);
-  const nomDe = (b: BlessureSaison) => noms.get(b.joueurId) ?? (b.joueurNom?.trim() || "Joueur inconnu");
+  const nomDe = (b: BlessureSaison) => noms.get(b.joueurId) ?? "Joueur inconnu";
   const avecJours = blessures.map((b) => ({ b, jours: joursDansLaSaison(b, fenetre, maintenant), enCours: blessureEnCours(b) }));
 
   const terminees = avecJours.filter((x) => !x.enCours && lireJour(x.b.dateDebut) !== null && lireJour(x.b.retourEstime) !== null);

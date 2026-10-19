@@ -80,8 +80,12 @@ export class AnalyseService {
     @Optional() private readonly ia?: IaService,
   ) {}
 
+  /**
+   * `donneesPrivees` : le demandeur est du club analyse. Sinon (un adversaire), rien de ce que ce club a saisi en prive
+   * n'entre dans le rapport : pas de fatigue (elle mele seances et blessures du club), voir acces/visibilite.ts.
+   */
   async rapportClub(
-    clubId: string, portee: { equipeId?: string; saisonId?: string } = {},
+    clubId: string, portee: { equipeId?: string; saisonId?: string } = {}, options: { donneesPrivees?: boolean } = {},
   ): Promise<RapportEquipe> {
     const club = await this.clubs.findOne({ where: { id: clubId } });
     if (!club) throw new NotFoundException(`Club ${clubId} introuvable`);
@@ -527,7 +531,7 @@ export class AnalyseService {
     const fatigues = titulairesPresumes
       .map((j) => j.scoreFatigue)
       .filter((f): f is number => typeof f === "number");
-    const fatigueMoy = saison?.actif && fatigues.length > 0 ? +avg(fatigues).toFixed(0) : null;
+    const fatigueMoy = options.donneesPrivees && saison?.actif && fatigues.length > 0 ? +avg(fatigues).toFixed(0) : null;
     const scoreDanger = Math.round(clamp(
       40
       + bpAvg * 15            // attaque qui marque

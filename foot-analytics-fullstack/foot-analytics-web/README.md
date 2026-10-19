@@ -14,8 +14,18 @@ backend (`foot-analytics-api/parser/`, avec la feuille de reference et ses tests
 
 Ce front est concu pour fonctionner avec le backend **`foot-analytics-api`**
 (NestJS, fourni separement). Le front lit et ecrit via son client
-`src/shared/lib/api.ts`, qui appelle l'URL definie par `NEXT_PUBLIC_API_URL`
-(defaut `http://localhost:4000/api`).
+`src/shared/lib/api.ts`. Le navigateur n'appelle jamais l'API directement : il passe par le serveur Next (BFF),
+qui relaie `/api/backend/*` vers l'URL de `API_URL` (a defaut `NEXT_PUBLIC_API_URL`, defaut `http://localhost:4000/api`)
+en y ajoutant le jeton de session.
+
+**Session (voir `src/features/auth/lib/session-serveur.ts`)** : les jetons vivent dans deux cookies poses par le serveur
+Next, `HttpOnly`, `Secure` (production), `SameSite=Lax` : `fa_access` (15 min) et `fa_refresh` (30 jours glissants,
+rotation a chaque usage). Aucun jeton dans le `localStorage`. Connexion, deconnexion (y compris de tous les appareils)
+et changement de mot de passe : routes `/api/session/*`. Le middleware rafraichit la session, protege les pages, pose
+une Content-Security-Policy par nonce et refuse les ecritures venues d'un autre site.
+
+Variables du front (Vercel) : `API_URL` (URL de l'API, jamais exposee au navigateur) et `BFF_SECRET` (meme valeur que
+cote API : l'adresse IP des visiteurs est transmise a l'API pour ses limites de connexion).
 
 - **Si le backend tourne** : toutes les pages lisent les donnees en base, et
   les pages d'edition (effectif, fiche joueur, entrainements, import FMI)

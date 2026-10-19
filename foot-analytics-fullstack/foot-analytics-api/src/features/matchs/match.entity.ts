@@ -33,7 +33,10 @@ export class Match {
   @Column({ nullable: true }) formationDom: string;
   @Column({ nullable: true }) formationExt: string;
   @Column({ default: "joue" }) statut: string;
-  @Column({ nullable: true }) pdfUrl: string;
+  // Provenance de la feuille de match importee : quand, et par quel compte (identifiant). Le numero de la rencontre
+  // est numeroFmi. Le PDF lui-meme n'est jamais conserve (fichier temporaire supprime apres lecture).
+  @Column({ type: "varchar", nullable: true }) fmiImporteeLe: string | null;
+  @Column({ type: "varchar", nullable: true }) fmiImporteePar: string | null;
   @CreateDateColumn() createdAt: Date;
 
   @OneToMany(() => Composition, (c) => c.match, { cascade: true }) compositions: Composition[];

@@ -37,7 +37,18 @@ pip install -r parser/requirements.txt
 | Variable | Defaut | Role |
 |---|---|---|
 | `PORT` | `4000` | Port d'ecoute |
-| `CORS_ORIGIN` | `http://localhost:3000` | Origine autorisee (le front) |
+| `CORS_ORIGIN` | `http://localhost:3000` (aucune en production) | Origines autorisees ; le navigateur passe par le serveur Next (BFF), l'API n'en a normalement pas besoin |
+| `JWT_SECRET` | secret de dev | **Obligatoire en production** (32 caracteres min., `openssl rand -hex 32`) |
+| `ADMIN_INITIAL_PASSWORD` | aleatoire | Base vide : mot de passe a usage unique du compte `AADMIN` (sinon tire au hasard et affiche une fois) |
+| `BFF_SECRET` | — | Secret partage avec le front : l'API croit l'adresse IP transmise par le BFF (limites de connexion) |
+| `TRUST_PROXY` | — | Nombre de proxys devant l'API (Render : `1`) |
+| `SESSION_JOURS` | `30` | Duree de vie glissante d'une session (jeton de rafraichissement) |
+| `INACTIVITE_MOIS` | `12` | Comptes educateur/referent desactives apres ce delai sans connexion |
+| `AUDIT_RETENTION_MOIS` | `12` | Conservation du journal d'audit |
+| `ALERTE_WEBHOOK_URL` | — | Webhook (Slack, Discord...) prevenu des alertes du journal d'audit |
+| `LIMITE_REQUETES_MINUTE` | `300` | Requetes par minute et par compte (anti-extraction) |
+| `LIMITE_CONNEXIONS_MINUTE` / `LIMITE_CONNEXIONS_LOGIN` | `10` / `10` | Tentatives de connexion par minute et par IP / par quart d'heure et par login |
+| `ENTRETIEN_AUTO` | actif | `false` : pas d'entretien quotidien (comptes inactifs, purges) |
 | `DB_TYPE` | `sqlite` | `sqlite` (sql.js) ou `postgres` |
 | `SQLITE_PATH` | `foot-analytics.sqlite` | Fichier SQLite |
 | `DATABASE_URL` | — | Connexion Postgres/Supabase si `DB_TYPE=postgres` (voir ci-dessous) |
@@ -336,12 +347,25 @@ quand les saisons s'accumulent ; l'ecran admin (`/admin/ia`) dit honnetement si 
 Une blessure qui chevauche une autre du meme joueur est refusee (`409`,
 `code: "BLESSURE_CHEVAUCHANTE"`, liste `conflits`) sauf `forcer: true`.
 
+### Authentification et sessions
+- `POST /auth/login` (public, limite par IP et par login) : jeton d'acces **15 min** + jeton de rafraichissement (opaque,
+  30 jours glissants, stocke en base sous forme d'empreinte). `POST /auth/refresh` : rotation (rejeu d'un jeton deja
+  remplace = toute la famille revoquee). `POST /auth/logout`, `POST /auth/logout-all` (tous les appareils : version de
+  jeton incrementee, jetons d'acces deja emis refuses). `POST /auth/change-password` (politique : 12 caracteres,
+  pas de mot de passe courant ni de nom ; ferme les autres sessions). `POST /auth/cgu` (acceptation versionnee).
+- 5 echecs consecutifs : compte verrouille 15 min (`429`). Compte desactive : `403` avec le bon mot de passe.
+- Mot de passe **temporaire a usage unique**, tire au hasard a la creation et a la reinitialisation : tant qu'il n'est pas
+  change, toute route autre que profil / changement de mot de passe / deconnexion repond `403 MOT_DE_PASSE_A_CHANGER`.
+- Le navigateur ne voit jamais les jetons : le serveur Next les range dans des cookies HttpOnly (voir le README du front).
+- Voir aussi `SECURITE-RGPD.md` a la racine du depot.
+
 ### Comptes et roles
 Trois roles : `admin`, `referent` (referent d'un club) et `user` (educateur).
 - `GET/POST /utilisateurs` · `GET/PATCH/DELETE /utilisateurs/:id` : reserves a l'administrateur et au referent.
   L'**administrateur** gere tous les comptes. Le **referent** ne voit et ne gere que les comptes `user` de SON club :
-  il peut en creer autant qu'il veut (mot de passe initial a changer a la 1re connexion), leur attribuer des equipes de
-  son club (aucune equipe = toutes), les modifier, reinitialiser leur mot de passe et les supprimer. Il ne peut jamais
+  il peut en creer autant qu'il veut (mot de passe temporaire aleatoire, renvoye une fois, a transmettre hors bande), leur
+  attribuer des equipes de son club (aucune equipe = toutes), les modifier, reinitialiser leur mot de passe
+  (`reinitialiserMotDePasse: true`), les desactiver ou reactiver (`actif`) et les supprimer. Il ne peut jamais
   creer d'admin ni de referent, ni sortir de son club : `403` ; un compte hors de son perimetre est `404`.
   Les droits sont lus en base a chaque appel (pas dans le jeton).
 - Chaque compte renvoie son **createur** (`createur: { id, login, prenom, nom }`, `null` pour un compte anterieur au
@@ -368,7 +392,12 @@ ne filtre rien : il affiche ce que l'API renvoie.
   scouting, analyses) : lisibles par tous les comptes connectes, **hors des saisons fermees au compte** : listes filtrees,
   lecture par identifiant `404`, parametre `saisonId` ferme `404` (ou liste vide). Sans `saisonId` ni `equipeId`, une analyse
   ou un bilan d'un compte restreint porte sur la saison actuelle. Pour un joueur d'un autre club, les champs prives
-  (commentaire, fatigue, morphologie...) sont retires.
+  (licence, date de naissance, morphologie, sante, fatigue, commentaire) sont retires : la matrice est definie dans
+  `features/acces/visibilite.ts` et appliquee aussi par un intercepteur global sur toutes les reponses.
+- **Donnees medicales** : une blessure appartient au club qui l'a saisie ; seul ce club la lit (`404` sinon), elle ne
+  suit pas le joueur s'il change de club et n'entre dans aucune statistique, analyse, recherche ni export d'un autre club.
+  Lectures et ecritures tracees (journal d'audit). `test/features/acces/isolation-clubs.http.spec.ts` parcourt toutes
+  les routes de lecture pour chaque role des deux clubs.
 - **Donnees privees d'un club** (seances, plans de jeu, blessures, effectif saisi) et **ecritures** : limitees au club du compte
   et, pour un educateur, a ses equipes ; une equipe d'un autre club ou non attribuee est `403` (`404` si sa saison est fermee).
   Un match ne se programme ou ne se modifie que si l'un des deux clubs est le sien ; rien ne se deplace vers un autre club
@@ -385,6 +414,8 @@ ne filtre rien : il affiche ce que l'API renvoie.
 
 ### Administration
 - `POST   /seed/reset` — vide et recree les donnees de demonstration (administrateur seulement ; refuse sur Postgres).
+- `GET    /audit?action=&utilisateurId=&depuis=&jusqua=&page=&parPage=` — journal d'audit (administrateur, lecture seule ;
+  `action=alerte.*` pour les alertes). Aucune route ne modifie ni n'efface une trace ; purge automatique apres 12 mois.
 
 ## Exemples
 
@@ -401,7 +432,7 @@ curl -X POST http://localhost:4000/api/entrainements \
 
 # Importer une feuille FMI
 curl -X POST http://localhost:4000/api/fmi/import \
-  -F "file=@parser/FMI_Neuville1.pdf"
+  -F "file=@parser/tests/fixtures/FMI_reference_anonyme.pdf"
 ```
 
 ## Tests

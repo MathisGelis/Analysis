@@ -5,7 +5,7 @@ import { Equipe } from "@/features/equipes/equipe.entity";
 import { Joueur } from "@/features/joueurs/joueur.entity";
 import { Match } from "@/features/matchs/match.entity";
 import { Saison } from "@/features/saisons/saison.entity";
-import { OPTIONS_ENTITES } from "@/database/entities";
+import { ALL_ENTITIES, OPTIONS_ENTITES } from "@/database/entities";
 import { creerBaseTest, fabriques, TESTS_SUR_POSTGRES } from "@test/support/test-db";
 import { convertirValeur, copierBase, ordreDeCopie, tailleDeLot } from "@/database/copie-base";
 
@@ -21,7 +21,7 @@ describe("ordreDeCopie / tailleDeLot / convertirValeur", () => {
     avant("clubs", "equipes"); avant("saisons", "equipes"); avant("clubs", "joueurs");
     avant("matchs", "compositions"); avant("matchs", "evenements_match");
     avant("arbitres", "arbitres_matchs"); avant("coachs", "staff_matchs");
-    expect(ordre).toHaveLength(21);
+    expect(ordre).toHaveLength(ALL_ENTITIES.length);
     await ds.destroy();
   });
 

@@ -1,15 +1,16 @@
 "use client";
 // src/shared/ui/AdminOnglets.tsx
 //
-// Onglets de l'espace d'administration (pages distinctes, donc de vrais liens) : les comptes et l'IA.
+// Onglets de l'espace d'administration (pages distinctes, donc de vrais liens) : les comptes, le journal d'audit et l'IA.
 // Reserve a l'administrateur : le referent n'a que la gestion de ses educateurs.
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Brain, Users } from "lucide-react";
+import { Brain, ScrollText, Users } from "lucide-react";
 
 const ONGLETS = [
   { href: "/admin/utilisateurs", label: "Comptes", icon: Users },
+  { href: "/admin/journal", label: "Journal", icon: ScrollText },
   { href: "/admin/ia", label: "IA", icon: Brain },
 ] as const;
 

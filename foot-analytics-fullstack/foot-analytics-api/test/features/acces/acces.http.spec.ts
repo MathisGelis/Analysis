@@ -8,6 +8,7 @@ import { RapportScouting } from "@/features/scouting/rapport-scouting.entity";
 import { Saison } from "@/features/saisons/saison.entity";
 import { StaffMatch } from "@/features/coachs/staff-match.entity";
 import { Utilisateur } from "@/features/utilisateurs/utilisateur.entity";
+import { Joueur } from "@/features/joueurs/joueur.entity";
 import { AppTest, creerAppTest } from "@test/support/app-test";
 import { creerMonde, Monde } from "@test/support/monde";
 
@@ -264,7 +265,10 @@ describe("API : acces", () => {
   describe("joueurs", () => {
     it("fiches : les champs prives (commentaire, fatigue, morphologie) ne sortent que pour mon club ; l'admin voit tout", async () => {
       const p = await profils();
-      const liste = async (c: { jeton: string }) => (await t.appel(c)("GET", "/joueurs")).corps as any[];
+      // Un club a la fois (anti-extraction) : la liste de chaque club, mise bout a bout.
+      const liste = async (c: { jeton: string }) => [
+        ...(await t.appel(c)("GET", `/joueurs?clubId=${m.ol.id}`)).corps, ...(await t.appel(c)("GET", `/joueurs?clubId=${m.mions.id}`)).corps,
+      ] as any[];
       const mien = (l: any[]) => l.find((j) => j.id === m.joueurOl.id);
       const adverse = (l: any[]) => l.find((j) => j.id === m.joueurMions.id);
 
@@ -273,10 +277,14 @@ describe("API : acces", () => {
       expect(adverse(vuParLibre)).toMatchObject({ nom: "MARTIN", buts: 2, commentaire: null, tailleCm: null, scoreFatigue: null });
       expect(adverse(await liste(p.admin))).toMatchObject({ commentaire: "note privee de Mions", tailleCm: 178 });
 
+      expect((await t.appel(p.libre)("GET", "/joueurs")).statut).toBe(400);                    // toute la base d'un coup : non
+      expect((await t.appel(p.admin)("GET", "/joueurs")).statut).toBe(200);
       expect((await t.appel(p.libre)("GET", `/joueurs/${m.joueurMions.id}`)).corps.commentaire).toBeNull();
       expect((await t.appel(p.libre)("GET", `/joueurs/${m.joueurOl.id}`)).corps.commentaire).toBe("gaucher, rapide");
-      const trouves = (await t.appel(p.libre)("GET", "/joueurs/search?q=martin")).corps as any[];
+      const trouves = (await t.appel(p.libre)("POST", "/joueurs/recherche", { q: "martin" })).corps as any[];
       expect(trouves.find((j) => j.id === m.joueurMions.id)?.commentaire).toBeNull();
+      // Plus aucun nom dans une URL : l'ancienne recherche en GET n'existe plus.
+      expect((await t.appel(p.libre)("GET", "/joueurs/search?q=martin")).statut).toBe(404);
     });
 
     it("effectif et championnat : equipe d'une saison fermee ou equipe de mon club non attribuee = 404 ; equipe adverse lisible, sans ses champs prives", async () => {
@@ -346,19 +354,36 @@ describe("API : acces", () => {
 
     it("lecture, creation, modification, suppression : joueur de mon club et saison ouverte", async () => {
       const p = await profils();
-      expect((await t.appel(p.libre)("GET", `/blessures/${m.blessureMions.id}`)).statut).toBe(403);
+      // La blessure d'un autre club n'existe pas pour moi (404 : on ne revele pas qu'elle existe).
+      expect((await t.appel(p.libre)("GET", `/blessures/${m.blessureMions.id}`)).statut).toBe(404);
       expect((await t.appel(p.courant)("GET", `/blessures/${m.blessure24.id}`)).statut).toBe(404);
       expect((await t.appel(p.libre)("GET", `/blessures/${m.blessure24.id}`)).statut).toBe(200);
 
-      const neuve = { joueurId: m.joueurOl.id, joueurNom: "DURAND Luc", localisation: "Dos", dateDebut: "2026-10-02", statut: "Indisponible", forcer: true };
+      const neuve = { joueurId: m.joueurOl.id, localisation: "Dos", dateDebut: "2026-10-02", statut: "Indisponible", forcer: true };
       expect((await t.appel(p.libre)("POST", "/blessures", { ...neuve, joueurId: m.joueurMions.id })).statut).toBe(403);
       expect((await t.appel(p.courant)("POST", "/blessures", { ...neuve, dateDebut: "2024-10-02" })).statut).toBe(404);
       const creee = await t.appel(p.libre)("POST", "/blessures", neuve);
       expect(creee.statut).toBe(201);
       expect((await t.appel(p.libre)("PATCH", `/blessures/${creee.corps.id}`, { ...neuve, joueurId: m.joueurMions.id })).statut).toBe(403);
-      expect((await t.appel(p.libre)("PATCH", `/blessures/${m.blessureMions.id}`, { ...neuve, details: "x" })).statut).toBe(403);
-      expect((await t.appel(p.libre)("DELETE", `/blessures/${m.blessureMions.id}`)).statut).toBe(403);
+      expect((await t.appel(p.libre)("PATCH", `/blessures/${m.blessureMions.id}`, { ...neuve, details: "x" })).statut).toBe(404);
+      expect((await t.appel(p.libre)("DELETE", `/blessures/${m.blessureMions.id}`)).statut).toBe(404);
+      expect(creee.corps.clubId).toBe(m.ol.id);                                    // propriete du club qui l'a saisie
       expect((await t.appel(p.libre)("DELETE", `/blessures/${creee.corps.id}`)).statut).toBe(200);
+    });
+
+    it("transfert : les blessures ne suivent pas le joueur ; son nouveau club ne les voit pas, l'ancien les garde", async () => {
+      const p = await profils();
+      const mionsEduc = await t.compte({ login: "MEDUC", role: "referent", clubId: m.mions.id });
+      // Le joueur d'OL part a Mions.
+      await t.ds.getRepository(Joueur).update(m.joueurOl.id, { clubId: m.mions.id });
+
+      const vuesMions = ids(await t.appel(mionsEduc)("GET", `/blessures?joueurId=${m.joueurOl.id}`));
+      expect(vuesMions).toEqual([]);
+      expect((await t.appel(mionsEduc)("GET", `/blessures/${m.blessure26.id}`)).statut).toBe(404);
+      expect(ids(await t.appel(p.libre)("GET", `/blessures?joueurId=${m.joueurOl.id}`))).toEqual([m.blessure26.id, m.blessure24.id].sort());
+      // Sa fiche, vue de son ancien club : c'est desormais un joueur d'un autre club, plus rien de prive n'en sort.
+      const fiche = (await t.appel(p.libre)("GET", `/joueurs/${m.joueurOl.id}`)).corps;
+      expect(fiche).toMatchObject({ scoreFatigue: null, commentaire: null, tailleCm: null, licence: null });
     });
   });
 

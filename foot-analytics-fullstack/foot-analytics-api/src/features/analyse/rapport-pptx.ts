@@ -55,7 +55,7 @@ const ETENDUE_Y = 2377440;         // ecart entre les ronds extremes d'une ligne
 const NOM_HAUTEUR = 140000;
 const NOM_ID0 = 1001;              // identifiants des noms ajoutes (le modele s'arrete a 247)
 
-/** Raccourcit un nom pour qu'il tienne sous son rond : "VIGUSAGUZ KILOV" -> "VIGUSAGUZ B.". */
+/** Raccourcit un nom pour qu'il tienne sous son rond : "VIGUSAGUZ KILOV" -> "VIGUSAGUZ K.". */
 function abreger(nom: string, max: number): string {
   if (nom.length <= max) return nom;
   const mots = nom.split(" ");

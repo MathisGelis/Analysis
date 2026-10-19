@@ -202,8 +202,8 @@ function ExistantPanel({
                     </div>
                     <div className="text-[10px] text-faint">
                       <ClubDuJoueur clubId={j.clubId} />
-                      {j.licence ? `Licence ${j.licence}` : "Sans licence"}
-                      {j.poste && ` · ${j.poste}`}
+                      {/* La licence d'un joueur d'un autre club n'est pas communiquee (matrice de visibilite). */}
+                      {[j.licence ? `Licence ${j.licence}` : null, j.poste].filter(Boolean).join(" · ")}
                     </div>
                   </div>
                   {dejaDansCette ? (
@@ -369,7 +369,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-/** Club le plus recent du joueur, devant sa licence ("Mions · Licence 25..."). */
+/** Club le plus recent du joueur, devant sa licence et son poste ("Mions · Licence 25..."). */
 function ClubDuJoueur({ clubId }: { clubId?: string | null }) {
   const club = useClub(clubId);
   return club ? <><span className="font-semibold text-muted">{club.nom}</span> · </> : null;

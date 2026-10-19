@@ -1,13 +1,14 @@
 "use client";
 // src/features/shell/components/SettingsDrawer.tsx
 //
-// Drawer (panneau coulissant droit) pour les preferences utilisateur.
-// Pour l'instant : juste le toggle theme. Pensé pour grandir (langue,
-// densite, raccourcis clavier...).
+// Drawer (panneau coulissant droit) pour les preferences utilisateur : theme, et securite du compte (changer de mot
+// de passe, se deconnecter de tous les appareils).
 
-import { useEffect } from "react";
-import { Moon, Sun, X, Monitor } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { KeyRound, LogOut, Moon, Sun, X, Monitor } from "lucide-react";
 
+import { deconnecter } from "@/features/auth/lib/auth";
 import { useTheme } from "@/features/shell/lib/theme-context";
 import { debug } from "@/shared/lib/debug";
 
@@ -18,6 +19,7 @@ export function SettingsDrawer({
   onClose: () => void;
 }) {
   const { theme, set } = useTheme();
+  const [partout, setPartout] = useState(false);
 
   // Echap pour fermer.
   useEffect(() => {
@@ -132,6 +134,27 @@ export function SettingsDrawer({
             <div className="mt-4 panel-inset px-3 py-2 text-[11px] text-muted flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-accent pulse-live"/>
               Mode actuel : <span className="text-ink font-semibold">{theme === "dark" ? "Sombre" : "Clair"}</span>
+            </div>
+          </section>
+
+          {/* Section : compte et securite */}
+          <section>
+            <div className="h-section mb-3">Compte et securite</div>
+            <div className="space-y-2">
+              <Link href="/change-password" className="btn w-full justify-start" onClick={onClose}>
+                <KeyRound size={14}/> Changer mon mot de passe
+              </Link>
+              <button
+                type="button"
+                className="btn w-full justify-start hover:!text-danger"
+                disabled={partout}
+                onClick={() => { setPartout(true); void deconnecter(true); }}
+              >
+                <LogOut size={14}/> Me deconnecter de tous les appareils
+              </button>
+              <p className="text-[11px] leading-relaxed text-faint">
+                A utiliser apres une connexion sur un appareil partage ou perdu : toutes tes sessions sont fermees.
+              </p>
             </div>
           </section>
 

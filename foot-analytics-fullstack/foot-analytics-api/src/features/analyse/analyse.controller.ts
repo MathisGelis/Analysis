@@ -5,6 +5,7 @@ import { BadRequestException, Controller, Get, Param, Query, StreamableFile } fr
 import { Acces } from "@/features/acces/acces.decorator";
 import { AccesService } from "@/features/acces/acces.service";
 import { ContexteAcces } from "@/features/acces/contexte-acces";
+import { JournalAuditService } from "@/features/audit/journal-audit.service";
 
 import { DESCRIPTION_PAGES, lirePages, PAGES_RAPPORT } from "./rapport-pptx-contenu";
 import { PrematchService } from "./prematch.service";
@@ -15,7 +16,7 @@ import { AnalyseService } from "./analyse.service";
 export class AnalyseController {
   constructor(
     private svc: AnalyseService, private prematchSvc: PrematchService, private situationSvc: SituationService,
-    private acces: AccesService,
+    private acces: AccesService, private journal: JournalAuditService,
   ) {}
 
   // Equipe consultable et saison ouverte ; sans precision, un compte aux saisons restreintes obtient la saison actuelle.
@@ -26,7 +27,7 @@ export class AnalyseController {
     @Query("equipeId") equipeId?: string,
     @Query("saisonId") saisonId?: string,
   ) {
-    return this.svc.rapportClub(clubId, await this.acces.portee(ctx, { equipeId, saisonId }));
+    return this.svc.rapportClub(clubId, await this.acces.portee(ctx, { equipeId, saisonId }), { donneesPrivees: ctx.gereClub(clubId) });
   }
 
   /** Dispositif joue (d'apres les matchs renseignes) et dernier onze d'un club, ou de l'une de ses equipes. */
@@ -86,6 +87,10 @@ export class AnalyseController {
     await this.acces.equipe(ctx, equipeId);
     if (matchId) await this.acces.match(ctx, matchId);
     const { fichier, nom } = await this.prematchSvc.exporterPptx(equipeId, adversaireId, matchId || null, choisies);
+    await this.journal.noter("export.pptx", {
+      acteur: ctx.compte, cible: `club:${adversaireId}`, cibleClubId: adversaireId,
+      details: { equipeId, matchId: matchId || null, pages: choisies.length },
+    });
     return new StreamableFile(fichier, {
       type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
       disposition: `attachment; filename="${nom}"`,

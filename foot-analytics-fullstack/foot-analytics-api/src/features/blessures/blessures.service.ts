@@ -35,10 +35,11 @@ export class BlessuresService {
   }
   /** Blessures du meme joueur dont la periode chevauche celle fournie. */
   async chevauchements(
-    periode: Pick<Blessure, "joueurId" | "dateDebut" | "retourEstime" | "statut">,
+    periode: Pick<Blessure, "joueurId" | "dateDebut" | "retourEstime" | "statut"> & { clubId?: string | null },
     exclureId?: string,
   ): Promise<Blessure[]> {
-    const memeJoueur = await this.repo.find({ where: { joueurId: periode.joueurId } });
+    // Seulement les blessures du meme club : celles d'un ancien club du joueur ne se voient pas.
+    const memeJoueur = await this.repo.find({ where: { joueurId: periode.joueurId, ...(periode.clubId ? { clubId: periode.clubId } : {}) } });
     return memeJoueur.filter((b) => b.id !== exclureId && seChevauchent(periode, b));
   }
 
@@ -68,7 +69,8 @@ export class BlessuresService {
     });
   }
 
-  async create(dto: UpsertBlessureDto) {
+  /** `clubId` : le club qui saisit la blessure (pose par le controleur, jamais par le client). */
+  async create(dto: UpsertBlessureDto & { clubId?: string | null }) {
     const { forcer, ...data } = dto;
     await this.verifierChevauchement(data as any, forcer);
     const cree = await this.repo.save(this.repo.create(data));
@@ -78,6 +80,7 @@ export class BlessuresService {
   async update(id: string, dto: Partial<UpsertBlessureDto>) {
     const b = await this.findOne(id);
     const { forcer, ...data } = dto;
+    delete (data as { clubId?: unknown }).clubId;              // le club proprietaire ne change pas
     Object.assign(b, data);
     await this.verifierChevauchement(b, forcer, id);
     const maj = await this.repo.save(b);

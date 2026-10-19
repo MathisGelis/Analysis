@@ -423,13 +423,25 @@ describe("DerivationService - cartons et arbitres", () => {
     it("joueur indisponible : pas de score de fatigue", async () => {
       figerLHorloge(new Date(2026, 9, 14, 12));
       const { zaz } = await equipeAvecCharge();
-      await ds.getRepository(Blessure).save({ joueurId: zaz.id, joueurNom: "ZAZ Ben", statut: "Indisponible", dateDebut: jour(1) });
+      await ds.getRepository(Blessure).save({ joueurId: zaz.id, clubId: zaz.clubId, statut: "Indisponible", dateDebut: jour(1) });
 
       await svc.recomputeJoueurs();
 
       const j = await ds.getRepository(Joueur).findOneByOrFail({ id: zaz.id });
       expect(j.scoreFatigue).toBeNull();
       expect(JSON.parse(j.fatigueDetail).raison).toBe("indisponible");
+    });
+
+    it("une blessure saisie par un autre club (ancien club du joueur) ne suit pas le joueur", async () => {
+      figerLHorloge(new Date(2026, 9, 14, 12));
+      const { zaz } = await equipeAvecCharge();
+      await ds.getRepository(Blessure).save({ joueurId: zaz.id, clubId: "ancien-club", statut: "Indisponible", dateDebut: jour(1) });
+
+      await svc.recomputeJoueurs();
+
+      const j = await ds.getRepository(Joueur).findOneByOrFail({ id: zaz.id });
+      expect(j.scoreFatigue).not.toBeNull();
+      expect(j.blessuresAnt).toBe(0);
     });
 
     it("aucun effort sur 28 jours : pas de score", async () => {

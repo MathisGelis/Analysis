@@ -1,23 +1,26 @@
 "use client";
 // src/features/auth/components/ChangePasswordPage.tsx
 //
-// Forme le mdp lors de la 1ere connexion (ou pour le changer
-// volontairement plus tard). Apres succes -> redirect from (ou /).
+// Choix du mot de passe a la 1ere connexion (le mot de passe temporaire ne sert qu'a ca) ou plus tard, volontairement.
+// La politique (12 caracteres minimum, pas de mot de passe courant ni de nom...) est appliquee par l'API ; on en
+// rappelle l'essentiel ici. Le changement ferme les autres sessions du compte. Apres succes -> redirect from (ou /).
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Key } from "lucide-react";
 
-import { api } from "@/shared/lib/api";
-import { getCachedUser, setSession } from "@/features/auth/lib/auth";
+import { api, messageApi } from "@/shared/lib/api";
+import { useUtilisateur } from "@/features/auth/lib/session-context";
 import { cheminInterne } from "@/features/auth/lib/redirection";
 
 import { AuthShell } from "./AuthShell";
 
+const LONGUEUR_MIN = 12;
+
 export default function ChangePasswordPage() {
   const params = useSearchParams();
   const from = cheminInterne(params.get("from"));
-  const u = getCachedUser();
+  const u = useUtilisateur();
 
   const [oldP, setOldP] = useState("");
   const [newP, setNewP] = useState("");
@@ -28,23 +31,18 @@ export default function ChangePasswordPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (newP.length < 6) { setError("Le nouveau mot de passe doit faire au moins 6 caracteres."); return; }
+    if (newP.length < LONGUEUR_MIN) { setError(`Le nouveau mot de passe doit faire au moins ${LONGUEUR_MIN} caracteres.`); return; }
     if (newP !== confirmP) { setError("La confirmation ne correspond pas."); return; }
     if (newP === oldP) { setError("Le nouveau mot de passe doit etre different de l'ancien."); return; }
     setLoading(true);
     try {
+      // Le serveur Next repose les cookies de session (nouvelle session, les autres sont fermees).
       await api.authChangePassword(oldP, newP);
-      // Mettre a jour le cache user (mustChangePassword = false).
-      if (u) {
-        // On a pas forcement le token frais : reconnexion silencieuse.
-        const res = await api.authLogin(u.login, newP);
-        setSession(res.token, res.user);
-      }
       // Full reload : meme raison que sur /login, les Server Components
-      // doivent re-rendre avec le nouveau token a jour.
+      // doivent re-rendre avec la nouvelle session.
       window.location.href = from;
     } catch (e: any) {
-      setError(e?.message ?? "Erreur");
+      setError(messageApi(e, "Erreur"));
       setLoading(false);
     }
   }
@@ -66,8 +64,12 @@ export default function ChangePasswordPage() {
       )}
 
       <form onSubmit={submit} className="mt-8 space-y-5">
-        {champ("Ancien mot de passe", oldP, setOldP, { autoFocus: true, autoComplete: "current-password" })}
-        {champ("Nouveau mot de passe (6 caracteres minimum)", newP, setNewP, { autoComplete: "new-password" })}
+        {champ("Mot de passe actuel (ou temporaire)", oldP, setOldP, { autoFocus: true, autoComplete: "current-password" })}
+        {champ(`Nouveau mot de passe (${LONGUEUR_MIN} caracteres minimum)`, newP, setNewP, { autoComplete: "new-password", minLength: LONGUEUR_MIN })}
+        <p className="-mt-3 text-xs leading-relaxed text-faint">
+          Une phrase facile a retenir fait l'affaire (ex. quatre mots). Evite ton nom, ton login et les mots de passe
+          courants : ils sont refuses.
+        </p>
         {champ("Confirmer", confirmP, setConfirmP, { autoComplete: "new-password" })}
 
         {error && (

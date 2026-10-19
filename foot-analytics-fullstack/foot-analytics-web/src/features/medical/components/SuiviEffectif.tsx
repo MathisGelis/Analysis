@@ -10,6 +10,7 @@ import { Activity, AlertTriangle, Heart, HeartPulse } from "lucide-react";
 import { FatigueBar } from "@/features/joueurs/components/FatigueBar";
 import { FatigueLegende } from "@/features/joueurs/components/FatiguePanel";
 import { estEstimation, facteursPrincipaux, lireDetailFatigue, niveauFatigue } from "@/features/joueurs/lib/fatigue";
+import { AideDecision } from "@/features/legal/components/AideDecision";
 
 import { blessureEnCours } from "../lib/blessures";
 import { BlessuresEditeur } from "./BlessuresEditeur";
@@ -64,6 +65,7 @@ export function SuiviEffectif({ effectif, blessures, saisonEnCours }: Props) {
           <h2 className="h-section">Fatigue de l&apos;effectif</h2>
           <span className="text-[11px] text-faint">charge d&apos;entrainement + charge en match, 28 derniers jours</span>
         </div>
+        <AideDecision className="mb-3" texte="Estimation de la charge, aide a la decision non contraignante : elle ne remplace ni l'avis medical ni celui du staff." />
         {!saisonEnCours ? (
           <p className="py-4 text-sm text-muted">
             La fatigue se mesure sur les 4 dernieres semaines d&apos;entrainements et de matchs : elle apparait des que la saison est en cours.

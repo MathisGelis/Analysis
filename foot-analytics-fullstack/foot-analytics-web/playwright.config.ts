@@ -18,6 +18,8 @@ import path from "node:path";
 export const API_PORT = 4100;
 export const WEB_PORT = 3100;
 export const API_URL = `http://localhost:${API_PORT}/api`;
+/** Mot de passe du compte administrateur cree sur la base vierge (ADMIN_INITIAL_PASSWORD de l'API de test). */
+export const MOT_DE_PASSE_INITIAL = "E2e-Initial-Passw0rd";
 const API_DIR = path.resolve(__dirname, "../foot-analytics-api");
 
 export default defineConfig({
@@ -46,16 +48,17 @@ export default defineConfig({
       ignoreHTTPSErrors: true,
       reuseExistingServer: !!process.env.E2E_REUSE_SERVERS,
       timeout: 180_000,
-      env: { API_DIR, PORT: String(API_PORT) },
+      env: { API_DIR, PORT: String(API_PORT), ADMIN_INITIAL_PASSWORD: MOT_DE_PASSE_INITIAL },
     },
     {
       command: `npx next build && npx next start -p ${WEB_PORT}`,
       url: `http://localhost:${WEB_PORT}/login`,
       reuseExistingServer: !!process.env.E2E_REUSE_SERVERS,
       timeout: 300_000,
-      // NEXT_PUBLIC_* est fige a la compilation : le build doit deja viser l'API de test.
-      // Dossier de build dedie : ne pas ecraser le .next d'un `npm run dev` en cours.
-      env: { NEXT_PUBLIC_API_URL: API_URL, NEXT_DIST_DIR: ".next-e2e" },
+      // API_URL : l'API vue du serveur Next (relais /api/backend, Server Components). NEXT_PUBLIC_* est fige a la
+      // compilation : le build vise donc aussi l'API de test. Dossier de build dedie : ne pas ecraser le .next d'un
+      // `npm run dev` en cours.
+      env: { API_URL, NEXT_PUBLIC_API_URL: API_URL, NEXT_DIST_DIR: ".next-e2e" },
     },
   ],
 });

@@ -1,12 +1,12 @@
 // src/features/coachs/coachs.controller.ts
 
-import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Query } from "@nestjs/common";
 
 import { Acces } from "@/features/acces/acces.decorator";
 import { AccesService } from "@/features/acces/acces.service";
 import { ContexteAcces } from "@/features/acces/contexte-acces";
 
-import { CreateCoachDto, UpdateCoachDto, CreateStaffMatchDto } from "./coachs.dto";
+import { CreateCoachDto, UpdateCoachDto, CreateStaffMatchDto, RechercheCoachDto } from "./coachs.dto";
 import { CoachsService } from "./coachs.service";
 
 @Controller("coachs")
@@ -21,10 +21,11 @@ export class CoachsController {
   }
 
   // Les entraineurs sont une donnee de championnat : lisibles par tous, hors matchs des saisons fermees au compte.
-  @Get() find(@Query("clubId") clubId?: string, @Query("q") q?: string) {
-    return this.svc.findAll(clubId, q);
+  @Get() find(@Query("clubId") clubId?: string) {
+    return this.svc.findAll(clubId);
   }
-  @Get("recherche") recherche(@Query("q") q?: string) { return this.svc.rechercher(q ?? ""); }
+  // En POST : le nom cherche ne doit pas apparaitre dans une URL (journaux des serveurs et des proxys).
+  @Post("recherche") @HttpCode(200) recherche(@Body() dto: RechercheCoachDto) { return this.svc.rechercher(dto.q ?? ""); }
   @Get(":id") async one(@Acces() ctx: ContexteAcces, @Param("id") id: string) {
     const c = await this.svc.findOne(id);
     return ctx.saisonsRestreintes ? { ...c, participations: (c.participations ?? []).filter((p) => ctx.voitSaison(p.match?.saisonId)) } : c;

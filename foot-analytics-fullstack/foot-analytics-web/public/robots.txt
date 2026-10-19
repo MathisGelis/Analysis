@@ -1,0 +1,3 @@
+# Application privee (donnees de joueurs) : aucune indexation.
+User-agent: *
+Disallow: /

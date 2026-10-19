@@ -151,10 +151,9 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
     if (!form.localisation) { setError("Selectionne une region."); return; }
     if (!form.dateDebut) { setError("Date de debut requise."); return; }
 
-    const joueur = joueurs.find((j) => j.id === form.joueurId);
+    // Le nom du joueur n'est pas recopie dans la blessure (minimisation) : il se lit sur sa fiche.
     const payload = {
       joueurId: form.joueurId,
-      joueurNom: joueur ? `${joueur.prenom ?? ""} ${joueur.nom}`.trim() : undefined,
       localisation: form.localisation || undefined,
       dateDebut: form.dateDebut || undefined,
       retourEstime: form.retourEstime || undefined,

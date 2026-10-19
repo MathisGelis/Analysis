@@ -26,6 +26,7 @@ import { ClubBadge } from "@/features/clubs/components/ClubBadge";
 import { DonutStat } from "@/shared/ui/Charts";
 import { OngletsDossier } from "@/features/rapports/components/OngletsDossier";
 import { verdictPage } from "@/features/shell/lib/garde-page";
+import { AideDecision } from "@/features/legal/components/AideDecision";
 
 import { CourbeGlissante } from "./CourbeGlissante";
 import { InsightsGrid } from "./InsightsGrid";
@@ -386,6 +387,7 @@ export default async function RapportEquipe({
             <Users size={11} className="text-accent"/>
             Compo probable ({rapport.compoProbable.length}/11)
           </div>
+          <AideDecision className="-mt-1.5 mb-3" />
           {rapport.compoProbableSource === "modele" ? (
             <p className="-mt-1.5 mb-3 text-[11px] text-faint">
               Predite par le modele de l'IA ({rapport.compoProbableModele ?? "modele actif"}), d'apres les {rapport.compoProbableSur} dernieres feuilles :

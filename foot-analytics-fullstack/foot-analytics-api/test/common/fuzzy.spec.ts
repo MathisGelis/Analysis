@@ -24,7 +24,7 @@ describe("scoreRecherche", () => {
   const libelles = (nom: string, prenom: string) => [`${nom} ${prenom}`, `${prenom} ${nom}`];
 
   it("prefixe exact = score maximal, insensible aux accents et a la casse", () => {
-    expect(scoreRecherche("diag", libelles("KABIFUP", "Lumipi"))).toBe(1);
+    expect(scoreRecherche("kabi", libelles("KABIFUP", "Lumipi"))).toBe(1);
     expect(scoreRecherche("LUMIPI", libelles("KABIFUP", "Lumipi"))).toBe(1);
     expect(scoreRecherche("leo", libelles("MARCON", "Léo"))).toBe(1);
   });
@@ -35,13 +35,13 @@ describe("scoreRecherche", () => {
   });
 
   it("tolere une faute de frappe", () => {
-    expect(scoreRecherche("diagolla", libelles("KABIFUP", "Lumipi"))).toBeGreaterThan(0.6);
+    expect(scoreRecherche("kabifupp", libelles("KABIFUP", "Lumipi"))).toBeGreaterThan(0.6);
     expect(scoreRecherche("dupond", libelles("DUPONT", "Jean"))).toBeGreaterThan(0.6);
   });
 
   it("sous-chaine moins bien classee qu'un prefixe", () => {
-    const prefixe = scoreRecherche("ola", libelles("OLAGNIER", "Paul"));
-    const sousChaine = scoreRecherche("ola", libelles("KABIFUP", "Lumipi"));
+    const prefixe = scoreRecherche("bif", libelles("BIFARDI", "Paul"));
+    const sousChaine = scoreRecherche("bif", libelles("KABIFUP", "Lumipi"));
     expect(prefixe).toBeGreaterThan(sousChaine);
     expect(sousChaine).toBeGreaterThan(0);
   });
@@ -56,7 +56,7 @@ describe("scoreRecherche", () => {
   });
 
   it("une requete d'une ou deux lettres ne fait que du prefixe (pas de faute tolerable)", () => {
-    expect(scoreRecherche("di", libelles("KABIFUP", "Lumipi"))).toBe(1);
-    expect(scoreRecherche("da", libelles("KABIFUP", "Lumipi"))).toBe(0);
+    expect(scoreRecherche("ka", libelles("KABIFUP", "Lumipi"))).toBe(1);
+    expect(scoreRecherche("ku", libelles("KABIFUP", "Lumipi"))).toBe(0);
   });
 });

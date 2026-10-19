@@ -17,6 +17,8 @@
 // Chaque estimation cite ses indices et sa confiance, plafonnee : un numero n'est pas un dispositif saisi par le staff.
 // Fonctions pures.
 
+import { createHash } from "node:crypto";
+
 import { trierChronologiquement } from "@/common/dates";
 import { normaliser } from "@/common/fuzzy";
 import {
@@ -28,12 +30,20 @@ export interface LigneFeuille {
   matchId: string;
   date: string | null;
   journee: string | null;
-  /** Cle stable du joueur : sa licence, sinon son nom normalise. */
+  /**
+   * Cle stable du joueur : une empreinte de sa licence (jamais la licence elle-meme : la cle sort dans les rapports,
+   * lus par les autres clubs), sinon son nom normalise.
+   */
   joueur: string;
   /** Nom d'affichage. */
   nom: string;
   numero: number;
   titulaire: boolean;
+}
+
+/** Empreinte courte et non reversible d'une licence : meme licence, meme cle, sans exposer le numero. */
+export function empreinteLicence(licence: string): string {
+  return createHash("sha256").update(`licence:${licence}`).digest("hex").slice(0, 16);
 }
 
 /** Lignes de feuille d'un match : l'identite d'un joueur est sa licence, a defaut son nom (les feuilles ne portent pas d'id joueur). */
@@ -43,7 +53,7 @@ export function lignesDeFeuille(
 ): LigneFeuille[] {
   return compositions.map((c) => ({
     matchId: match.id, date: match.date ?? null, journee: match.journee ?? null,
-    joueur: c.licence ? `lic:${c.licence}` : `nom:${normaliser(`${c.nom} ${c.prenom ?? ""}`)}`,
+    joueur: c.licence ? `lic:${empreinteLicence(c.licence)}` : `nom:${normaliser(`${c.nom} ${c.prenom ?? ""}`)}`,
     nom: `${c.prenom ?? ""} ${c.nom}`.trim(), numero: c.numero, titulaire: !!c.titulaire,
   }));
 }

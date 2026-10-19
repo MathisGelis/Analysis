@@ -5,12 +5,12 @@
 // le backend puis font un refresh router. Creer, activer une saison et fusionner des equipes
 // concernent tous les clubs : l'API les reserve a l'administrateur, les autres comptes ne voient que la liste.
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, Check, Plus, Star } from "lucide-react";
 
 import { api } from "@/shared/lib/api";
-import { getCachedUser } from "@/features/auth/lib/auth";
+import { useUtilisateur } from "@/features/auth/lib/session-context";
 import { grouperParChampionnat } from "@/features/saisons/lib/championnats";
 import { ClubBadge } from "@/features/clubs/components/ClubBadge";
 import type { Club } from "@/shared/lib/types";
@@ -41,9 +41,8 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
     String(new Date().getFullYear()),
   );
   const [busy, setBusy] = useState(false);
-  // Le role vient du navigateur (jeton en cache) : lu apres le montage, donc sans ecart d'hydratation.
-  const [estAdmin, setEstAdmin] = useState(false);
-  useEffect(() => { setEstAdmin(getCachedUser()?.role === "admin"); }, []);
+  // Le role vient du profil fourni par le layout (meme valeur au rendu serveur et client).
+  const estAdmin = useUtilisateur()?.role === "admin";
 
   const equipesParSaison = (saisonId: string) =>
     equipes.filter((e) => e.saisonId === saisonId);

@@ -24,6 +24,8 @@ import { LigneClassement } from "@/features/classement/ligne-classement.entity";
 import { Match } from "@/features/matchs/match.entity";
 import { RapportScouting } from "@/features/scouting/rapport-scouting.entity";
 import { Saison } from "@/features/saisons/saison.entity";
+import { Session } from "@/features/auth/session.entity";
+import { JournalAudit } from "@/features/audit/journal-audit.entity";
 import { StaffMatch } from "@/features/coachs/staff-match.entity";
 import { StatJoueurEquipe } from "@/features/joueurs/stat-joueur-equipe.entity";
 import { Tactique } from "@/features/tactiques/tactique.entity";
@@ -35,7 +37,8 @@ export const ALL_ENTITIES = [
   Club, Equipe, Joueur, Match, Composition, EvenementMatch,
   Entrainement, Blessure, RapportScouting, LigneClassement,
   Arbitre, ArbitreMatch, Coach, StaffMatch, Saison, Utilisateur,
-  StatJoueurEquipe, Tactique, IaEntrainement, IaModele, IaReglage,
+  StatJoueurEquipe, Tactique, IaEntrainement, IaModele, IaReglage, Session,
+  JournalAudit,
 ];
 
 /** A etendre dans chaque DataSource : les entites et le generateur d'identifiants vont ensemble. */

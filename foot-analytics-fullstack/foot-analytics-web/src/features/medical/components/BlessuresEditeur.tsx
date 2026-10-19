@@ -22,7 +22,6 @@ import { BlessureModal } from "./BlessureModal";
 interface Blessure {
   id: string;
   joueurId: string;
-  joueurNom?: string | null;
   localisation?: string | null;
   dateDebut?: string | null;
   retourEstime?: string | null;

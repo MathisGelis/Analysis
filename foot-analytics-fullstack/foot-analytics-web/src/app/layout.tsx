@@ -12,7 +12,7 @@ import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { AppShell } from "@/features/shell/components/AppShell";
 import { NavProgress } from "@/features/shell/components/NavProgress";
@@ -23,7 +23,8 @@ import { OwnEquipeProvider } from "@/features/equipes/lib/own-equipe-context";
 import { OwnClubProvider } from "@/features/equipes/lib/own-club-context";
 import { getOwnClubIdServer } from "@/features/equipes/lib/own-club";
 import { getOwnEquipeIdServer, getOwnSaisonIdServer } from "@/features/equipes/lib/own-equipe";
-import { getCurrentUserServer } from "@/features/auth/lib/auth";
+import { getCurrentUserServer, type User } from "@/features/auth/lib/auth";
+import { SessionProvider } from "@/features/auth/lib/session-context";
 import { AccesProvider } from "@/features/shell/lib/acces-context";
 import { ClubsProvider } from "@/features/clubs/lib/clubs-context";
 import { api } from "@/shared/lib/api";
@@ -32,6 +33,8 @@ export const metadata: Metadata = {
   title: "Foot Analytics — Console d'entraineur",
   description:
     "Analyse et suivi de saison pour staff de football amateur.",
+  // Application privee : aucune page indexee (voir aussi robots.txt et l'en-tete X-Robots-Tag).
+  robots: { index: false, follow: false, nocache: true },
 };
 
 // Couleur de la barre du navigateur mobile : celle du fond, nuit ou jour (valeurs litterales
@@ -51,10 +54,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // (barre laterale, recherche, selecteur d'equipe) n'a de sens qu'apres
   // connexion. Sur /login elle affichait "Non connecte" et declenchait des
   // appels API refuses.
+  // Un compte au mot de passe temporaire n'a encore acces a rien : pas de coquille, seulement /change-password.
   const utilisateur = await getCurrentUserServer();
-  const connecte = utilisateur !== null;
+  const connecte = utilisateur !== null && !utilisateur.doitChanger;
   // Clubs pour les ecussons (ClubBadge n'a que l'id du club) ; saisons pour la navigation (pages fermees sur une saison passee).
   const [clubs, saisons] = connecte ? await Promise.all([api.clubs(), api.saisons()]) : [[], []];
+  // Profil pour les Client Components (nom, role...), lu avec le jeton du cookie HttpOnly.
+  const profil: User | null = utilisateur ? await api.authMe().catch(() => null) : null;
   // Lecture cookies serveur -> injectee dans les providers.
   // Ces valeurs se rafraichissent a chaque router.refresh(), donc quand
   // le switcher persist un nouveau choix + refresh, tout le Client tree
@@ -63,14 +69,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const initialEquipeId = await getOwnEquipeIdServer();
   const initialSaisonId = await getOwnSaisonIdServer();
   const sidebarRepliee = (await cookies()).get("fa_sidebar")?.value === "replie";
+  // Nonce de la Content-Security-Policy (pose par le middleware) : seul ce script inline est autorise.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
     <html lang="fr" data-theme={initialTheme} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <body>
         <ThemeProvider initialTheme={initialTheme}>
+          <SessionProvider utilisateur={profil}>
           <OwnClubProvider value={initialClubId}>
             <OwnEquipeProvider
               initialEquipeId={initialEquipeId}
@@ -92,6 +101,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </ClubsProvider>
             </OwnEquipeProvider>
           </OwnClubProvider>
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -1,11 +1,10 @@
 // src/features/auth/lib/auth.ts
 //
-// Storage cote client du JWT + helpers session. Stocke dans :
-//  - localStorage  : "fa.token", "fa.user"   (pour le navigateur)
-//  - cookie "fa_token" : pour que le middleware Next + les Server
-//    Components puissent lire le token aussi (lecture serveur).
+// Session cote front. Les jetons ne sont JAMAIS accessibles au JavaScript de la page : ils vivent dans des cookies
+// HttpOnly poses par le serveur Next (voir session-serveur.ts). Le navigateur ne connait que le profil de
+// l'utilisateur, fourni par le layout (contexte, voir session-context.tsx).
 
-import { decoderPayloadJwt } from "./jwt";
+import { decoderPayloadJwt, type JwtPayload } from "./jwt";
 
 export interface User {
   id: string;
@@ -19,79 +18,43 @@ export interface User {
   toutesSaisons?: boolean | null;
   saisonIds?: string[] | null;
   mustChangePassword: boolean;
+  /** Version des conditions d'utilisation acceptee (null : jamais). */
+  cguVersion?: string | null;
 }
 
-const TOKEN_KEY = "fa.token";
-const USER_KEY = "fa.user";
-const COOKIE_NAME = "fa_token";
+// Anciennes cles de stockage (jeton et profil en clair) : effacees au chargement, voir oublierAncienStockage.
+const ANCIENNES_CLES = ["fa.token", "fa.user"];
 
-/**
- * Cote client. Efface la selection club/equipe/saison de la session
- * precedente : sans ca, un cookie d'equipe d'un autre utilisateur (ou d'un
- * autre club) survit a la reconnexion. Le middleware re-selectionne ensuite
- * l'equipe par defaut au chargement suivant.
- */
-function viderSelectionCookies() {
-  for (const nom of ["ownEquipeId", "ownSaisonId", "ownClubId"]) {
-    document.cookie = `${nom}=; path=/; max-age=0; samesite=lax`;
+/** Cote client : efface les traces de l'ancien stockage du jeton (localStorage), s'il en reste. */
+export function oublierAncienStockage(): void {
+  if (typeof window === "undefined") return;
+  try { for (const cle of ANCIENNES_CLES) localStorage.removeItem(cle); } catch { /* stockage indisponible */ }
+}
+
+/** Cote client : ferme la session (ou toutes les sessions du compte) puis retourne a l'ecran de connexion. */
+export async function deconnecter(partout = false): Promise<void> {
+  try {
+    await fetch(`/api/session/logout${partout ? "?partout=1" : ""}`, { method: "POST" });
+  } finally {
+    oublierAncienStockage();
+    window.location.href = "/login";
   }
 }
 
-/** Cote client uniquement. Pose le token dans localStorage + cookie. */
-export function setSession(token: string, user: User) {
-  if (typeof window === "undefined") return;
-  viderSelectionCookies();
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-  // Cookie 7j, lisible cote serveur via cookies() de next/headers.
-  document.cookie = `${COOKIE_NAME}=${token}; path=/; max-age=${7 * 24 * 3600}; samesite=lax`;
-}
-
-/** Cote client. Lit le user en cache (pas un appel reseau). */
-export function getCachedUser(): User | null {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem(USER_KEY);
-  if (!raw) return null;
-  try { return JSON.parse(raw); } catch { return null; }
-}
-
-/** Cote client. Detruit la session. */
-export function clearSession() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
-  document.cookie = `${COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
-  viderSelectionCookies();
-}
-
-;
-
 /* ----------------------- LECTURE COTE SERVEUR ---------------------------- */
-// Helper utilisable dans les Server Components Next pour pre-filtrer les
-// donnees a la source. On decode le JWT sans verifier la signature : la
-// validation crypto reste l'affaire du backend. Si le cookie est absent
-// ou corrompu, on renvoie null et la page peut decider de rediriger.
+// Pour les Server Components : le payload du jeton d'acces (cookie HttpOnly), decode SANS verifier la signature. La
+// validation cryptographique reste l'affaire du backend ; ceci ne sert qu'a l'affichage et aux redirections.
 
-/** Decoded payload du JWT (lecture seule, pas de verif crypto). */
-interface JwtPayloadLight {
-  sub: string;
-  login: string;
-  role: "admin" | "referent" | "user" | string;
-  clubId?: string;
-  equipeIds?: string[];
-  exp?: number;
-}
-
-/** A appeler depuis un Server Component / fonction async cote serveur. */
-export async function getCurrentUserServer(): Promise<JwtPayloadLight | null> {
+/** A appeler depuis un Server Component / fonction async cote serveur. Null : pas de session. */
+export async function getCurrentUserServer(): Promise<JwtPayload | null> {
   if (typeof window !== "undefined") return null;
   try {
     const { cookies } = await import("next/headers");
-    const token = (await cookies()).get(COOKIE_NAME)?.value;
+    const { COOKIE_ACCES } = await import("./session-serveur");
+    const token = (await cookies()).get(COOKIE_ACCES)?.value;
     if (!token) return null;
-    const payload = decoderPayloadJwt(token) as JwtPayloadLight | null;
+    const payload = decoderPayloadJwt(token);
     if (!payload) return null;
-    // Verif expiration cote client (defensive, le backend re-controle).
     if (payload.exp && payload.exp * 1000 < Date.now()) return null;
     return payload;
   } catch { return null; }

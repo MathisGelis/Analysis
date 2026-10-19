@@ -294,35 +294,36 @@ export class DerivationService implements OnApplicationBootstrap {
     // Chaque joueur recoit ses EFFORTS des 28 derniers jours : ses seances (charge UA-RPE calculee a la
     // saisie de la seance, pour les seances ou il etait present) et ses matchs (minutes jouees x RPE de
     // match). On stocke les entrees, pas seulement le score : la fatigue est recalculee a la lecture.
+    // Seances et blessures sont des donnees du club qui les a saisies : elles ne suivent pas un joueur qui change de
+    // club (cle "club|joueur"). Une seance appartient au club de son equipe ; une blessure, au club qui l'a saisie.
     const now = new Date();
+    const clubDeLEquipe = new Map((await this.equipesRepo.find()).map((e) => [e.id, e.clubId]));
     const seancesParJoueur = new Map<string, Effort[]>();
     for (const t of trainings) {
       const d = parseDateAny(t.date);
-      if (!d || !(t.charge > 0)) continue;
+      const club = t.equipeId ? clubDeLEquipe.get(t.equipeId) : undefined;
+      if (!d || !(t.charge > 0) || !club) continue;
       for (const pid of (t.joueursPresents ?? [])) {
-        const arr = seancesParJoueur.get(pid) ?? [];
+        const k = `${club}|${pid}`;
+        const arr = seancesParJoueur.get(k) ?? [];
         arr.push({ date: d, ua: t.charge, source: "entrainement" });
-        seancesParJoueur.set(pid, arr);
+        seancesParJoueur.set(k, arr);
       }
     }
 
-    // Blessures par joueur (id, sinon nom) : antecedents, statut du moment, retour recent.
+    // Blessures par joueur, dans le club qui les a saisies : antecedents, statut du moment, retour recent.
     const blessuresParJoueur = new Map<string, number>();
-    const blessuresParNom = new Map<string, number>();
     const indisponibles = new Set<string>();
     const enReprise = new Set<string>();
     const finBlessure = new Map<string, Date>();
     for (const b of blessuresAll) {
-      blessuresParJoueur.set(b.joueurId, (blessuresParJoueur.get(b.joueurId) ?? 0) + 1);
-      if (b.joueurNom) {
-        const k = norm(b.joueurNom);
-        blessuresParNom.set(k, (blessuresParNom.get(k) ?? 0) + 1);
-      }
-      if (b.statut && /indisp/i.test(b.statut)) indisponibles.add(b.joueurId);
-      if (b.statut && /reprise/i.test(b.statut)) enReprise.add(b.joueurId);
+      const k = `${b.clubId}|${b.joueurId}`;
+      blessuresParJoueur.set(k, (blessuresParJoueur.get(k) ?? 0) + 1);
+      if (b.statut && /indisp/i.test(b.statut)) indisponibles.add(k);
+      if (b.statut && /reprise/i.test(b.statut)) enReprise.add(k);
       const fin = parseDateAny(b.retourEstime);
-      if (fin && fin <= now && (!finBlessure.get(b.joueurId) || fin > finBlessure.get(b.joueurId)!)) {
-        finBlessure.set(b.joueurId, fin);
+      if (fin && fin <= now && (!finBlessure.get(k) || fin > finBlessure.get(k)!)) {
+        finBlessure.set(k, fin);
       }
     }
     const ageDe = (naissance?: string | null): number | null => {
@@ -333,17 +334,18 @@ export class DerivationService implements OnApplicationBootstrap {
     /** Champs de fatigue d'un joueur agrege : seances (mon effectif) + matchs. */
     const fatigueDe = (a: Agg, found: Joueur | null, isMine: boolean) => {
       const pid = found?.id;
+      const k = pid ? `${a.clubId}|${pid}` : null;
       const efforts: Effort[] = [
         ...a.efforts.map((e): Effort => ({ date: e.date, ua: e.minutes * RPE_MATCH, source: "match", minutes: e.minutes })),
-        ...(isMine && pid ? seancesParJoueur.get(pid) ?? [] : []),
+        ...(isMine && k ? seancesParJoueur.get(k) ?? [] : []),
       ];
       return champsFatigue({
         aujourdhui: now,
         efforts,
-        indisponible: pid ? indisponibles.has(pid) : false,
-        enReprise: pid ? enReprise.has(pid) : false,
-        blessuresAnt: pid ? blessuresParJoueur.get(pid) ?? 0 : blessuresParNom.get(norm(a.nom)) ?? 0,
-        finDerniereBlessure: pid ? finBlessure.get(pid) ?? null : null,
+        indisponible: k ? indisponibles.has(k) : false,
+        enReprise: k ? enReprise.has(k) : false,
+        blessuresAnt: k ? blessuresParJoueur.get(k) ?? 0 : 0,
+        finDerniereBlessure: k ? finBlessure.get(k) ?? null : null,
         age: ageDe(found?.dateNaissance),
         // Les seances ne sont connues que pour mon effectif : ailleurs la fatigue est une estimation sur les matchs.
         sources: isMine ? "complet" : "matchs",
@@ -578,7 +580,7 @@ export class DerivationService implements OnApplicationBootstrap {
         // buts / passes : on conserve les valeurs saisies manuellement.
         buts: (found as any)?.buts ?? 0,
         passesDecisives: (found as any)?.passesDecisives ?? 0,
-        blessuresAnt: found?.id ? blessuresParJoueur.get(found.id) ?? 0 : blessuresParNom.get(norm(a.nom)) ?? 0,
+        blessuresAnt: found?.id ? blessuresParJoueur.get(`${a.clubId}|${found.id}`) ?? 0 : 0,
         noteMoyenne,
         ...fatigue,
         postes,

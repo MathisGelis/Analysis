@@ -226,7 +226,7 @@ describe("rapport d'avant-match PowerPoint", () => {
     expect(x.onze.lignes).toHaveLength(11);
     expect(x.onze.lignes[0]).toMatchObject({ numero: 1, code: "GB", libelle: "Gardien", joueur: "Marc ROUX", origine: "numero", titularisations: "6 au n°1" });
     expect(x.onze.lignes[1]).toMatchObject({ numero: 2, code: "DD", joueur: "Hugo BONNET", autres: "Tom LEBLANC (3)" });
-    expect(x.polyvalence.joueurs.map((j) => j.nom).sort()).toEqual(["Punatitu MAREB", "Hugo BONNET", "Mael MOREAU", "Tom LEBLANC"]);
+    expect(x.polyvalence.joueurs.map((j) => j.nom).sort()).toEqual(["Hugo BONNET", "Mael MOREAU", "Punatitu MAREB", "Tom LEBLANC"]);
     expect(x.polyvalence.joueurs.find((j) => j.nom === "Punatitu MAREB")).toMatchObject({ titularisations: 6, numeros: "10 (3) · 9 (3)", postes: "MO / BU" });
     expect(x.polyvalence.autres).toBe(7);
 
@@ -281,7 +281,7 @@ describe("rapport d'avant-match PowerPoint", () => {
       expect(tous).toContain("OL SUD SENIORS 2  ·  PRÉSENTATION ADVERSAIRE");
       // Les noms des joueurs probables, ajoutes sous les ronds de la page 5.
       const page5 = textes(lire(p, "ppt/slides/slide5.xml"));
-      expect(page5).toEqual(expect.arrayContaining(["ROUX", "VIGUSAGUZ B.", "MAREB", "MOREAU"]));
+      expect(page5).toEqual(expect.arrayContaining(["ROUX", "VIGUSAGUZ K.", "MAREB", "MOREAU"]));
       expect(strFromU8(p.get("ppt/slides/slide5.xml")!)).not.toMatch(/undefined|NaN|\[object/);
     });
 

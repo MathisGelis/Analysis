@@ -30,6 +30,12 @@ const api = spawn(process.execPath, ["dist/main.js"], {
     ...(urlPostgres ? { DB_TYPE: "postgres", DATABASE_URL: urlPostgres } : { SQLITE_PATH: db }),
     AUTO_SEED: "false",
     CORS_ORIGIN: "http://localhost:3100",
+    // Les parcours se connectent souvent, avec le meme compte et depuis la meme adresse : limites relevees (elles sont
+    // verifiees par les tests de l'API). Pas d'entretien planifie des comptes pendant les parcours.
+    LIMITE_REQUETES_MINUTE: "100000",
+    LIMITE_CONNEXIONS_MINUTE: "1000",
+    LIMITE_CONNEXIONS_LOGIN: "1000",
+    ENTRETIEN_AUTO: "false",
     FMI_PARSER_PATH: process.env.FMI_PARSER_PATH ?? "parser/parse_fmi.py",
     LOG_LEVEL: "warn",
   },

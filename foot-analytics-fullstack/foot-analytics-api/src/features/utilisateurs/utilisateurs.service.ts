@@ -4,18 +4,23 @@
 //   - l'administrateur gere tous les comptes ;
 //   - le referent d'un club cree et gere les comptes de ses educateurs (role "user", rattaches a son club,
 //     equipes de son club uniquement), sans voir ni toucher aux autres clubs.
-// Le login est genere a partir du prenom + nom (1re lettre du prenom + nom, MAJUSCULES). Le mot de passe initial est
-// defini par defaultPassword() : l'utilisateur doit le changer a sa premiere connexion.
+// Le login est genere a partir du prenom + nom (1re lettre du prenom + nom, MAJUSCULES). Le mot de passe initial (et
+// celui d'une reinitialisation) est tire au hasard, renvoye UNE fois au gestionnaire qui le transmet hors bande, et ne
+// sert qu'a choisir un nouveau mot de passe (voir AccesGuard). Un compte desactive (inactivite, ou decision d'un
+// gestionnaire) ne peut plus se connecter tant qu'il n'est pas reactive.
 
 import {
   BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Repository } from "typeorm";
+import { In, IsNull, Repository } from "typeorm";
 
 import { Equipe } from "@/features/equipes/equipe.entity";
 import { Saison } from "@/features/saisons/saison.entity";
-import { AuthService, buildLogin, JwtPayload } from "@/features/auth/auth.service";
+import { AuthService, buildLogin, JwtPayload, revoquerSessions } from "@/features/auth/auth.service";
+import { motDePasseTemporaire } from "@/features/auth/mots-de-passe";
+import { Session } from "@/features/auth/session.entity";
+import { JournalAuditService } from "@/features/audit/journal-audit.service";
 
 import { Utilisateur } from "./utilisateur.entity";
 import {
@@ -27,12 +32,17 @@ import { CreateUserDto, UpdateUserDto } from "./utilisateurs.dto";
 /** Compte qui a cree un autre compte, tel qu'on l'affiche. */
 export interface CreateurCompte { id: string; login: string; prenom: string; nom: string }
 
-/** Le compte sans son hash, avec ses saisons en clair et son createur (null : inconnu ; `createurSupprime` : compte disparu). */
+/**
+ * Le compte sans son hash ni ses compteurs internes, avec ses saisons en clair et son createur (null : inconnu ;
+ * `createurSupprime` : compte disparu).
+ */
 function sortie(u: Utilisateur, createurs: Map<string, CreateurCompte>) {
-  const { passwordHash, ...rest } = u;
+  const { passwordHash, versionJeton, echecsConnexion, ...rest } = u;
   const createur = u.createdById ? createurs.get(u.createdById) ?? null : null;
   return {
     ...rest,
+    actif: !u.desactiveLe,
+    verrouille: !!u.verrouilleJusqua && Date.parse(u.verrouilleJusqua) > Date.now(),
     toutesSaisons: u.toutesSaisons !== false,
     saisonIds: u.toutesSaisons === false ? (u.saisonIds ?? []) : [],
     createur,
@@ -46,6 +56,8 @@ export class UtilisateursService {
     @InjectRepository(Utilisateur) private repo: Repository<Utilisateur>,
     @InjectRepository(Equipe) private equipes: Repository<Equipe>,
     @InjectRepository(Saison) private saisons: Repository<Saison>,
+    @InjectRepository(Session) private sessions: Repository<Session>,
+    private journal: JournalAuditService,
   ) {}
 
   /** Les createurs des comptes donnes (une seule requete). */
@@ -135,7 +147,8 @@ export class UtilisateursService {
         `Un compte existe deja avec le login ${login}. Verifie le prenom/nom ou utilise une variante.`,
       );
     }
-    const passwordHash = await AuthService.hash(AuthService.defaultPassword());
+    const initialPassword = motDePasseTemporaire();
+    const passwordHash = await AuthService.hash(initialPassword);
     const saved = await this.repo.save(this.repo.create({
       login, prenom: dto.prenom.trim(), nom: dto.nom.trim(), role,
       clubId: clubId as any,
@@ -143,12 +156,13 @@ export class UtilisateursService {
       toutesSaisons: acces.toutesSaisons, saisonIds: acces.toutesSaisons ? null : acces.saisonIds,
       createdById: acteur.id,
       passwordHash, mustChangePassword: true,
+      derniereActivite: new Date().toISOString(),
     }));
+    await this.journal.noter("compte.creation", { acteur, cible: `utilisateur:${saved.id}`, cibleClubId: saved.clubId, details: { role } });
     return {
       ...(await this.avecCreateur(saved)),
-      // On renvoie le mot de passe initial UNIQUEMENT a la creation pour
-      // que le gestionnaire puisse le communiquer (verbalement) a l'utilisateur.
-      initialPassword: AuthService.defaultPassword(),
+      // Le mot de passe initial n'est renvoye qu'ici (jamais stocke en clair) : le gestionnaire le transmet hors bande.
+      initialPassword,
     };
   }
 
@@ -185,11 +199,46 @@ export class UtilisateursService {
     else if (dto.equipeIds !== undefined) u.equipeIds = dto.equipeIds;
     u.toutesSaisons = acces.toutesSaisons;
     u.saisonIds = acces.toutesSaisons ? null : acces.saisonIds;
-    if (dto.resetPassword) {
-      u.passwordHash = await AuthService.hash(dto.resetPassword);
+    let initialPassword: string | undefined;
+    let revoquer = false;
+    if (dto.reinitialiserMotDePasse) {
+      initialPassword = motDePasseTemporaire();
+      u.passwordHash = await AuthService.hash(initialPassword);
       u.mustChangePassword = true;
+      u.echecsConnexion = 0;
+      u.verrouilleJusqua = null;
+      revoquer = true;
     }
-    return this.avecCreateur(await this.repo.save(u));
+    if (dto.actif === false && !u.desactiveLe) {
+      if (u.id === acteur.id) throw new BadRequestException("Tu ne peux pas desactiver ton propre compte.");
+      if (u.role === "admin" && (await this.adminsActifs()) <= 1) {
+        throw new BadRequestException("Impossible de desactiver le dernier compte administrateur actif.");
+      }
+      u.desactiveLe = new Date().toISOString();
+      revoquer = true;
+    } else if (dto.actif === true && u.desactiveLe) {
+      // Reactive : l'inactivite repart de zero, sinon l'entretien quotidien le desactiverait aussitot.
+      u.desactiveLe = null;
+      u.derniereActivite = new Date().toISOString();
+      u.echecsConnexion = 0;
+      u.verrouilleJusqua = null;
+    }
+    if (revoquer) u.versionJeton = (u.versionJeton ?? 0) + 1;
+    const etaitActif = dto.actif === undefined ? null : !(await this.repo.findOne({ where: { id: u.id } }))?.desactiveLe;
+    const saved = await this.repo.save(u);
+    if (revoquer) await revoquerSessions(this.sessions, u.id);
+    const trace = { acteur, cible: `utilisateur:${u.id}`, cibleClubId: u.clubId };
+    const champs = Object.keys(dto).filter((k) => !["reinitialiserMotDePasse", "actif"].includes(k));
+    if (champs.length) await this.journal.noter("compte.modification", { ...trace, details: { champs } });
+    if (initialPassword) await this.journal.noter("compte.mot_de_passe_reinitialise", trace);
+    if (etaitActif === true && saved.desactiveLe) await this.journal.noter("compte.desactivation", trace);
+    if (etaitActif === false && !saved.desactiveLe) await this.journal.noter("compte.reactivation", trace);
+    const out = await this.avecCreateur(saved);
+    return initialPassword ? { ...out, initialPassword } : out;
+  }
+
+  private async adminsActifs(): Promise<number> {
+    return this.repo.count({ where: { role: "admin", desactiveLe: IsNull() } });
   }
 
   async remove(acteur: Acteur, id: string) {
@@ -203,7 +252,9 @@ export class UtilisateursService {
         );
       }
     }
+    await this.sessions.delete({ utilisateurId: u.id });
     await this.repo.remove(u);
+    await this.journal.noter("compte.suppression", { acteur, cible: `utilisateur:${id}`, cibleClubId: u.clubId, details: { role: u.role } });
     return { ok: true, id };
   }
 }
