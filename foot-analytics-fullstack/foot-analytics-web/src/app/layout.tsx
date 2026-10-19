@@ -15,6 +15,7 @@ import type { Metadata, Viewport } from "next";
 import { cookies, headers } from "next/headers";
 
 import { AppShell } from "@/features/shell/components/AppShell";
+import { EnregistrementPwa } from "@/features/shell/components/EnregistrementPwa";
 import { NavProgress } from "@/features/shell/components/NavProgress";
 import { FeedbackProvider } from "@/shared/lib/feedback-context";
 import { ThemeProvider } from "@/features/shell/lib/theme-context";
@@ -35,6 +36,18 @@ export const metadata: Metadata = {
     "Analyse et suivi de saison pour staff de football amateur.",
   // Application privee : aucune page indexee (voir aussi robots.txt et l'en-tete X-Robots-Tag).
   robots: { index: false, follow: false, nocache: true },
+  // Application installable (PWA, voir app/manifest.ts) : ballon en favicon et sur l'ecran d'accueil ; sur iPhone,
+  // ouverte depuis l'ecran d'accueil, elle s'affiche sans la barre de Safari.
+  applicationName: "Foot Analytics",
+  icons: {
+    icon: [
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "32x32" },
+    ],
+    apple: { url: "/icons/apple-touch-icon.png", sizes: "180x180" },
+  },
+  appleWebApp: { capable: true, title: "Foot Analytics", statusBarStyle: "black" },
+  formatDetection: { telephone: false },
 };
 
 // Couleur de la barre du navigateur mobile : celle du fond, nuit ou jour (valeurs litterales
@@ -89,6 +102,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <AccesProvider saisons={saisons} role={utilisateur?.role ?? null}>
               <FeedbackProvider>
               <NavProgress />
+              <EnregistrementPwa />
               {connecte ? (
                 <AppShell sidebarRepliee={sidebarRepliee}>
                   {children}

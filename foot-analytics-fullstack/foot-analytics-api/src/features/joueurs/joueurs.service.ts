@@ -17,13 +17,18 @@ import { parseDateFlexible, trierChronologiquement } from "@/common/dates";
 
 import { Joueur } from "./joueur.entity";
 import { StatJoueurEquipe } from "./stat-joueur-equipe.entity";
-import { CreateJoueurDto, StatEquipeDto, UpdateJoueurDto } from "./joueurs.dto";
+import { CreateJoueurDto, RechercheAvanceeDto, StatEquipeDto, UpdateJoueurDto } from "./joueurs.dto";
 import { noteIndicative } from "./indicateurs";
 import {
   Apparition, apparitionsDesEquipes, changementDeClub, derniereApparition, derniereSaison, saisonCourte, SaisonRef,
   statutMutationDeduit, statutSaisi,
 } from "./parcours-joueur";
 import { dernierMatchJoue, expulseDansLeMatch } from "@/features/matchs/suspensions";
+import { saisonActuelle } from "@/features/acces/contexte-acces";
+
+import {
+  CriteresRecherche, EquipeRef, EvenementFeuille, LigneFeuille, rechercherJoueurs, ResultatRecherche, StatutSituation,
+} from "./recherche-avancee";
 
 /** Score minimal (0-1) pour qu'un joueur apparaisse dans la recherche. */
 const SEUIL_RECHERCHE = 0.6;
@@ -480,6 +485,89 @@ export class JoueursService {
       .slice(0, limit)
       .map((x) => x.j);
     return this.avecParcours(trouves);
+  }
+
+  /**
+   * Recherche avancee (voir recherche-avancee.ts) : on charge les feuilles des deux saisons concernees (celle ou il a
+   * joue, celle de la situation), leurs evenements (minutes, buts), les equipes de ces saisons et les fiches.
+   */
+  async rechercheAvancee(dto: RechercheAvanceeDto, limite = 100): Promise<{ total: number; resultats: ResultatRecherche[] }> {
+    const criteres: CriteresRecherche = {
+      saisonId: dto.saisonId,
+      categorie: dto.categorie?.trim() || null,
+      division: dto.division?.trim() || null,
+      clubId: dto.clubId || null,
+      postes: dto.postes ?? null,
+      minMatchs: dto.minMatchs ?? null,
+      situation: dto.situationSaisonId
+        ? { saisonId: dto.situationSaisonId, statut: (dto.situation ?? "indifferent") as StatutSituation | "indifferent" }
+        : null,
+    };
+    const saisonIds = [...new Set([criteres.saisonId, criteres.situation?.saisonId].filter((id): id is string => !!id))];
+
+    const lignes: LigneFeuille[] = (await this.compos.createQueryBuilder("c")
+      .innerJoin(Match, "m", "m.id = c.match_id")
+      .select(['c.match_id AS "matchId"', 'c.cote AS "cote"', 'c.licence AS "licence"', 'c.nom AS "nom"',
+        'c.prenom AS "prenom"', 'c.numero AS "numero"', 'c.titulaire AS "titulaire"', 'c.minutes AS "minutes"',
+        'm.saison_id AS "saisonId"', 'm.date AS "date"', 'm.club_dom AS "clubDom"', 'm.club_ext AS "clubExt"',
+        'm.equipe_dom AS "equipeDom"', 'm.equipe_ext AS "equipeExt"'])
+      .where("m.saison_id IN (:...saisonIds)", { saisonIds })
+      .getRawMany())
+      .map((l: any) => ({
+        matchId: l.matchId, saisonId: l.saisonId ?? null, date: l.date ?? null, cote: l.cote,
+        clubId: l.cote === "dom" ? l.clubDom : l.clubExt,
+        equipeId: (l.cote === "dom" ? l.equipeDom : l.equipeExt) ?? null,
+        licence: l.licence ?? null, nom: l.nom, prenom: l.prenom ?? null,
+        numero: l.numero === null || l.numero === undefined ? null : Number(l.numero),
+        // SQLite rend les booleens en 0/1.
+        titulaire: l.titulaire === true || l.titulaire === 1 || l.titulaire === "1",
+        minutes: Number(l.minutes) || 0,
+      }));
+
+    // Evenements de la periode seulement : la saison cible ne sert qu'a la presence sur une feuille.
+    const evts = await this.evtsRepo.createQueryBuilder("e")
+      .innerJoin(Match, "m", "m.id = e.match_id")
+      .where("m.saison_id = :saisonId", { saisonId: criteres.saisonId })
+      .andWhere("e.type IN (:...types)", { types: ["remplacement", "but"] })
+      .getMany();
+    const evenements = new Map<string, EvenementFeuille[]>();
+    for (const e of evts) (evenements.get(e.matchId) ?? evenements.set(e.matchId, []).get(e.matchId)!).push(e);
+
+    const equipes = new Map<string, EquipeRef>((await this.equipesRepo.find({ where: { saisonId: In(saisonIds) } }))
+      .map((e) => [e.id, {
+        id: e.id, clubId: e.clubId, nom: e.nom, categorie: e.categorie ?? null, division: e.division ?? null, saisonId: e.saisonId ?? null,
+      }]));
+    const fiches = (await this.repo.find({ select: ["id", "nom", "prenom", "licence", "clubId", "poste", "equipesAttachees"] }))
+      .map((j) => ({
+        id: j.id, nom: j.nom, prenom: j.prenom ?? null, licence: j.licence ?? null, clubId: j.clubId ?? null,
+        poste: j.poste ?? null, equipesAttachees: j.equipesAttachees ?? null,
+      }));
+
+    return rechercherJoueurs(criteres, { lignes, evenements, equipes, fiches }, limite);
+  }
+
+  /**
+   * Valeurs proposees par le formulaire de recherche avancee : les saisons ouvertes au compte (la plus recente en
+   * tete), les niveaux (categorie, division) de chacune d'apres les equipes de la base, et les saisons par defaut
+   * (« a joue » : la saison precedant l'actuelle ; situation : l'actuelle).
+   */
+  async optionsRecherche(voitSaison: (saisonId: string) => boolean) {
+    const saisons = (await this.saisonsRepo.find()).filter((s) => voitSaison(s.id))
+      .sort((a, b) => b.anneeDebut - a.anneeDebut);
+    const actuelle = saisonActuelle(saisons);
+    const precedente = actuelle ? saisons.find((s) => s.anneeDebut === actuelle.anneeDebut - 1) ?? null : null;
+    const niveaux = new Map<string, { saisonId: string; categorie: string; division: string | null }>();
+    const ouvertes = new Set(saisons.map((s) => s.id));
+    for (const e of await this.equipesRepo.find({ select: ["saisonId", "categorie", "division"] })) {
+      if (!e.saisonId || !ouvertes.has(e.saisonId) || !e.categorie) continue;
+      const cle = `${e.saisonId}|${normaliser(e.categorie)}|${normaliser(e.division)}`;
+      if (!niveaux.has(cle)) niveaux.set(cle, { saisonId: e.saisonId, categorie: e.categorie, division: e.division ?? null });
+    }
+    return {
+      saisons: saisons.map((s) => ({ id: s.id, nom: s.nom, anneeDebut: s.anneeDebut, actuelle: s.id === actuelle?.id })),
+      niveaux: [...niveaux.values()].sort((a, b) => a.categorie.localeCompare(b.categorie) || (a.division ?? "").localeCompare(b.division ?? "")),
+      defauts: { saisonId: precedente?.id ?? actuelle?.id ?? null, situationSaisonId: precedente && actuelle ? actuelle.id : null },
+    };
   }
 
   /**

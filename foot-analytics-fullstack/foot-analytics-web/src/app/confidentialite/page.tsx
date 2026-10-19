@@ -28,7 +28,9 @@ export default function Confidentialite() {
             Ces donnees de sante ne sont visibles que des comptes du club qui les a saisies ; elles ne suivent pas un joueur
             qui change de club et ne sortent dans aucune statistique, recherche ni export.</li>
           <li><strong>Analyse du championnat (scouting)</strong> : donnees des feuilles de match officielles (compositions,
-            buts, cartons, arbitres, encadrement).</li>
+            buts, cartons, arbitres, encadrement), y compris la recherche de joueurs par criteres pour le recrutement (poste,
+            niveau joue, presence sur les feuilles d'une saison). Ces recherches n'utilisent aucune donnee privee d'un club
+            et sont tracees.</li>
           <li><strong>Comptes et securite</strong> : identifiant, nom, prenom, role, club ; journal d'audit des connexions et
             des operations sensibles (avec l'adresse IP pour les connexions).</li>
         </ul>

@@ -38,11 +38,12 @@ const PREFIXE_RELAIS = "/api/backend";
 /** Pages ouvertes sans session (la CSP s'y applique quand meme). */
 const PAGES_PUBLIQUES = ["/login", "/change-password", "/confidentialite", "/mentions-legales", "/cgu"];
 
-// Toutes les pages et le relais vers l'API. Pas les autres routes internes ni les fichiers statiques.
+// Toutes les pages et le relais vers l'API. Pas les autres routes internes ni les fichiers statiques, dont ceux de
+// l'application installable (manifeste, service worker, page hors ligne, icones) : le navigateur les lit sans session.
 export const config = {
   matcher: [
     "/api/backend/:path*",
-    "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|assets).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|assets|icons/|manifest.webmanifest|sw.js|offline.html).*)",
   ],
 };
 

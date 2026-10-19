@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#070A12">
+<title>Hors connexion · Foot Analytics</title>
+<style>
+  :root { --fond: #070A12; --texte: #E6E9F2; --doux: #9AA3B8; --accent: #6552F0; }
+  @media (prefers-color-scheme: light) { :root { --fond: #F4F6FB; --texte: #111827; --doux: #4B5563; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;
+    background: var(--fond); color: var(--texte); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; text-align: center; }
+  img { width: 72px; height: 72px; border-radius: 16px; }
+  h1 { font-size: 1.35rem; margin: 20px 0 8px; }
+  p { color: var(--doux); max-width: 30rem; margin: 0 auto 24px; line-height: 1.5; }
+  a { display: inline-block; padding: 10px 20px; border-radius: 10px; background: var(--accent); color: #fff;
+    text-decoration: none; font-weight: 600; }
+</style>
+</head>
+<body>
+  <main>
+    <img src="/icons/icon.svg" alt="">
+    <h1>Pas de connexion</h1>
+    <p>Foot Analytics a besoin d'internet : aucune donnee n'est gardee sur cet appareil. Reessaie quand le reseau revient.</p>
+    <a href="/">Reessayer</a>
+  </main>
+</body>
+</html>

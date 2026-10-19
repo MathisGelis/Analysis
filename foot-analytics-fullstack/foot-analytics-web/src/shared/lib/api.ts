@@ -25,6 +25,7 @@ import type { PlanContreRealise } from "@/features/tactique/lib/plan-realise-typ
 import type { FicheCoach } from "@/features/coachs/lib/fiche-coach-types";
 import type { EntrainementDetail, EntrainementResume, EtatIa, ModeleListe, PlanningIa } from "@/features/ia/lib/ia-types";
 import type { PageJournal } from "@/features/audit/lib/journal";
+import type { CriteresApi, OptionsRecherche, ReponseRecherche } from "@/features/recherche-joueurs/lib/recherche-joueurs";
 
 import type {
   Club, HistoriqueSaison, Joueur, LigneClassement, Match, MatchJoue, RapportScouting, TactiquePlan,
@@ -515,6 +516,11 @@ export const api = {
   /** En POST : le nom cherche n'apparait dans aucune URL (journaux des serveurs). */
   searchJoueurs: (q: string) =>
     req<any[]>("/joueurs/recherche", { method: "POST", body: JSON.stringify({ q }), fallback: [] }),
+  /** Recherche avancee par criteres (poste, saison, categorie, division, club, situation une autre saison). */
+  rechercheAvanceeJoueurs: (criteres: CriteresApi) =>
+    req<ReponseRecherche>("/joueurs/recherche-avancee", { method: "POST", body: JSON.stringify(criteres) }),
+  /** Saisons, niveaux (categorie, division) et saisons par defaut du formulaire de recherche avancee. */
+  optionsRechercheJoueurs: () => req<OptionsRecherche>("/joueurs/recherche-avancee/options"),
   /** Attache un joueur existant a une equipe. */
   attachJoueur: (equipeId: string, joueurId: string) =>
     req<any>(`/joueurs/equipe/${equipeId}/attach/${joueurId}`, { method: "POST" }),

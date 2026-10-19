@@ -59,7 +59,8 @@ Restrictions*) aux adresses de Render si l'offre le permet, vérifier le chiffre
 - **Journal d'audit** en base (`journal_audit`, ajout seul) : connexions et échecs, gestion des comptes, lectures et
   écritures médicales, exports, fiches de joueurs d'autres clubs, imports de feuilles. Lecture réservée à
   l'administrateur (page *Administration > Journal*), purge après 12 mois (fonction `SECURITY DEFINER`).
-- **Alertes** : consultations massives de fiches d'autres clubs, exports en série, échecs de connexion en rafale ; trace
+- **Alertes** : consultations massives de fiches d'autres clubs, recherches avancées en série, exports en série, échecs
+  de connexion en rafale ; trace
   dans le journal, message dans les journaux du serveur, et webhook optionnel (`ALERTE_WEBHOOK_URL`).
 
 ## 5–6. Données médicales et visibilité entre clubs
@@ -71,6 +72,10 @@ Restrictions*) aux adresses de Render si l'offre le permet, vérifier le chiffre
   et commentaires ne sortent jamais pour un autre club.
 - Aucune donnée personnelle dans les URL (recherches en `POST`), `noindex`, liste des joueurs un club à la fois,
   recherche par licence limitée à son club, limite de requêtes par compte, détection des parcours massifs.
+- **Recherche avancée** (`/recherche`) : critères et résultats limités aux données de championnat (poste, matchs joués,
+  équipes) — aucune donnée privée n'est un critère, puisque filtrer dessus la révélerait ; 100 joueurs au plus par
+  recherche, saisons fermées au compte refusées, chaque recherche tracée (critères et nombre de résultats, sans nom) et
+  alerte au-delà de 40 en 10 minutes. Aucun service d'IA externe : rien ne quitte l'hébergement.
 - Conditions d'utilisation versionnées, acceptées à la première connexion (et à chaque nouvelle version).
 - `isolation-clubs.http.spec.ts` : toutes les routes de lecture, pour chaque rôle des deux clubs, plus l'export PowerPoint.
 

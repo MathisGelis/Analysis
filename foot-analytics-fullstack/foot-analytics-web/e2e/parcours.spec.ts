@@ -93,6 +93,46 @@ test("acces : un visiteur anonyme est renvoye vers /login, et une cible externe 
   }
 });
 
+test("application installable : manifeste standalone, icones ballon, service worker et page hors ligne, sans session", async ({ browser }) => {
+  const base = `http://localhost:${WEB_PORT}`;
+  const anonyme = await browser.newContext();
+  const p = await anonyme.newPage();
+  try {
+    await p.goto(`${base}/login`);
+    // Liens poses dans <head> : manifeste, favicon ballon, icone de l'ecran d'accueil iPhone.
+    const manifeste = await p.locator('link[rel="manifest"]').getAttribute("href");
+    expect(manifeste).toBe("/manifest.webmanifest");
+    await expect(p.locator('link[rel="icon"][href="/icons/icon.svg"]')).toHaveCount(1);
+    await expect(p.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", "/icons/apple-touch-icon.png");
+
+    // Lus sans session (le navigateur ne les demande pas toujours avec les cookies) : jamais redirige vers /login.
+    const m = await p.request.get(`${base}/manifest.webmanifest`, { maxRedirects: 0 });
+    expect(m.status()).toBe(200);
+    const json = await m.json();
+    expect(json).toMatchObject({ name: "Foot Analytics", display: "standalone", start_url: "/" });
+    expect(json.icons.map((i: { purpose: string }) => i.purpose)).toContain("maskable");
+    for (const chemin of ["/favicon.ico", "/icons/icon.svg", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-maskable-512.png",
+      "/icons/apple-touch-icon.png", "/sw.js", "/offline.html"]) {
+      const r = await p.request.get(`${base}${chemin}`, { maxRedirects: 0 });
+      expect({ chemin, statut: r.status() }).toEqual({ chemin, statut: 200 });
+    }
+
+    // Le service worker s'installe et prend la main ; il n'a mis en cache que la page hors ligne et son icone (son
+    // comportement sans reseau est teste dans tests/pwa/sw.test.ts : Playwright ne coupe pas le reseau d'un service worker).
+    await p.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    await p.reload();
+    expect(await p.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+    const enCache = await p.evaluate(async () => {
+      const cles = await caches.keys();
+      const urls = (await Promise.all(cles.map(async (c) => (await (await caches.open(c)).keys()).map((r) => new URL(r.url).pathname)))).flat();
+      return urls.sort();
+    });
+    expect(enCache).toEqual(["/icons/icon.svg", "/offline.html"]);
+  } finally {
+    await anonyme.close();
+  }
+});
+
 test("connexion : refus d'un mauvais mot de passe puis acces, equipe choisie d'office", async () => {
   await page.goto("/login");
   await page.getByPlaceholder("MLEMAIRE").fill("AADMIN");
@@ -378,6 +418,43 @@ test("import FMI : la feuille est importee puis consultable", async () => {
   await page.getByRole("link", { name: "Voir" }).click();
   await expect(page.getByText("53415223")).toBeVisible();
   await expect(page.getByText("2–0")).toBeVisible();
+});
+
+test("recherche de joueurs : par saison, poste et situation, lien vers la fiche, criteres conserves au retour", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : les joueurs viennent de la FMI importee");
+
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "Navigation principale" });
+  await cliquerJusquaNavigation(nav.getByRole("link", { name: "Recherche joueurs", exact: true }), /\/recherche$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Recherche de joueurs" })).toBeVisible();
+
+  // La FMI importee est du 18/01/2026 : ses joueurs ont joue en 2025-2026, aucun n'a de feuille en 2026-2027.
+  await choisir(page.getByTestId("rj-saison"), /^2025-2026/);
+  await choisir(page.getByTestId("rj-cible"), /^2026-2027/);
+  await choisir(page.getByTestId("rj-situation"), "Sans club connu");
+  await page.getByTestId("rj-lancer").click();
+  const resultats = page.getByTestId("rj-resultats");
+  await expect(resultats.getByRole("heading", { level: 2 })).toHaveText(/^\d+ joueurs?$/);
+  const lignes = page.getByTestId("rj-table").locator("tbody tr");
+  expect(await lignes.count()).toBeGreaterThan(10);
+  await expect(resultats.getByText("Sans club connu").first()).toBeVisible();
+  await expect(page).toHaveURL(/saison=.+&cible=.+&situation=sans_club/);
+
+  // Attaquants seulement (postes de fiche, ou deduits des numeros).
+  await choisir(page.getByTestId("rj-poste"), "Attaquants");
+  await page.getByTestId("rj-lancer").click();
+  await expect(resultats.getByText(/^Attaquants · /)).toBeVisible();
+  const postes = await lignes.locator("td:nth-child(2)").allTextContents();
+  expect(postes.length).toBeGreaterThan(0);
+  expect(postes.every((p) => /^(AT|AG|AD)/.test(p.trim()))).toBe(true);
+
+  // La fiche du premier, puis retour : la meme recherche est relancee depuis l'URL.
+  const premier = lignes.first().getByRole("link");
+  const nom = (await premier.textContent())!.trim();
+  await cliquerJusquaNavigation(premier, /\/joueur\//);
+  await page.goBack();
+  await expect(page.getByTestId("rj-table").locator("tbody tr").first()).toContainText(nom);
+  await expect(page.getByTestId("rj-poste")).toHaveText(/Attaquants/);
 });
 
 test("rapport d'equipe : sans match analyse sur la saison, la page l'explique sans planter ni inventer de tendance", async () => {
@@ -807,7 +884,7 @@ test("accessibilite : aucune violation axe sur les pages principales, en theme n
     headers: { Authorization: `Bearer ${token}` },
   })).json();
   const adversaire = clubs.find((c) => c.nom !== "OL Sud E2E");
-  const pages = ["/", "/rapports", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical", "/admin/ia",
+  const pages = ["/", "/rapports", "/recherche", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical", "/admin/ia",
     ...(adversaire ? [`/rapports/prematch/${adversaire.id}`] : [])];
 
   const violations: string[] = [];

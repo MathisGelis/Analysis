@@ -23,7 +23,11 @@ const nextConfig = {
   // pour ne pas ecraser le .next d'un `npm run dev` en cours.
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   async headers() {
-    return [{ source: "/:path*", headers: entetesSecurite(process.env.NODE_ENV === "production") }];
+    return [
+      { source: "/:path*", headers: entetesSecurite(process.env.NODE_ENV === "production") },
+      // Service worker : toujours revalide, pour qu'une nouvelle version soit prise des la visite suivante.
+      { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache" }] },
+    ];
   },
 };
 export default nextConfig;

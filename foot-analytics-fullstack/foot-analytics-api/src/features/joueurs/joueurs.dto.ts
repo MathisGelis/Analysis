@@ -1,7 +1,9 @@
 // src/features/joueurs/joueurs.dto.ts
 import {
-  IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min,
+  ArrayMaxSize, IsArray, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min,
 } from "class-validator";
+
+import { POSTES_FICHE, STATUTS_SITUATION } from "./recherche-avancee";
 
 const STATUTS_VALIDES = [
   "Pas mutation", "Mutation", "Mutation hors delai", "Non connu",
@@ -68,4 +70,19 @@ export class StatEquipeDto {
 /** Recherche libre (nom, prenom, ou debut de licence dans son club). */
 export class RechercheDto {
   @IsString() @MaxLength(100) q: string;
+}
+
+/**
+ * Recherche avancee (voir recherche-avancee.ts) : a joue la saison `saisonId` (categorie, division, club), a tel poste,
+ * et sa situation la saison `situationSaisonId` (sans club, meme club, autre club). Que des criteres publics.
+ */
+export class RechercheAvanceeDto {
+  @IsString() @MaxLength(64) saisonId: string;
+  @IsOptional() @IsString() @MaxLength(40) categorie?: string;
+  @IsOptional() @IsString() @MaxLength(40) division?: string;
+  @IsOptional() @IsString() @MaxLength(64) clubId?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(POSTES_FICHE.length) @IsIn(POSTES_FICHE, { each: true }) postes?: string[];
+  @IsOptional() @IsInt() @Min(1) @Max(60) minMatchs?: number;
+  @IsOptional() @IsString() @MaxLength(64) situationSaisonId?: string;
+  @IsOptional() @IsIn(STATUTS_SITUATION) situation?: string;
 }

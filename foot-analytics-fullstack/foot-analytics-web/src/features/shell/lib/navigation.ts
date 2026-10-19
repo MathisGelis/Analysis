@@ -7,7 +7,7 @@
 
 import {
   Award, Brain, Calendar, CalendarRange, ClipboardList, Dumbbell, FileText, HeartPulse, Layout,
-  LayoutDashboard, Shield, ShieldCheck, Trophy, Upload, UserCog, Users,
+  LayoutDashboard, Shield, ShieldCheck, Trophy, Upload, UserCog, UserSearch, Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -66,9 +66,12 @@ export function construireNavigation(ownClubId: string | null, acces?: ContexteA
     },
     {
       // Un seul point d'entree : le rapport pre-match (avec ses predictions), l'analyse d'equipe et le scouting de chaque
-      // club s'ouvrent depuis /rapports.
+      // club s'ouvrent depuis /rapports. La recherche de joueurs par criteres (recrutement) est a cote.
       section: "Analyse",
-      items: [{ href: "/rapports", label: "Rapports", icon: FileText }],
+      items: [
+        { href: "/rapports", label: "Rapports", icon: FileText },
+        { href: "/recherche", label: "Recherche joueurs", icon: UserSearch },
+      ],
     },
     {
       section: "Donnees",
@@ -96,7 +99,7 @@ const TITRES: [string, string][] = [
   ["/classement", "Classement"], ["/calendrier", "Calendrier"], ["/club", "Fiche club"],
   ["/effectif", "Effectif"], ["/entrainements", "Entrainements"], ["/medical", "Medical"],
   ["/matchs", "Matchs"], ["/tactique", "Tactique"], ["/arbitres", "Arbitres"],
-  ["/rapports", "Rapports"], ["/import", "Import FMI"],
+  ["/rapports", "Rapports"], ["/recherche", "Recherche de joueurs"], ["/import", "Import FMI"],
   ["/saisons", "Saisons"], ["/joueur", "Fiche joueur"], ["/coachs", "Fiche entraineur"], ["/admin/ia", "IA"], ["/admin/journal", "Journal d'audit"], ["/admin", "Administration"],
   ["/analytics", "Analytics"],
 ];

@@ -156,6 +156,17 @@ Toutes les routes sont prefixees par `/api`.
   - `GET /joueurs/:id/matchs?saisonId=&limite=` : derniers matchs joues, avec la feuille personnelle ;
   - `PUT /joueurs/:id/stats-equipe/:equipeId` `{ buts?, passesDecisives? }` : saisie manuelle pour CETTE equipe
     (les FMI n'ont pas toujours les buteurs) ; `null` efface et revient au calcul depuis les feuilles.
+- **Recherche avancee** (scouting, recrutement ; `features/joueurs/recherche-avancee.ts`, fonctions pures) :
+  - `POST /joueurs/recherche-avancee` `{ saisonId, categorie?, division?, clubId?, postes?, minMatchs?, situationSaisonId?,
+    situation? }` : les joueurs qui ont joue la saison `saisonId` (titulaire ou entre en jeu) dans cette categorie / division /
+    ce club, a ces postes (fiche, sinon numero le plus porte), et leur situation la saison `situationSaisonId` :
+    `sans_club` (aucune feuille ni effectif cette saison dans la base), `meme_club`, `autre_club`, `indifferent`.
+    Rend `{ total, resultats }` (100 au plus, les plus utilises d'abord) : nom, poste, club et equipes de la periode,
+    matchs, titularisations, minutes, buts, situation. Que des donnees de championnat ; saisons fermees au compte : `404` ;
+    chaque recherche est tracee (`joueur.recherche_avancee`, criteres et nombre de resultats) et 40 en 10 minutes levent
+    une alerte ;
+  - `GET /joueurs/recherche-avancee/options` : saisons ouvertes au compte, niveaux (categorie, division) de chacune,
+    saisons proposees par defaut (la precedente et l'actuelle).
 
 ### Matchs (avec compositions + evenements imbriques)
 - `GET    /matchs?clubId=` · `GET /matchs/:id`. La liste porte `modifiable` (le compte peut-il modifier ou supprimer ce match ?),
