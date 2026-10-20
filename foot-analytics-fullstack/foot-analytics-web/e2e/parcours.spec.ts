@@ -452,7 +452,12 @@ test("recherche de joueurs : par saison, poste et situation, lien vers la fiche,
   const premier = lignes.first().getByRole("link");
   const nom = (await premier.textContent())!.trim();
   await cliquerJusquaNavigation(premier, /\/joueur\//);
-  await page.goBack();
+  // Un clic repete pendant une navigation lente (cliquerJusquaNavigation) peut empiler deux fois la fiche : on revient
+  // en arriere jusqu'a la recherche.
+  await expect(async () => {
+    if (!/\/recherche/.test(page.url())) await page.goBack();
+    await expect(page).toHaveURL(/\/recherche\?/, { timeout: 2_000 });
+  }).toPass({ timeout: 15_000 });
   await expect(page.getByTestId("rj-table").locator("tbody tr").first()).toContainText(nom);
   await expect(page.getByTestId("rj-poste")).toHaveText(/Attaquants/);
 });
