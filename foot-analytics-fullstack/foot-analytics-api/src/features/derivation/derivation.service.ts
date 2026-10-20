@@ -109,6 +109,32 @@ function estimateMinutes(comp: Composition, evts: EvenementMatch[]): number {
   return on ? Math.max(0, 90 - (on.minute ?? 90)) : 0;
 }
 
+/** Une valeur de colonne, pour comparer l'existant au recalcul : null et undefined se valent, et le detail de fatigue
+ *  est compare sans son horodatage (calculeLe change a chaque calcul sans que rien d'autre ne change). */
+function valeurComparable(colonne: string, v: unknown): unknown {
+  if (v === undefined || v === null) return null;
+  if (colonne === "fatigueDetail" && typeof v === "string") {
+    try { const { calculeLe: _ignore, ...reste } = JSON.parse(v); return JSON.stringify(reste); } catch { return v; }
+  }
+  if (Array.isArray(v)) return JSON.stringify(v);
+  if (v instanceof Date) return v.toISOString();
+  return v;
+}
+
+/**
+ * Les lignes recalculees qui different de l'existant sur au moins une colonne (les nouvelles, sans existant, toujours).
+ * `colonnes` : les colonnes de l'entite (les autres champs du calcul ne sont pas ecrits).
+ */
+export function lignesModifiees<T extends Record<string, any>>(
+  recalculees: T[], existant: (ligne: T) => Record<string, any> | undefined, colonnes: string[],
+): T[] {
+  return recalculees.filter((n) => {
+    const e = existant(n);
+    if (!e) return true;
+    return colonnes.some((c) => c in n && valeurComparable(c, n[c]) !== valeurComparable(c, e[c]));
+  });
+}
+
 @Injectable()
 export class DerivationService implements OnApplicationBootstrap {
   private readonly journal = new Logger(DerivationService.name);
@@ -589,8 +615,13 @@ export class DerivationService implements OnApplicationBootstrap {
       });
     }
 
-    await this.joueurs.save(toSave);
-    return { joueurs: toSave.length, ownClubs: ownClubIds.size };
+    // N'ecrit que les fiches qui changent : sur la base hebergee, chaque ecriture est un aller-retour reseau, et
+    // reecrire toute la base a chaque import faisait grossir la reconstruction avec elle (voir lignesModifiees).
+    const colonnes = this.joueurs.metadata.columns.map((c) => c.propertyName);
+    const existantParId = new Map(existing.map((j) => [j.id, j]));
+    const aEcrire = lignesModifiees(toSave, (n) => (n.id ? existantParId.get(n.id) : undefined), colonnes);
+    if (aEcrire.length) await this.joueurs.save(aEcrire, { chunk: 200 });
+    return { joueurs: toSave.length, ownClubs: ownClubIds.size, joueursModifies: aEcrire.length };
   }
 
   /** Recalcule le classement a partir de tous les matchs joues (regles : features/classement/calcul-classement.ts). */

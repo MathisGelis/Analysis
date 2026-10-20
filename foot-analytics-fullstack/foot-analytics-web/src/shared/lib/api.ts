@@ -25,6 +25,7 @@ import type { PlanContreRealise } from "@/features/tactique/lib/plan-realise-typ
 import type { FicheCoach } from "@/features/coachs/lib/fiche-coach-types";
 import type { EntrainementDetail, EntrainementResume, EtatIa, ModeleListe, PlanningIa } from "@/features/ia/lib/ia-types";
 import type { PageJournal } from "@/features/audit/lib/journal";
+import { reconstruire, type EtatReconstruction } from "@/features/fmi/lib/reconstruction";
 import type { CriteresApi, OptionsRecherche, ReponseRecherche } from "@/features/recherche-joueurs/lib/recherche-joueurs";
 
 import type {
@@ -332,17 +333,12 @@ export const api = {
     return uploadApi<any>(`/fmi/import${recompute ? "" : "?recompute=false"}`, fd, "Import FMI");
   },
 
-  // Import d'un lot complet (dossier) en une requete. Le backend importe puis
-  // recalcule effectifs + classement une seule fois.
-  importFmiBatch: (files: File[]) => {
-    const fd = new FormData();
-    for (const f of files) fd.append("files", f);
-    return uploadApi<any>("/fmi/import-batch", fd, "Import lot");
-  },
-
-  // Reconstruit manuellement effectifs (tous clubs) + classement.
-  rebuildDerivation: () =>
-    req<any>("/derivation/rebuild", { method: "POST" }),
+  // Reconstruit effectifs (tous clubs) + classement, en tache de fond suivie jusqu'a la fin (voir
+  // features/fmi/lib/reconstruction.ts : une requete de plus de 2 minutes serait coupee par le relais Vercel).
+  rebuildDerivation: () => reconstruire({
+    lancer: () => req<EtatReconstruction>("/derivation/rebuild/tache", { method: "POST" }),
+    lire: (id) => req<EtatReconstruction>(`/derivation/rebuild/tache/${encodeURIComponent(id)}`),
+  }),
 
   /* ---- Arbitres ---- */
   arbitres: () => req<any[]>("/arbitres", { fallback: [] }),

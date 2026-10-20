@@ -22,6 +22,7 @@ import { AuthModule } from "@/features/auth/auth.module";
 
 import { DerivationService } from "./derivation.service";
 import { DerivationController } from "./derivation.controller";
+import { ReconstructionTacheService } from "./reconstruction-tache.service";
 
 @Module({
   imports: [
@@ -33,7 +34,7 @@ import { DerivationController } from "./derivation.controller";
     AuthModule,
   ],
   controllers: [DerivationController],
-  providers: [DerivationService],
+  providers: [DerivationService, ReconstructionTacheService],
   exports: [DerivationService],
 })
 export class DerivationModule {}

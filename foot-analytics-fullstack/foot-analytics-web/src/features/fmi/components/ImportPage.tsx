@@ -2,13 +2,10 @@
 "use client";
 
 // Import des feuilles de match FFF (FMI).
-// Deux modes :
-//   - Fichiers : glisse-depose ou selection de PDF (import un par un, avec
-//     reconstruction effectifs/classement a la fin du lot).
-//   - Dossier : selection d'un repertoire complet (tous les .pdf sont envoyes
-//     au backend, qui importe puis recalcule effectifs + classement une fois).
-// Le PDF est traite par le backend (POST /api/fmi/import[-batch]) qui execute
-// le parseur Python parse_fmi.py.
+// Deux facons de choisir : des fichiers (glisse-depose ou selection) ou un dossier entier. Dans les deux cas les feuilles
+// partent UNE PAR UNE (POST /api/fmi/import?recompute=false, le backend execute le parseur Python parse_fmi.py), puis
+// effectifs et classement sont reconstruits une fois, en tache de fond suivie jusqu'a la fin. Un seul envoi de tout le
+// dossier, ou une reconstruction attendue d'une traite, depasserait les 2 minutes du relais Vercel -> API (502).
 
 import { useRef, useState } from "react";
 import Link from "next/link";
@@ -44,6 +41,7 @@ export default function ImportPage() {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [derive, setDerive] = useState<string | null>(null);
+  const [progression, setProgression] = useState<string | null>(null);
   const folderInput = useRef<HTMLInputElement>(null);
 
   function onDrop(e: React.DragEvent) {
@@ -54,7 +52,7 @@ export default function ImportPage() {
     if (e.target.files) handleFiles(Array.from(e.target.files));
   }
 
-  // Import "fichiers" : un par un (recompute=false), puis une reconstruction.
+  // Import un par un (sans recalcul a chaque fichier), puis une seule reconstruction.
   async function handleFiles(files: File[]) {
     const pdfs = files.filter((f) => f.name.toLowerCase().endsWith(".pdf"));
     if (!pdfs.length) return;
@@ -67,9 +65,12 @@ export default function ImportPage() {
       ...pdfs.map((f) => ({ name: f.name, size: f.size, status: "parsing" as Status })),
     ]);
 
-    for (const file of pdfs) {
+    let nouveaux = 0, misAJour = 0, echecs = 0;
+    for (const [n, file] of pdfs.entries()) {
+      setProgression(`Import ${n + 1}/${pdfs.length}…`);
       try {
         const res = await api.importFmi(file, false); // pas de recalcul a chaque fichier
+        if (res.reimport) misAJour++; else nouveaux++;
         setItems((cur) =>
           cur.map((c) =>
             c.name === file.name && c.status === "parsing"
@@ -81,6 +82,7 @@ export default function ImportPage() {
           ),
         );
       } catch (err) {
+        echecs++;
         setItems((cur) =>
           cur.map((c) =>
             c.name === file.name && c.status === "parsing"
@@ -92,71 +94,35 @@ export default function ImportPage() {
     }
 
     // reconstruction unique des effectifs + classement
+    const bilan = `${pdfs.length} feuille(s) : ${nouveaux} nouvelle(s), ${misAJour} mise(s) a jour, ${echecs} echec(s).`;
+    setProgression("Reconstruction des effectifs et du classement…");
     try {
       const d = await api.rebuildDerivation();
-      setDerive(`Effectifs et classement reconstruits (${d.joueurs} joueurs, ${d.classement} equipes).`);
-    } catch {
-      setDerive("Import termine. (Reconstruction effectifs/classement indisponible : backend ?)");
+      setDerive(`${bilan} Effectifs et classement reconstruits (${d.joueurs} joueurs, ${d.classement} equipes).`);
+    } catch (e) {
+      setDerive(`${bilan} Reconstruction effectifs/classement : ${(e as Error).message}. Relance "Recalculer effectifs + classement".`);
     }
+    setProgression(null);
     setBusy(false);
   }
 
-  // Import "dossier" : tout le repertoire en une requete (import-batch).
+  // Dossier complet : les memes envois un par un.
   async function onPickFolder(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files ? Array.from(e.target.files) : [];
-    const pdfs = files.filter((f) => f.name.toLowerCase().endsWith(".pdf"));
-    if (!pdfs.length) return;
-    setBusy(true);
-    setDerive(null);
-    setItems((cur) => [
-      ...cur,
-      ...pdfs.map((f) => ({ name: f.name, size: f.size, status: "parsing" as Status })),
-    ]);
-    try {
-      const res = await api.importFmiBatch(pdfs);
-      const byName = new Map<string, any>(res.resultats.map((r: any) => [r.fichier, r]));
-      setItems((cur) =>
-        cur.map((c) => {
-          if (c.status !== "parsing") return c;
-          const r = byName.get(c.name);
-          if (!r) return c;
-          return r.ok
-            ? {
-                ...c, status: "ok", matchId: r.matchId, resume: r.resume,
-                reimport: r.reimport, avertissements: r.avertissements,
-              }
-            : { ...c, status: "error", error: r.erreur, code: r.code, avertissements: r.avertissements };
-        }),
-      );
-      // Bilan du lot : nouveaux / mis a jour / echecs / avertissements.
-      const bilan = [
-        `${res.nouveaux} nouvelle(s)`,
-        `${res.mis_a_jour} mise(s) a jour`,
-        `${res.echecs} echec(s)`,
-        res.avec_avertissements ? `${res.avec_avertissements} avec avertissement(s)` : null,
-      ].filter(Boolean).join(" · ");
-      setDerive(
-        `Dossier traite : ${res.importes}/${res.total} feuilles (${bilan}). ` +
-        (res.derive?.erreur
-          ? `Reconstruction effectifs/classement ECHOUEE : ${res.derive.erreur}. Relance "Recalculer effectifs + classement".`
-          : `Effectifs (${res.derive?.joueurs} joueurs) et classement (${res.derive?.classement} equipes) reconstruits.`),
-      );
-    } catch (err) {
-      setItems((cur) =>
-        cur.map((c) => (c.status === "parsing" ? { ...c, status: "error", error: (err as Error).message } : c)));
-    }
-    setBusy(false);
+    await handleFiles(files);
     if (folderInput.current) folderInput.current.value = "";
   }
 
   async function rebuildNow() {
     setBusy(true);
+    setProgression("Reconstruction des effectifs et du classement…");
     try {
       const d = await api.rebuildDerivation();
       setDerive(`Reconstruit : ${d.joueurs} joueurs, ${d.classement} equipes.`);
     } catch (e) {
       setDerive("Reconstruction impossible : " + (e as Error).message);
     }
+    setProgression(null);
     setBusy(false);
   }
 
@@ -216,6 +182,12 @@ export default function ImportPage() {
           </label>
         </div>
       </div>
+
+      {progression && (
+        <p className="panel-inset flex items-center gap-2 p-3 text-sm text-ink" role="status" data-testid="import-progression">
+          <RefreshCw size={14} className="animate-spin text-accent" aria-hidden /> {progression}
+        </p>
+      )}
 
       {derive && (
         <div className="panel-inset p-3 border-l-2 border-accent text-sm text-ink">
