@@ -36,6 +36,17 @@ import type {
 const RELAIS = "/api/backend";
 const estServeur = () => typeof window === "undefined";
 
+/**
+ * Les « erreurs » par lesquelles Next interrompt un rendu pour le passer en dynamique (lecture des cookies, fetch sans cache) ou
+ * pour rediriger : ce ne sont pas des pannes, et les avaler (repli sur des donnees de demo) ne sert a rien. On les relance.
+ */
+export function estSignalNext(e: unknown): boolean {
+  const o = e as { digest?: unknown; code?: unknown } | null;
+  const digest = typeof o?.digest === "string" ? o.digest : "";
+  return digest === "DYNAMIC_SERVER_USAGE" || digest === "BAILOUT_TO_CLIENT_SIDE_RENDERING" || digest.startsWith("NEXT_")
+    || o?.code === "NEXT_STATIC_GEN_BAILOUT";
+}
+
 type Json = Record<string, any>;
 
 /** La raison donnee par l'API dans le corps d'une erreur Nest ({ message: "..." } ou { message: ["...", "..."] }), sinon "". */
@@ -87,7 +98,8 @@ async function cibleEtEntetes(): Promise<{ base: string; entetes: Record<string,
     const { COOKIE_ACCES, urlApi } = await import("@/features/auth/lib/session-serveur");
     const token = (await cookies()).get(COOKIE_ACCES)?.value;
     return { base: urlApi(), entetes: token ? { Authorization: `Bearer ${token}` } : {} };
-  } catch {
+  } catch (e) {
+    if (estSignalNext(e)) throw e;
     // Hors contexte de requete (build) : pas de session.
     const { urlApi } = await import("@/features/auth/lib/session-serveur");
     return { base: urlApi(), entetes: {} };
@@ -150,19 +162,41 @@ async function parseJson<T>(res: Response, vide: T | null = null): Promise<T> {
   return JSON.parse(text) as T;
 }
 
+let lectureMemo: ((chemin: string) => Promise<{ statut: number; texte: string }>) | null = null;
+
+/**
+ * GET memorise pour la duree d'UNE requete de page (React.cache : propre a chaque requete, jamais partage entre comptes ni d'une
+ * requete a la suivante, donc sans risque pour des donnees filtrees par compte). Chaque appelant recoit sa propre Response.
+ */
+async function lectureUneFoisParRequete(path: string): Promise<Response> {
+  if (!lectureMemo) {
+    const { cache } = await import("react");
+    lectureMemo = cache(async (chemin: string) => {
+      const r = await fetchApi(chemin);
+      return { statut: r.status, texte: await r.text() };
+    });
+  }
+  const { statut, texte } = await lectureMemo(path);
+  return new Response(statut === 204 || statut === 205 ? null : texte, { status: statut });
+}
+
 async function req<T>(
   path: string,
   opts: RequestInit & { fallback?: T } = {},
 ): Promise<T> {
   const { fallback, ...init } = opts;
   try {
-    const res = await fetchApi(path, init);
+    // Cote serveur, une lecture n'est faite qu'UNE fois par requete de page (le layout et la page demandent les memes clubs et
+    // saisons) ; les ecritures, et tout appel avec options particulieres, partent toujours.
+    const lecture = estServeur() && (init.method ?? "GET").toUpperCase() === "GET" && !init.body && !init.headers;
+    const res = lecture ? await lectureUneFoisParRequete(path) : await fetchApi(path, init);
     if (!res.ok) {
       const corps = await res.json().catch(() => null);
       throw new ApiError(res.status, path, corps);
     }
     return await parseJson<T>(res, fallback !== undefined ? fallback : null);
   } catch (e) {
+    if (estSignalNext(e)) throw e;
     if (fallback !== undefined) {
       if (typeof console !== "undefined") {
         console.warn(`[api] repli demo pour ${path} :`, (e as Error).message);

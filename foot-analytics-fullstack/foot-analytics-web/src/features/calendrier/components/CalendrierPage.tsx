@@ -147,18 +147,16 @@ function CalendrierContent() {
       mm.equipeDomId === equipeId || mm.equipeExtId === equipeId));
   };
 
-  const mois = useMemo(() => {
-    const first = startOfMonth(cursor);
-    const startDow = dowFR(first);
+  // Les jours du mois, rien d'autre : les cases vides avant le 1er et apres le dernier jour ne sont plus des elements du DOM
+  // (une quarantaine d'<div> pour rien), le 1er jour est simplement decale de `debutColonne` colonnes sur la grille de 7.
+  const { mois, debutColonne } = useMemo(() => {
     const nbDays = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
-    const slots: { date: Date | null; iso: string | null }[] = [];
-    for (let i = 0; i < startDow; i++) slots.push({ date: null, iso: null });
+    const jours: { date: Date; iso: string }[] = [];
     for (let i = 1; i <= nbDays; i++) {
       const d = new Date(cursor.getFullYear(), cursor.getMonth(), i);
-      slots.push({ date: d, iso: isoDate(d) });
+      jours.push({ date: d, iso: isoDate(d) });
     }
-    while (slots.length < 42) slots.push({ date: null, iso: null });
-    return slots;
+    return { mois: jours, debutColonne: dowFR(startOfMonth(cursor)) + 1 };
   }, [cursor]);
 
   const todayIso = isoDate(new Date());
@@ -286,10 +284,7 @@ function CalendrierContent() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-7 gap-1.5 md:gap-1">
           {mois.map((slot, i) => {
-            if (!slot.date) {
-              return <div key={i} className="hidden md:block min-h-[110px] opacity-30"/>;
-            }
-            const iso = slot.iso!;
+            const iso = slot.iso;
             const isToday = iso === todayIso;
             const dow = dowFR(slot.date);
             const jourPrevu = planning.jours.includes(dow);
@@ -303,15 +298,16 @@ function CalendrierContent() {
             const videMobile = !isToday && sList.length === 0 && mList.length === 0
               && aList.length === 0 && !showPlaceholder;
             return (
-              <div key={i}
-                className={`md:min-h-[110px] panel-inset p-2 relative group ${
+              <div key={iso}
+                style={i === 0 ? ({ "--debut": debutColonne } as React.CSSProperties) : undefined}
+                className={`md:min-h-[110px] panel-inset p-2 relative group ${i === 0 ? "md:[grid-column-start:var(--debut)]" : ""} ${
                   videMobile ? "hidden md:block" : ""
                 } ${isToday ? "border-2 border-accent" : ""}`}>
                 <div className="flex items-center justify-between">
-                  <div className={`text-[11px] font-mono ${
+                  {/* Le jour de la semaine (mobile seulement) est un contenu CSS, pas un element de plus par case. */}
+                  <div data-jour={JOURS_FR[dow]} className={`text-[11px] font-mono max-md:before:content-[attr(data-jour)] max-md:before:uppercase max-md:before:tracking-wider max-md:before:mr-1 ${
                     isToday ? "text-accent font-bold" : "text-muted"
                   }`}>
-                    <span className="md:hidden uppercase tracking-wider mr-1">{JOURS_FR[dow]}</span>
                     {slot.date.getDate()}
                   </div>
                   {/* Visibles au survol, au clavier (focus) et en permanence sur ecran tactile (pas de survol). */}
