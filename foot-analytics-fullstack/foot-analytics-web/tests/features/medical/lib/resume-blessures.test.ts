@@ -30,7 +30,7 @@ describe("blessuresDeLaSaison", () => {
     b("6", "b", { dateDebut: null }),                    // sans date
     b("7", "a", { dateDebut: "12/11/2025" }),            // format francais
   ];
-  it("garde celles dont le debut tombe dans la saison (bornes comprises), pour les joueurs de l'equipe", () => {
+  it("garde celles dont le début tombe dans la saison (bornes comprises), pour les joueurs de l'équipe", () => {
     expect(blessuresDeLaSaison(liste, ids, fenetre, false).map((x) => x.id)).toEqual(["1", "2", "7"]);
   });
   it("sans date : seulement sur la saison en cours", () => {
@@ -40,7 +40,7 @@ describe("blessuresDeLaSaison", () => {
 
 describe("joursDansLaSaison", () => {
   const f = fenetreSaison(2025);
-  it("du debut au retour ; sans retour, jusqu'a aujourd'hui ; jamais au-dela de la fin de saison", () => {
+  it("du début au retour ; sans retour, jusqu'a aujourd'hui ; jamais au-dela de la fin de saison", () => {
     expect(joursDansLaSaison(b("1", "a", { dateDebut: "2025-10-01", retourEstime: "2025-10-11" }), f, NOW)).toBe(10);
     expect(joursDansLaSaison(b("2", "a", { dateDebut: "2026-02-01" }), f, NOW)).toBe(28);
     expect(joursDansLaSaison(b("3", "a", { dateDebut: "2026-07-20", retourEstime: "2026-09-01" }), f, NOW)).toBe(11);   // coupee au 31 juillet
@@ -54,36 +54,36 @@ describe("joursDansLaSaison", () => {
 
 describe("resumerBlessures", () => {
   const blessures: BlessureSaison[] = [
-    b("1", "a", { localisation: "Cheville", gravite: "Legere", dateDebut: "2025-09-10", retourEstime: "2025-09-20", statut: "Retabli" }),    // 10 j
-    b("2", "a", { localisation: "cheville", gravite: "Moyenne", dateDebut: "2025-11-05", retourEstime: "2025-11-25", statut: "Retabli" }),    // 20 j, rechute
-    b("3", "b", { localisation: "Genou", gravite: "Grave", dateDebut: "2025-11-20", retourEstime: "2026-01-19", statut: "Retabli" }),         // 60 j
+    b("1", "a", { localisation: "Cheville", gravite: "Legere", dateDebut: "2025-09-10", retourEstime: "2025-09-20", statut: "Rétabli" }),    // 10 j
+    b("2", "a", { localisation: "cheville", gravite: "Moyenne", dateDebut: "2025-11-05", retourEstime: "2025-11-25", statut: "Rétabli" }),    // 20 j, rechute
+    b("3", "b", { localisation: "Genou", gravite: "Grave", dateDebut: "2025-11-20", retourEstime: "2026-01-19", statut: "Rétabli" }),         // 60 j
     b("4", "c", { localisation: "Ischio", dateDebut: "2026-02-15", statut: "Indisponible" }),                                                  // en cours : 14 j
     b("5", "c", { dateDebut: "2026-03-01", retourEstime: "2026-03-05", statut: "Reprise" }),                                                   // sans localisation
   ];
   const noms = new Map([["a", "Luc Durand"], ["b", "Paul Martin"]]);
   const r = resumerBlessures(blessures, 2025, NOW, noms);
 
-  it("les totaux : blessures, joueurs touches, en cours, retablies, jours manques, duree moyenne", () => {
+  it("les totaux : blessures, joueurs touchés, en cours, retablies, jours manqués, durée moyenne", () => {
     expect(r).toMatchObject({ total: 5, joueursTouches: 3, enCours: 1, retablies: 4 });
     expect(r.joursManques).toBe(10 + 20 + 60 + 14 + 4);
     expect(r.dureeMoyenne).toBe(Math.round((10 + 20 + 60 + 4) / 4));              // seulement les blessures terminees et datees
     expect(r.plusLongue).toEqual({ joueurId: "b", nom: "Paul Martin", localisation: "Genou", jours: 60 });
   });
 
-  it("par localisation : accents et casse confondus, les plus frequentes d'abord, 'Non precisee' pour les autres", () => {
+  it("par localisation : accents et casse confondus, les plus frequentes d'abord, 'Non précisée' pour les autres", () => {
     expect(r.parLocalisation.map((l) => [l.libelle, l.n, l.jours])).toEqual([
-      ["Cheville", 2, 30], ["Genou", 1, 60], ["Ischio", 1, 14], ["Non precisee", 1, 4],
+      ["Cheville", 2, 30], ["Genou", 1, 60], ["Ischio", 1, 14], ["Non précisée", 1, 4],
     ]);
   });
 
-  it("par gravite : seulement quand elle est renseignee", () => {
+  it("par gravité : seulement quand elle est renseignee", () => {
     expect(r.parGravite.map((l) => [l.libelle, l.n])).toEqual([["Grave", 1], ["Moyenne", 1], ["Legere", 1]]);       // a nombre egal, la plus longue d'abord
     expect(resumerBlessures([b("9", "a", { dateDebut: "2025-09-10" })], 2025, NOW).parGravite).toEqual([]);
   });
 
-  it("par mois : douze mois d'aout a juillet", () => {
+  it("par mois : douze mois d'août à juillet", () => {
     expect(r.parMois).toHaveLength(12);
-    expect(r.parMois[0]).toEqual({ mois: "2025-08", libelle: "aout", n: 0 });
+    expect(r.parMois[0]).toEqual({ mois: "2025-08", libelle: "août", n: 0 });
     expect(r.parMois[11]).toEqual({ mois: "2026-07", libelle: "juil.", n: 0 });
     const n = Object.fromEntries(r.parMois.map((m) => [m.mois, m.n]));
     expect(n).toMatchObject({ "2025-09": 1, "2025-11": 2, "2026-02": 1, "2026-03": 1, "2025-10": 0 });
@@ -93,7 +93,7 @@ describe("resumerBlessures", () => {
     expect(r.parJoueur.map((j) => [j.nom, j.n, j.jours])).toEqual([["Luc Durand", 2, 30], ["Joueur inconnu", 2, 18], ["Paul Martin", 1, 60]]);
   });
 
-  it("rechutes : meme joueur, meme endroit, au moins deux fois", () => {
+  it("rechutes : même joueur, même endroit, au moins deux fois", () => {
     expect(r.rechutes).toEqual([{ joueurId: "a", nom: "Luc Durand", localisation: "Cheville", n: 2 }]);
   });
 

@@ -40,7 +40,7 @@ interface Props {
   "data-testid"?: string;
 }
 
-const MOIS_COURTS = ["Janv.", "Fevr.", "Mars", "Avr.", "Mai", "Juin", "Juil.", "Aout", "Sept.", "Oct.", "Nov.", "Dec."];
+const MOIS_COURTS = ["Janv.", "Févr.", "Mars", "Avr.", "Mai", "Juin", "Juil.", "Août", "Sept.", "Oct.", "Nov.", "Dec."];
 const COMPLETE = /^(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})$/;
 
 export function DatePicker({
@@ -150,7 +150,7 @@ export function DatePicker({
     else setAffiche(ajouterMois(affiche, 144 * pas));
   }
   const titre = vue === "jours" ? `${MOIS[mois - 1]} ${annee}` : vue === "mois" ? String(annee) : `${debutAnnees} - ${debutAnnees + 11}`;
-  const libellePas = vue === "jours" ? ["Mois precedent", "Mois suivant"] : vue === "mois" ? ["Annee precedente", "Annee suivante"] : ["Annees precedentes", "Annees suivantes"];
+  const libellePas = vue === "jours" ? ["Mois précédent", "Mois suivant"] : vue === "mois" ? ["Année précédente", "Année suivante"] : ["Années précédentes", "Années suivantes"];
 
   const bouton = "rounded-lg text-sm transition-colors hover:bg-accent/[0.13] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent";
 
@@ -181,7 +181,7 @@ export function DatePicker({
               </button>
               <button
                 type="button" aria-live="polite"
-                aria-label={vue === "jours" ? `${titre}, choisir un mois` : vue === "mois" ? `${titre}, choisir une annee` : "Revenir aux jours"}
+                aria-label={vue === "jours" ? `${titre}, choisir un mois` : vue === "mois" ? `${titre}, choisir une année` : "Revenir aux jours"}
                 onClick={() => setVue(vue === "jours" ? "mois" : vue === "mois" ? "annees" : "jours")}
                 className={`${bouton} px-3 py-1 font-semibold capitalize text-ink`}
               >

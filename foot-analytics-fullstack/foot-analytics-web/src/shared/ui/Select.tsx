@@ -172,7 +172,7 @@ export const Select = forwardRef<HTMLButtonElement, Props>(function Select({
           )}
           <div ref={liste} id={idListe} role="listbox" aria-label={ariaLabel} className="min-h-0 flex-1 overflow-y-auto p-1">
             {visibles.length === 0 ? (
-              <p className="px-3 py-4 text-center text-sm text-muted">Aucun resultat pour "{requete.trim()}".</p>
+              <p className="px-3 py-4 text-center text-sm text-muted">Aucun résultat pour "{requete.trim()}".</p>
             ) : groupes.map((g, k) => (
               <div key={g.titre ?? `_${k}`} role="group" aria-label={g.titre ?? undefined}>
                 {g.titre && <div className="h-section px-2.5 pb-1 pt-2">{g.titre}</div>}

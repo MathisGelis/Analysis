@@ -62,7 +62,7 @@ function Barre() {
           <div className="panel-pop flex flex-col items-center gap-4 px-12 py-10">
             <Spinner taille={80} epaisseur={7} />
             <div className="text-base font-semibold text-ink">Chargement</div>
-            <div className="text-xs text-muted">Les donnees se calculent...</div>
+            <div className="text-xs text-muted">Les données se calculent...</div>
           </div>
         </div>
       )}

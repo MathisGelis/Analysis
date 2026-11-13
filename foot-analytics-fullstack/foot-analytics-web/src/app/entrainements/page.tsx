@@ -6,8 +6,8 @@
 import EntrainementsPage from "@/features/entrainements/components/EntrainementsPage";
 import { GardePage } from "@/features/shell/components/GardePage";
 
-export const metadata = { title: "Entrainements · Foot Analytics" };
+export const metadata = { title: "Entraînements · Foot Analytics" };
 
 export default function Route() {
-  return <GardePage chemin="/entrainements" page="Entrainements"><EntrainementsPage /></GardePage>;
+  return <GardePage chemin="/entrainements" page="Entraînements"><EntrainementsPage /></GardePage>;
 }

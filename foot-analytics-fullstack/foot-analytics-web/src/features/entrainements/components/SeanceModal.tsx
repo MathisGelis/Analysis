@@ -28,7 +28,7 @@ const ESPACES = [
   { id: "terrain_entier", label: "Terrain entier",   facteur: 1.00 },
   { id: "demi_terrain",   label: "Demi-terrain",     facteur: 1.15 },
   { id: "quart_terrain",  label: "Quart de terrain", facteur: 1.30 },
-  { id: "espace_reduit",  label: "Espace reduit",    facteur: 1.40 },
+  { id: "espace_reduit",  label: "Espace réduit",    facteur: 1.40 },
   { id: "salle",          label: "Salle",            facteur: 0.90 },
   { id: "autre",          label: "Autre",            facteur: 1.00 },
 ];
@@ -126,7 +126,7 @@ export function SeanceModal({
       }
       onSaved();
     } catch (e) {
-      setError("Echec : backend injoignable. " + (e as Error).message);
+      setError("Échec : backend injoignable. " + (e as Error).message);
       setSaving(false);
     }
   }
@@ -142,7 +142,7 @@ export function SeanceModal({
     <Modal open={true} onClose={onClose} maxWidth="max-w-3xl">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-display text-xl font-bold text-ink">
-          {isEdit ? "Modifier la seance" : "Nouvel entrainement"}
+          {isEdit ? "Modifier la séance" : "Nouvel entraînement"}
         </h2>
         <button className="btn text-xs" onClick={onClose}><X size={14}/></button>
       </div>
@@ -168,16 +168,16 @@ export function SeanceModal({
           <input className="inp" value={form.terrain}
             onChange={(e) => set("terrain", e.target.value)}/>
         </Field>
-        <Field label="Theme">
+        <Field label="Thème">
           <input className="inp" value={form.theme}
             placeholder="Sortie de balle / pressing"
             onChange={(e) => set("theme", e.target.value)}/>
         </Field>
-        <Field label="Duree (min)">
+        <Field label="Durée (min)">
           <input type="number" className="inp" value={form.dureeMin}
             onChange={(e) => set("dureeMin", +e.target.value)}/>
         </Field>
-        <Field label="Intensite (RPE / 10)">
+        <Field label="Intensité (RPE / 10)">
           <input type="number" min={1} max={10} className="inp"
             value={form.intensite}
             onChange={(e) => set("intensite", +e.target.value)}/>
@@ -189,7 +189,7 @@ export function SeanceModal({
         </Field>
       </div>
       <p className="text-[10px] text-faint mt-1">
-        Charge calculee live : duree x RPE x facteur_type ({(FACTEURS_TYPE[form.type] ?? 0.85).toFixed(2)})
+        Charge calculée live : durée x RPE x facteur_type ({(FACTEURS_TYPE[form.type] ?? 0.85).toFixed(2)})
         x facteur_espace ({(ESPACES.find((e) => e.id === form.espace)?.facteur ?? 1.00).toFixed(2)}).
       </p>
 
@@ -199,7 +199,7 @@ export function SeanceModal({
           <div className="flex items-center gap-2">
             <Users size={14} className="text-accent"/>
             <span className="font-display font-bold text-ink text-sm">
-              Joueurs presents
+              Joueurs présents
             </span>
             <span className="badge badge-accent">
               {presents.size} / {effectif.length}
@@ -216,7 +216,7 @@ export function SeanceModal({
         </div>
         {effectif.length === 0 ? (
           <p className="text-xs text-muted py-3 text-center">
-            Aucun joueur dans l'effectif de cette equipe. Importe une FMI.
+            Aucun joueur dans l'effectif de cette équipe. Importe une FMI.
           </p>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-1 max-h-[280px] overflow-auto">
@@ -249,7 +249,7 @@ export function SeanceModal({
         <button className="btn" onClick={onClose}>Annuler</button>
         <button className="btn btn-primary" onClick={save} disabled={saving}>
           <Save size={14}/>
-          {saving ? "Enregistrement…" : (isEdit ? "Enregistrer" : "Creer la seance")}
+          {saving ? "Enregistrement…" : (isEdit ? "Enregistrer" : "Créer la séance")}
         </button>
       </div>
     </Modal>

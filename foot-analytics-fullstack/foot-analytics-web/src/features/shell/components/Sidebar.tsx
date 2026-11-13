@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 
@@ -23,6 +23,21 @@ interface Props {
   onFermerMobile: () => void;
 }
 
+/**
+ * Lien de la barre laterale. Next precharge par defaut chaque lien visible : une quinzaine de requetes a chaque page, pour des
+ * pages qu'on n'ouvrira pas. Ici le prechargement est coupe, et ne part qu'a l'INTENTION (survol, focus clavier, doigt pose) :
+ * il a alors une bonne centaine de millisecondes d'avance sur le clic, sans le cout des quinze autres.
+ */
+function LienNav({ href, children, ...props }: React.ComponentProps<typeof Link>) {
+  const router = useRouter();
+  const precharger = () => router.prefetch(String(href));
+  return (
+    <Link href={href} prefetch={false} onMouseEnter={precharger} onFocus={precharger} onTouchStart={precharger} {...props}>
+      {children}
+    </Link>
+  );
+}
+
 /** Contenu commun a la barre laterale de bureau et au tiroir mobile. */
 function Contenu({
   replie, onBasculerReplie, onFermerMobile, mobile,
@@ -37,7 +52,7 @@ function Contenu({
     <div className="flex h-full flex-col">
       {/* Marque */}
       <div className={`flex items-center ${compact ? "justify-center px-2" : "justify-between px-4"} pt-4 pb-3`}>
-        <Link href="/" className="flex items-center gap-3 group min-w-0" title="Dashboard">
+        <LienNav href="/" className="flex items-center gap-3 group min-w-0" title="Dashboard">
           <Logo size={compact ? 38 : 40} className="shrink-0 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105" />
           {!compact && (
             <div className="leading-tight min-w-0">
@@ -45,21 +60,21 @@ function Contenu({
               <div className="text-[11px] font-medium text-faint">Console staff</div>
             </div>
           )}
-        </Link>
+        </LienNav>
         {mobile ? (
           <button type="button" onClick={onFermerMobile} className="btn btn-ghost !p-2" aria-label="Fermer le menu">
             <X size={18} />
           </button>
         ) : !compact ? (
           <button type="button" onClick={onBasculerReplie} className="btn btn-ghost !p-2 hidden lg:inline-flex"
-            aria-label="Replier la barre laterale" title="Replier">
+            aria-label="Replier la barre latérale" title="Replier">
             <PanelLeftClose size={16} />
           </button>
         ) : null}
       </div>
       {compact && (
         <button type="button" onClick={onBasculerReplie} className="btn btn-ghost !p-2 mx-auto mb-2"
-          aria-label="Deplier la barre laterale" title="Deplier">
+          aria-label="Déplier la barre latérale" title="Déplier">
           <PanelLeftOpen size={16} />
         </button>
       )}
@@ -79,7 +94,7 @@ function Contenu({
                 const actif = lienActif(it.href, path);
                 return (
                   <li key={it.label}>
-                    <Link
+                    <LienNav
                       href={it.href}
                       title={compact ? it.label : undefined}
                       aria-current={actif ? "page" : undefined}
@@ -100,7 +115,7 @@ function Contenu({
                         <Icon size={15} strokeWidth={2} />
                       </span>
                       {!compact && <span className="flex-1 truncate">{it.label}</span>}
-                    </Link>
+                    </LienNav>
                   </li>
                 );
               })}
@@ -156,8 +171,9 @@ export function Sidebar({ replie, onBasculerReplie, mobileOuvert, onFermerMobile
         </div>
       </aside>
 
-      {/* Mobile : tiroir coulissant sur fond assombri. */}
-      <div className={`lg:hidden print:hidden fixed inset-0 z-50 ${mobileOuvert ? "" : "pointer-events-none"}`} aria-hidden={!mobileOuvert}>
+      {/* Mobile : tiroir coulissant sur fond assombri. Ferme, il est `inert` : ses liens et boutons ne sont plus atteignables au
+          clavier ni au lecteur d'ecran (un simple aria-hidden les laisserait focalisables, hors de l'ecran). */}
+      <div className={`lg:hidden print:hidden fixed inset-0 z-50 ${mobileOuvert ? "" : "pointer-events-none"}`} aria-hidden={!mobileOuvert} inert={!mobileOuvert}>
         <div
           onClick={onFermerMobile}
           className={`absolute inset-0 bg-black/55 backdrop-blur-sm transition-opacity duration-300 ${mobileOuvert ? "opacity-100" : "opacity-0"}`}

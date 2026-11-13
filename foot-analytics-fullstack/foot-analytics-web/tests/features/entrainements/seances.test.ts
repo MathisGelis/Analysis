@@ -6,11 +6,11 @@ import {
 } from "@/features/entrainements/lib/seances";
 
 describe("seances", () => {
-  it("affiche 6 seances par page", () => {
+  it("affiche 6 séances par page", () => {
     expect(SEANCES_PAR_PAGE).toBe(6);
   });
 
-  it("ordonne la plus recente d'abord, date puis heure, formats mixtes", () => {
+  it("ordonne la plus récente d'abord, date puis heure, formats mixtes", () => {
     const l = ordonnerRecentsDabord([
       { id: "a", date: "2025-09-02", heure: "19:30" },
       { id: "b", date: "14/09/2025", heure: "10:00" },
@@ -20,7 +20,7 @@ describe("seances", () => {
     expect(l.map((s) => s.id)).toEqual(["b", "c", "a", "d"]);
   });
 
-  it("moyenne de presence en pourcent, sans effectif ignore", () => {
+  it("moyenne de présence en pourcent, sans effectif ignore", () => {
     expect(moyennePresence([])).toBeNull();
     expect(moyennePresence([{ presents: 0, total: 0 }])).toBeNull();
     expect(moyennePresence([

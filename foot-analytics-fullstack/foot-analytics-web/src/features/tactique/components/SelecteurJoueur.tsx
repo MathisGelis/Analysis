@@ -36,7 +36,7 @@ export const SelecteurJoueur = forwardRef<HTMLButtonElement, {
   const liste = useMemo<OptionSelect[]>(() => {
     const duPoste = options.filter((o) => o.groupe === "poste");
     const autres = options.filter((o) => o.groupe === "autres");
-    const titrePoste = groupePoste ? `Sur ce poste (${groupePoste})` : "Meme ligne";
+    const titrePoste = groupePoste ? `Sur ce poste (${groupePoste})` : "Même ligne";
     const titreAutres = duPoste.length > 0 || groupePoste ? "Autres postes" : "Effectif";
     const enOption = (o: OptionJoueur, groupe: string): OptionSelect => ({
       valeur: o.joueur.id, libelle: libelleJoueur(o.joueur), groupe, desactive: o.refus !== null, detail: o.refus ?? undefined,

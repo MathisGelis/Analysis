@@ -17,10 +17,10 @@ import type { Match } from "@/shared/lib/types";
 import { useFeedback } from "@/shared/lib/feedback-context";
 
 const STATUTS = [
-  { valeur: "joue", libelle: "Joue" },
-  { valeur: "prevu", libelle: "Prevu" },
-  { valeur: "reporte", libelle: "Reporte" },
-  { valeur: "annule", libelle: "Annule" },
+  { valeur: "joue", libelle: "Joué" },
+  { valeur: "prevu", libelle: "Prévu" },
+  { valeur: "reporte", libelle: "Reporté" },
+  { valeur: "annule", libelle: "Annulé" },
 ];
 
 export function MatchActions({ match }: { match: Match }) {
@@ -55,7 +55,7 @@ export function MatchActions({ match }: { match: Match }) {
       setOpen(false);
       router.refresh();
     } catch (e) {
-      setError("Echec : " + messageApi(e));
+      setError("Échec : " + messageApi(e));
       setSaving(false);
     }
   }
@@ -63,7 +63,7 @@ export function MatchActions({ match }: { match: Match }) {
   async function remove() {
     if (!(await confirmer({
       titre: `Supprimer ce match ?`,
-      message: `Journee ${match.journee}, score ${match.scoreDom}–${match.scoreExt}. Les compositions, evenements et liens arbitres seront aussi supprimes.`,
+      message: `Journée ${match.journee}, score ${match.scoreDom}–${match.scoreExt}. Les compositions, événements et liens arbitres seront aussi supprimés.`,
       danger: true,
     }))) return;
     try {
@@ -96,7 +96,7 @@ export function MatchActions({ match }: { match: Match }) {
           </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <Field label="Journee">
+              <Field label="Journée">
                 <input className="inp" value={form.journee}
                   onChange={(e) => set("journee", e.target.value)}/>
               </Field>
@@ -107,7 +107,7 @@ export function MatchActions({ match }: { match: Match }) {
                 <input className="inp" value={form.heure}
                   onChange={(e) => set("heure", e.target.value)}/>
               </Field>
-              <Field label="Competition">
+              <Field label="Compétition">
                 <input className="inp" value={form.competition}
                   onChange={(e) => set("competition", e.target.value)}/>
               </Field>
@@ -123,7 +123,7 @@ export function MatchActions({ match }: { match: Match }) {
                 <input type="number" min={0} className="inp" value={form.scoreDom}
                   onChange={(e) => set("scoreDom", +e.target.value)}/>
               </Field>
-              <Field label="Score exterieur">
+              <Field label="Score extérieur">
                 <input type="number" min={0} className="inp" value={form.scoreExt}
                   onChange={(e) => set("scoreExt", +e.target.value)}/>
               </Field>

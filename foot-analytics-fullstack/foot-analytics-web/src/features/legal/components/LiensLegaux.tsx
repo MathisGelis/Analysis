@@ -7,10 +7,10 @@ import Link from "next/link";
 
 export function LiensLegaux({ className = "" }: { className?: string }) {
   return (
-    <nav aria-label="Informations legales" className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-faint ${className}`}>
-      <Link href="/confidentialite" className="hover:text-ink hover:underline">Confidentialite</Link>
+    <nav aria-label="Informations légales" className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-faint ${className}`}>
+      <Link href="/confidentialite" className="hover:text-ink hover:underline">Confidentialité</Link>
       <span aria-hidden>·</span>
-      <Link href="/mentions-legales" className="hover:text-ink hover:underline">Mentions legales</Link>
+      <Link href="/mentions-legales" className="hover:text-ink hover:underline">Mentions légales</Link>
       <span aria-hidden>·</span>
       <Link href="/cgu" className="hover:text-ink hover:underline">Conditions d'utilisation</Link>
     </nav>

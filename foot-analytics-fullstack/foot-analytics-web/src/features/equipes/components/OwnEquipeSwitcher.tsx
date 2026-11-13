@@ -140,7 +140,7 @@ export function OwnEquipeSwitcher() {
       if (candidates.length === 0) {
         setReimportState("error");
         setReimportError(
-          "Aucune equipe importee. Verifie que la saison precedente a bien des equipes.",
+          "Aucune équipe importée. Vérifie que la saison précédente a bien des équipes.",
         );
         return;
       }
@@ -200,7 +200,7 @@ export function OwnEquipeSwitcher() {
             <div className="font-display font-bold text-ink mt-0.5 truncate">
               {!booted
                 ? <span className="text-muted">Chargement…</span>
-                : (equipeChoisie?.nom ?? "Aucune equipe")}
+                : (equipeChoisie?.nom ?? "Aucune équipe")}
             </div>
             {equipeChoisie?.competitionLibelle && (
               <div className="text-[10px] text-muted mt-0.5 truncate">
@@ -213,7 +213,7 @@ export function OwnEquipeSwitcher() {
       </button>
 
       {open && (
-        <div role="dialog" aria-label="Choix de la saison et de l'equipe" className="absolute bottom-full left-0 right-0 mb-2 panel p-3 shadow-xl border border-line z-30 max-h-[60vh] overflow-y-auto">
+        <div role="dialog" aria-label="Choix de la saison et de l'équipe" className="absolute bottom-full left-0 right-0 mb-2 panel p-3 shadow-xl border border-line z-30 max-h-[60vh] overflow-y-auto">
           {/* Saisons */}
           <div className="text-[10px] uppercase tracking-[0.18em] text-faint mb-2">Saison</div>
           <ul className="space-y-0.5 mb-3">
@@ -231,20 +231,20 @@ export function OwnEquipeSwitcher() {
             ))}
           </ul>
           {reimportState === "loading" && (
-            <p className="text-[10px] text-faint mb-3 px-2">Import des equipes de la saison…</p>
+            <p className="text-[10px] text-faint mb-3 px-2">Import des équipes de la saison…</p>
           )}
           {reimportState === "error" && equipesPourSaison.length > 0 && (
             <div className="mb-3 text-[10px] text-danger px-2 py-1.5 rounded bg-danger/[0.08] border border-danger/30 leading-snug">
-              Saison inchangee : {reimportError}
+              Saison inchangée : {reimportError}
             </div>
           )}
 
           {/* Equipes de la saison choisie */}
-          <div className="text-[10px] uppercase tracking-[0.18em] text-faint mb-2">Equipe</div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-faint mb-2">Équipe</div>
           {equipesPourSaison.length === 0 ? (
             <div className="px-2 py-2">
               <p className="text-xs text-faint mb-2">
-                Aucune equipe sur cette saison.
+                Aucune équipe sur cette saison.
               </p>
               {saisonChoisie && (
                 <button
@@ -255,7 +255,7 @@ export function OwnEquipeSwitcher() {
                 >
                   {reimportState === "loading"
                     ? "Import en cours…"
-                    : "Reimporter les equipes de la saison precedente"}
+                    : "Réimporter les équipes de la saison précédente"}
                 </button>
               )}
               {reimportState === "error" && (
@@ -264,7 +264,7 @@ export function OwnEquipeSwitcher() {
                 </div>
               )}
               <p className="text-[10px] text-faint mt-2 leading-relaxed">
-                Ou importe une feuille FMI pour creer les equipes.
+                Ou importe une feuille FMI pour créer les équipes.
               </p>
             </div>
           ) : (

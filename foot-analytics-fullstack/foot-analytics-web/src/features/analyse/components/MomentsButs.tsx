@@ -11,7 +11,7 @@ const TRANCHES = ["0-15", "16-30", "31-45", "46-60", "61-75", "76-90+"];
 export function MomentsButs({ buts }: { buts: Tendances["butsParTranche"] }) {
   if (!buts.disponible) return null;
   return (
-    <BarsChart height={200} legend={["Marques", "Encaisses"]}
+    <BarsChart height={200} legend={["Marqués", "Encaissés"]}
       data={TRANCHES.map((label, i) => ({ label, a: buts.pour[i], b: buts.contre[i] }))} />
   );
 }

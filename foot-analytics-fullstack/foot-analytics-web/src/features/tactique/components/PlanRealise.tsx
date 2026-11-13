@@ -27,7 +27,7 @@ export function PlanRealise({ donnees }: { donnees: PlanContreRealise }) {
             <DonutStat value={c.adequation} size={84} stroke={9} color={couleurAdequation(c.adequation)} label="%" />
             <div>
               <div className="font-display text-lg font-bold text-ink">{c.titulairesConformes} / {c.titulairesPrevus} titulaires</div>
-              <div className="text-xs text-muted">ont demarre comme prevu</div>
+              <div className="text-xs text-muted">ont démarré comme prévu</div>
             </div>
           </div>
         )}
@@ -36,14 +36,14 @@ export function PlanRealise({ donnees }: { donnees: PlanContreRealise }) {
             <dt className="text-faint">Dispositif</dt>
             <dd className="text-ink">
               {formation.prevue}
-              {formation.reelle ? <> prevu, <b>{formation.reelle}</b> joue</> : <span className="text-faint"> prevu (dispositif joue non renseigne)</span>}
+              {formation.reelle ? <> prévu, <b>{formation.reelle}</b> joué</> : <span className="text-faint"> prévu (dispositif joué non renseigné)</span>}
             </dd>
           </div>
           <div className="flex items-baseline gap-2">
             <dt className="text-faint">Capitaine</dt>
             <dd className="text-ink">
-              {capitaine.prevu ?? "non designe"}
-              {capitaine.identique === false && <> prevu, <b>{capitaine.reel}</b> sur la feuille</>}
+              {capitaine.prevu ?? "non désigné"}
+              {capitaine.identique === false && <> prévu, <b>{capitaine.reel}</b> sur la feuille</>}
             </dd>
           </div>
         </dl>
@@ -52,13 +52,13 @@ export function PlanRealise({ donnees }: { donnees: PlanContreRealise }) {
       {plan?.modifieApresMatch && (
         <p className="flex items-start gap-2 rounded-xl border border-amber/35 bg-amber/10 px-3 py-2 text-xs text-amber" role="note">
           <Info size={14} className="mt-0.5 shrink-0" aria-hidden />
-          Ce plan a ete modifie apres la rencontre ({new Date(plan.modifieLe).toLocaleDateString("fr-FR")}) : il a pu etre ajuste sur le realise.
+          Ce plan a été modifié après la rencontre ({new Date(plan.modifieLe).toLocaleDateString("fr-FR")}) : il a pu être ajusté sur le réalisé.
         </p>
       )}
       {plan?.source === "courant" && (
         <p className="flex items-start gap-2 text-xs text-faint" role="note">
           <Info size={13} className="mt-0.5 shrink-0" aria-hidden />
-          Aucun plan n'etait rattache a ce match : comparaison avec le plan courant de l'equipe, enregistre le {new Date(plan.modifieLe).toLocaleDateString("fr-FR")}.
+          Aucun plan n'était rattaché à ce match : comparaison avec le plan courant de l'équipe, enregistre le {new Date(plan.modifieLe).toLocaleDateString("fr-FR")}.
         </p>
       )}
 
@@ -70,10 +70,10 @@ export function PlanRealise({ donnees }: { donnees: PlanContreRealise }) {
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-[0.08em] text-faint">
               <th scope="col" className="pb-2 font-semibold">Joueur</th>
-              <th scope="col" className="pb-2 font-semibold">Prevu</th>
+              <th scope="col" className="pb-2 font-semibold">Prévu</th>
               <th scope="col" className="pb-2 font-semibold">Sur la feuille</th>
               <th scope="col" className="pb-2 text-right font-semibold">Min.</th>
-              <th scope="col" className="pb-2 pl-3 font-semibold">Ecart</th>
+              <th scope="col" className="pb-2 pl-3 font-semibold">Écart</th>
             </tr>
           </thead>
           <tbody>

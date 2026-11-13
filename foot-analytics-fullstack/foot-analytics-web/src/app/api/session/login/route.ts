@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { appelApi, COOKIES_SELECTION, origineEtrangere, poserJetons } from "@/features/auth/lib/session-serveur";
 
 export async function POST(req: NextRequest) {
-  if (origineEtrangere(req)) return NextResponse.json({ message: "Requete d'un autre site refusee." }, { status: 403 });
+  if (origineEtrangere(req)) return NextResponse.json({ message: "Requête d'un autre site refusée." }, { status: 403 });
   const corps = await req.json().catch(() => ({}));
   const r = await appelApi("/auth/login", {
     corps: { login: String(corps.login ?? ""), password: String(corps.password ?? "") },

@@ -7,10 +7,10 @@ import { ordonnerPourTerrain } from "@/features/analyse/lib/dispositif-equipe";
 const joueur = (numero: number) => ({ numero, nom: `J${numero}` });
 
 describe("ordonnerOnze : le gardien au but, quel que soit son maillot", () => {
-  it("gardien en 1 : l'ordre par numero est conserve", () => {
+  it("gardien en 1 : l'ordre par numéro est conservé", () => {
     expect(ordonnerOnze([4, 1, 3, 2].map(joueur)).map((j) => j.numero)).toEqual([1, 2, 3, 4]);
   });
-  it("gardien en 16 : il passe en premier (avant, le 2 etait au but et le 16 en attaque)", () => {
+  it("gardien en 16 : il passe en premier (avant, le 2 était au but et le 16 en attaque)", () => {
     const onze = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 16].map(joueur);
     const ordonne = ordonnerOnze(onze).map((j) => j.numero);
     expect(ordonne[0]).toBe(16);
@@ -28,7 +28,7 @@ describe("ordonnerOnze : le gardien au but, quel que soit son maillot", () => {
 });
 
 describe("ordonnerPourTerrain : le 16 est range avec les gardiens", () => {
-  it("un gardien en 16 passe devant la defense", () => {
+  it("un gardien en 16 passe devant la défense", () => {
     const o = ordonnerPourTerrain([2, 3, 9, 16, 4].map((numero) => ({ numero, poste: null })));
     expect(o[0].numero).toBe(16);
   });

@@ -4,19 +4,22 @@ import { dateHeureJournal, estAlerte, libelleAction, lireCible, resumeDetails } 
 
 describe("journal d'audit (mise en forme)", () => {
   it("libelle connu, sinon l'action brute", () => {
-    expect(libelleAction("connexion.echec")).toBe("Echec de connexion");
+    expect(libelleAction("connexion.echec")).toBe("Échec de connexion");
     expect(libelleAction("inconnue.x")).toBe("inconnue.x");
     expect(estAlerte("alerte.export_massif")).toBe(true);
     expect(estAlerte("export.pptx")).toBe(false);
   });
 
-  it("details : motif d'echec, nombres d'alerte, champs modifies", () => {
+  it("détails : motif d'échec, nombres d'alerte, champs modifiés", () => {
     expect(resumeDetails({ action: "connexion.echec", details: { motif: "login_inconnu" } })).toBe("identifiant inconnu");
     expect(resumeDetails({ action: "alerte.consultations_massives", details: { nombre: 60, fenetreMin: 10, seuil: 60 } }))
       .toBe("60 en 10 min (seuil 60)");
     expect(resumeDetails({ action: "compte.modification", details: { champs: ["prenom", "equipeIds"] } })).toBe("champs : prenom, equipeIds");
-    expect(resumeDetails({ action: "joueur.recherche_avancee", details: { saisonId: "s25", resultats: 7 } })).toBe("7 joueur(s) trouve(s)");
-    expect(libelleAction("alerte.recherches_massives")).toBe("ALERTE : recherches avancees en serie");
+    expect(resumeDetails({ action: "joueur.recherche_avancee", details: { saisonId: "s25", resultats: 7 } })).toBe("7 joueur(s) trouvé(s)");
+    expect(libelleAction("alerte.recherches_massives")).toBe("ALERTE : recherches avancées en série");
+    expect(resumeDetails({ action: "calendrier.synchronisation", details: { source: "fichier", crees: 5, modifies: 1, disparus: 0 } }))
+      .toBe("5 ajouté(s), 1 modifié(s), 0 disparu(s) (fichier déposé)");
+    expect(libelleAction("calendrier.synchronisation")).toBe("Synchronisation du calendrier FFF");
     expect(resumeDetails({ action: "connexion.reussie", details: null })).toBe("");
   });
 

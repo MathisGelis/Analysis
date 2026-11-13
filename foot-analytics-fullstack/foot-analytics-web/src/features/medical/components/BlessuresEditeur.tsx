@@ -68,12 +68,12 @@ export function BlessuresEditeur({
   };
 
   const confirmDelete = async (id: string) => {
-    if (!(await confirmer({ titre: "Supprimer cette blessure ?", message: "Elle disparait de l'historique medical du joueur.", danger: true }))) return;
+    if (!(await confirmer({ titre: "Supprimer cette blessure ?", message: "Elle disparaît de l'historique médical du joueur.", danger: true }))) return;
     setDeleting(id);
     try {
       await api.deleteBlessure(id);
       await reload();
-      notifier.succes("Blessure supprimee.");
+      notifier.succes("Blessure supprimée.");
     } catch (e) {
       notifier.erreur("Suppression impossible : " + (e as Error).message);
     } finally {
@@ -110,7 +110,7 @@ export function BlessuresEditeur({
 
       {blessures.length === 0 ? (
         <p className="text-sm text-muted py-6 text-center">
-          Aucune blessure enregistree.
+          Aucune blessure enregistrée.
         </p>
       ) : (
         <ul className="space-y-2">
@@ -119,7 +119,7 @@ export function BlessuresEditeur({
             const jours = joursManques(b);
             const labelJours = enCours
               ? `En cours depuis ${jours} j`
-              : `${jours} j manques`;
+              : `${jours} j manqués`;
             return (
               <li key={b.id} className={`panel-inset p-3 flex items-start gap-3 ${
                 enCours ? "border-l-2 border-l-danger" : ""
@@ -127,7 +127,7 @@ export function BlessuresEditeur({
                 <Dumbbell size={14} className={`mt-1 ${enCours ? "text-danger" : "text-faint"}`}/>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm">{b.localisation ?? "Indeterminee"}</span>
+                    <span className="font-semibold text-sm">{b.localisation ?? "Indéterminée"}</span>
                     <span className={`badge text-[10px] ${
                       enCours ? "badge-danger" : ""
                     }`}>{b.statut ?? "—"}</span>
@@ -175,7 +175,7 @@ export function BlessuresEditeur({
       <BlessureModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSaved={async () => { await reload(); notifier.succes(editing ? "Blessure modifiee." : "Blessure enregistree."); }}
+        onSaved={async () => { await reload(); notifier.succes(editing ? "Blessure modifiée." : "Blessure enregistrée."); }}
         blessure={editing}
         joueurs={joueurs}
         joueurId={joueurId}

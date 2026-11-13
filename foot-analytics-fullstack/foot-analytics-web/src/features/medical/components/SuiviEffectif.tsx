@@ -38,22 +38,22 @@ export function SuiviEffectif({ effectif, blessures, saisonEnCours }: Props) {
 
   return (
     <>
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="Chiffres cles" data-testid="suivi-chiffres">
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="Chiffres clés" data-testid="suivi-chiffres">
         <Chiffre label="Effectif" value={effectif.length} icon={<HeartPulse size={14} />} />
-        <Chiffre label="Blesses" value={blesses.length} icon={<Heart size={14} />} tone={blesses.length > 0 ? "danger" : "neutral"} />
-        <Chiffre label="Fatigue elevee" value={saisonEnCours ? fatigueElevee : "—"} icon={<AlertTriangle size={14} />}
+        <Chiffre label="Blessés" value={blesses.length} icon={<Heart size={14} />} tone={blesses.length > 0 ? "danger" : "neutral"} />
+        <Chiffre label="Fatigue élevée" value={saisonEnCours ? fatigueElevee : "—"} icon={<AlertTriangle size={14} />}
           tone={fatigueElevee > 0 ? "amber" : "neutral"} />
-        <Chiffre label="Charge cumulee 7j" value={saisonEnCours ? Math.round(chargeAcute) : "—"} suffix={saisonEnCours ? "UA" : undefined}
+        <Chiffre label="Charge cumulée 7j" value={saisonEnCours ? Math.round(chargeAcute) : "—"} suffix={saisonEnCours ? "UA" : undefined}
           icon={<Activity size={14} />} />
       </section>
 
       {effectif.length === 0 ? (
         <section className="panel p-8 text-center">
           <HeartPulse size={22} className="mx-auto mb-2 text-muted" aria-hidden />
-          <div className="mb-2 text-sm text-muted">Aucune donnee sur cette equipe.</div>
+          <div className="mb-2 text-sm text-muted">Aucune donnée sur cette équipe.</div>
           <p className="mx-auto max-w-md text-xs text-faint">
-            Le suivi medical et la charge se remplissent au fur et a mesure des imports de feuilles FMI et de la saisie
-            d&apos;entrainements. C&apos;est normal en debut de saison.
+            Le suivi médical et la charge se remplissent au fur et à mesure des imports de feuilles FMI et de la saisie
+            d&apos;entraînements. C&apos;est normal en début de saison.
           </p>
         </section>
       ) : (
@@ -63,17 +63,17 @@ export function SuiviEffectif({ effectif, blessures, saisonEnCours }: Props) {
       <section className="panel p-5" data-testid="fatigue-effectif" aria-label="Fatigue de l'effectif">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="h-section">Fatigue de l&apos;effectif</h2>
-          <span className="text-[11px] text-faint">charge d&apos;entrainement + charge en match, 28 derniers jours</span>
+          <span className="text-[11px] text-faint">charge d&apos;entraînement + charge en match, 28 derniers jours</span>
         </div>
-        <AideDecision className="mb-3" texte="Estimation de la charge, aide a la decision non contraignante : elle ne remplace ni l'avis medical ni celui du staff." />
+        <AideDecision className="mb-3" texte="Estimation de la charge, aide à la décision non contraignante : elle ne remplace ni l'avis médical ni celui du staff." />
         {!saisonEnCours ? (
           <p className="py-4 text-sm text-muted">
-            La fatigue se mesure sur les 4 dernieres semaines d&apos;entrainements et de matchs : elle apparait des que la saison est en cours.
+            La fatigue se mesure sur les 4 dernières semaines d&apos;entraînements et de matchs : elle apparaît des que la saison est en cours.
           </p>
         ) : suivis.length === 0 ? (
           <p className="py-4 text-sm text-muted">
-            Aucune charge recente connue : ni match ni seance avec presences sur les 4 dernieres semaines.
-            Saisis les presences aux entrainements pour suivre la fatigue de l&apos;effectif.
+            Aucune charge récente connue : ni match ni séance avec presences sur les 4 dernières semaines.
+            Saisis les presences aux entraînements pour suivre la fatigue de l&apos;effectif.
           </p>
         ) : (
           <table className="table-fm table-dense">
@@ -85,7 +85,7 @@ export function SuiviEffectif({ effectif, blessures, saisonEnCours }: Props) {
                 <th className="hidden text-right md:table-cell">Charge 7j</th>
                 <th className="hidden text-right md:table-cell">ACWR</th>
                 <th>Fatigue</th>
-                <th className="hidden lg:table-cell">Ce qui pese</th>
+                <th className="hidden lg:table-cell">Ce qui pèse</th>
               </tr>
             </thead>
             <tbody>
@@ -107,15 +107,15 @@ export function SuiviEffectif({ effectif, blessures, saisonEnCours }: Props) {
         )}
         {suivis.length > 15 && (
           <p className="mt-3 text-center text-[11px] text-faint">
-            Les 15 joueurs les plus fatigues sur {suivis.length} suivis. Le detail de chaque score est sur la fiche du joueur.
+            Les 15 joueurs les plus fatigués sur {suivis.length} suivis. Le détail de chaque score est sur la fiche du joueur.
           </p>
         )}
         {suivis.some((j: any) => estEstimation(j.detail)) && (
-          <p className="mt-3 text-[11px] text-faint">* Estimation : historique de moins de 2 semaines ou aucune presence aux seances enregistree.</p>
+          <p className="mt-3 text-[11px] text-faint">* Estimation : historique de moins de 2 semaines ou aucune présence aux séances enregistrée.</p>
         )}
         {sansScore.length > 0 && suivis.length > 0 && (
           <p className="mt-2 text-[11px] text-faint">
-            {sansScore.length} joueur{sansScore.length > 1 ? "s" : ""} sans score (blesse, ou aucune charge sur 28 jours).
+            {sansScore.length} joueur{sansScore.length > 1 ? "s" : ""} sans score (blessé, ou aucune charge sur 28 jours).
           </p>
         )}
         {saisonEnCours && <div className="mt-4 border-t border-line pt-3"><FatigueLegende /></div>}

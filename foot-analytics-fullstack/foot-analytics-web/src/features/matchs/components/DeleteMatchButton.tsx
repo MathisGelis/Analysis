@@ -21,7 +21,7 @@ export function DeleteMatchButton({
     e.stopPropagation();
     if (!(await confirmer({
       titre: `Supprimer ce match${label ? ` (${label})` : ""} ?`,
-      message: "Les compositions, evenements et liens arbitres seront aussi supprimes.",
+      message: "Les compositions, événements et liens arbitres seront aussi supprimés.",
       danger: true,
     }))) return;
     setBusy(true);

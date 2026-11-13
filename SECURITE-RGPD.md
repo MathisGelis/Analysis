@@ -86,6 +86,16 @@ Restrictions*) aux adresses de Render si l'offre le permet, vérifier le chiffre
 - Import : PDF en mémoire puis dossier temporaire supprimé ; provenance sur chaque match (date, compte importateur) ;
   trace `fmi.import` sans donnée personnelle ; diagnostic brut d'une feuille réservé à l'administrateur.
 
+## Calendrier FFF
+
+- Le serveur ne télécharge que le calendrier public d'équipe de la FFF : adresse normalisée puis vérifiée (HTTPS, hôte
+  `media.fff.fr`, chemin `/calendars/AAAA/eq/*.ics`, ni port ni identifiants), sans suivre de redirection, avec délai et taille
+  bornés — une adresse saisie ne peut pas faire appeler un autre serveur (SSRF). Le dépôt d'un fichier à la main n'appelle rien.
+- Le fichier ne contient que des données d'organisation (date, lieu, clubs, journée), aucune donnée sur des personnes. Chaque
+  synchronisation est tracée au journal d'audit (compte, équipe, nombres), sans nom.
+- Droits : seuls les comptes qui gèrent l'équipe (administrateur, référent du club, éducateur de l'équipe) l'enregistrent ou la
+  synchronisent.
+
 ## 10. Pages et mentions
 
 - Pages publiques `/confidentialite`, `/mentions-legales`, `/cgu`, liées depuis l'écran de connexion et le pied de page

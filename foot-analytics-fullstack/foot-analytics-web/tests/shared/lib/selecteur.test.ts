@@ -17,17 +17,17 @@ describe("filtrerOptions", () => {
   const liste = [o("Gardien"), o("Défenseur central"), o("Milieu offensif"), o("Attaquant", { detail: "pointe" })];
 
   it("ignore accents et casse", () => {
-    expect(filtrerOptions(liste, "DEFENSEUR").map((x) => x.libelle)).toEqual(["Défenseur central"]);
+    expect(filtrerOptions(liste, "DÉFENSEUR").map((x) => x.libelle)).toEqual(["Défenseur central"]);
     expect(normaliser("  Équipe ")).toBe("equipe");
   });
 
-  it("chaque mot doit se retrouver, dans n'importe quel ordre, y compris dans le detail", () => {
+  it("chaque mot doit se retrouver, dans n'importe quel ordre, y compris dans le détail", () => {
     expect(filtrerOptions(liste, "offensif milieu").map((x) => x.libelle)).toEqual(["Milieu offensif"]);
     expect(filtrerOptions(liste, "pointe").map((x) => x.libelle)).toEqual(["Attaquant"]);
     expect(filtrerOptions(liste, "milieu gardien")).toEqual([]);
   });
 
-  it("requete vide : tout est rendu", () => {
+  it("requête vide : tout est rendu", () => {
     expect(filtrerOptions(liste, "   ")).toBe(liste);
   });
 });
@@ -69,7 +69,7 @@ describe("navigation au clavier", () => {
 describe("indexParFrappe", () => {
   const liste = [o("Gardien"), o("Milieu"), o("Meneur"), o("Attaquant"), o("Mixte", { desactive: true })];
 
-  it("une lettre : premiere option qui commence par elle apres la position courante", () => {
+  it("une lettre : première option qui commence par elle après la position courante", () => {
     expect(indexParFrappe(liste, "m", 0)).toBe(1);
     expect(indexParFrappe(liste, "m", 1)).toBe(2);
     expect(indexParFrappe(liste, "m", 2)).toBe(1);            // reboucle, "Mixte" est grise
@@ -80,7 +80,7 @@ describe("indexParFrappe", () => {
     expect(indexParFrappe(liste, "mil", 1)).toBe(1);
   });
 
-  it("une meme lettre repetee fait defiler", () => {
+  it("une même lettre repetee fait defiler", () => {
     expect(indexParFrappe(liste, "mm", 1)).toBe(2);
   });
 

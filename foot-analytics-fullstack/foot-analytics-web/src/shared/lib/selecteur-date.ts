@@ -4,8 +4,8 @@
 // la saisie et l'affichage se font en "JJ/MM/AAAA". Tout est calcule en UTC : aucun decalage de fuseau possible.
 
 export const MOIS = [
-  "janvier", "fevrier", "mars", "avril", "mai", "juin",
-  "juillet", "aout", "septembre", "octobre", "novembre", "decembre",
+  "janvier", "février", "mars", "avril", "mai", "juin",
+  "juillet", "août", "septembre", "octobre", "novembre", "décembre",
 ] as const;
 export const JOURS_COURTS = ["L", "M", "M", "J", "V", "S", "D"] as const;
 

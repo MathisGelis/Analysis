@@ -13,7 +13,7 @@ describe("decimal", () => {
 });
 
 describe("libelleSerie / serieFavorable", () => {
-  it("phrases de series", () => {
+  it("phrases de séries", () => {
     expect(libelleSerie("victoires", 4)).toBe("4 victoires de suite");
     expect(libelleSerie("sans_encaisser", 3)).toBe("3 matchs sans encaisser");
   });
@@ -29,7 +29,7 @@ describe("tonDuSens", () => {
     expect(tonDuSens("hausse")).toBe("positif");
     expect(tonDuSens("baisse")).toBe("negatif");
   });
-  it("buts encaisses : la hausse est mauvaise", () => {
+  it("buts encaissés : la hausse est mauvaise", () => {
     expect(tonDuSens("hausse", true)).toBe("negatif");
     expect(tonDuSens("baisse", true)).toBe("positif");
   });

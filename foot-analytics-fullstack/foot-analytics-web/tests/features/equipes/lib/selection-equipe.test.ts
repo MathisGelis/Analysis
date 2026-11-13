@@ -16,50 +16,50 @@ describe("selectionValide", () => {
       .toEqual({ equipe: equipes[2], saisonId: "s25", corrigee: false });
   });
 
-  it("equipe du cookie SUPPRIMEE (fusionnee avec la vraie poule) : jamais vide, retombe sur la saison choisie", () => {
+  it("équipe du cookie SUPPRIMÉE (fusionnee avec la vraie poule) : jamais vide, retombe sur la saison choisie", () => {
     const r = selectionValide({ equipes, saisons, equipeId: "provisoire-poule-C", saisonId: "s26" });
     expect(r.equipe?.id).toBe("sen26");
     expect(r).toMatchObject({ saisonId: "s26", corrigee: true });
   });
 
-  it("equipe supprimee : garde la categorie quand c'est possible (l'equivalent d'abord)", () => {
+  it("équipe supprimée : garde la catégorie quand c'est possible (l'equivalent d'abord)", () => {
     // Pas d'equipe supprimee connue ici : on prend la premiere de la saison.
     expect(selectionValide({ equipes, saisons, equipeId: "fantome", saisonId: "s25" }).equipe?.id).toBe("u20-25");
   });
 
-  it("equipe d'une autre saison que celle choisie : son equivalent sur la saison choisie", () => {
+  it("équipe d'une autre saison que celle choisie : son equivalent sur la saison choisie", () => {
     const r = selectionValide({ equipes, saisons, equipeId: "sen25", saisonId: "s26" });
     expect(r).toMatchObject({ equipe: { id: "sen26" }, saisonId: "s26", corrigee: true });
     const u20 = selectionValide({ equipes, saisons, equipeId: "u20-25", saisonId: "s24" });
     expect(u20.equipe?.id).toBe("sen24");   // pas d'U20 en 24-25 : premiere equipe de la saison
   });
 
-  it("saison choisie SANS equipe pour le club : garde l'equipe et sa saison plutot que du vide", () => {
+  it("saison choisie SANS équipe pour le club : garde l'équipe et sa saison plutôt que du vide", () => {
     const sansEquipe = [...saisons, saison("s27", 2027)];
     const r = selectionValide({ equipes, saisons: sansEquipe, equipeId: "sen26", saisonId: "s27" });
     expect(r).toMatchObject({ equipe: { id: "sen26" }, saisonId: "s26", corrigee: true });
   });
 
-  it("aucun cookie : premiere equipe de la saison active", () => {
+  it("aucun cookie : première équipe de la saison active", () => {
     expect(selectionValide({ equipes, saisons })).toMatchObject({ equipe: { id: "sen26" }, saisonId: "s26", corrigee: true });
   });
 
-  it("saison active sans equipe : la saison la plus recente qui en a", () => {
+  it("saison active sans équipe : la saison la plus récente qui en a", () => {
     const r = selectionValide({ equipes: equipes.filter((e) => e.saisonId !== "s26"), saisons });
     expect(r).toMatchObject({ equipe: { id: "u20-25" }, saisonId: "s25" });
   });
 
-  it("saison du cookie inconnue (supprimee) : ignoree", () => {
+  it("saison du cookie inconnue (supprimée) : ignoree", () => {
     const r = selectionValide({ equipes, saisons, equipeId: "sen25", saisonId: "supprimee" });
     expect(r).toMatchObject({ equipe: { id: "sen25" }, saisonId: "s25", corrigee: true });
   });
 
-  it("equipes sans saison : n'importe quelle equipe du club", () => {
+  it("équipes sans saison : n'importe quelle équipe du club", () => {
     const r = selectionValide({ equipes: [eq("x", null)], saisons: [] });
     expect(r.equipe?.id).toBe("x");
   });
 
-  it("club sans aucune equipe : la seule situation ou la selection est vide", () => {
+  it("club sans aucune équipe : la seule situation ou la selection est vide", () => {
     expect(selectionValide({ equipes: [], saisons, equipeId: "sen25", saisonId: "s25" }))
       .toEqual({ equipe: null, saisonId: "s25", corrigee: true });
   });

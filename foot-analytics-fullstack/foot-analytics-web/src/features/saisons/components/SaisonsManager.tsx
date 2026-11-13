@@ -29,7 +29,7 @@ interface Props {
 }
 
 const LIBELLE_STATUT: Record<string, string> = {
-  en_cours: "En cours", terminee: "Terminee", a_venir: "A venir",
+  en_cours: "En cours", terminee: "Terminée", a_venir: "À venir",
 };
 
 export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] }: Props) {
@@ -74,13 +74,13 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
       {estAdmin && fusionsEnAttente.length > 0 && (
         <div className="panel-inset p-4 border-l-2 border-amber space-y-2" role="status">
           <div className="text-sm font-semibold text-ink">
-            {fusionsEnAttente.length} equipe{fusionsEnAttente.length > 1 ? "s" : ""} provisoire
+            {fusionsEnAttente.length} équipe{fusionsEnAttente.length > 1 ? "s" : ""} provisoire
             {fusionsEnAttente.length > 1 ? "s" : ""} en doublon
           </div>
           <p className="text-xs text-muted">
-            La saison a ete reconstruite avec les poules de l'an passe ; la vraie
-            poule est connue depuis l'import des feuilles. Les equipes provisoires
-            (sans match) sont fusionnees dans la vraie, joueurs et seances compris.
+            La saison a été reconstruite avec les poules de l'an passé ; la vraie
+            poule est connue depuis l'import des feuilles. Les équipes provisoires
+            (sans match) sont fusionnées dans la vraie, joueurs et séances compris.
           </p>
           <ul className="text-xs space-y-0.5">
             {fusionsEnAttente.map((f, i) => (
@@ -88,7 +88,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
                 <strong className="text-ink">{f.club}</strong> · {f.saison} :{" "}
                 {f.source.nom} <span className="text-faint">→</span> {f.cible.nom}
                 {f.joueursDeplaces > 0 && (
-                  <span className="text-faint"> ({f.joueursDeplaces} joueur{f.joueursDeplaces > 1 ? "s" : ""} rattache{f.joueursDeplaces > 1 ? "s" : ""})</span>
+                  <span className="text-faint"> ({f.joueursDeplaces} joueur{f.joueursDeplaces > 1 ? "s" : ""} rattaché{f.joueursDeplaces > 1 ? "s" : ""})</span>
                 )}
               </li>
             ))}
@@ -103,7 +103,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
         <div className="flex items-center justify-between mb-3">
           <div className="h-section flex items-center gap-2">
             <Calendar size={11} className="text-accent"/>
-            Saisons enregistrees ({saisons.length})
+            Saisons enregistrées ({saisons.length})
           </div>
           {estAdmin && (
             <button
@@ -127,7 +127,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
               />
             </label>
             <label className="flex flex-col gap-1 text-xs">
-              <span className="text-faint">Annee de debut</span>
+              <span className="text-faint">Année de début</span>
               <input
                 className="inp text-sm w-28"
                 type="number"
@@ -139,7 +139,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
               className="btn btn-primary text-xs"
               onClick={onCreer} disabled={busy || !nom.trim()}
             >
-              Creer
+              Créer
             </button>
             <button className="btn text-xs" onClick={() => setCreating(false)}>
               Annuler
@@ -149,8 +149,8 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
 
         {saisons.length === 0 ? (
           <p className="text-sm text-muted text-center py-6">
-            Aucune saison enregistree. Importez des FMI : une saison sera
-            creee automatiquement depuis la date des matchs.
+            Aucune saison enregistrée. Importez des FMI : une saison sera
+            créée automatiquement depuis la date des matchs.
           </p>
         ) : (
           <table className="table-fm table-fm-compact table-dense">
@@ -158,8 +158,8 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
               <tr>
                 <th>Saison</th>
                 <th>Statut</th>
-                <th className="hidden text-center sm:table-cell">Annee debut</th>
-                <th className="text-center">Equipes</th>
+                <th className="hidden text-center sm:table-cell">Année début</th>
+                <th className="text-center">Équipes</th>
                 <th className="text-right"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
@@ -205,7 +205,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
       {/* Liste des equipes par saison */}
       {saisons.length > 0 && (
         <div className="panel p-5">
-          <div className="h-section mb-3">Equipes par saison</div>
+          <div className="h-section mb-3">Équipes par saison</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {saisons.map((s) => {
               const equ = equipesParSaison(s.id);
@@ -215,7 +215,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
                     {s.nom} {s.actif && <Star size={10} className="inline text-accent"/>}
                   </div>
                   {equ.length === 0 ? (
-                    <p className="text-xs text-faint">Aucune equipe rattachee.</p>
+                    <p className="text-xs text-faint">Aucune équipe rattachée.</p>
                   ) : (
                     <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
                       {/* Par championnat : "Seniors D2 · Poule C (12 equipes)" puis les clubs. */}
@@ -224,7 +224,7 @@ export function SaisonsManager({ saisons, equipes, clubs, fusionsEnAttente = [] 
                           <div className="text-[11px] font-semibold text-ink flex items-baseline gap-2">
                             {g.libelle}{g.poule ? ` · Poule ${g.poule}` : ""}
                             <span className="text-faint font-normal">
-                              {g.equipes.length} equipe{g.equipes.length > 1 ? "s" : ""}
+                              {g.equipes.length} équipe{g.equipes.length > 1 ? "s" : ""}
                             </span>
                           </div>
                           <ul className="mt-1.5 flex flex-wrap gap-1.5">

@@ -49,7 +49,7 @@ export function AdversairePicker({ clubs, monClubId, suggeres, valeur, onChange,
     if (!onCreer || !peutCreer || creation) return;
     setCreation(true); setErreur(null);
     try { choisir(await onCreer(nomSaisi)); }
-    catch (e) { setErreur((e as Error).message || "Creation impossible."); }
+    catch (e) { setErreur((e as Error).message || "Création impossible."); }
     finally { setCreation(false); }
   }
 
@@ -128,7 +128,7 @@ export function AdversairePicker({ clubs, monClubId, suggeres, valeur, onChange,
         <button type="button" onClick={creer} disabled={creation}
           className="flex w-full items-center gap-2 rounded-lg border border-dashed border-line2 px-3 py-2 text-left text-sm text-muted transition hover:border-accent/50 hover:text-ink disabled:opacity-60">
           <Plus size={14} className="shrink-0 text-accent" aria-hidden />
-          <span className="min-w-0 flex-1 truncate">{creation ? "Creation..." : <>Club absent de la liste ? Creer « <strong className="text-ink">{nomSaisi}</strong> »</>}</span>
+          <span className="min-w-0 flex-1 truncate">{creation ? "Création..." : <>Club absent de la liste ? Créer « <strong className="text-ink">{nomSaisi}</strong> »</>}</span>
         </button>
       )}
       {erreur && <p className="text-xs text-danger" role="alert">{erreur}</p>}

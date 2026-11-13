@@ -14,7 +14,7 @@ export function ProjectionResultat({ r }: { r: RapportPrematch }) {
   if (!p) {
     return (
       <p className="text-sm text-muted">
-        Pas assez de matchs joues pour projeter un resultat : il en faut au moins 5 de chaque cote ({r.monEquipe.matchs} pour nous, {r.adversaire.matchs} pour {r.adversaire.clubNom}).
+        Pas assez de matchs joués pour projeter un résultat : il en faut au moins 5 de chaque côté ({r.monEquipe.matchs} pour nous, {r.adversaire.matchs} pour {r.adversaire.clubNom}).
       </p>
     );
   }
@@ -23,7 +23,7 @@ export function ProjectionResultat({ r }: { r: RapportPrematch }) {
       <div className="space-y-3">
         <Proba label="Victoire" valeur={p.pV} couleur="rgb(var(--win))" />
         <Proba label="Match nul" valeur={p.pN} couleur="rgb(var(--draw))" />
-        <Proba label="Defaite" valeur={p.pD} couleur="rgb(var(--loss))" />
+        <Proba label="Défaite" valeur={p.pD} couleur="rgb(var(--loss))" />
       </div>
       <div className="panel-inset no-coupure mt-4 border-l-2 border-accent p-3">
         <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-accent"><Sparkles size={11} aria-hidden /> Score le plus probable</div>
@@ -32,8 +32,8 @@ export function ProjectionResultat({ r }: { r: RapportPrematch }) {
           <span className="ml-2 text-xs font-normal text-faint">{p.scoreProbable.proba} % de chances</span>
         </div>
         <p className="mt-1 text-[12px] text-muted">
-          Buts attendus : {decimal(p.buts.moi)} pour nous, {decimal(p.buts.adv)} pour eux. Modele de Poisson sur les moyennes de buts
-          (sur au moins {p.matchs} matchs de chaque equipe){r.match ? `, ${r.match.domicile ? "a domicile" : "a l'exterieur"} compris` : ""}.
+          Buts attendus : {decimal(p.buts.moi)} pour nous, {decimal(p.buts.adv)} pour eux. Modèle de Poisson sur les moyennes de buts
+          (sur au moins {p.matchs} matchs de chaque équipe){r.match ? `, ${r.match.domicile ? "à domicile" : "à l'extérieur"} compris` : ""}.
         </p>
       </div>
     </>

@@ -21,7 +21,7 @@ export function PageLegale({ titre, majLe, children }: { titre: string; majLe: s
       <article className="panel space-y-6 p-6 text-sm leading-relaxed text-muted sm:p-8 [&_h2]:mt-2 [&_h2]:font-display [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-ink [&_li]:ml-4 [&_li]:list-disc [&_strong]:text-ink">
         <header>
           <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl">{titre}</h1>
-          <p className="mt-1 text-xs text-faint">Mise a jour : {majLe}</p>
+          <p className="mt-1 text-xs text-faint">Mise à jour : {majLe}</p>
         </header>
         {children}
       </article>
@@ -32,5 +32,5 @@ export function PageLegale({ titre, majLe, children }: { titre: string; majLe: s
 
 /** Mention d'une information que l'exploitant doit renseigner avant la mise en service. */
 export function ACompleter({ children }: { children: React.ReactNode }) {
-  return <mark className="rounded bg-amber/15 px-1 text-amber">[A completer : {children}]</mark>;
+  return <mark className="rounded bg-amber/15 px-1 text-amber">[À compléter : {children}]</mark>;
 }

@@ -145,7 +145,7 @@ export function CourbeGlissante({
         ))}
         <span className="ml-auto flex items-center gap-3">
           {(["V", "N", "D"] as const).map((i) => (
-            <span key={i} className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: COULEUR_ISSUE[i] }} />{i === "V" ? "Victoire" : i === "N" ? "Nul" : "Defaite"}</span>
+            <span key={i} className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: COULEUR_ISSUE[i] }} />{i === "V" ? "Victoire" : i === "N" ? "Nul" : "Défaite"}</span>
           ))}
         </span>
       </div>

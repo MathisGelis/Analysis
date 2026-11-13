@@ -22,6 +22,17 @@ const nextConfig = {
   // Dossier de build configurable : les tests e2e compilent dans .next-e2e
   // pour ne pas ecraser le .next d'un `npm run dev` en cours.
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
+  // Anciennes adresses : redirigees ICI, avant tout rendu (une page qui ne fait que `redirect()` coute un premier rendu serveur,
+  // puis un second : 75 requetes au lieu de 38 pour ouvrir /rapports). Voir aussi app/rapports/equipe/page.tsx (repli sans cookie).
+  async redirects() {
+    return [
+      // /ia (avec ou sans ?adversaire=) est redirigee par le middleware : une redirection de la config recopie la requete d'origine
+      // dans l'adresse de destination (/rapports/prematch/<id>?adversaire=<id>).
+      { source: "/scouting", destination: "/rapports", permanent: false },
+      // Le rapport de mon equipe : celui de mon club (cookie pose par le middleware).
+      { source: "/rapports/equipe", has: [{ type: "cookie", key: "ownClubId", value: "(?<club>[\\w-]+)" }], destination: "/rapports/equipe/:club", permanent: false },
+    ];
+  },
   async headers() {
     return [
       { source: "/:path*", headers: entetesSecurite(process.env.NODE_ENV === "production") },

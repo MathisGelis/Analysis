@@ -38,7 +38,7 @@ describe("choisirSaisonFiche", () => {
     expect(choisirSaisonFiche({ historique, saisons, demandee: "zzz", cookie: "yyy" }).saison?.id).toBe("s26");
   });
 
-  it("sans saison active ni cookie : la plus recente du parcours", () => {
+  it("sans saison active ni cookie : la plus récente du parcours", () => {
     const r = choisirSaisonFiche({ historique, saisons: [saison("s25"), saison("s24")] });
     expect(r.saison?.id).toBe("s25");
   });

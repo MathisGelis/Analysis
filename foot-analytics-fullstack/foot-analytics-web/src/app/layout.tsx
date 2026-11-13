@@ -31,7 +31,7 @@ import { ClubsProvider } from "@/features/clubs/lib/clubs-context";
 import { api } from "@/shared/lib/api";
 
 export const metadata: Metadata = {
-  title: "Foot Analytics — Console d'entraineur",
+  title: "Foot Analytics — Console d'entraîneur",
   description:
     "Analyse et suivi de saison pour staff de football amateur.",
   // Application privee : aucune page indexee (voir aussi robots.txt et l'en-tete X-Robots-Tag).

@@ -46,7 +46,7 @@ export function BoutonSaisonEnCours({ className = "btn btn-ghost text-xs", prima
 
   return (
     <button type="button" onClick={revenir} className={primaire ? "btn btn-primary text-sm" : className}>
-      Revenir a {saisonActive.nom} <ArrowRight size={12} aria-hidden />
+      Revenir à {saisonActive.nom} <ArrowRight size={12} aria-hidden />
     </button>
   );
 }

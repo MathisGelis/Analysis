@@ -70,7 +70,7 @@ export function BlessuresParMois({ mois }: { mois: ResumeBlessures["parMois"] })
 }
 
 export function JoueursTouches({ joueurs }: { joueurs: LigneJoueur[] }) {
-  if (joueurs.length === 0) return <p className="text-sm text-muted">Aucun joueur blesse sur la saison.</p>;
+  if (joueurs.length === 0) return <p className="text-sm text-muted">Aucun joueur blessé sur la saison.</p>;
   return (
     <ul className="divide-y divide-line">
       {joueurs.slice(0, 6).map((j) => (
@@ -85,7 +85,7 @@ export function JoueursTouches({ joueurs }: { joueurs: LigneJoueur[] }) {
 }
 
 export function Rechutes({ rechutes }: { rechutes: ResumeBlessures["rechutes"] }) {
-  if (rechutes.length === 0) return <p className="text-sm text-muted">Aucune rechute : personne n&apos;a ete blesse deux fois au meme endroit.</p>;
+  if (rechutes.length === 0) return <p className="text-sm text-muted">Aucune rechute : personne n&apos;a été blessé deux fois au même endroit.</p>;
   return (
     <ul className="space-y-1.5">
       {rechutes.map((r) => (

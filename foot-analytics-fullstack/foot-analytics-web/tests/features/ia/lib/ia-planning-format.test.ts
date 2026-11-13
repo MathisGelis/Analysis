@@ -7,13 +7,13 @@ const decision = (action: Decision["action"], appliquee = false): Decision => ({
 
 describe("texteFrequence / datePassage", () => {
   it("dit quand l'IA se reentraine", () => {
-    expect(texteFrequence({ jour: 3, heure: 5 })).toBe("chaque mercredi a 5 h (heure de Paris)");
+    expect(texteFrequence({ jour: 3, heure: 5 })).toBe("chaque mercredi à 5 h (heure de Paris)");
   });
 
-  it("lit l'instant a l'heure de Paris, ete comme hiver", () => {
+  it("lit l'instant a l'heure de Paris, été comme hiver", () => {
     expect(datePassage("2025-10-08T03:00:00.000Z")).toBe("mercredi 8 octobre, 5 h");        // UTC+2
     expect(datePassage("2026-01-14T04:00:00.000Z")).toBe("mercredi 14 janvier, 5 h");       // UTC+1
-    expect(datePassage("2025-08-13T03:30:00.000Z")).toBe("mercredi 13 aout, 5 h 30");
+    expect(datePassage("2025-08-13T03:30:00.000Z")).toBe("mercredi 13 août, 5 h 30");
   });
 
   it("un instant absent ou illisible : un tiret", () => {
@@ -22,7 +22,7 @@ describe("texteFrequence / datePassage", () => {
   });
 });
 
-describe("badgeDecision : le verdict face au modele actif", () => {
+describe("badgeDecision : le verdict face au modèle actif", () => {
   it("applique : il a remplace l'actif ; manuel : seulement un avis", () => {
     expect(badgeDecision(decision("remplace", true))).toEqual({ texte: "Remplace l'actif", ton: "ok" });
     expect(badgeDecision(decision("remplace", false))).toEqual({ texte: "Au moins aussi bon que l'actif", ton: "ok" });
@@ -32,8 +32,8 @@ describe("badgeDecision : le verdict face au modele actif", () => {
     expect(badgeDecision(decision("conserve"))).toEqual({ texte: "Non retenu", ton: "non" });
   });
 
-  it("aucun actif, rien de nouveau, pas de decision (ancien entrainement)", () => {
-    expect(badgeDecision(decision("sans_actif"))).toEqual({ texte: "Non active", ton: "neutre" });
+  it("aucun actif, rien de nouveau, pas de décision (ancien entraînement)", () => {
+    expect(badgeDecision(decision("sans_actif"))).toEqual({ texte: "Non activé", ton: "neutre" });
     expect(badgeDecision(decision("inchange"))?.ton).toBe("neutre");
     expect(badgeDecision(null)).toBeNull();
   });
@@ -44,7 +44,7 @@ describe("resumeDernierAuto", () => {
   const e = (patch: Partial<EntrainementResume>): EntrainementResume => ({ ...base, statut: "termine", decision: null, ...patch }) as EntrainementResume;
 
   it("rien : null", () => expect(resumeDernierAuto(null)).toBeNull());
-  it("termine : la raison de la decision", () => expect(resumeDernierAuto(e({ decision: decision("conserve") }))).toMatch(/raison conserve$/));
-  it("echec : le message", () => expect(resumeDernierAuto(e({ statut: "echec", message: "Il faut au moins deux semaines" }))).toMatch(/Echec le .*Il faut au moins deux semaines/));
+  it("termine : la raison de la décision", () => expect(resumeDernierAuto(e({ decision: decision("conserve") }))).toMatch(/raison conserve$/));
+  it("échec : le message", () => expect(resumeDernierAuto(e({ statut: "echec", message: "Il faut au moins deux semaines" }))).toMatch(/Échec le .*Il faut au moins deux semaines/));
   it("en cours", () => expect(resumeDernierAuto(e({ statut: "en_cours" }))).toMatch(/^En cours depuis le/));
 });

@@ -10,7 +10,7 @@ import {
 } from "@/features/auth/lib/session-serveur";
 
 export async function POST(req: NextRequest) {
-  if (origineEtrangere(req)) return NextResponse.json({ message: "Requete d'un autre site refusee." }, { status: 403 });
+  if (origineEtrangere(req)) return NextResponse.json({ message: "Requête d'un autre site refusée." }, { status: 403 });
   const partout = req.nextUrl.searchParams.get("partout") === "1";
   try {
     if (partout) {

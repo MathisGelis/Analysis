@@ -94,11 +94,11 @@ export default function ImportPage() {
     }
 
     // reconstruction unique des effectifs + classement
-    const bilan = `${pdfs.length} feuille(s) : ${nouveaux} nouvelle(s), ${misAJour} mise(s) a jour, ${echecs} echec(s).`;
+    const bilan = `${pdfs.length} feuille(s) : ${nouveaux} nouvelle(s), ${misAJour} mise(s) à jour, ${echecs} echec(s).`;
     setProgression("Reconstruction des effectifs et du classement…");
     try {
       const d = await api.rebuildDerivation();
-      setDerive(`${bilan} Effectifs et classement reconstruits (${d.joueurs} joueurs, ${d.classement} equipes).`);
+      setDerive(`${bilan} Effectifs et classement reconstruits (${d.joueurs} joueurs, ${d.classement} équipes).`);
     } catch (e) {
       setDerive(`${bilan} Reconstruction effectifs/classement : ${(e as Error).message}. Relance "Recalculer effectifs + classement".`);
     }
@@ -118,7 +118,7 @@ export default function ImportPage() {
     setProgression("Reconstruction des effectifs et du classement…");
     try {
       const d = await api.rebuildDerivation();
-      setDerive(`Reconstruit : ${d.joueurs} joueurs, ${d.classement} equipes.`);
+      setDerive(`Reconstruit : ${d.joueurs} joueurs, ${d.classement} équipes.`);
     } catch (e) {
       setDerive("Reconstruction impossible : " + (e as Error).message);
     }
@@ -151,7 +151,7 @@ export default function ImportPage() {
           <CloudUpload size={32} className="text-accent mx-auto mb-2" strokeWidth={1.4} />
           <div className="font-display font-bold text-ink">Fichiers PDF</div>
           <p className="text-xs text-muted mt-1 mb-3">
-            Glissez-deposez, ou selectionnez une ou plusieurs feuilles
+            Glissez-déposez, ou sélectionnez une ou plusieurs feuilles
           </p>
           <label className="btn btn-primary cursor-pointer">
             <FileIcon size={14} /> Choisir des fichiers
@@ -164,7 +164,7 @@ export default function ImportPage() {
           <FolderUp size={32} className="text-sky mx-auto mb-2" strokeWidth={1.4} />
           <div className="font-display font-bold text-ink">Dossier complet</div>
           <p className="text-xs text-muted mt-1 mb-3">
-            Selectionnez le dossier de la saison : tous les .pdf seront importes
+            Sélectionnez le dossier de la saison : tous les .pdf seront importés
           </p>
           <label className="btn cursor-pointer">
             <FilesIcon size={14} /> Choisir un dossier
@@ -198,9 +198,9 @@ export default function ImportPage() {
       {/* Liste fichiers */}
       <section className="panel p-5">
         <div className="flex items-center justify-between mb-3">
-          <div className="h-section">Fichiers traites</div>
+          <div className="h-section">Fichiers traités</div>
           <span className="text-xs text-muted">
-            {items.filter((i) => i.status === "ok").length}/{items.length} importes
+            {items.filter((i) => i.status === "ok").length}/{items.length} importés
           </span>
         </div>
 
@@ -240,7 +240,7 @@ export default function ImportPage() {
                 {it.status === "ok" && (
                   <>
                     <span className="badge badge-accent">
-                      <Check size={10} /> {it.reimport ? "Mis a jour" : "Importe"}
+                      <Check size={10} /> {it.reimport ? "Mis à jour" : "Importé"}
                     </span>
                     {it.matchId && (
                       <Link href={`/matchs/${it.matchId}`} className="btn text-xs">Voir</Link>
@@ -248,7 +248,7 @@ export default function ImportPage() {
                   </>
                 )}
                 {it.status === "error" && (
-                  <span className="badge badge-danger"><X size={10} /> Echec</span>
+                  <span className="badge badge-danger"><X size={10} /> Échec</span>
                 )}
               </li>
             ))}

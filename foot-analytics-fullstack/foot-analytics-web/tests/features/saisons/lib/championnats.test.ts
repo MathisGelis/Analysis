@@ -7,7 +7,7 @@ const eq = (id: string, clubId: string, competitionLibelle: string | null, poule
 const nomClub = (id: string) => ({ a: "Zebre FC", b: "Alpha FC", c: "Milan FC" } as Record<string, string>)[id] ?? id;
 
 describe("grouperParChampionnat", () => {
-  it("regroupe par competition + poule et trie les clubs par nom", () => {
+  it("regroupe par compétition + poule et trie les clubs par nom", () => {
     const g = grouperParChampionnat([
       eq("1", "a", "Seniors D2", "C"), eq("2", "b", "Seniors D2", "C"), eq("3", "c", "Seniors D2", "A"),
     ], nomClub);
@@ -18,7 +18,7 @@ describe("grouperParChampionnat", () => {
     ]);
   });
 
-  it("competitions triees alphabetiquement, 'Sans competition' toujours en dernier", () => {
+  it("competitions triees alphabetiquement, 'Sans compétition' toujours en dernier", () => {
     const g = grouperParChampionnat([
       eq("1", "a", null, null), eq("2", "b", "U20 R2", "B"), eq("3", "c", "Coupe", null), eq("4", "a", "  ", null),
     ], nomClub);
@@ -26,7 +26,7 @@ describe("grouperParChampionnat", () => {
     expect(g[2].equipes).toHaveLength(2);
   });
 
-  it("aucune equipe : aucun groupe", () => {
+  it("aucune équipe : aucun groupe", () => {
     expect(grouperParChampionnat([], nomClub)).toEqual([]);
   });
 });

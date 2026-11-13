@@ -128,9 +128,9 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
 
         {equipesPourSaison.length > 0 && (
           <label className="flex items-center gap-2 text-xs">
-            <span className="text-faint">Equipe</span>
+            <span className="text-faint">Équipe</span>
             <Select
-              valeur={equipeId} onChange={setEquipeId} className="select-fm min-w-[200px]" ariaLabel="Equipe"
+              valeur={equipeId} onChange={setEquipeId} className="select-fm min-w-[200px]" ariaLabel="Équipe"
               options={[
                 { valeur: "all", libelle: `Toutes (${equipesPourSaison.length})` },
                 ...equipesPourSaison
@@ -143,9 +143,9 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
         )}
 
         <label className="flex items-center gap-2 text-xs">
-          <span className="text-faint">Journee</span>
+          <span className="text-faint">Journée</span>
           <Select
-            valeur={journee} onChange={setJournee} className="select-fm" ariaLabel="Journee"
+            valeur={journee} onChange={setJournee} className="select-fm" ariaLabel="Journée"
             options={[
               { valeur: "all", libelle: `Toutes (${journees.length})` },
               ...journees.map((j) => ({ valeur: String(j), libelle: `J${j}` })),
@@ -158,7 +158,7 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
             onClick={reset}
             className="btn text-xs ml-auto flex items-center gap-1"
           >
-            <X size={11}/> Reinitialiser
+            <X size={11}/> Réinitialiser
           </button>
         )}
 
@@ -170,7 +170,7 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
       {/* Tableau */}
       {filtres.length === 0 ? (
         <p className="text-sm text-muted text-center py-8">
-          Aucun match ne correspond a ces filtres.
+          Aucun match ne correspond à ces filtres.
         </p>
       ) : (
         <table className="table-fm">
@@ -217,7 +217,7 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
                   <td className="max-sm:hidden">{isFmi && <span className="badge badge-accent">FMI</span>}</td>
                   <td className="text-right">
                     <div className="inline-flex items-center gap-1">
-                      <Link href={`/matchs/${m.id}`} className="btn text-xs max-sm:!px-2 max-sm:!py-1.5">Detail</Link>
+                      <Link href={`/matchs/${m.id}`} className="btn text-xs max-sm:!px-2 max-sm:!py-1.5">Détail</Link>
                       {m.modifiable !== false && <DeleteMatchButton matchId={m.id} label={`J${m.journee} ${m.scoreDom}-${m.scoreExt}`}/>}
                     </div>
                   </td>

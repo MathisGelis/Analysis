@@ -11,15 +11,15 @@ import { Info } from "lucide-react";
 import type { RapportPrematch } from "@/features/prematch/lib/prematch-types";
 
 const FIABILITE = {
-  faible: { libelle: "Echantillon mince", classe: "badge-amber" },
-  moyenne: { libelle: "Fiabilite moyenne", classe: "" },
-  bonne: { libelle: "Bonne fiabilite", classe: "badge-accent" },
+  faible: { libelle: "Échantillon mince", classe: "badge-amber" },
+  moyenne: { libelle: "Fiabilité moyenne", classe: "" },
+  bonne: { libelle: "Bonne fiabilité", classe: "badge-accent" },
 } as const;
 
 const SOURCE = {
-  renseigne: "Dispositifs renseignes",
-  numeros: "Deduit des numeros de maillot",
-  mixte: "Renseigne + numeros de maillot",
+  renseigne: "Dispositifs renseignés",
+  numeros: "Déduit des numéros de maillot",
+  mixte: "Renseigné + numéros de maillot",
 } as const;
 
 const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? "s" : ""}`;
@@ -33,7 +33,7 @@ export function SystemeProbable({
   );
 
   const lire = (st: NonNullable<typeof numeros>["structure"]) => [
-    st.defense ? `defense a ${st.defense.lignes}` : null,
+    st.defense ? `défense a ${st.defense.lignes}` : null,
     st.attaque ? pluriel(st.attaque.attaquants, "attaquant") : null,
   ].filter(Boolean).join(" · ");
 
@@ -44,11 +44,11 @@ export function SystemeProbable({
         <Info size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden />
         <div className="space-y-1.5">
           <p>
-            Aucun systeme de jeu determinable pour {adversaire} ({pluriel(matchs, "match")} joue{matchs > 1 ? "s" : ""}) : aucun dispositif renseigne, et
-            les numeros de maillot ne suffisent pas a en deduire un. La feuille de match n'en contient pas : il se saisit sur la fiche d'un match,
-            par exemple apres l'avoir affronte.
+            Aucun système de jeu déterminable pour {adversaire} ({pluriel(matchs, "match")} joué{matchs > 1 ? "s" : ""}) : aucun dispositif renseigné, et
+            les numéros de maillot ne suffisent pas à en déduire un. La feuille de match n'en contient pas : il se saisit sur la fiche d'un match,
+            par exemple après l'avoir affronte.
           </p>
-          {partiel && <p className="text-ink">Les numeros disent quand meme : {partiel}.</p>}
+          {partiel && <p className="text-ink">Les numéros disent quand même : {partiel}.</p>}
           {numeros?.notes.map((n) => <p key={n} className="text-xs text-faint">{n}</p>)}
           {numeros && numeros.indices.length > 0 && (
             <ul className="space-y-1 text-xs leading-relaxed text-muted">
@@ -64,7 +64,7 @@ export function SystemeProbable({
   const f = FIABILITE[p.fiabilite];
   const structure = lire(p.structure);
   const base = [
-    p.observations > 0 ? `${pluriel(p.observations, "match")} renseigne${p.observations > 1 ? "s" : ""} (sur ${matchs} joue${matchs > 1 ? "s" : ""})` : null,
+    p.observations > 0 ? `${pluriel(p.observations, "match")} renseigné${p.observations > 1 ? "s" : ""} (sur ${matchs} joué${matchs > 1 ? "s" : ""})` : null,
     p.matchsNumeros > 0 && p.source !== "renseigne" ? `${pluriel(p.matchsNumeros, "feuille")} lue${p.matchsNumeros > 1 ? "s" : ""}` : null,
   ].filter(Boolean).join(" · ");
 
@@ -72,17 +72,17 @@ export function SystemeProbable({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
         <div>
-          <div className="stat-label">Systeme probable</div>
+          <div className="stat-label">Système probable</div>
           <div className="mt-1 font-display text-4xl font-bold tabular-nums text-ink">{p.systeme}</div>
         </div>
         <div className="min-w-0 space-y-1.5 text-xs text-muted">
           <div className="flex flex-wrap items-center gap-2">
             <span className={`badge ${f.classe}`}>{f.libelle}</span>
             <span className="badge badge-sky">{SOURCE[p.source]}</span>
-            {p.modele && <span className="badge badge-accent" title="Le dispositif est choisi par le modele de l'IA actif">Predit par l'IA ({p.modele.nom})</span>}
+            {p.modele && <span className="badge badge-accent" title="Le dispositif est choisi par le modèle de l'IA actif">Prédit par l'IA ({p.modele.nom})</span>}
             <span>{p.confiance} % · {base}</span>
           </div>
-          {structure && <div className="text-ink">Les numeros disent : {structure}</div>}
+          {structure && <div className="text-ink">Les numéros disent : {structure}</div>}
           {p.alternatives.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-faint">Sinon :</span>
@@ -90,14 +90,14 @@ export function SystemeProbable({
             </div>
           )}
           {observes < matchs && lienSaisie && (
-            <div>{lienSaisie} pour affiner (un dispositif saisi pese plus que les numeros).</div>
+            <div>{lienSaisie} pour affiner (un dispositif saisi pèse plus que les numéros).</div>
           )}
         </div>
       </div>
 
       {p.indices.length > 0 && (
         <div>
-          <div className="stat-label mb-1.5">Pourquoi ce systeme</div>
+          <div className="stat-label mb-1.5">Pourquoi ce système</div>
           <ul className="space-y-1 text-xs leading-relaxed text-muted">
             {p.indices.map((i) => <li key={i} className="flex gap-2"><span className="text-faint" aria-hidden>·</span><span>{i}</span></li>)}
           </ul>
@@ -105,7 +105,7 @@ export function SystemeProbable({
       )}
       {p.source === "numeros" && (
         <p className="text-[11px] text-faint">
-          Estimation d'apres les numeros de maillot, plafonnee a 70 % : un numero n'est pas un dispositif saisi par le staff.
+          Estimation d'après les numéros de maillot, plafonnée a 70 % : un numéro n'est pas un dispositif saisi par le staff.
         </p>
       )}
     </div>

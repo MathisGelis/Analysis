@@ -10,7 +10,7 @@ describe("conditions d'utilisation", () => {
     expect(doitAccepterCgu(null)).toBe(false);
   });
 
-  it("cookies : seulement des cookies necessaires, aucun traceur", () => {
+  it("cookies : seulement des cookies nécessaires, aucun traceur", () => {
     const noms = COOKIES.map((c) => c.nom).join(" ");
     expect(noms).toContain("fa_access");
     expect(noms).not.toMatch(/_ga|_gid|fbp|analytics|pixel/i);

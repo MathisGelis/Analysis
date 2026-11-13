@@ -75,7 +75,7 @@ export function SettingsDrawer({
           ${open ? "translate-x-0" : "translate-x-full"}`}
         style={{ borderRadius: 0, borderLeftWidth: 1, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0 }}
         role="dialog"
-        aria-label="Parametres"
+        aria-label="Paramètres"
         aria-hidden={!open}
         // `inert` : ferme, le tiroir est hors ecran mais ses boutons restaient atteignables au clavier.
         inert={!open}
@@ -83,8 +83,8 @@ export function SettingsDrawer({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-line">
           <div>
-            <div className="h-section">Reglages</div>
-            <h2 className="font-display text-xl font-bold text-ink mt-0.5">Preferences</h2>
+            <div className="h-section">Réglages</div>
+            <h2 className="font-display text-xl font-bold text-ink mt-0.5">Préférences</h2>
           </div>
           <button
             type="button"
@@ -112,7 +112,7 @@ export function SettingsDrawer({
                 onClick={handlePickDark}
                 icon={<Moon size={18}/>}
                 label="Sombre"
-                hint="Defaut"
+                hint="Défaut"
               />
               <ThemeChoice
                 active={theme === "light"}
@@ -125,7 +125,7 @@ export function SettingsDrawer({
                 active={false}
                 onClick={handlePickSystem}
                 icon={<Monitor size={18}/>}
-                label="Systeme"
+                label="Système"
                 hint="Auto"
               />
             </div>
@@ -139,7 +139,7 @@ export function SettingsDrawer({
 
           {/* Section : compte et securite */}
           <section>
-            <div className="h-section mb-3">Compte et securite</div>
+            <div className="h-section mb-3">Compte et sécurité</div>
             <div className="space-y-2">
               <Link href="/change-password" className="btn w-full justify-start" onClick={onClose}>
                 <KeyRound size={14}/> Changer mon mot de passe
@@ -150,17 +150,17 @@ export function SettingsDrawer({
                 disabled={partout}
                 onClick={() => { setPartout(true); void deconnecter(true); }}
               >
-                <LogOut size={14}/> Me deconnecter de tous les appareils
+                <LogOut size={14}/> Me déconnecter de tous les appareils
               </button>
               <p className="text-[11px] leading-relaxed text-faint">
-                A utiliser apres une connexion sur un appareil partage ou perdu : toutes tes sessions sont fermees.
+                À utiliser après une connexion sur un appareil partagé ou perdu : toutes tes sessions sont fermées.
               </p>
             </div>
           </section>
 
           {/* Section : a propos */}
           <section>
-            <div className="h-section mb-3">A propos</div>
+            <div className="h-section mb-3">À propos</div>
             <div className="panel-inset p-4 text-xs text-muted leading-relaxed">
               <p className="font-display font-bold text-ink mb-1">Foot Analytics</p>
               <p>Console d'analyse et de suivi pour staff de football amateur.</p>

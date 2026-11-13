@@ -28,5 +28,8 @@ export class Equipe {
   @Index() @Column({ name: "saison_id", nullable: true }) saisonId: string;
   @Column({ nullable: true }) coach: string;
   @Column({ default: "4-2-3-1" }) formationDef: string;
+  // Calendrier FFF de l'equipe (fichier .ics public, media.fff.fr) : son adresse, et la derniere synchronisation reussie.
+  @Column({ type: "varchar", nullable: true }) calendrierUrl: string | null;
+  @Column({ type: "varchar", nullable: true }) calendrierSynchroLe: string | null;
   @CreateDateColumn() createdAt: Date;
 }

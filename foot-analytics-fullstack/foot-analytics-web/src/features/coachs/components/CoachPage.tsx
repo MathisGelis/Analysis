@@ -36,14 +36,14 @@ export default async function CoachDetail({
     <div className="space-y-6 fade-up">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link href={fiche.clubActuelId ? `/rapports/equipe/${fiche.clubActuelId}` : "/rapports"} className="flex items-center gap-1 text-xs text-muted hover:text-ink">
-          <ArrowLeft size={12} /> Retour au rapport d'equipe
+          <ArrowLeft size={12} /> Retour au rapport d'équipe
         </Link>
-        <nav className="flex gap-1 text-xs" aria-label="Portee de la fiche">
+        <nav className="flex gap-1 text-xs" aria-label="Portée de la fiche">
           <Link href={href("saison")} scroll={false} className={`btn ${portee === "saison" ? "btn-accent" : "btn-ghost"}`}>
             Saison {saison?.nom ?? "courante"}
           </Link>
           <Link href={href("carriere")} scroll={false} className={`btn ${portee === "carriere" ? "btn-accent" : "btn-ghost"}`}>
-            Carriere complete
+            Carrière complète
           </Link>
         </nav>
       </div>
@@ -68,16 +68,16 @@ export default async function CoachDetail({
           </div>
         </div>
         <div className="col-span-12 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:col-span-7">
-          <Tuile label="Matchs" valeur={String(bilan.matchs)} note={portee === "saison" ? `${carriere} en carriere` : "en carriere"} />
+          <Tuile label="Matchs" valeur={String(bilan.matchs)} note={portee === "saison" ? `${carriere} en carrière` : "en carrière"} />
           <Tuile label="V - N - D" valeur={<><span className="text-win">{bilan.v}</span><span className="text-faint"> - </span><span className="text-draw">{bilan.n}</span><span className="text-faint"> - </span><span className="text-loss">{bilan.d}</span></>} note={`${bilan.pctV} % de victoires`} />
           <Tuile label="Points / match" valeur={bilan.matchs ? decimal(bilan.ppm, 2) : "—"} note={`${bilan.pts} points`} />
-          <Tuile label="Buts" valeur={`${bilan.bp} - ${bilan.bc}`} note="marques - encaisses" />
+          <Tuile label="Buts" valeur={`${bilan.bp} - ${bilan.bc}`} note="marqués - encaissés" />
         </div>
       </header>
 
       {bilan.matchs === 0 && (
         <section className="panel p-5 text-sm text-muted">
-          Aucun match de {nomComplet} sur {portee === "saison" ? <>la saison {saison?.nom ?? "courante"}. <Link href={href("carriere")} className="text-accent hover:underline">Voir la carriere complete</Link></> : "la base."}
+          Aucun match de {nomComplet} sur {portee === "saison" ? <>la saison {saison?.nom ?? "courante"}. <Link href={href("carriere")} className="text-accent hover:underline">Voir la carrière complète</Link></> : "la base."}
         </section>
       )}
 
@@ -134,7 +134,7 @@ export default async function CoachDetail({
             </ol>
             {(coach.cartonsJaunes > 0 || coach.cartonsRouges > 0) && (
               <p className="mt-4 text-xs text-muted">
-                Cartons recus sur le banc : <b className="text-amber">{coach.cartonsJaunes}</b> jaune{coach.cartonsJaunes > 1 ? "s" : ""}, <b className="text-danger">{coach.cartonsRouges}</b> rouge{coach.cartonsRouges > 1 ? "s" : ""}
+                Cartons reçus sur le banc : <b className="text-amber">{coach.cartonsJaunes}</b> jaune{coach.cartonsJaunes > 1 ? "s" : ""}, <b className="text-danger">{coach.cartonsRouges}</b> rouge{coach.cartonsRouges > 1 ? "s" : ""}
                 {coach.motifsTop ? ` · ${coach.motifsTop}` : ""}.
               </p>
             )}
@@ -144,7 +144,7 @@ export default async function CoachDetail({
         {/* Matchs de la portee */}
         {fiche.matchs.length > 0 && (
           <section className="panel p-5 lg:col-span-7" aria-labelledby="matchs-coach">
-            <h2 id="matchs-coach" className="h-section mb-3">Matchs <span className="font-normal normal-case tracking-normal text-faint">{portee === "saison" ? `saison ${saison?.nom ?? ""}` : "carriere"}</span></h2>
+            <h2 id="matchs-coach" className="h-section mb-3">Matchs <span className="font-normal normal-case tracking-normal text-faint">{portee === "saison" ? `saison ${saison?.nom ?? ""}` : "carrière"}</span></h2>
             <ul className="divide-y divide-line">
               {fiche.matchs.map((m) => (
                 <li key={m.matchId}>

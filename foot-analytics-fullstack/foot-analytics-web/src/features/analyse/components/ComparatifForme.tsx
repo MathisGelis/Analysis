@@ -34,20 +34,20 @@ export function ComparatifForme({ forme }: { forme: DynamiqueForme }) {
   const { recente, avant, saison, fenetre } = forme;
   return (
     <table className="w-full">
-      <caption className="sr-only">Les {fenetre} derniers matchs compares au reste de la saison</caption>
+      <caption className="sr-only">Les {fenetre} derniers matchs comparés au reste de la saison</caption>
       <thead>
         <tr className="text-[10px] font-semibold uppercase tracking-[0.08em] text-faint">
           <th className="pb-1 text-left font-semibold"><span className="sr-only">Indicateur</span></th>
           <th className="whitespace-nowrap pb-1 pl-2 text-right font-semibold">{fenetre} derniers</th>
           <th className="pb-1 pl-2 text-right font-semibold">Avant</th>
           <th className="hidden pb-1 pl-2 text-right font-semibold sm:table-cell">Saison</th>
-          <th className="pb-1 pl-3 text-right font-semibold">Ecart</th>
+          <th className="pb-1 pl-3 text-right font-semibold">Écart</th>
         </tr>
       </thead>
       <tbody>
         <Ligne label="Points / match" recent={recente.ppm} avant={avant.ppm} saison={saison.ppm} sens={forme.sens} />
-        <Ligne label="Buts marques / match" recent={recente.bpm} avant={avant.bpm} saison={saison.bpm} sens={forme.attaque} />
-        <Ligne label="Buts encaisses / match" recent={recente.bcm} avant={avant.bcm} saison={saison.bcm} sens={forme.defense} />
+        <Ligne label="Buts marqués / match" recent={recente.bpm} avant={avant.bpm} saison={saison.bpm} sens={forme.attaque} />
+        <Ligne label="Buts encaissés / match" recent={recente.bcm} avant={avant.bcm} saison={saison.bcm} sens={forme.defense} />
       </tbody>
     </table>
   );

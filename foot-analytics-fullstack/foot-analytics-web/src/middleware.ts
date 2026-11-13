@@ -81,10 +81,10 @@ function json(statut: number, message: string, code?: string) {
 
 /** Relais vers l'API : jeton d'acces en en-tete, sans les cookies du site. */
 async function relayer(req: NextRequest): Promise<NextResponse> {
-  if (origineEtrangere(req)) return json(403, "Requete d'un autre site refusee.");
+  if (origineEtrangere(req)) return json(403, "Requête d'un autre site refusée.");
   const { jeton, nouveaux, perdue } = await jetonDeRequete(req);
   if (!jeton) {
-    const res = json(401, "Session expiree : reconnecte-toi.", "SESSION_EXPIREE");
+    const res = json(401, "Session expirée : reconnecte-toi.", "SESSION_EXPIREE");
     if (perdue) effacerSession(res.cookies);
     return res;
   }
@@ -100,6 +100,16 @@ async function relayer(req: NextRequest): Promise<NextResponse> {
 
 export async function middleware(req: NextRequest) {
   if (req.nextUrl.pathname.startsWith(`${PREFIXE_RELAIS}/`)) return relayer(req);
+
+  // Ancienne page Predictions : `?adversaire=<clubId>` ouvre le pre-match de ce club, sinon la page Rapports. Redirigee ici, avant
+  // tout rendu (voir next.config.mjs pour les autres anciennes adresses), et sans recopier la requete dans la destination.
+  if (req.nextUrl.pathname === "/ia") {
+    const adversaire = req.nextUrl.searchParams.get("adversaire") ?? "";
+    const url = req.nextUrl.clone();
+    url.pathname = /^[\w-]+$/.test(adversaire) ? `/rapports/prematch/${adversaire}` : "/rapports";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
 
   const securite = csp(req);
   if (estPublique(req.nextUrl.pathname)) {

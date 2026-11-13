@@ -29,9 +29,9 @@ export interface OptionsDossier {
 export function ongletsDuDossier(clubId: string, o: OptionsDossier): OngletDossier[] {
   const onglets: OngletDossier[] = [];
   if (!o.monClub && o.prematchOuvert) {
-    onglets.push({ id: "prematch", label: "Pre-match", href: `/rapports/prematch/${clubId}${o.matchId ? `?matchId=${encodeURIComponent(o.matchId)}` : ""}` });
+    onglets.push({ id: "prematch", label: "Pré-match", href: `/rapports/prematch/${clubId}${o.matchId ? `?matchId=${encodeURIComponent(o.matchId)}` : ""}` });
   }
-  onglets.push({ id: "equipe", label: "Analyse d'equipe", href: `/rapports/equipe/${clubId}` });
+  onglets.push({ id: "equipe", label: "Analyse d'équipe", href: `/rapports/equipe/${clubId}` });
   if (!o.monClub) onglets.push({ id: "scouting", label: "Scouting", href: `/club/${clubId}/scouting` });
   return onglets;
 }

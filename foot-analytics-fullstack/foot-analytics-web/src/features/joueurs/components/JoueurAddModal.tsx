@@ -58,10 +58,10 @@ export function JoueurAddModal({
         </div>
         <div className="flex-1 min-w-0">
           <h2 className="font-display text-lg font-bold text-ink leading-tight">
-            Ajouter un joueur a l'effectif
+            Ajouter un joueur à l'effectif
           </h2>
           {equipeNom && (
-            <p className="text-xs text-muted mt-0.5">Equipe : {equipeNom}</p>
+            <p className="text-xs text-muted mt-0.5">Équipe : {equipeNom}</p>
           )}
         </div>
         <button
@@ -143,7 +143,7 @@ function ExistantPanel({
       await api.attachJoueur(equipeId, j.id);
       onSaved();
     } catch (e: any) {
-      setError(e?.message ?? "Echec de l'attachement");
+      setError(e?.message ?? "Échec de l'attachement");
       setAttaching(null);
     }
   }
@@ -157,11 +157,11 @@ function ExistantPanel({
           className="inp mt-1"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Tape le nom (2 caracteres minimum)..."
+          placeholder="Tape le nom (2 caractères minimum)..."
         />
         <p className="text-[10px] text-faint mt-1">
           La recherche cherche dans toute la base : joueurs de saisons
-          precedentes, autres clubs si import croise...
+          précédentes, autres clubs si import croise...
         </p>
       </label>
 
@@ -174,13 +174,13 @@ function ExistantPanel({
       <div className="max-h-[340px] overflow-y-auto panel-inset p-2">
         {q.trim().length < 2 ? (
           <p className="text-xs text-faint text-center py-6">
-            Saisis au moins 2 caracteres pour rechercher.
+            Saisis au moins 2 caractères pour rechercher.
           </p>
         ) : loading ? (
           <p className="text-xs text-faint text-center py-6">Recherche...</p>
         ) : results.length === 0 ? (
           <p className="text-xs text-faint text-center py-6">
-            Aucun joueur trouve. Essaie "Nouveau joueur" ci-dessus pour le creer.
+            Aucun joueur trouve. Essaie "Nouveau joueur" ci-dessus pour le créer.
           </p>
         ) : (
           <ul className="divide-y divide-line">
@@ -195,7 +195,7 @@ function ExistantPanel({
                     <div className="flex items-center gap-2 font-semibold text-ink">
                       <span className="truncate">{j.prenom} {j.nom}</span>
                       {saisonPassee(j.derniereSaison) && (
-                        <span className="badge shrink-0 text-[10px]" title={`Derniere saison connue : ${j.derniereSaison?.nom}`}>
+                        <span className="badge shrink-0 text-[10px]" title={`Dernière saison connue : ${j.derniereSaison?.nom}`}>
                           {saisonPassee(j.derniereSaison)}
                         </span>
                       )}
@@ -207,7 +207,7 @@ function ExistantPanel({
                     </div>
                   </div>
                   {dejaDansCette ? (
-                    <span className="badge text-[10px]">Deja dans l'effectif</span>
+                    <span className="badge text-[10px]">Déjà dans l'effectif</span>
                   ) : (
                     <button
                       onClick={() => attach(j)}
@@ -278,7 +278,7 @@ function NouveauPanel({
       });
       onSaved();
     } catch (e: any) {
-      setError(e?.message ?? "Erreur lors de la creation");
+      setError(e?.message ?? "Erreur lors de la création");
       setSaving(false);
     }
   }
@@ -286,7 +286,7 @@ function NouveauPanel({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Prenom">
+        <Field label="Prénom">
           <input className="inp" value={form.prenom}
             onChange={(e) => set("prenom", e.target.value)}/>
         </Field>
@@ -311,7 +311,7 @@ function NouveauPanel({
         <Field label="Poste">
           <Select valeur={form.poste} onChange={(v) => set("poste", v)} ariaLabel="Poste" options={OPTIONS_POSTES}/>
         </Field>
-        <Field label="Numero">
+        <Field label="Numéro">
           <input type="number" min={1} max={99} className="inp"
             value={form.numeroFavori}
             onChange={(e) => set("numeroFavori", e.target.value)}/>
@@ -344,14 +344,14 @@ function NouveauPanel({
       )}
 
       <p className="text-[10px] text-faint">
-        Les stats de match (matchs, buts, cartons) ne sont pas demandees :
-        elles seront calculees automatiquement quand des FMI seront importees.
+        Les stats de match (matchs, buts, cartons) ne sont pas demandées :
+        elles seront calculées automatiquement quand des FMI seront importées.
       </p>
 
       <div className="flex justify-end gap-2 pt-4 mt-5 border-t border-line">
         <button className="btn" onClick={onClose}>Annuler</button>
         <button className="btn btn-accent" onClick={save} disabled={saving}>
-          <Save size={14}/> {saving ? "Creation..." : "Creer et ajouter"}
+          <Save size={14}/> {saving ? "Création..." : "Créer et ajouter"}
         </button>
       </div>
     </div>

@@ -22,6 +22,9 @@ export interface Equipe {
   saisonId?: string | null;
   coach?: string;
   formationDef?: string | null;
+  /** Calendrier FFF de l'equipe (fichier .ics public) et derniere synchronisation reussie. */
+  calendrierUrl?: string | null;
+  calendrierSynchroLe?: string | null;
 }
 
 export interface Saison {
@@ -191,6 +194,8 @@ export interface Match {
   formationDom: string;
   formationExt: string;
   statut: "joue" | "a_venir" | "arrete";
+  /** Un match programme depuis le calendrier FFF qui n'y figure plus (reporte ? annule ?). */
+  calendrierDisparu?: boolean;
   compoDom?: CompoLigne[];
   compoExt?: CompoLigne[];
   // Forme renvoyee par le backend : liste plate avec un champ `cote`.

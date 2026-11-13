@@ -75,7 +75,7 @@ export function TerrainPostes({ numerosFreq, height = 360 }: Props) {
   return (
     <div className="panel p-5">
       <div className="flex items-center justify-between mb-3">
-        <div className="h-section">Postes occupes</div>
+        <div className="h-section">Postes occupés</div>
         <div className="text-xs text-muted tabular-nums">
           {total} apparition{total > 1 ? "s" : ""}
           {entries.length > 0 && (
@@ -88,11 +88,11 @@ export function TerrainPostes({ numerosFreq, height = 360 }: Props) {
 
       {entries.length === 0 && horsTerrain.length === 0 ? (
         <p className="text-xs text-faint text-center py-8">
-          Aucun numero porte par ce joueur sur les matchs en base.
+          Aucun numéro porté par ce joueur sur les matchs en base.
         </p>
       ) : (
         <svg viewBox="0 0 100 140" style={{ height, width: "100%" }} role="img"
-             aria-label="Postes occupes par le joueur">
+             aria-label="Postes occupés par le joueur">
           {/* Terrain : fond degrade vert + bandes pour effet rayures */}
           <defs>
             <linearGradient id="pitch" x1="0" y1="0" x2="0" y2="1">
