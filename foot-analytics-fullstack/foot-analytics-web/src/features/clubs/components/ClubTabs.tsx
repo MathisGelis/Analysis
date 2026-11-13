@@ -6,6 +6,7 @@
 // Les noms de joueurs sont resolus en liens vers leur fiche si le joueur
 // existe en base ; sinon affichage en clair.
 
+import { Abr, LegendeColonnes } from "@/shared/ui/LegendeColonnes";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -331,12 +332,12 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
         <thead>
           <tr>
             <th>#</th><th>Joueur</th><th>Poste</th>
-            <th className="text-center">Mat.</th><th className="text-center max-sm:hidden">Titu</th>
+            <th className="text-center"><Abr k="Mat." /></th><th className="text-center max-sm:hidden"><Abr k="Titu" /></th>
             {isMine && <th className="max-sm:hidden">Minutes</th>}
             <th className="max-sm:hidden">Note</th><th className="max-sm:hidden">Fatigue</th>
-            <th className="text-center" title="Buts">B</th>
-            <th className="text-center max-sm:hidden" title="Passes decisives">PD</th>
-            <th className="text-center">CJ</th><th className="text-center">CR</th>
+            <th className="text-center"><Abr k="B" /></th>
+            <th className="text-center max-sm:hidden"><Abr k="PD" /></th>
+            <th className="text-center"><Abr k="CJ" /></th><th className="text-center"><Abr k="CR" /></th>
             <th className="max-sm:hidden">Statut</th><th className="max-sm:hidden">Postes joues</th>
           </tr>
         </thead>
@@ -375,6 +376,7 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
           ))}
         </tbody>
       </table>
+      <LegendeColonnes abreviations={["Mat.", "Titu", "B", "PD", "CJ", "CR"]} />
     </section>
   );
 }

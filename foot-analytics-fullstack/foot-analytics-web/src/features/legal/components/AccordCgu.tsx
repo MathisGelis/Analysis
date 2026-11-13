@@ -39,7 +39,7 @@ export function AccordCgu() {
   }
 
   return (
-    <div className="fixed inset-0 z-80 grid place-items-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm"
+    <div className="fixed inset-0 z-80 grid place-items-center overflow-y-auto bg-black/70 p-4"
       role="dialog" aria-modal="true" aria-labelledby="titre-cgu">
       <div className="panel w-full max-w-md space-y-4 p-6 shadow-pop">
         <h2 id="titre-cgu" className="flex items-center gap-2 font-display text-xl font-bold text-ink">

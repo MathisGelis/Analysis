@@ -116,7 +116,7 @@ export default function AdminUtilisateurs() {
                 <th className="max-sm:hidden">Saisons</th>
                 <th className="max-sm:hidden">Cree par</th>
                 <th>Statut</th>
-                <th></th>
+                <th><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>

@@ -195,18 +195,26 @@ test("cookie d'equipe perime (equipe fusionnee ou supprimee) : la selection est 
 test("effectif 2026-2027 : ajout d'un joueur existant (recherche floue) puis d'un nouveau", async () => {
   await page.goto("/effectif");
   await expect(page.getByText("KABIFUP")).toHaveCount(0);
+  // Effectif vide : un message et un bouton, pas un tableau réduit à ses en-têtes.
+  const vide = page.getByTestId("effectif-vide");
+  await expect(vide).toContainText("Aucun joueur dans l'effectif");
+  await expect(page.locator("table.table-fm")).toHaveCount(0);
 
   // La modale recouvre la page : on cible ses boutons, pas celui de l'en-tete
   // (le tiroir des reglages, toujours monte, porte aussi "fixed inset-0").
   const modale = page.locator("div.fixed.inset-0.overflow-y-auto");
   const titreModale = page.getByRole("heading", { name: "Ajouter un joueur a l'effectif" });
 
-  // Joueur existant, retrouve malgre la faute de frappe.
-  await page.getByRole("button", { name: /Ajouter/ }).first().click();
+  // Joueur existant, retrouve malgre la faute de frappe : on ouvre la modale depuis le bouton de l'état vide.
+  await vide.getByRole("button", { name: "Ajouter un joueur" }).click();
   await modale.getByPlaceholder(/Tape le nom/).fill("kabifupp");
   await modale.getByRole("button", { name: /Ajouter$/ }).last().click();
   await expect(titreModale).toBeHidden();
   await expect(page.getByRole("link", { name: /KABIFUP/ })).toBeVisible();
+  // Avec des joueurs : plus d'état vide, et la légende explique les abréviations des colonnes.
+  await expect(vide).toHaveCount(0);
+  await expect(page.getByTestId("legende-colonnes")).toContainText("CJ cartons jaunes");
+  await expect(page.getByTestId("legende-colonnes")).toContainText("PD passes décisives");
 
   // Nouveau joueur.
   await page.getByRole("button", { name: /Ajouter/ }).first().click();
@@ -889,7 +897,7 @@ test("accessibilite : aucune violation axe sur les pages principales, en theme n
     headers: { Authorization: `Bearer ${token}` },
   })).json();
   const adversaire = clubs.find((c) => c.nom !== "OL Sud E2E");
-  const pages = ["/", "/rapports", "/recherche", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical", "/admin/ia",
+  const pages = ["/", "/rapports", "/recherche", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical", "/admin/ia", "/admin/utilisateurs",
     ...(adversaire ? [`/rapports/prematch/${adversaire.id}`] : [])];
 
   const violations: string[] = [];
@@ -910,6 +918,50 @@ test("accessibilite : aucune violation axe sur les pages principales, en theme n
     }
   }
   expect(violations, "violations d'accessibilite (axe-core)").toEqual([]);
+});
+
+test("accessibilité mobile : aucune violation axe, tiroir du menu fermé inerte (jamais atteignable au clavier)", async ({ browser }) => {
+  test.setTimeout(180_000);
+  const axe = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+  const ctx = await browser.newContext({ storageState: await contexte.storageState(), viewport: { width: 390, height: 844 } });
+  const p = await ctx.newPage();
+  try {
+    const violations: string[] = [];
+    for (const chemin of ["/", "/effectif", "/matchs", "/calendrier", "/classement", "/admin/utilisateurs"]) {
+      await p.goto(chemin);
+      await p.waitForLoadState("networkidle");
+      await p.evaluate(axe);
+      const trouves: string[] = await p.evaluate(async () => {
+        const r = await (window as any).axe.run(document, { resultTypes: ["violations"] });
+        return r.violations.map((v: any) => `${v.impact} ${v.id} x${v.nodes.length} : ${v.nodes[0].target.join(" ")}`);
+      });
+      violations.push(...trouves.map((t) => `${chemin} (mobile) ${t}`));
+    }
+    expect(violations, "violations d'accessibilité en mobile (axe-core)").toEqual([]);
+
+    // Fermé, le tiroir est inerte ; ouvert, ses liens redeviennent atteignables.
+    await p.goto("/");
+    const tiroir = p.locator("div.fixed.inset-0.z-50[inert]");
+    await expect(tiroir).toHaveCount(1);
+    await p.getByRole("button", { name: "Ouvrir le menu" }).click();
+    await expect(p.locator("div.fixed.inset-0.z-50[inert]")).toHaveCount(0);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("page introuvable : une fiche inconnue dit ce qui manque et ramène à la liste", async () => {
+  for (const [chemin, titre, retour, versLaListe] of [
+    ["/joueur/identifiant-inconnu", "Joueur introuvable", "Retour à l'effectif", /\/effectif$/],
+    ["/matchs/identifiant-inconnu", "Match introuvable", "Retour aux matchs", /\/matchs$/],
+    ["/club/identifiant-inconnu", "Club introuvable", "Retour au classement", /\/classement$/],
+  ] as const) {
+    // (Le statut HTTP reste 200 : le chargement progressif de la page envoie l'en-tete avant de savoir que la fiche manque.)
+    await page.goto(chemin);
+    await expect(page.getByRole("heading", { level: 1, name: titre })).toBeVisible();
+    await expect(page.getByText("Cette page n'a pas pu s'afficher")).toHaveCount(0);
+    await cliquerJusquaNavigation(page.getByRole("link", { name: retour }), versLaListe);
+  }
 });
 
 test("saison archivee : calendrier, entrainements, tactique et predictions sont fermes, avec leur raison ; le reste reste consultable", async () => {

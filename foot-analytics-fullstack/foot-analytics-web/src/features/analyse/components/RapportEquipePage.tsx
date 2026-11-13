@@ -8,6 +8,7 @@
 // tendances), les courbes de dynamique (forme, attaque, defense, lieux, adversaires,
 // discipline), puis le detail de l'effectif (joueurs cles, rotation, compo, staff, impact).
 
+import { Abr, LegendeColonnes } from "@/shared/ui/LegendeColonnes";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
@@ -535,10 +536,10 @@ export default async function RapportEquipe({
                 <th>Nom</th>
                 <th>Fonction</th>
                 <th className="text-center">Matchs</th>
-                <th className="text-center max-sm:hidden">V-N-D</th>
-                <th className="text-right">% V</th>
-                <th className="text-center max-sm:hidden">CJ</th>
-                <th className="text-center max-sm:hidden">CR</th>
+                <th className="text-center max-sm:hidden"><Abr k="V-N-D" /></th>
+                <th className="text-right"><Abr k="% V" /></th>
+                <th className="text-center max-sm:hidden"><Abr k="CJ" /></th>
+                <th className="text-center max-sm:hidden"><Abr k="CR" /></th>
                 <th className="max-sm:hidden">Periode</th>
               </tr>
             </thead>
@@ -583,6 +584,7 @@ export default async function RapportEquipe({
               ))}
             </tbody>
           </table>
+          <LegendeColonnes abreviations={["V-N-D", "% V", "CJ", "CR"]} />
         </section>
       )}
 

@@ -182,9 +182,11 @@ async function lectureUneFoisParRequete(path: string): Promise<Response> {
 
 async function req<T>(
   path: string,
-  opts: RequestInit & { fallback?: T } = {},
+  opts: RequestInit & { fallback?: T; introuvable?: boolean } = {},
 ): Promise<T> {
-  const { fallback, ...init } = opts;
+  // `introuvable` : un 404 de l'API (identifiant inconnu) rend `undefined` au lieu de lever l'erreur : la page appelle alors
+  // notFound() et affiche sa page « introuvable », au lieu de l'ecran d'erreur generique.
+  const { fallback, introuvable, ...init } = opts;
   try {
     // Cote serveur, une lecture n'est faite qu'UNE fois par requete de page (le layout et la page demandent les memes clubs et
     // saisons) ; les ecritures, et tout appel avec options particulieres, partent toujours.
@@ -203,6 +205,7 @@ async function req<T>(
       }
       return fallback;
     }
+    if (introuvable && e instanceof ApiError && e.statut === 404) return undefined as T;
     throw e;
   }
 }
@@ -228,6 +231,7 @@ export const api = {
   club: (id: string) =>
     req<Club | undefined>(`/clubs/${id}`, {
       fallback: DEMO_CLUBS.find((c) => c.id === id),
+      introuvable: true,
     }),
 
   // Equipes : voir la version enrichie plus bas (filtres saison + clubId).
@@ -242,6 +246,7 @@ export const api = {
   joueur: (id: string) =>
     req<Joueur | undefined>(`/joueurs/${id}`, {
       fallback: DEMO_JOUEURS.find((j) => j.id === id),
+      introuvable: true,
     }),
 
   /** Frequence des numeros de maillot portes par un joueur :
@@ -269,6 +274,7 @@ export const api = {
   match: (id: string) =>
     req<Match | undefined>(`/matchs/${id}`, {
       fallback: id === "m-fmi" ? DEMO_MATCH_FMI : DEMO_MATCHS.find((m) => m.id === id),
+      introuvable: true,
     }),
 
   // Scouting

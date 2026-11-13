@@ -171,8 +171,9 @@ export function Sidebar({ replie, onBasculerReplie, mobileOuvert, onFermerMobile
         </div>
       </aside>
 
-      {/* Mobile : tiroir coulissant sur fond assombri. */}
-      <div className={`lg:hidden print:hidden fixed inset-0 z-50 ${mobileOuvert ? "" : "pointer-events-none"}`} aria-hidden={!mobileOuvert}>
+      {/* Mobile : tiroir coulissant sur fond assombri. Ferme, il est `inert` : ses liens et boutons ne sont plus atteignables au
+          clavier ni au lecteur d'ecran (un simple aria-hidden les laisserait focalisables, hors de l'ecran). */}
+      <div className={`lg:hidden print:hidden fixed inset-0 z-50 ${mobileOuvert ? "" : "pointer-events-none"}`} aria-hidden={!mobileOuvert} inert={!mobileOuvert}>
         <div
           onClick={onFermerMobile}
           className={`absolute inset-0 bg-black/55 backdrop-blur-sm transition-opacity duration-300 ${mobileOuvert ? "opacity-100" : "opacity-0"}`}

@@ -4,12 +4,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Pencil, Plus, Save, Search, Trash2, Users, X } from "lucide-react";
 
 import { api } from "@/shared/lib/api";
 import { useOwnClubId } from "@/features/equipes/lib/own-club-context";
 import { useOwnEquipe } from "@/features/equipes/lib/own-equipe-context";
 import { Modal } from "@/shared/ui/Modal";
+import { EtatVide } from "@/shared/ui/EtatVide";
+import { LegendeColonnes } from "@/shared/ui/LegendeColonnes";
 import { Select } from "@/shared/ui/Select";
 import { optionsSimples } from "@/shared/lib/selecteur";
 import type { Joueur } from "@/shared/lib/types";
@@ -159,6 +161,23 @@ export default function EffectifPage() {
       <section className="panel p-5">
         {loading ? (
           <div className="text-sm text-muted py-8 text-center">Chargement de l'effectif…</div>
+        ) : data.length === 0 ? (
+          joueurs.length === 0 ? (
+            <EtatVide
+              data-testid="effectif-vide" icone={Users}
+              titre={equipeId ? "Aucun joueur dans l'effectif" : "Aucune équipe sélectionnée"}
+              message={equipeId
+                ? "Ajoutez les joueurs de l'équipe, ou importez des feuilles de match : les joueurs qui y figurent rejoignent l'effectif automatiquement."
+                : "Choisissez une équipe avec le sélecteur en bas de la barre latérale pour voir son effectif."}
+              action={equipeId ? { libelle: "Ajouter un joueur", onClick: () => setCreating(true), icone: Plus } : undefined}
+            />
+          ) : (
+            <EtatVide
+              data-testid="effectif-filtre-vide" icone={Search} titre="Aucun joueur ne correspond"
+              message="Aucun joueur ne correspond à ce filtre ou à ce poste."
+              secondaire={{ libelle: "Effacer les filtres", onClick: () => { setQ(""); setPosteFilter("TOUS"); } }}
+            />
+          )
         ) : (
         <table className="table-fm table-dense">
           <thead>
@@ -248,6 +267,7 @@ export default function EffectifPage() {
           </tbody>
         </table>
         )}
+        {!loading && data.length > 0 && <LegendeColonnes abreviations={["Mat.", "Titu", "B", "PD", "CJ", "CR"]} />}
       </section>
 
       {edit && (
@@ -307,7 +327,7 @@ function ThTri({
     <th className={className} aria-sort={actif ? (tri.sens === "asc" ? "ascending" : "descending") : "none"}>
       <button type="button" onClick={() => onTri(cle)}
         className={`group inline-flex items-center gap-1 uppercase tracking-[inherit] transition-colors hover:text-ink ${actif ? "text-ink" : ""}`}
-        title={`Trier par ${(titre ?? libelle).toLowerCase()}`}>
+        title={titre ? `${titre} (cliquer pour trier)` : `Trier par ${libelle.toLowerCase()}`}>
         {children}
         {actif
           ? (tri.sens === "asc" ? <ArrowUp size={11} aria-hidden /> : <ArrowDown size={11} aria-hidden />)
