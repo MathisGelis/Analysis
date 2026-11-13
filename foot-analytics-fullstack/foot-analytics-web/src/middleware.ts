@@ -101,6 +101,16 @@ async function relayer(req: NextRequest): Promise<NextResponse> {
 export async function middleware(req: NextRequest) {
   if (req.nextUrl.pathname.startsWith(`${PREFIXE_RELAIS}/`)) return relayer(req);
 
+  // Ancienne page Predictions : `?adversaire=<clubId>` ouvre le pre-match de ce club, sinon la page Rapports. Redirigee ici, avant
+  // tout rendu (voir next.config.mjs pour les autres anciennes adresses), et sans recopier la requete dans la destination.
+  if (req.nextUrl.pathname === "/ia") {
+    const adversaire = req.nextUrl.searchParams.get("adversaire") ?? "";
+    const url = req.nextUrl.clone();
+    url.pathname = /^[\w-]+$/.test(adversaire) ? `/rapports/prematch/${adversaire}` : "/rapports";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
   const securite = csp(req);
   if (estPublique(req.nextUrl.pathname)) {
     return securite.poser(NextResponse.next({ request: { headers: securite.entetes() } }));

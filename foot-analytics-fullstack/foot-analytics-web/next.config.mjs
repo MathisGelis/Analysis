@@ -26,9 +26,8 @@ const nextConfig = {
   // puis un second : 75 requetes au lieu de 38 pour ouvrir /rapports). Voir aussi app/rapports/equipe/page.tsx (repli sans cookie).
   async redirects() {
     return [
-      // /ia?adversaire=<clubId> : le pre-match de ce club ; sans parametre, la page Rapports.
-      { source: "/ia", has: [{ type: "query", key: "adversaire", value: "(?<adversaire>[\\w-]+)" }], destination: "/rapports/prematch/:adversaire", permanent: false },
-      { source: "/ia", destination: "/rapports", permanent: false },
+      // /ia (avec ou sans ?adversaire=) est redirigee par le middleware : une redirection de la config recopie la requete d'origine
+      // dans l'adresse de destination (/rapports/prematch/<id>?adversaire=<id>).
       { source: "/scouting", destination: "/rapports", permanent: false },
       // Le rapport de mon equipe : celui de mon club (cookie pose par le middleware).
       { source: "/rapports/equipe", has: [{ type: "cookie", key: "ownClubId", value: "(?<club>[\\w-]+)" }], destination: "/rapports/equipe/:club", permanent: false },
