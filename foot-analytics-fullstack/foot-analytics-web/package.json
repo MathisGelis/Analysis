@@ -12,6 +12,7 @@
     "start": "next start",
     "lint": "eslint src tests e2e",
     "test:e2e": "playwright test",
+    "perf:longtasks": "playwright test -c playwright.perf.config.ts",
     "test": "vitest run"
   },
   "dependencies": {
