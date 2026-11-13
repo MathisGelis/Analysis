@@ -20,8 +20,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  CalendarCheck, ChevronLeft, ChevronRight, Dumbbell,
-  FileText, Save, Settings2, Trophy, X,
+  CalendarCheck, CalendarSync, ChevronLeft, ChevronRight, Dumbbell,
+  FileText, Save, Settings2, TriangleAlert, Trophy, X,
   Calendar as CalIcon, Trash2,
 } from "lucide-react";
 
@@ -37,6 +37,7 @@ import { dateVersIso, moisInitial } from "@/features/calendrier/lib/calendrier";
 import { useAjouterClub } from "@/features/clubs/lib/clubs-context";
 
 import { AdversairePicker } from "./AdversairePicker";
+import { CalendrierFffPanneau } from "./CalendrierFffPanneau";
 
 const JOURS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const MOIS_FR = [
@@ -49,6 +50,7 @@ interface MatchEv {
   clubDom: string; clubExt: string; scoreDom: number; scoreExt: number;
   equipeDomId?: string | null; equipeExtId?: string | null; statut?: string;
   competition?: string;
+  calendrierDisparu?: boolean;
 }
 interface AutreEv {
   id: string; date: string; heure?: string;
@@ -91,6 +93,7 @@ function CalendrierContent() {
     null | { date: string; type: "entrainement" | "match" | "autre" }
   >(null);
   const [seanceEdit, setSeanceEdit] = useState<any | null>(null);
+  const [fffOpen, setFffOpen] = useState(false);
 
   // Charge la cle planning + autres depuis localStorage (par equipe).
   useEffect(() => {
@@ -131,13 +134,15 @@ function CalendrierContent() {
   const reload = async () => {
     if (!equipeId) return;
     // Les clubs aussi : un adversaire cree depuis la modale doit s'afficher par son nom, pas par son identifiant.
-    const [s, m, c] = await Promise.all([
+    const [s, m, c, e] = await Promise.all([
       api.entrainements(equipeId),
       api.matchs(),
       api.clubs(),
+      api.equipes(),
     ]);
     setSeances(s);
     setClubs(c);
+    setEquipes(e);
     setMatchs(m.filter((mm: any) =>
       mm.equipeDomId === equipeId || mm.equipeExtId === equipeId));
   };
@@ -239,6 +244,10 @@ function CalendrierContent() {
           <button className="btn" onClick={() => setCursor((d) => addMonths(d, 1))}>
             {MOIS_FR[addMonths(cursor, 1).getMonth()].slice(0, 4)}. <ChevronRight size={14}/>
           </button>
+          <button className="btn" onClick={() => setFffOpen(true)} disabled={lectureSeule || !monEquipe} data-testid="cal-fff-ouvrir"
+            title={lectureSeule ? "Saison archivee : consultation seule" : "Importer les matchs depuis le calendrier FFF (myFFF)"}>
+            <CalendarSync size={14}/> Calendrier FFF
+          </button>
           <button className="btn" onClick={() => setPlanningOpen(true)}
             disabled={lectureSeule}
             title={lectureSeule ? "Saison archivee : consultation seule" : undefined}>
@@ -338,6 +347,11 @@ function CalendrierContent() {
                         <div className="flex items-center gap-1">
                           {advId && <ClubBadge clubId={advId} size={12}/>}
                           <span className="font-bold truncate flex-1">{adv?.nom ?? advId}</span>
+                          {m.calendrierDisparu && (
+                            <span title="Ne figure plus au calendrier FFF : reporte ou annule ? A verifier." data-testid="match-disparu" className="shrink-0">
+                              <TriangleAlert size={10} className="text-amber" aria-label="Ne figure plus au calendrier FFF"/>
+                            </span>
+                          )}
                           <span className="text-[9px] text-muted">{dom ? "D" : "E"}</span>
                         </div>
                         <div className="text-[9px] text-muted truncate">
@@ -412,6 +426,10 @@ function CalendrierContent() {
           onSave={(p) => { savePlanning(p); setPlanningOpen(false); }}
           onClose={() => setPlanningOpen(false)}
         />
+      )}
+
+      {fffOpen && monEquipe && (
+        <CalendrierFffPanneau equipe={monEquipe} onClose={() => setFffOpen(false)} onSynchronise={reload} />
       )}
 
       {addOpen?.type === "entrainement" && (

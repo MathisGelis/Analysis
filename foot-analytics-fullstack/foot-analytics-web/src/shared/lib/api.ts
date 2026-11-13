@@ -26,6 +26,7 @@ import type { FicheCoach } from "@/features/coachs/lib/fiche-coach-types";
 import type { EntrainementDetail, EntrainementResume, EtatIa, ModeleListe, PlanningIa } from "@/features/ia/lib/ia-types";
 import type { PageJournal } from "@/features/audit/lib/journal";
 import { reconstruire, type EtatReconstruction } from "@/features/fmi/lib/reconstruction";
+import type { RapportFff } from "@/features/calendrier/lib/calendrier-fff";
 import type { CriteresApi, OptionsRecherche, ReponseRecherche } from "@/features/recherche-joueurs/lib/recherche-joueurs";
 
 import type {
@@ -331,6 +332,19 @@ export const api = {
     const fd = new FormData();
     fd.append("file", file);
     return uploadApi<any>(`/fmi/import${recompute ? "" : "?recompute=false"}`, fd, "Import FMI");
+  },
+
+  // Calendrier FFF d'une equipe : adresse du fichier .ics (myFFF), synchronisation, ou fichier depose a la main.
+  definirCalendrierFff: (equipeId: string, url: string | null) =>
+    req<{ calendrierUrl: string | null; calendrierSynchroLe: string | null }>(`/calendrier-fff/equipes/${equipeId}/adresse`, {
+      method: "PUT", body: JSON.stringify({ url }),
+    }),
+  synchroniserCalendrierFff: (equipeId: string) =>
+    req<RapportFff>(`/calendrier-fff/equipes/${equipeId}/synchroniser`, { method: "POST" }),
+  importerCalendrierFff: (equipeId: string, fichier: File) => {
+    const fd = new FormData();
+    fd.append("file", fichier);
+    return req<RapportFff>(`/calendrier-fff/equipes/${equipeId}/importer`, { method: "POST", body: fd });
   },
 
   // Reconstruit effectifs (tous clubs) + classement, en tache de fond suivie jusqu'a la fin (voir

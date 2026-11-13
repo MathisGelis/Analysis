@@ -1608,6 +1608,74 @@ test("responsive : aucune page ne deborde de l'ecran, sur mobile et tablette (po
   expect(debordements, "pages qui debordent de l'ecran").toEqual([]);
 });
 
+/** Un calendrier d'equipe au format de la FFF (clubs fictifs), a partir de demain : un match par semaine. */
+function calendrierFff(sansJournee?: number): string {
+  const adversaires: [string, string, boolean][] = [
+    ["AS E2E UN 3", "association-sportive-e2e-un", true], ["FC E2E DEUX", "football-club-e2e-deux", false],
+    ["US E2E TROIS 2", "union-sportive-e2e-trois", true], ["RC E2E QUATRE", "racing-club-e2e-quatre", false],
+    ["ES E2E CINQ", "entente-sportive-e2e-cinq", true], ["AS E2E UN 3", "association-sportive-e2e-un", false],
+  ];
+  const lignes = ["BEGIN:VCALENDAR", "VERSION:2.0", "X-WR-CALNAME:OL SUD E2E - SEM 2 - Calendrier d'essai"];
+  adversaires.forEach(([nom, slug, domicile], i) => {
+    if (i + 1 === sansJournee) return;
+    const d = new Date(Date.now() + (1 + 7 * i) * 86_400_000).toISOString().slice(0, 10).replace(/-/g, "");
+    const id = 88000001 + i;
+    lignes.push(
+      "BEGIN:VEVENT", `UID:${id}@fff.fr`, "DTSTAMP:20260906T150000Z", `DTSTART;TZID=Europe/Paris:${d}T150000`,
+      `SUMMARY:J${i + 1} - ${domicile ? `OL SUD E2E 2 - ${nom}` : `${nom} - OL SUD E2E 2`}`,
+      `DESCRIPTION:SENIORS D2\\n\\nVoir la fiche match: https://epreuves.fff.fr/competition/match/${id}-${domicile ? `ol-sud-e2e-${slug}` : `${slug}-ol-sud-e2e`}/match`,
+      "LOCATION:STADE E2E", "END:VEVENT");
+  });
+  lignes.push("END:VCALENDAR");
+  return lignes.join("\r\n");
+}
+
+test("calendrier FFF : un fichier .ics depose cree les matchs a venir, le rejouer ne change rien, un match absent est signale, un fichier invalide est refuse", async () => {
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const duCalendrier = async (): Promise<{ idFff: string; calendrierDisparu: boolean }[]> =>
+    ((await (await fetch(`${API_URL}/matchs`, { headers: { Authorization: `Bearer ${token}` } })).json()) as any[]).filter((m) => m.idFff);
+  const fichier = (contenu: string) => ({ name: "6701_SEM_4.ics", mimeType: "text/calendar", buffer: Buffer.from(contenu) });
+  const ouvrir = async () => {
+    await page.goto("/calendrier");
+    await page.waitForLoadState("networkidle");
+    await page.getByTestId("cal-fff-ouvrir").click();
+    await expect(page.getByRole("heading", { name: "Calendrier FFF" })).toBeVisible();
+  };
+
+  await ouvrir();
+  await expect(page.getByTestId("cal-fff-fichier")).toBeAttached();
+  await page.getByTestId("cal-fff-fichier").setInputFiles(fichier(calendrierFff()));
+  await expect(page.getByTestId("cal-fff-bilan")).toHaveText(/^6 matchs ajoutes \(6 matchs dans le calendrier\)/);
+  await expect(page.getByTestId("cal-fff-rapport")).toContainText("Football Club E2E Deux");
+  expect(await duCalendrier()).toHaveLength(6);
+
+  // Rejouer le meme fichier : rien ne change, aucun doublon.
+  await page.getByTestId("cal-fff-fichier").setInputFiles(fichier(calendrierFff()));
+  await expect(page.getByTestId("cal-fff-bilan")).toHaveText("Calendrier a jour : 6 matchs, rien ne change.");
+  expect(await duCalendrier()).toHaveLength(6);
+
+  // Un match disparait du calendrier : signale, jamais supprime.
+  await page.getByTestId("cal-fff-fichier").setInputFiles(fichier(calendrierFff(3)));
+  await expect(page.getByTestId("cal-fff-bilan")).toContainText("1 match disparu du calendrier");
+  await expect(page.getByTestId("cal-fff-rapport")).toContainText("a verifier, rien n'est supprime");
+  const apres = await duCalendrier();
+  expect(apres).toHaveLength(6);
+  expect(apres.filter((m) => m.calendrierDisparu).map((m) => m.idFff)).toEqual(["88000003"]);
+
+  // Un fichier qui n'est pas un calendrier de la FFF : refuse, avec la raison.
+  await page.getByTestId("cal-fff-fichier").setInputFiles(fichier("ceci n'est pas un calendrier"));
+  await expect(page.getByTestId("cal-fff-erreur")).toContainText("Aucun match lisible");
+
+  // Une adresse qui n'est pas celle de la FFF est refusee par l'API.
+  await page.getByTestId("cal-fff-adresse").fill("https://exemple.org/agenda.ics");
+  await expect(page.getByText(/ne ressemble pas a un calendrier d'equipe de la FFF/)).toBeVisible();
+  await page.getByTestId("cal-fff-enregistrer").click();
+  await expect(page.getByTestId("cal-fff-erreur")).toContainText("Adresse invalide");
+});
+
 function pdfplumberDisponible(): boolean {
   try {
     execFileSync(process.env.PYTHON_BIN ?? "python3", ["-c", "import pdfplumber"], { stdio: "ignore" });

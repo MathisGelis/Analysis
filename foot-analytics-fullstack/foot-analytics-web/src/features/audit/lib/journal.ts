@@ -38,6 +38,7 @@ const LIBELLES: Record<string, string> = {
   "joueur.consultation_autre_club": "Fiche d'un joueur d'un autre club",
   "joueur.recherche_avancee": "Recherche avancee de joueurs",
   "fmi.import": "Import de feuille de match",
+  "calendrier.synchronisation": "Synchronisation du calendrier FFF",
   "donnees.reinitialisation": "Donnees de demonstration rechargees",
   "alerte.consultations_massives": "ALERTE : consultations massives",
   "alerte.export_massif": "ALERTE : exports en serie",
@@ -64,6 +65,7 @@ export const CATEGORIES: { valeur: string; libelle: string }[] = [
   { valeur: "joueur.consultation_autre_club", libelle: "Fiches d'autres clubs" },
   { valeur: "joueur.recherche_avancee", libelle: "Recherches avancees" },
   { valeur: "fmi.*", libelle: "Imports FMI" },
+  { valeur: "calendrier.*", libelle: "Calendriers FFF" },
 ];
 
 export function libelleAction(action: string): string {
@@ -89,6 +91,9 @@ export function resumeDetails(t: Pick<TraceAudit, "action" | "details">): string
   if (Array.isArray(d.champs)) return `champs : ${d.champs.join(", ")}`;
   if (typeof d.pages === "number") return `${d.pages} page(s)`;
   if (typeof d.resultats === "number") return `${d.resultats} joueur(s) trouve(s)`;
+  if (t.action === "calendrier.synchronisation" && typeof d.crees === "number") {
+    return `${d.crees} ajoute(s), ${d.modifies ?? 0} modifie(s), ${d.disparus ?? 0} disparu(s) (${d.source === "fichier" ? "fichier depose" : "adresse"})`;
+  }
   if (typeof d.role === "string") return `role : ${d.role}`;
   return "";
 }

@@ -37,6 +37,10 @@ export class Match {
   // est numeroFmi. Le PDF lui-meme n'est jamais conserve (fichier temporaire supprime apres lecture).
   @Column({ type: "varchar", nullable: true }) fmiImporteeLe: string | null;
   @Column({ type: "varchar", nullable: true }) fmiImporteePar: string | null;
+  // Calendrier FFF : identifiant du match chez la FFF (UID du fichier .ics), pour le retrouver a la synchronisation suivante,
+  // et drapeau quand le match programme a disparu du calendrier (a verifier : reporte ? annule ?). Jamais supprime tout seul.
+  @Column({ type: "varchar", nullable: true }) idFff: string | null;
+  @Column({ default: false }) calendrierDisparu: boolean;
   @CreateDateColumn() createdAt: Date;
 
   @OneToMany(() => Composition, (c) => c.match, { cascade: true }) compositions: Composition[];

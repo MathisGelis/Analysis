@@ -24,6 +24,7 @@ import { AuthModule } from "@/features/auth/auth.module";
 import { AuthService } from "@/features/auth/auth.service";
 import { JwtAuthGuard } from "@/features/auth/auth.guards";
 import { ClubsModule } from "@/features/clubs/clubs.module";
+import { CalendrierFffModule } from "@/features/calendrier-fff/calendrier-fff.module";
 import { EquipesModule } from "@/features/equipes/equipes.module";
 import { JoueursModule } from "@/features/joueurs/joueurs.module";
 import { MatchsModule } from "@/features/matchs/matchs.module";
@@ -71,7 +72,7 @@ export async function creerAppTest(): Promise<AppTest> {
     imports: [
       ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
       TypeOrmModule.forRoot(options),
-      AccesModule, SeedModule, ClubsModule, EquipesModule, JoueursModule, MatchsModule, EntrainementsModule,
+      AccesModule, SeedModule, ClubsModule, EquipesModule, CalendrierFffModule, JoueursModule, MatchsModule, EntrainementsModule,
       BlessuresModule, ScoutingModule, ClassementModule, StatsModule, FmiModule, DerivationModule, ArbitresModule,
       AnalyseModule, CoachsModule, SaisonsModule, AuthModule, UtilisateursModule, TactiquesModule, IaModule, SanteModule,
       LimitesModule, AuditModule,
