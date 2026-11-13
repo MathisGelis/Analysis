@@ -13,8 +13,8 @@ export function decimal(x: number, chiffres = 1, avecSigne = false): string {
 
 const SERIES: Record<TypeSerie, (n: number) => string> = {
   victoires: (n) => `${n} victoires de suite`,
-  invaincu: (n) => `${n} matchs sans defaite`,
-  defaites: (n) => `${n} defaites de suite`,
+  invaincu: (n) => `${n} matchs sans défaite`,
+  defaites: (n) => `${n} défaites de suite`,
   sans_victoire: (n) => `${n} matchs sans victoire`,
   sans_encaisser: (n) => `${n} matchs sans encaisser`,
   sans_marquer: (n) => `${n} matchs sans marquer`,
@@ -34,5 +34,5 @@ export function tonDuSens(sens: SensTendance, inverse = false): "positif" | "neg
 }
 
 export const LIBELLE_SENS: Record<SensTendance, string> = {
-  hausse: "En hausse", baisse: "En baisse", stable: "Stable", insuffisant: "Trop tot",
+  hausse: "En hausse", baisse: "En baisse", stable: "Stable", insuffisant: "Trop tôt",
 };

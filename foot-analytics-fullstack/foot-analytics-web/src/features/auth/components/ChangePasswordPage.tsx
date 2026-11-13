@@ -31,9 +31,9 @@ export default function ChangePasswordPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (newP.length < LONGUEUR_MIN) { setError(`Le nouveau mot de passe doit faire au moins ${LONGUEUR_MIN} caracteres.`); return; }
+    if (newP.length < LONGUEUR_MIN) { setError(`Le nouveau mot de passe doit faire au moins ${LONGUEUR_MIN} caractères.`); return; }
     if (newP !== confirmP) { setError("La confirmation ne correspond pas."); return; }
-    if (newP === oldP) { setError("Le nouveau mot de passe doit etre different de l'ancien."); return; }
+    if (newP === oldP) { setError("Le nouveau mot de passe doit être différent de l'ancien."); return; }
     setLoading(true);
     try {
       // Le serveur Next repose les cookies de session (nouvelle session, les autres sont fermees).
@@ -59,15 +59,15 @@ export default function ChangePasswordPage() {
       <h1 className="font-display text-3xl font-bold text-ink">Nouveau mot de passe</h1>
       {u && (
         <p className="mt-1.5 text-sm leading-relaxed text-muted">
-          Bonjour {u.prenom} {u.nom}. Pour votre securite, definissez un mot de passe personnel.
+          Bonjour {u.prenom} {u.nom}. Pour votre sécurité, définissez un mot de passe personnel.
         </p>
       )}
 
       <form onSubmit={submit} className="mt-8 space-y-5">
         {champ("Mot de passe actuel (ou temporaire)", oldP, setOldP, { autoFocus: true, autoComplete: "current-password" })}
-        {champ(`Nouveau mot de passe (${LONGUEUR_MIN} caracteres minimum)`, newP, setNewP, { autoComplete: "new-password", minLength: LONGUEUR_MIN })}
+        {champ(`Nouveau mot de passe (${LONGUEUR_MIN} caractères minimum)`, newP, setNewP, { autoComplete: "new-password", minLength: LONGUEUR_MIN })}
         <p className="-mt-3 text-xs leading-relaxed text-faint">
-          Une phrase facile a retenir fait l'affaire (ex. quatre mots). Evite ton nom, ton login et les mots de passe
+          Une phrase facile à retenir fait l'affaire (ex. quatre mots). Évite ton nom, ton login et les mots de passe
           courants : ils sont refuses.
         </p>
         {champ("Confirmer", confirmP, setConfirmP, { autoComplete: "new-password" })}
@@ -84,7 +84,7 @@ export default function ChangePasswordPage() {
           className="btn btn-accent w-full !py-3 text-[15px]"
         >
           <Key size={16} />
-          {loading ? "Enregistrement..." : "Definir le mot de passe"}
+          {loading ? "Enregistrement..." : "Définir le mot de passe"}
         </button>
       </form>
     </AuthShell>

@@ -8,11 +8,11 @@ describe("garder", () => {
     { id: "b", nom: "Beta", secret: 2 },
   ];
 
-  it("ne conserve que les champs demandes", () => {
+  it("ne conservé que les champs demandes", () => {
     expect(garder(liste, ["id", "nom"])).toEqual([{ id: "a", nom: "Alpha" }, { id: "b", nom: "Beta" }]);
   });
 
-  it("un champ absent de l'objet reste absent (pas de cle undefined)", () => {
+  it("un champ absent de l'objet reste absent (pas de clé undefined)", () => {
     const [, b] = garder(liste, ["id", "optionnel"]);
     expect("optionnel" in b).toBe(false);
   });

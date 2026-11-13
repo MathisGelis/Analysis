@@ -24,7 +24,7 @@ describe("classerAdversaires", () => {
     expect(g[0].clubs).toHaveLength(4);
   });
 
-  it("recherche tolerante (accents, casse, ville) : un seul groupe de resultats", () => {
+  it("recherche tolerante (accents, casse, ville) : un seul groupe de résultats", () => {
     expect(noms(classerAdversaires(clubs, { monClubId: "moi", requete: "venissieux" }))).toEqual(["d"]);
     expect(noms(classerAdversaires(clubs, { monClubId: "moi", requete: "VÉNISSIEUX" }))).toEqual(["d"]);
     expect(noms(classerAdversaires(clubs, { monClubId: "moi", requete: "chapon" }))).toEqual(["b"]);
@@ -36,14 +36,14 @@ describe("classerAdversaires", () => {
     expect(noms(g)).toEqual(["c", "d"]);
   });
 
-  it("le titre des resultats compte les clubs trouves", () => {
+  it("le titre des résultats compte les clubs trouves", () => {
     const [g] = classerAdversaires(clubs, { monClubId: "moi", requete: "fc" });
     expect(g.titre).toBe("2 clubs");
   });
 });
 
 describe("clubExistant", () => {
-  it("meme nom a la casse, aux accents et a la ponctuation pres", () => {
+  it("même nom à la casse, aux accents et à la ponctuation pres", () => {
     expect(clubExistant(clubs, "  as  MIONS ")?.id).toBe("a");
     expect(clubExistant(clubs, "Vénissieux FC")?.id).toBe("d");
     expect(clubExistant(clubs, "Inconnu")).toBeUndefined();

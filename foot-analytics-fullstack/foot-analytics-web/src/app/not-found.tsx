@@ -17,7 +17,7 @@ export default function NonTrouve() {
       <h1 className="font-display text-2xl font-bold text-ink mt-1">Page introuvable</h1>
       <p className="text-sm text-muted mt-3 leading-relaxed">
         Ce club, ce joueur ou ce match n'existe pas (ou plus) dans la base, ou
-        n'appartient pas a la saison choisie.
+        n'appartient pas à la saison choisie.
       </p>
       <div className="flex items-center justify-center gap-2 mt-6">
         <Link href="/" className="btn btn-accent"><Home size={14} /> Dashboard</Link>

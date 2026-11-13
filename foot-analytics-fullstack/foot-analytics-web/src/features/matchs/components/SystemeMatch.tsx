@@ -28,13 +28,13 @@ export function SystemeMatch({
   const [enCours, setEnCours] = useState(false);
   // Un dispositif deja saisi hors de la liste usuelle reste proposable.
   const formations = valeur && !(FORMATIONS as readonly string[]).includes(valeur) ? [...FORMATIONS, valeur] : [...FORMATIONS];
-  const options = [{ valeur: NON_RENSEIGNE, libelle: "Non renseigne" }, ...optionsSimples(formations)];
+  const options = [{ valeur: NON_RENSEIGNE, libelle: "Non renseigné" }, ...optionsSimples(formations)];
 
   async function changer(nouvelle: string) {
     setEnCours(true);
     try {
       await api.updateDispositifs(matchId, { [cote === "dom" ? "formationDom" : "formationExt"]: nouvelle });
-      notifier.succes(nouvelle ? `Systeme de ${equipe} : ${nouvelle}.` : `Systeme de ${equipe} efface.`);
+      notifier.succes(nouvelle ? `Système de ${equipe} : ${nouvelle}.` : `Système de ${equipe} efface.`);
       router.refresh();
     } catch (e) {
       notifier.erreur(`Enregistrement impossible : ${messageApi(e)}`);
@@ -47,7 +47,7 @@ export function SystemeMatch({
     return (
       <div className="flex items-center gap-2 text-xs">
         <span className="min-w-0 flex-1 truncate text-muted">{equipe}</span>
-        <span className="badge font-mono" title="Deja renseigne : seul un club du match ou un administrateur peut le modifier.">{valeur}</span>
+        <span className="badge font-mono" title="Déjà renseigné : seul un club du match ou un administrateur peut le modifier.">{valeur}</span>
       </div>
     );
   }
@@ -56,7 +56,7 @@ export function SystemeMatch({
     <label className="flex items-center gap-2 text-xs">
       <span className="min-w-0 flex-1 truncate text-muted">{equipe}</span>
       <Select valeur={valeur ?? NON_RENSEIGNE} onChange={changer} disabled={enCours}
-        className="btn !py-1 text-xs" ariaLabel={`Systeme de jeu de ${equipe}`} options={options} recherche={false}/>
+        className="btn !py-1 text-xs" ariaLabel={`Système de jeu de ${equipe}`} options={options} recherche={false}/>
     </label>
   );
 }

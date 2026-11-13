@@ -8,7 +8,7 @@ import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import type { Insight } from "@/features/analyse/lib/analyse-types";
 
 const CATEGORIE: Record<Insight["categorie"], string> = {
-  forme: "Forme", attaque: "Attaque", defense: "Defense", domicile: "Lieu",
+  forme: "Forme", attaque: "Attaque", defense: "Défense", domicile: "Lieu",
   discipline: "Discipline", effectif: "Effectif", adversaires: "Adversaires",
 };
 

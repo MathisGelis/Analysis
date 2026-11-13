@@ -82,7 +82,7 @@ export interface ResumeBlessures {
   rechutes: { joueurId: string; nom: string; localisation: string; n: number }[];
 }
 
-const MOIS_COURTS = ["janv.", "fevr.", "mars", "avr.", "mai", "juin", "juil.", "aout", "sept.", "oct.", "nov.", "dec."] as const;
+const MOIS_COURTS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."] as const;
 const sansAccent = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
 const cle = (s: string | null | undefined) => sansAccent((s ?? "").trim().toLowerCase());
 const majuscule = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -146,7 +146,7 @@ export function resumerBlessures(
     joursManques: avecJours.reduce((s, x) => s + x.jours, 0),
     dureeMoyenne: terminees.length ? Math.round(terminees.reduce((s, x) => s + x.jours, 0) / terminees.length) : null,
     plusLongue: plus && plus.jours > 0 ? { joueurId: plus.b.joueurId, nom: nomDe(plus.b), localisation: majuscule((plus.b.localisation ?? "").trim()) || "Non precisee", jours: plus.jours } : null,
-    parLocalisation: repartir(avecJours.map(({ b, jours }) => ({ cle: cle(b.localisation) || "?", libelle: majuscule((b.localisation ?? "").trim()) || "Non precisee", jours }))),
+    parLocalisation: repartir(avecJours.map(({ b, jours }) => ({ cle: cle(b.localisation) || "?", libelle: majuscule((b.localisation ?? "").trim()) || "Non précisée", jours }))),
     parGravite: repartir(avecJours.filter(({ b }) => cle(b.gravite)).map(({ b, jours }) => ({ cle: cle(b.gravite), libelle: majuscule((b.gravite ?? "").trim()), jours }))),
     parMois,
     parJoueur: [...joueurs.values()].sort((a, b) => b.n - a.n || b.jours - a.jours || a.nom.localeCompare(b.nom)),

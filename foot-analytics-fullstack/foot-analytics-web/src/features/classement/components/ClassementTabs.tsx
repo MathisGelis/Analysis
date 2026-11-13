@@ -21,7 +21,7 @@ type Tab = "table" | "teams" | "players";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "table", label: "Classement" },
-  { id: "teams", label: "Stats equipes" },
+  { id: "teams", label: "Stats équipes" },
   { id: "players", label: "Stats joueurs" },
 ];
 
@@ -89,7 +89,7 @@ function TableClassement({ classement, clubs, ownClubId }:
   if (classement.length === 0) {
     return (
       <div className="panel-inset p-4 text-sm text-muted">
-        Aucune donnee de classement. Importez des feuilles de match ou ajoutez
+        Aucune donnée de classement. Importez des feuilles de match ou ajoutez
         un match manuel — le classement se calcule automatiquement.
       </div>
     );
@@ -162,8 +162,8 @@ const TEAM_COLS: { key: TeamKey; label: string; align?: string; title?: string; 
   { key: "bp",          label: "BP",  align: "text-center" },
   { key: "bc",          label: "BC",  align: "text-center" },
   { key: "diff",        label: "Diff",align: "text-right" },
-  { key: "bpMoy",       label: "BP/m",align: "text-right", title: "Buts marques par match", secondaire: true },
-  { key: "bcMoy",       label: "BC/m",align: "text-right", title: "Buts encaisses par match", secondaire: true },
+  { key: "bpMoy",       label: "BP/m",align: "text-right", title: "Buts marqués par match", secondaire: true },
+  { key: "bcMoy",       label: "BC/m",align: "text-right", title: "Buts encaissés par match", secondaire: true },
   { key: "domV",        label: "Dom V", align: "text-center", secondaire: true },
   { key: "extV",        label: "Ext V", align: "text-center", secondaire: true },
   { key: "cleanSheets", label: "CS",  align: "text-center", title: "Clean sheets (BC = 0)", secondaire: true },
@@ -244,13 +244,13 @@ function TeamStats({ matchs, clubs, ownClubId }:
     <>
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="Meilleure attaque" club={meilleureAttaque} val={`${meilleureAttaque.bp} buts`}/>
-        <KpiCard label="Meilleure defense" club={meilleureDefense} val={`${meilleureDefense.bc} encaisses`}/>
-        <KpiCard label="Meilleur a domicile" club={meilleureDom} val={`${meilleureDom.domV}V`}/>
-        <KpiCard label="Meilleur a l'exterieur" club={meilleureExt} val={`${meilleureExt.extV}V`}/>
+        <KpiCard label="Meilleure défense" club={meilleureDefense} val={`${meilleureDefense.bc} encaissés`}/>
+        <KpiCard label="Meilleur à domicile" club={meilleureDom} val={`${meilleureDom.domV}V`}/>
+        <KpiCard label="Meilleur à l'extérieur" club={meilleureExt} val={`${meilleureExt.extV}V`}/>
       </section>
 
       <section className="panel p-5">
-        <div className="h-section mb-3">Statistiques par equipe</div>
+        <div className="h-section mb-3">Statistiques par équipe</div>
         <table className="table-fm">
           <thead>
             <tr>
@@ -348,7 +348,7 @@ function PlayerStats({ joueurs, clubs, ownClubId }:
 
   if (rows.length === 0) {
     return <div className="panel-inset p-4 text-sm text-muted">
-      Aucun joueur. Importez des FMI ou completez l'effectif depuis la page Effectif.
+      Aucun joueur. Importez des FMI ou complétez l'effectif depuis la page Effectif.
     </div>;
   }
 

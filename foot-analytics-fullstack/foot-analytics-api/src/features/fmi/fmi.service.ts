@@ -19,6 +19,7 @@ import { ActeurAudit, JournalAuditService } from "@/features/audit/journal-audit
 import { MatchsService } from "@/features/matchs/matchs.service";
 import { ClubsService } from "@/features/clubs/clubs.service";
 import { DerivationService } from "@/features/derivation/derivation.service";
+import { cleNomClub, sansSuffixeEquipe } from "@/features/clubs/nom-club";
 import { ArbitresService } from "@/features/arbitres/arbitres.service";
 import { CoachsService } from "@/features/coachs/coachs.service";
 import { EquipesService } from "@/features/equipes/equipes.service";
@@ -183,9 +184,7 @@ export class FmiService {
    * club distinct. Le numero FFF est unique pour un meme club.
    */
   private stripEquipeSuffixe(nom: string): string {
-    return nom.trim()
-      .replace(/\s+(?:\d{1,2}|[Bb]|II|III)$/u, "")
-      .trim();
+    return sansSuffixeEquipe(nom);
   }
 
   /** Trouve un club par numero FFF (clef forte) puis par nom normalise.
@@ -211,15 +210,7 @@ export class FmiService {
     }
 
     // 2) Sinon par nom normalise (sans suffixe d'equipe).
-    const reservePrefixes = /\b(fc|as|us|ol|rc|sc|sa|cs|cm|fa|fcm|fco|club|football)\b/g;
-    const clean = cache?.clean ?? ((s: string) =>
-      this.stripEquipeSuffixe(s)
-        .toLowerCase().normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[.,;:!?'"`/\\()]/g, " ")
-        .replace(reservePrefixes, " ")
-        .replace(/\s+/g, " ")
-        .trim());
+    const clean = cache?.clean ?? cleNomClub;
     const target = clean(nom);
     if (!target) {
       throw new BadRequestException(`Nom de club vide : "${nom}"`);
@@ -265,15 +256,7 @@ export class FmiService {
   /** Construit le cache de clubs au debut d'un batch d'import. */
   private async buildClubCache() {
     const clubs = await this.clubs.findAll();
-    const reservePrefixes = /\b(fc|as|us|ol|rc|sc|sa|cs|cm|fa|fcm|fco|club|football)\b/g;
-    const clean = (s: string) =>
-      this.stripEquipeSuffixe(s)
-        .toLowerCase().normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[.,;:!?'"`/\\()]/g, " ")
-        .replace(reservePrefixes, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+    const clean = cleNomClub;
     const clubsByCleanedName = new Map<string, string>();
     const clubsByFff = new Map<string, string>();
     for (const c of clubs) {

@@ -18,7 +18,7 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
     void deconnecter();
   }
 
-  if (!user) return <div className="px-4 py-3 text-xs text-faint">{compact ? "" : "Non connecte"}</div>;
+  if (!user) return <div className="px-4 py-3 text-xs text-faint">{compact ? "" : "Non connecté"}</div>;
 
   const gestion = lienGestionComptes(user.role);
   const IconeGestion = gestion?.icon;
@@ -32,7 +32,7 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
             <IconeGestion size={16} />
           </Link>
         )}
-        <button onClick={logout} className="btn btn-ghost !p-2 text-danger" title="Se deconnecter" aria-label="Se deconnecter">
+        <button onClick={logout} className="btn btn-ghost !p-2 text-danger" title="Se déconnecter" aria-label="Se déconnecter">
           <LogOut size={16} />
         </button>
       </div>
@@ -49,7 +49,7 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
         <div className="flex items-center gap-1.5 text-[11px] text-faint">
           <span className="truncate font-mono">{user.login}</span>
           {user.role === "admin" && <span className="badge badge-accent !px-1.5 !py-0 text-[10px]!">Admin</span>}
-          {user.role === "referent" && <span className="badge badge-accent !px-1.5 !py-0 text-[10px]!">Referent</span>}
+          {user.role === "referent" && <span className="badge badge-accent !px-1.5 !py-0 text-[10px]!">Référent</span>}
         </div>
       </div>
       {gestion && IconeGestion && (
@@ -57,7 +57,7 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
           <IconeGestion size={16} />
         </Link>
       )}
-      <button onClick={logout} className="btn btn-ghost !p-2 hover:!text-danger" title="Se deconnecter" aria-label="Se deconnecter">
+      <button onClick={logout} className="btn btn-ghost !p-2 hover:!text-danger" title="Se déconnecter" aria-label="Se déconnecter">
         <LogOut size={16} />
       </button>
     </div>

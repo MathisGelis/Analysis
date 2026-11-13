@@ -24,7 +24,7 @@ import type { Club, Equipe, Joueur } from "@/shared/lib/types";
 /** Evenement qui place le curseur dans la barre (raccourcis clavier de la coquille). */
 export const EVENEMENT_RECHERCHE = "fa:recherche";
 
-type Groupe = "Joueurs" | "Entraineurs" | "Clubs" | "Arbitres";
+type Groupe = "Joueurs" | "Entraîneurs" | "Clubs" | "Arbitres";
 interface Resultat {
   id: string;
   groupe: Groupe;
@@ -43,7 +43,7 @@ type JoueurTrouve = Joueur & { derniereSaison?: DerniereSaison | null; derniereE
 // Clubs et arbitres, gardes entre deux recherches (une seule charge par session de page).
 let cache: { clubs: Club[]; arbitres: any[]; equipes: Equipe[] } | null = null;
 const LIMITE_PAR_GROUPE = 5;
-const ORDRE: Groupe[] = ["Joueurs", "Entraineurs", "Clubs", "Arbitres"];
+const ORDRE: Groupe[] = ["Joueurs", "Entraîneurs", "Clubs", "Arbitres"];
 
 export function RechercheGlobale() {
   const router = useRouter();
@@ -125,7 +125,7 @@ export function RechercheGlobale() {
       pastilles: pastillesJoueur(j, maCategorie),
     }));
     coachs.forEach((c, i) => out.push({
-      id: `coach:${c.id}`, groupe: "Entraineurs", icone: UserCog, score: 1000 - i, href: `/coachs/${c.id}`,
+      id: `coach:${c.id}`, groupe: "Entraîneurs", icone: UserCog, score: 1000 - i, href: `/coachs/${c.id}`,
       label: `${c.prenom ?? ""} ${c.nom}`.trim(), sous: nomClub(c.clubId),
     }));
     for (const c of donnees?.clubs ?? []) {
@@ -174,7 +174,7 @@ export function RechercheGlobale() {
           onChange={(e) => { setQ(e.target.value); setOuvert(true); }}
           onFocus={() => setOuvert(true)} onKeyDown={surTouche}
           placeholder="Rechercher un joueur, un club, un arbitre..."
-          aria-label="Rechercher un joueur, un entraineur, un club ou un arbitre"
+          aria-label="Rechercher un joueur, un entraîneur, un club ou un arbitre"
           role="combobox" aria-expanded={affiche} aria-controls={idListe} aria-autocomplete="list"
           aria-activedescendant={affiche && resultats[actif] ? `${idListe}-${resultats[actif].id}` : undefined}
           className="h-10 w-full rounded-xl border border-line bg-panel2/70 pl-10 pr-16 text-sm text-ink outline-none transition
@@ -188,7 +188,7 @@ export function RechercheGlobale() {
         </div>
 
         {affiche && (
-          <div ref={liste} id={idListe} role="listbox" aria-label="Resultats de la recherche"
+          <div ref={liste} id={idListe} role="listbox" aria-label="Résultats de la recherche"
             className="pop-in panel-pop absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-[60vh] overflow-y-auto p-2 max-sm:left-2.5 max-sm:right-2.5">
             {terme.length < 2 ? (
               <div className="px-3 py-6 text-center text-sm text-muted">Tape au moins 2 lettres.</div>

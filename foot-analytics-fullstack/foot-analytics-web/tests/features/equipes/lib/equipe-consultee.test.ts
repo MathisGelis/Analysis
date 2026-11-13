@@ -13,28 +13,28 @@ const equipes = [
 ];
 
 describe("equipeConsultee", () => {
-  it("prend l'equipe du club qui joue dans mon championnat", () => {
+  it("prend l'équipe du club qui joué dans mon championnat", () => {
     const r = equipeConsultee({ equipes, clubId: "adv", saisonId: "s25", maEquipe: equipes[0] });
     expect(r?.id).toBe("adv-c-25");
     const u20 = equipeConsultee({ equipes, clubId: "adv", saisonId: "s25", maEquipe: equipes[1] });
     expect(u20?.id).toBe("adv-u20-25");
   });
 
-  it("ne sort jamais de la saison choisie : poule A en 26-27, pas la poule C de l'an passe", () => {
+  it("ne sort jamais de la saison choisie : poule À en 26-27, pas la poule C de l'an passe", () => {
     const r = equipeConsultee({ equipes, clubId: "adv", saisonId: "s26", maEquipe: equipes[2] });
     expect(r?.id).toBe("adv-a-26");
   });
 
-  it("aucune equipe du club dans mon championnat : la premiere de la saison", () => {
+  it("aucune équipe du club dans mon championnat : la première de la saison", () => {
     const r = equipeConsultee({ equipes, clubId: "adv", saisonId: "s26", maEquipe: equipes[0] });
     expect(r?.saisonId).toBe("s26");
   });
 
-  it("club sans equipe sur la saison : null", () => {
+  it("club sans équipe sur la saison : null", () => {
     expect(equipeConsultee({ equipes, clubId: "adv", saisonId: "s24", maEquipe: null })).toBeNull();
   });
 
-  it("sans saison choisie, sans mon equipe : premiere equipe du club", () => {
+  it("sans saison choisie, sans mon équipe : première équipe du club", () => {
     expect(equipeConsultee({ equipes, clubId: "moi", saisonId: null })?.id).toBe("moi-c-25");
   });
 });

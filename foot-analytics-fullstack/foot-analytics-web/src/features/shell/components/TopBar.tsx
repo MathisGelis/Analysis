@@ -80,7 +80,7 @@ export function TopBar({ onOuvrirMenu }: Props) {
             {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
           </button>
           <button type="button" onClick={() => setSettingsOpen(true)} className="btn btn-ghost !p-2.5 max-sm:hidden"
-            title="Reglages" aria-label="Reglages">
+            title="Réglages" aria-label="Réglages">
             <Settings size={17} />
           </button>
 
@@ -89,7 +89,7 @@ export function TopBar({ onOuvrirMenu }: Props) {
             <button
               onClick={isAdmin ? () => setMenuOpen((o) => !o) : undefined}
               disabled={!isAdmin}
-              title={isAdmin ? "Changer de club entraine" : "Club verrouille par tes droits d'acces"}
+              title={isAdmin ? "Changer de club entraîné" : "Club verrouillé par tes droits d'accès"}
               aria-haspopup={isAdmin ? "menu" : undefined} aria-expanded={isAdmin ? menuOpen : undefined}
               className={`flex items-center gap-2.5 rounded-xl border border-line bg-panel px-2 py-1.5 transition
                 ${isAdmin ? "cursor-pointer hover:border-accent/50" : "cursor-default"}`}
@@ -100,18 +100,18 @@ export function TopBar({ onOuvrirMenu }: Props) {
                 <div className="grid h-[30px] w-[30px] place-items-center rounded-full bg-accentstrong text-xs font-bold text-white">FC</div>
               )}
               <div className="hidden text-left leading-tight md:block">
-                <div className="max-w-[150px] truncate text-[13px] font-semibold text-ink">{ownClub?.nom ?? "Club non defini"}</div>
-                <div className="text-[11px] text-faint">Club entraine</div>
+                <div className="max-w-[150px] truncate text-[13px] font-semibold text-ink">{ownClub?.nom ?? "Club non défini"}</div>
+                <div className="text-[11px] text-faint">Club entraîné</div>
               </div>
               {isAdmin ? <ChevronDown size={14} className="text-faint max-md:hidden" /> : <Lock size={12} className="text-faint max-md:hidden" />}
             </button>
 
             {isAdmin && menuOpen && (
               <div role="menu" className="pop-in glass panel-pop absolute right-0 top-[calc(100%+8px)] z-40 max-h-[420px] min-w-[290px] overflow-auto py-2">
-                <div className="h-section px-4 py-2">Changer de club entraine</div>
+                <div className="h-section px-4 py-2">Changer de club entraîné</div>
                 {clubs.length === 0 && (
                   <div className="px-4 py-2 text-xs text-muted">
-                    Aucun club charge. Importez des feuilles FMI ou demarrez le backend.
+                    Aucun club chargé. Importez des feuilles FMI ou démarrez le backend.
                   </div>
                 )}
                 {clubs.map((c) => {

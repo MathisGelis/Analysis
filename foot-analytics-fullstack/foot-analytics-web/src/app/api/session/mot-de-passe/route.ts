@@ -10,10 +10,10 @@ import {
 } from "@/features/auth/lib/session-serveur";
 
 export async function POST(req: NextRequest) {
-  if (origineEtrangere(req)) return NextResponse.json({ message: "Requete d'un autre site refusee." }, { status: 403 });
+  if (origineEtrangere(req)) return NextResponse.json({ message: "Requête d'un autre site refusée." }, { status: 403 });
   const { jeton, perdue } = await jetonDeRequete(req);
   if (!jeton) {
-    const res = NextResponse.json({ message: "Session expiree : reconnecte-toi." }, { status: 401 });
+    const res = NextResponse.json({ message: "Session expirée : reconnecte-toi." }, { status: 401 });
     if (perdue) effacerSession(res.cookies);
     return res;
   }

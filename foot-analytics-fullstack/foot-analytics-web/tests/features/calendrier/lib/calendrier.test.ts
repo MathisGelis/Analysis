@@ -11,15 +11,15 @@ describe("moisInitial", () => {
     expect(moisInitial(saison2526, [], new Date(2025, 7, 1)).getTime()).toBe(mois(2025, 8));
     expect(moisInitial(saison2526, [], new Date(2026, 6, 31)).getTime()).toBe(mois(2026, 7));
   });
-  it("saison terminee : le mois du dernier match de la saison", () => {
+  it("saison terminée : le mois du dernier match de la saison", () => {
     const dates = ["01/09/2025", "31/05/2026", "10/03/2026", "12/10/2024" /* autre saison */];
     expect(moisInitial(saison2526, dates, new Date(2026, 8, 30)).getTime()).toBe(mois(2026, 5));
   });
-  it("saison terminee sans match : juin de la fin de saison", () => {
+  it("saison terminée sans match : juin de la fin de saison", () => {
     expect(moisInitial(saison2526, [], new Date(2026, 8, 30)).getTime()).toBe(mois(2026, 6));
     expect(moisInitial(saison2526, [null, undefined, "illisible"], new Date(2027, 0, 5)).getTime()).toBe(mois(2026, 6));
   });
-  it("saison a venir : aout de sa premiere annee", () => {
+  it("saison à venir : août de sa première année", () => {
     expect(moisInitial({ anneeDebut: 2027 }, [], new Date(2026, 8, 30)).getTime()).toBe(mois(2027, 8));
   });
   it("sans saison : le mois courant", () => {

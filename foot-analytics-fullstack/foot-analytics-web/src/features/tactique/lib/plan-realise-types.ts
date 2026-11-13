@@ -39,12 +39,12 @@ export interface PlanContreRealise {
   comparaison: ComparaisonPlanRealise | null;
 }
 
-export const LIBELLE_PREVU: Record<Exclude<RolePrevu, null>, string> = { titulaire: "Titulaire", remplacant: "Remplacant" };
+export const LIBELLE_PREVU: Record<Exclude<RolePrevu, null>, string> = { titulaire: "Titulaire", remplacant: "Remplaçant" };
 export const LIBELLE_REEL: Record<RoleReel, string> = {
-  titulaire: "Titulaire", entre: "Entre en jeu", banc: "Banc, non utilise", absent: "Absent de la feuille",
+  titulaire: "Titulaire", entre: "Entre en jeu", banc: "Banc, non utilisé", absent: "Absent de la feuille",
 };
 export const LIBELLE_ECART: Record<Ecart, string> = {
-  conforme: "Conforme", promu: "Promu titulaire", relegue: "Au banc", absent: "Absent", surprise: "Non prevu", non_prevu: "Non prevu",
+  conforme: "Conforme", promu: "Promu titulaire", relegue: "Au banc", absent: "Absent", surprise: "Non prévu", non_prevu: "Non prévu",
 };
 /** Classes (jetons du theme) de la pastille d'ecart. */
 export const PASTILLE_ECART: Record<Ecart, string> = {

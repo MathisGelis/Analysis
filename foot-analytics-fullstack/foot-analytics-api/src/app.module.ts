@@ -6,6 +6,7 @@ import { ConfigModule } from "@nestjs/config";
 import { DatabaseModule } from "@/database/database.module";
 import { SeedModule } from "@/features/seed/seed.module";
 import { ClubsModule } from "@/features/clubs/clubs.module";
+import { CalendrierFffModule } from "@/features/calendrier-fff/calendrier-fff.module";
 import { EquipesModule } from "@/features/equipes/equipes.module";
 import { JoueursModule } from "@/features/joueurs/joueurs.module";
 import { MatchsModule } from "@/features/matchs/matchs.module";
@@ -40,6 +41,7 @@ import { AuditModule } from "@/features/audit/audit.module";
     SeedModule,
     ClubsModule,
     EquipesModule,
+    CalendrierFffModule,
     JoueursModule,
     MatchsModule,
     EntrainementsModule,

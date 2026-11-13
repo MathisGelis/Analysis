@@ -26,19 +26,19 @@ const attaquantLibre: FormulaireRecherche = {
 };
 
 describe("recherche de joueurs : formulaire", () => {
-  it("part de la saison precedente (a joue) et de l'actuelle (situation)", () => {
+  it("part de la saison précédente (a joué) et de l'actuelle (situation)", () => {
     expect(formulaireInitial(OPTIONS)).toMatchObject({ saisonId: "s25", situationSaisonId: "s26", situation: "indifferent", minMatchs: "1" });
     expect(formulaireInitial(null).saisonId).toBe("");
   });
 
-  it("categories et divisions de la saison choisie, sans doublon de casse", () => {
+  it("catégories et divisions de la saison choisie, sans doublon de casse", () => {
     expect(categoriesDe(OPTIONS, "s25")).toEqual(["Seniors", "U16"]);
     expect(divisionsDe(OPTIONS, "s25", "U16")).toEqual(["R1", "R2"]);
     expect(divisionsDe(OPTIONS, "s25", "")).toEqual(["D2", "R1", "R2"]);
     expect(divisionsDe(OPTIONS, "s26", "Seniors")).toEqual([]);
   });
 
-  it("changer de saison garde la categorie et la division si elles existent, sinon les efface", () => {
+  it("changer de saison garde la catégorie et la division si elles existent, sinon les efface", () => {
     // Pas de U16 en 2026-2027 : la categorie saute, la division R2 (U17 R2) reste.
     expect(changerSaison(attaquantLibre, "s26", OPTIONS)).toMatchObject({ saisonId: "s26", categorie: "", division: "R2" });
     expect(changerSaison({ ...attaquantLibre, division: "R1" }, "s26", OPTIONS)).toMatchObject({ categorie: "", division: "" });
@@ -46,7 +46,7 @@ describe("recherche de joueurs : formulaire", () => {
     expect(changerSaison(seniors, "s26", OPTIONS)).toMatchObject({ categorie: "Seniors", division: "" });
   });
 
-  it("criteres envoyes a l'API : la ligne de poste devient ses postes, rien de vide", () => {
+  it("critères envoyes a l'API : la ligne de poste devient ses postes, rien de vide", () => {
     expect(versCriteres(attaquantLibre)).toEqual({
       saisonId: "s25", categorie: "U16", division: "R2", postes: ["AG", "AD", "AT"], situationSaisonId: "s26", situation: "sans_club",
     });
@@ -54,7 +54,7 @@ describe("recherche de joueurs : formulaire", () => {
     expect(versCriteres(formulaireInitial(null))).toBeNull();
   });
 
-  it("resume lisible", () => {
+  it("résumé lisible", () => {
     expect(resumeCriteres(attaquantLibre, OPTIONS)).toBe("Attaquants · U16 R2 · 2025-2026 · Sans club connu en 2026-2027");
     expect(resumeCriteres({ ...formulaireInitial(OPTIONS), clubId: "ol", minMatchs: "5" }, OPTIONS, () => "OL Sud"))
       .toBe("Tous les postes · OL Sud · 2025-2026 · 5 matchs ou plus");
@@ -70,8 +70,8 @@ describe("recherche de joueurs : formulaire", () => {
     expect(depuisUrl(new URLSearchParams("saison=fermee"), OPTIONS)).toBeNull();
   });
 
-  it("libelle d'equipe : categorie et division, a defaut le nom", () => {
+  it("libelle d'équipe : catégorie et division, a défaut le nom", () => {
     expect(libelleEquipe({ nom: "U16 R2 Poule A", categorie: "U16", division: "R2" })).toBe("U16 R2");
-    expect(libelleEquipe({ nom: "Equipe B", categorie: null, division: null })).toBe("Equipe B");
+    expect(libelleEquipe({ nom: "Équipe B", categorie: null, division: null })).toBe("Équipe B");
   });
 });

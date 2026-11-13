@@ -92,14 +92,14 @@ export default async function ArbitreDetail({
         <Link href="/arbitres" className="text-xs text-muted hover:text-ink flex items-center gap-1">
           <ArrowLeft size={12}/> Retour arbitres
         </Link>
-        <nav className="flex gap-1 text-xs" aria-label="Portee de la fiche">
+        <nav className="flex gap-1 text-xs" aria-label="Portée de la fiche">
           <Link href={hrefPortee("saison")} scroll={false}
             className={`btn ${portee === "saison" ? "btn-accent" : "btn-ghost"}`}>
             Saison {saison?.nom ?? "courante"}
           </Link>
           <Link href={hrefPortee("carriere")} scroll={false}
             className={`btn ${portee === "carriere" ? "btn-accent" : "btn-ghost"}`}>
-            Carriere complete
+            Carrière complète
           </Link>
         </nav>
       </div>
@@ -137,9 +137,9 @@ export default async function ArbitreDetail({
       {portee === "saison" && parChampionnat.length === 0 && liensMatchs.length === 0 && (
         <section className="panel p-5 text-sm text-muted">
           Cet arbitre n'a officie dans aucun match de la saison{" "}
-          {saison?.nom ?? "selectionnee"}.{" "}
+          {saison?.nom ?? "sélectionnée"}.{" "}
           <Link href={hrefPortee("carriere")} className="text-accent hover:underline">
-            Voir la carriere complete
+            Voir la carrière complète
           </Link>
         </section>
       )}
@@ -201,7 +201,7 @@ export default async function ArbitreDetail({
           </ul>
           <p className="text-[11px] text-faint mt-3">
             Permet de comparer le profil de l'arbitre entre saisons
-            consecutives. Le profil est derive du ratio cartons/match
+            consécutives. Le profil est dérivé du ratio cartons/match
             quand il est principal.
           </p>
         </section>
@@ -211,7 +211,7 @@ export default async function ArbitreDetail({
         <div className="h-section mb-3">Historique des matchs ({liensMatchs.length})</div>
         {liensMatchs.length === 0 ? (
           <p className="text-sm text-muted py-4 text-center">
-            Aucune participation enregistree{portee === "saison" ? " sur cette saison" : ""}.
+            Aucune participation enregistrée{portee === "saison" ? " sur cette saison" : ""}.
           </p>
         ) : (
           <table className="table-fm">
@@ -220,7 +220,7 @@ export default async function ArbitreDetail({
                 <th>J</th>
                 <th>Match</th>
                 <th>Score</th>
-                <th>Role</th>
+                <th>Rôle</th>
                 <th>Note</th>
               </tr>
             </thead>
@@ -253,7 +253,7 @@ export default async function ArbitreDetail({
                         <span className="font-display font-bold text-accent tabular-nums flex items-center gap-1">
                           <Star size={11}/> {p.note}
                         </span>
-                      ) : <span className="text-faint text-xs">non notee</span>}
+                      ) : <span className="text-faint text-xs">non notée</span>}
                     </td>
                   </tr>
                 );

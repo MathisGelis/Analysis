@@ -38,19 +38,19 @@ export default function Analytics() {
     <div className="space-y-6 fade-up">
       <header>
         <div className="h-section">Indicateurs avances</div>
-        <h1 className="font-display text-2xl font-bold text-ink">Analytics avancees</h1>
+        <h1 className="font-display text-2xl font-bold text-ink">Analytics avancées</h1>
       </header>
 
       <BandeauDemo>
         Les feuilles de match ne contiennent ni tirs ni positions : le xG, la
         possession et les cartes de zones ci-dessous sont illustratifs (jeu
-        d'exemple), pas calcules sur vos matchs.
+        d'exemple), pas calculés sur vos matchs.
       </BandeauDemo>
 
       {/* KPIs */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Kpi label="xG cumule" value={xg.reduce((s,v)=>s+v,0).toFixed(2)} sub={`${bilan.bp} buts marques`} accent="accent"/>
-        <Kpi label="xGA cumule" value={xga.reduce((s,v)=>s+v,0).toFixed(2)} sub={`${bilan.bc} buts encaisses`} accent="danger"/>
+        <Kpi label="xG cumulé" value={xg.reduce((s,v)=>s+v,0).toFixed(2)} sub={`${bilan.bp} buts marqués`} accent="accent"/>
+        <Kpi label="xGA cumulé" value={xga.reduce((s,v)=>s+v,0).toFixed(2)} sub={`${bilan.bc} buts encaissés`} accent="danger"/>
         <Kpi label="Sur-performance" value={(bilan.bp - xg.reduce((s,v)=>s+v,0)).toFixed(1)} sub="vs xG attendu"/>
         <Kpi label="Possession moyenne" value="52%" sub="estimation"/>
       </section>
@@ -58,7 +58,7 @@ export default function Analytics() {
       {/* xG vs G */}
       <section className="grid grid-cols-12 gap-4">
         <div className="col-span-12 lg:col-span-8 panel p-5">
-          <div className="h-section mb-3">Buts marques vs xG · saison</div>
+          <div className="h-section mb-3">Buts marqués vs xG · saison</div>
           <BarsChart
             data={courbe.map((c, i) => ({ label: c.journee, a: c.bm, b: xg[i] }))}
             legend={["Buts","xG"]}
@@ -67,13 +67,13 @@ export default function Analytics() {
           />
         </div>
         <div className="col-span-12 lg:col-span-4 panel p-5">
-          <div className="h-section mb-3">Indice de qualite des occasions</div>
+          <div className="h-section mb-3">Indice de qualité des occasions</div>
           <div className="flex items-center justify-center py-3">
             <DonutStat value={72} max={100} size={140} stroke={12} label="/ 100"/>
           </div>
           <p className="text-[12px] text-muted leading-relaxed mt-2">
-            72 / 100 indique des occasions de qualite moyenne — l'equipe convertit
-            bien (sur-performance vs xG), mais le volume de tirs reste a augmenter.
+            72 / 100 indique des occasions de qualité moyenne — l'équipe convertit
+            bien (sur-performance vs xG), mais le volume de tirs reste à augmenter.
           </p>
         </div>
       </section>
@@ -84,15 +84,15 @@ export default function Analytics() {
           <div className="h-section mb-3">Danger offensif · zones</div>
           <PitchHeatmap matrix={heatmapOff}/>
           <p className="text-[11px] text-muted mt-2">
-            Pic d'activite axe central a 25m du but. Couloir droit sous-exploite.
+            Pic d'activité axe central a 25m du but. Couloir droit sous-exploite.
           </p>
         </div>
         <div className="col-span-12 md:col-span-6 panel p-5">
-          <div className="h-section mb-3">Pression defensive subie · zones</div>
+          <div className="h-section mb-3">Pression défensive subie · zones</div>
           <PitchHeatmap matrix={heatmapDef}/>
           <p className="text-[11px] text-muted mt-2">
-            L'equipe est principalement pressee dans son tiers defensif central
-            et son cote gauche. Travail de sortie de balle a renforcer.
+            L'équipe est principalement pressée dans son tiers défensif central
+            et son côté gauche. Travail de sortie de balle à renforcer.
           </p>
         </div>
       </section>

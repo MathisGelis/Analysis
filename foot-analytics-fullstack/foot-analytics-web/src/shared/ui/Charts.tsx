@@ -132,7 +132,7 @@ export function Sparkline({
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible" role="img"
       style={{ maxWidth: "100%", height: "auto" }}
-      aria-label={`Evolution sur ${values.length} valeurs, derniere : ${values[dernier]}`}>
+      aria-label={`Évolution sur ${values.length} valeurs, dernière : ${values[dernier]}`}>
       {area && values.length > 1 && (
         <>
           <defs>

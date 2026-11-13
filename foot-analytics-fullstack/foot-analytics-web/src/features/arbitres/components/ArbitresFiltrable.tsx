@@ -186,7 +186,7 @@ export function ArbitresFiltrable({
           {hasFilter && (
             <button onClick={reset}
               className="btn text-xs flex items-center gap-1">
-              <X size={11}/> Reinitialiser
+              <X size={11}/> Réinitialiser
             </button>
           )}
         </div>
@@ -200,7 +200,7 @@ export function ArbitresFiltrable({
 
         <div className="flex gap-6 flex-wrap">
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-faint mb-1.5">Role</div>
+            <div className="text-[10px] uppercase tracking-wider text-faint mb-1.5">Rôle</div>
             <div className="flex gap-1.5 flex-wrap">
               {Object.entries(ROLES_LABEL).map(([k, label]) => {
                 const on = roles.has(k);
@@ -244,7 +244,7 @@ export function ArbitresFiltrable({
               {championnat.poule ? ` (Poule ${championnat.poule})` : ""}
             </span>
           ) : (
-            <span> · stats globales (selectionne une equipe pour filtrer)</span>
+            <span> · stats globales (sélectionne une équipe pour filtrer)</span>
           )}
         </div>
       </div>
@@ -253,7 +253,7 @@ export function ArbitresFiltrable({
         <section className="panel p-8 text-sm text-muted text-center">
           {arbitresChamp.length === 0
             ? "Aucun arbitre n'a encore officie dans ce championnat."
-            : "Aucun arbitre ne correspond a ces filtres."}
+            : "Aucun arbitre ne correspond à ces filtres."}
         </section>
       ) : (
         <section className="panel p-5">
@@ -261,14 +261,14 @@ export function ArbitresFiltrable({
             <thead>
               <tr>
                 <th>Arbitre</th>
-                <th className="text-center max-sm:hidden">Roles</th>
+                <th className="text-center max-sm:hidden">Rôles</th>
                 <th className="text-center" title="Matchs arbitres au centre">Princ.</th>
                 <th className="text-center" title="Matchs officies"><span className="max-sm:hidden">Officies</span><span className="sm:hidden">Match</span></th>
                 <th className="text-center" title="Cartons jaunes donnes"><span className="max-sm:hidden">CJ donnes</span><span className="sm:hidden">CJ</span></th>
                 <th className="text-center" title="Cartons rouges donnes"><span className="max-sm:hidden">CR donnes</span><span className="sm:hidden">CR</span></th>
                 <th className="max-sm:hidden">Profil</th>
                 <th className="max-sm:hidden">Note moy.</th>
-                <th className="max-sm:hidden">Motifs frequents</th>
+                <th className="max-sm:hidden">Motifs fréquents</th>
                 <th className="text-right"><span className="sr-only">Fiche</span></th>
               </tr>
             </thead>
@@ -286,7 +286,7 @@ export function ArbitresFiltrable({
                   {nouveauGroupe && (
                     <tr>
                       <th colSpan={10} scope="colgroup" className="bg-transparent! !py-2 text-left h-section">
-                        {groupe === "principal" ? "Arbitres principaux" : "Assistants et autres roles uniquement"}
+                        {groupe === "principal" ? "Arbitres principaux" : "Assistants et autres rôles uniquement"}
                       </th>
                     </tr>
                   )}

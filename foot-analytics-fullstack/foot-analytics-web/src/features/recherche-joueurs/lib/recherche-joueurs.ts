@@ -57,13 +57,13 @@ export interface CriteresApi {
 export const CHOIX_POSTES: { valeur: string; libelle: string; groupe?: string; postes: string[] }[] = [
   { valeur: "", libelle: "Tous les postes", postes: [] },
   { valeur: "GB", libelle: "Gardiens", groupe: "Lignes", postes: ["GB"] },
-  { valeur: "DEF", libelle: "Defenseurs", groupe: "Lignes", postes: ["DD", "DG", "DC"] },
+  { valeur: "DEF", libelle: "Défenseurs", groupe: "Lignes", postes: ["DD", "DG", "DC"] },
   { valeur: "MIL", libelle: "Milieux", groupe: "Lignes", postes: ["MD", "MC", "MO", "MIL"] },
   { valeur: "ATT", libelle: "Attaquants", groupe: "Lignes", postes: ["AG", "AD", "AT"] },
-  { valeur: "DC", libelle: "Defenseur central", groupe: "Postes", postes: ["DC"] },
-  { valeur: "DD", libelle: "Lateral droit", groupe: "Postes", postes: ["DD"] },
-  { valeur: "DG", libelle: "Lateral gauche", groupe: "Postes", postes: ["DG"] },
-  { valeur: "MD", libelle: "Milieu defensif", groupe: "Postes", postes: ["MD"] },
+  { valeur: "DC", libelle: "Défenseur central", groupe: "Postes", postes: ["DC"] },
+  { valeur: "DD", libelle: "Latéral droit", groupe: "Postes", postes: ["DD"] },
+  { valeur: "DG", libelle: "Latéral gauche", groupe: "Postes", postes: ["DG"] },
+  { valeur: "MD", libelle: "Milieu défensif", groupe: "Postes", postes: ["MD"] },
   { valeur: "MC", libelle: "Milieu central", groupe: "Postes", postes: ["MC"] },
   { valeur: "MO", libelle: "Milieu offensif", groupe: "Postes", postes: ["MO"] },
   { valeur: "AG", libelle: "Ailier gauche", groupe: "Postes", postes: ["AG"] },
@@ -74,9 +74,9 @@ export const CHOIX_POSTES: { valeur: string; libelle: string; groupe?: string; p
 export const OPTIONS_POSTE: OptionSelect[] = CHOIX_POSTES.map(({ valeur, libelle, groupe }) => ({ valeur, libelle, groupe }));
 
 export const OPTIONS_SITUATION: OptionSelect[] = [
-  { valeur: "indifferent", libelle: "Indifferent" },
+  { valeur: "indifferent", libelle: "Indifférent" },
   { valeur: "sans_club", libelle: "Sans club connu" },
-  { valeur: "meme_club", libelle: "Toujours dans le meme club" },
+  { valeur: "meme_club", libelle: "Toujours dans le même club" },
   { valeur: "autre_club", libelle: "Dans un autre club" },
 ];
 
@@ -85,7 +85,7 @@ export const OPTIONS_MATCHS_MIN: OptionSelect[] = ["1", "3", "5", "10", "15"].ma
 }));
 
 const LIBELLE_STATUT: Record<StatutSituation, string> = {
-  sans_club: "Sans club connu", meme_club: "Meme club", autre_club: "Autre club",
+  sans_club: "Sans club connu", meme_club: "Même club", autre_club: "Autre club",
 };
 export const libelleStatut = (s: StatutSituation): string => LIBELLE_STATUT[s];
 

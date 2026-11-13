@@ -66,11 +66,11 @@ export default function Entrainements() {
     setSeances(await api.entrainements(equipe.id));
   }
   async function onDelete(id: string) {
-    if (!(await confirmer({ titre: "Supprimer cette seance ?", message: "Sa charge sort du calcul de fatigue des joueurs.", danger: true }))) return;
+    if (!(await confirmer({ titre: "Supprimer cette séance ?", message: "Sa charge sort du calcul de fatigue des joueurs.", danger: true }))) return;
     try {
       await api.deleteEntrainement(id);
       await reload();
-      notifier.succes("Seance supprimee.");
+      notifier.succes("Séance supprimée.");
     } catch (e) {
       notifier.erreur("Suppression impossible : " + (e as Error).message);
     }
@@ -91,23 +91,23 @@ export default function Entrainements() {
       <header className="flex items-end justify-between flex-wrap gap-3">
         <div>
           <div className="h-section">
-            {equipe ? `${equipe.nom}${equipe.competitionLibelle ? ` · ${equipe.competitionLibelle}` : ""}` : "Aucune equipe"}
+            {equipe ? `${equipe.nom}${equipe.competitionLibelle ? ` · ${equipe.competitionLibelle}` : ""}` : "Aucune équipe"}
           </div>
-          <h1 className="font-display text-2xl font-bold text-ink">Entrainements</h1>
+          <h1 className="font-display text-2xl font-bold text-ink">Entraînements</h1>
         </div>
         <button
           className="btn btn-primary"
           onClick={() => setAdding(true)}
           disabled={!equipe || effectif.length === 0}
-          title={!equipe ? "Aucune equipe selectionnee" : ""}
+          title={!equipe ? "Aucune équipe sélectionnée" : ""}
         >
-          <Plus size={14}/> Nouvel entrainement
+          <Plus size={14}/> Nouvel entraînement
         </button>
       </header>
 
       {!loading && !equipe && (
         <section className="panel p-6 border-l-2 border-amber text-sm text-muted">
-          Aucune equipe selectionnee. Choisis ton equipe dans le selecteur
+          Aucune équipe sélectionnée. Choisis ton équipe dans le sélecteur
           en bas de la sidebar.
         </section>
       )}
@@ -115,10 +115,10 @@ export default function Entrainements() {
       {equipe && (
         <>
           <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Kpi label="Seances" value={seances.length} icon={<Calendar size={14}/>}/>
+            <Kpi label="Séances" value={seances.length} icon={<Calendar size={14}/>}/>
             <Kpi label="Effectif" value={effectif.length} icon={<Users size={14}/>}/>
             <Kpi label="Charge totale" value={Math.round(chargeTotale)} suffix="UA-RPE" icon={<Dumbbell size={14}/>}/>
-            <Kpi label="Charge moyenne / seance" value={chargeMoyenne} suffix="UA-RPE" icon={<Dumbbell size={14}/>}/>
+            <Kpi label="Charge moyenne / séance" value={chargeMoyenne} suffix="UA-RPE" icon={<Dumbbell size={14}/>}/>
           </section>
 
           <section>
@@ -126,7 +126,7 @@ export default function Entrainements() {
               <p className="text-muted text-sm">Chargement…</p>
             ) : seances.length === 0 ? (
               <p className="text-muted text-sm py-6 text-center">
-                Aucune seance enregistree pour cette equipe.
+                Aucune séance enregistrée pour cette équipe.
               </p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -158,12 +158,12 @@ export default function Entrainements() {
                         {s.total > 0 && (
                           <div className="flex items-center justify-between text-[10px] text-faint uppercase tracking-wider mt-1.5"
                             data-testid="presence-seance">
-                            <span>Presence</span><span>{Math.round((s.presents / s.total) * 100)} %</span>
+                            <span>Présence</span><span>{Math.round((s.presents / s.total) * 100)} %</span>
                           </div>
                         )}
                       </div>
                       <div className="text-right">
-                        <div className="text-[10px] text-faint uppercase tracking-wider">Presents</div>
+                        <div className="text-[10px] text-faint uppercase tracking-wider">Présents</div>
                         <div className="text-sm font-display font-bold">{s.presents}<span className="text-muted">/{s.total}</span></div>
                       </div>
                     </div>
@@ -180,10 +180,10 @@ export default function Entrainements() {
               </div>
             )}
             {nbPages > 1 && (
-              <nav className="flex items-center justify-center gap-3 mt-4" aria-label="Pagination des seances">
+              <nav className="flex items-center justify-center gap-3 mt-4" aria-label="Pagination des séances">
                 <button className="btn text-xs" disabled={pageCourante <= 1}
                   onClick={() => setPage(pageCourante - 1)}>
-                  <ChevronLeft size={12}/> Precedent
+                  <ChevronLeft size={12}/> Précédent
                 </button>
                 <span className="text-xs text-muted tabular-nums" data-testid="pagination-seances">
                   Page {pageCourante} / {nbPages}
@@ -197,19 +197,19 @@ export default function Entrainements() {
           </section>
 
           <section className="panel p-5">
-            <div className="h-section mb-3">Charge par seance (UA-RPE)</div>
+            <div className="h-section mb-3">Charge par séance (UA-RPE)</div>
             <Sparkline values={[...recentes].reverse().map((s) => s.charge)} width={620} height={120} color="rgb(var(--amber))"/>
             <p className="text-[11px] text-faint mt-2">
-              Charge calculee via la methode session-RPE (Foster) :
-              <span className="text-ink"> duree x intensite x facteur_type x facteur_espace</span>.
-              Reference match officiel ~700-900 UA-RPE.
+              Charge calculée via la méthode session-RPE (Foster) :
+              <span className="text-ink"> durée x intensité x facteur_type x facteur_espace</span>.
+              Référence match officiel ~700-900 UA-RPE.
             </p>
           </section>
 
           {presenceMoyenne !== null && (
             <section className="panel p-5" data-testid="presence-moyenne">
               <div className="flex items-center justify-between mb-3">
-                <div className="h-section">Presence par seance (%)</div>
+                <div className="h-section">Présence par séance (%)</div>
                 <span className="badge badge-accent">Moyenne : {presenceMoyenne} %</span>
               </div>
               <Sparkline values={[...recentes].reverse().filter((s) => s.total > 0)

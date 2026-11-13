@@ -29,7 +29,7 @@ export interface SectionNav {
  */
 export function lienGestionComptes(role?: string | null): LienNav | null {
   if (role === "admin") return { href: "/admin/utilisateurs", label: "Administration", icon: ShieldCheck };
-  if (role === "referent") return { href: "/admin/utilisateurs", label: "Mes educateurs", icon: UserCog };
+  if (role === "referent") return { href: "/admin/utilisateurs", label: "Mes éducateurs", icon: UserCog };
   return null;
 }
 
@@ -48,12 +48,12 @@ export function construireNavigation(ownClubId: string | null, acces?: ContexteA
       ],
     },
     {
-      section: "Mon equipe",
+      section: "Mon équipe",
       items: [
         { href: ownClubId ? `/club/${ownClubId}` : "/", label: "Mon club", icon: Shield },
         { href: "/effectif", label: "Effectif", icon: Users },
-        { href: "/entrainements", label: "Entrainements", icon: Dumbbell },
-        { href: "/medical", label: "Medical", icon: HeartPulse },
+        { href: "/entrainements", label: "Entraînements", icon: Dumbbell },
+        { href: "/medical", label: "Médical", icon: HeartPulse },
       ],
     },
     {
@@ -74,7 +74,7 @@ export function construireNavigation(ownClubId: string | null, acces?: ContexteA
       ],
     },
     {
-      section: "Donnees",
+      section: "Données",
       items: [
         { href: "/import", label: "Import feuilles FMI", icon: Upload },
         // Les deux dernieres sont reservees a l'administrateur : elles disparaissent du menu des autres comptes.
@@ -97,10 +97,10 @@ export function lienActif(href: string, chemin: string): boolean {
 
 const TITRES: [string, string][] = [
   ["/classement", "Classement"], ["/calendrier", "Calendrier"], ["/club", "Fiche club"],
-  ["/effectif", "Effectif"], ["/entrainements", "Entrainements"], ["/medical", "Medical"],
+  ["/effectif", "Effectif"], ["/entrainements", "Entraînements"], ["/medical", "Médical"],
   ["/matchs", "Matchs"], ["/tactique", "Tactique"], ["/arbitres", "Arbitres"],
   ["/rapports", "Rapports"], ["/recherche", "Recherche de joueurs"], ["/import", "Import FMI"],
-  ["/saisons", "Saisons"], ["/joueur", "Fiche joueur"], ["/coachs", "Fiche entraineur"], ["/admin/ia", "IA"], ["/admin/journal", "Journal d'audit"], ["/admin", "Administration"],
+  ["/saisons", "Saisons"], ["/joueur", "Fiche joueur"], ["/coachs", "Fiche entraîneur"], ["/admin/ia", "IA"], ["/admin/journal", "Journal d'audit"], ["/admin", "Administration"],
   ["/analytics", "Analytics"],
 ];
 

@@ -45,7 +45,7 @@ export default function IaPage() {
 
   const voir = useCallback(async (id: string) => {
     try { setDetail(await api.iaEntrainement(id)); }
-    catch (e) { notifier.erreur(`Resultat illisible : ${messageApi(e)}`); }
+    catch (e) { notifier.erreur(`Résultat illisible : ${messageApi(e)}`); }
   }, [notifier]);
 
   const recharger = useCallback(async (afficherDernier = true) => {
@@ -79,14 +79,14 @@ export default function IaPage() {
         clearInterval(minuteur);
         if (dernierStatutVu.current !== `${r.id}:${r.statut}`) {
           dernierStatutVu.current = `${r.id}:${r.statut}`;
-          if (r.statut === "termine") notifier.succes("Entrainement termine.");
-          else if (r.statut === "echec") notifier.erreur(r.message ?? "L'entrainement a echoue.");
-          else notifier.info("Entrainement annule.");
+          if (r.statut === "termine") notifier.succes("Entraînement terminé.");
+          else if (r.statut === "echec") notifier.erreur(r.message ?? "L'entraînement a échoué.");
+          else notifier.info("Entraînement annulé.");
         }
         await recharger(r.statut === "termine");
       } catch (e) {
         clearInterval(minuteur);
-        setErreur(messageApi(e, "Le suivi de l'entrainement a echoue."));
+        setErreur(messageApi(e, "Le suivi de l'entraînement a échoué."));
       }
     }, 1000);
     return () => clearInterval(minuteur);
@@ -114,7 +114,7 @@ export default function IaPage() {
   async function activer(id: string, nom: string) {
     const ok = await confirmer({
       titre: `Activer ${nom} ?`,
-      message: "La compo probable des rapports et du scouting sera predite par ce modele. Vous pouvez revenir au moteur a regles a tout moment.",
+      message: "La compo probable des rapports et du scouting sera prédite par ce modèle. Vous pouvez revenir au moteur à règles à tout moment.",
       libelleConfirmer: "Activer",
     });
     if (!ok) return;
@@ -123,24 +123,24 @@ export default function IaPage() {
   }
 
   async function desactiver() {
-    const ok = await confirmer({ titre: "Revenir au moteur a regles ?", message: "Le modele actif sera retire : les rapports reprennent le moteur a regles.", libelleConfirmer: "Desactiver" });
+    const ok = await confirmer({ titre: "Revenir au moteur à règles ?", message: "Le modèle actif sera retiré : les rapports reprennent le moteur à règles.", libelleConfirmer: "Désactiver" });
     if (!ok) return;
-    try { await api.iaDesactiver(); notifier.succes("Moteur a regles retabli."); await recharger(false); if (detail) await voir(detail.id); }
-    catch (e) { notifier.erreur(`Desactivation impossible : ${messageApi(e)}`); }
+    try { await api.iaDesactiver(); notifier.succes("Moteur à règles rétabli."); await recharger(false); if (detail) await voir(detail.id); }
+    catch (e) { notifier.erreur(`Désactivation impossible : ${messageApi(e)}`); }
   }
 
   async function basculerPlanning(actif: boolean) {
     try {
       const planning = await api.iaDefinirPlanning(actif);
       setEtat((e) => (e ? { ...e, planning } : e));
-      notifier.succes(actif ? "Reentrainement automatique active." : "Reentrainement automatique suspendu.");
+      notifier.succes(actif ? "Reentrainement automatique activé." : "Reentrainement automatique suspendu.");
     } catch (e) { notifier.erreur(`Changement impossible : ${messageApi(e)}`); }
   }
 
   async function supprimer(id: string, nom: string) {
-    const ok = await confirmer({ titre: `Supprimer ${nom} ?`, message: "Le resultat de son entrainement reste consultable.", libelleConfirmer: "Supprimer", danger: true });
+    const ok = await confirmer({ titre: `Supprimer ${nom} ?`, message: "Le résultat de son entraînement reste consultable.", libelleConfirmer: "Supprimer", danger: true });
     if (!ok) return;
-    try { await api.iaSupprimerModele(id); notifier.succes(`${nom} supprime.`); await recharger(false); if (detail) await voir(detail.id); }
+    try { await api.iaSupprimerModele(id); notifier.succes(`${nom} supprimé.`); await recharger(false); if (detail) await voir(detail.id); }
     catch (e) { notifier.erreur(`Suppression impossible : ${messageApi(e)}`); }
   }
 
@@ -154,12 +154,12 @@ export default function IaPage() {
           <div className="h-section flex items-center gap-2"><Brain size={11} className="text-accent" aria-hidden /> Administration</div>
           <h1 className="font-display text-2xl font-bold text-ink">Intelligence artificielle</h1>
           <p className="mt-1 max-w-2xl text-xs text-muted">
-            L'IA apprend a predire les compos : elle rejoue toutes les feuilles de match dans l'ordre des dates, predit chaque semaine avant
-            de la decouvrir, note ses erreurs, puis se corrige. Ce qu'elle apprend peut ensuite alimenter la compo probable des rapports.
+            L'IA apprend à prédire les compos : elle rejoue toutes les feuilles de match dans l'ordre des dates, prédit chaque semaine avant
+            de la découvrir, note ses erreurs, puis se corrige. Ce qu'elle apprend peut ensuite alimenter la compo probable des rapports.
           </p>
         </div>
         <button type="button" className="btn btn-accent" onClick={() => setModale(true)} disabled={!!enCours || !etat}>
-          <Play size={14} aria-hidden /> Lancer un entrainement
+          <Play size={14} aria-hidden /> Lancer un entraînement
         </button>
       </header>
 
@@ -171,9 +171,9 @@ export default function IaPage() {
         <div className="panel p-6" aria-busy="true"><div className="skeleton h-5 w-1/3 rounded" /><div className="skeleton mt-3 h-4 w-2/3 rounded" /></div>
       ) : etat && (
         <>
-          <section className="grid gap-4 lg:grid-cols-2" aria-label="Etat de l'IA">
+          <section className="grid gap-4 lg:grid-cols-2" aria-label="État de l'IA">
             <div className="panel p-5" data-testid="modele-actif">
-              <div className="h-section">Modele actif</div>
+              <div className="h-section">Modèle actif</div>
               {etat.actif ? (
                 <>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -181,24 +181,24 @@ export default function IaPage() {
                     <span className="badge badge-accent text-[10px]">Actif</span>
                   </div>
                   <p className="mt-1 text-sm text-muted">
-                    {pct(etat.actif.resume.onze)} des titulaires predits ({etat.actif.resume.predictions} compositions),
-                    entraine le {dateHeure(etat.actif.creeLe)}.
+                    {pct(etat.actif.resume.onze)} des titulaires prédits ({etat.actif.resume.predictions} compositions),
+                    entraîné le {dateHeure(etat.actif.creeLe)}.
                   </p>
-                  <button type="button" className="btn mt-3 text-sm" onClick={desactiver}><Power size={14} aria-hidden /> Revenir au moteur a regles</button>
+                  <button type="button" className="btn mt-3 text-sm" onClick={desactiver}><Power size={14} aria-hidden /> Revenir au moteur à règles</button>
                 </>
               ) : (
                 <p className="mt-2 text-sm text-muted">
-                  Aucun modele actif : les rapports utilisent le moteur a regles. Entrainez un modele, comparez-le aux methodes simples, puis activez-le s'il fait mieux.
+                  Aucun modèle actif : les rapports utilisent le moteur à règles. Entraînez un modèle, comparez-le aux méthodes simples, puis activez-le s'il fait mieux.
                 </p>
               )}
             </div>
             <div className="panel p-5" data-testid="donnees-disponibles">
-              <div className="h-section">Donnees disponibles</div>
-              <div className="mt-2 font-display text-xl font-bold text-ink">{etat.donnees.matchsJoues} matchs joues</div>
+              <div className="h-section">Données disponibles</div>
+              <div className="mt-2 font-display text-xl font-bold text-ink">{etat.donnees.matchsJoues} matchs joués</div>
               <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-muted">
                 {etat.donnees.saisons.filter((s) => s.matchs > 0).map((s) => <li key={s.id}>{s.nom} : {s.matchs}</li>)}
               </ul>
-              <p className="mt-2 text-xs text-faint">Chaque match donne deux feuilles d'equipe. Plus il y a de saisons importees, mieux l'IA apprend.</p>
+              <p className="mt-2 text-xs text-faint">Chaque match donne deux feuilles d'équipe. Plus il y a de saisons importées, mieux l'IA apprend.</p>
             </div>
           </section>
 
@@ -209,37 +209,37 @@ export default function IaPage() {
                 <p className="mt-2 text-sm text-ink">
                   {etat.planning.actif
                     ? <>Actif : l'IA se reentraine {texteFrequence(etat.planning)}. Prochain passage : <strong>{datePassage(etat.planning.prochain)}</strong>.</>
-                    : "Suspendu : l'IA ne se reentraine que quand vous lancez un entrainement."}
+                    : "Suspendu : l'IA ne se reentraine que quand vous lancez un entraînement."}
                 </p>
                 <p className="mt-1 max-w-3xl text-xs text-muted">
-                  Le nouveau modele ne remplace le modele actif que s'il fait au moins aussi bien, sur les semaines que l'actif n'avait pas encore vues.
-                  Sinon il reste dans l'historique des modeles, et l'actif continue. Sans modele actif, il n'est jamais active tout seul.
+                  Le nouveau modèle ne remplace le modèle actif que s'il fait au moins aussi bien, sur les semaines que l'actif n'avait pas encore vues.
+                  Sinon il reste dans l'historique des modèles, et l'actif continue. Sans modèle actif, il n'est jamais activé tout seul.
                 </p>
                 {resumeDernierAuto(etat.planning.dernier) && (
                   <p className="mt-2 text-xs text-muted" data-testid="planning-dernier"><span className="text-faint">Dernier passage : </span>{resumeDernierAuto(etat.planning.dernier)}</p>
                 )}
                 {!etat.planning.operationnel && (
                   <p role="status" className="mt-2 text-xs text-amber" data-testid="planning-inactif">
-                    Le planificateur ne tourne pas sur ce serveur (il demarre en production, ou avec IA_PLANIFICATEUR=on) : aucun entrainement automatique n'aura lieu ici.
+                    Le planificateur ne tourne pas sur ce serveur (il démarre en production, ou avec IA_PLANIFICATEUR=on) : aucun entraînement automatique n'aura lieu ici.
                   </p>
                 )}
               </div>
               <button type="button" className="btn text-sm" onClick={() => basculerPlanning(!etat.planning.actif)} aria-pressed={etat.planning.actif}>
-                <Power size={14} aria-hidden /> {etat.planning.actif ? "Suspendre" : "Reactiver"}
+                <Power size={14} aria-hidden /> {etat.planning.actif ? "Suspendre" : "Réactiver"}
               </button>
             </div>
           </section>
 
           {enCours && (
-            <section className="panel p-5" aria-label="Entrainement en cours" data-testid="entrainement-en-cours">
+            <section className="panel p-5" aria-label="Entraînement en cours" data-testid="entrainement-en-cours">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="h-section">Entrainement en cours</div>
-                  <p className="mt-1 text-sm text-ink" aria-live="polite">{enCours.message ?? "Demarrage"}</p>
+                  <div className="h-section">Entraînement en cours</div>
+                  <p className="mt-1 text-sm text-ink" aria-live="polite">{enCours.message ?? "Démarrage"}</p>
                 </div>
                 <button type="button" className="btn text-sm" onClick={annuler}><Square size={13} aria-hidden /> Annuler</button>
               </div>
-              <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-panel3/70" role="progressbar" aria-label="Progression de l'entrainement"
+              <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-panel3/70" role="progressbar" aria-label="Progression de l'entraînement"
                 aria-valuemin={0} aria-valuemax={100} aria-valuenow={enCours.progression}>
                 <div className="h-full rounded-full bg-accent transition-[width] duration-500 ease-smooth" style={{ width: `${enCours.progression}%` }} />
               </div>
@@ -249,7 +249,7 @@ export default function IaPage() {
 
           {!enCours && etat.dernier && etat.dernier.statut !== "termine" && (
             <p role="status" className={`panel p-4 text-sm ${etat.dernier.statut === "echec" ? "border-danger/40 text-danger" : "text-muted"}`} data-testid="dernier-echec">
-              Dernier entrainement ({LIBELLE_STATUT[etat.dernier.statut].toLowerCase()}, {dateHeure(etat.dernier.creeLe)}) : {etat.dernier.message}
+              Dernier entraînement ({LIBELLE_STATUT[etat.dernier.statut].toLowerCase()}, {dateHeure(etat.dernier.creeLe)}) : {etat.dernier.message}
             </p>
           )}
 
@@ -258,26 +258,26 @@ export default function IaPage() {
               <Brain size={28} className="mx-auto text-accent" aria-hidden />
               <h2 className="mt-3 font-display text-lg font-bold text-ink">L'IA n'a encore rien appris</h2>
               <p className="mx-auto mt-1 max-w-lg text-sm text-muted">
-                Lancez un premier entrainement : elle rejouera toutes les feuilles de match de la base, semaine apres semaine, et vous montrera sa progression.
+                Lancez un premier entraînement : elle rejouera toutes les feuilles de match de la base, semaine après semaine, et vous montrera sa progression.
               </p>
             </section>
           )}
 
           {detail?.resultat && (
             <>
-              <section className="panel flex flex-wrap items-center justify-between gap-3 p-4" aria-label="Entrainement affiche" data-testid="entrainement-affiche">
+              <section className="panel flex flex-wrap items-center justify-between gap-3 p-4" aria-label="Entraînement affiché" data-testid="entrainement-affiche">
                 <div className="min-w-0">
-                  <div className="h-section">Entrainement du {dateHeure(detail.creeLe)}</div>
+                  <div className="h-section">Entraînement du {dateHeure(detail.creeLe)}</div>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <span className="font-display text-lg font-bold text-ink">{modeleDuDetail?.nom ?? "Modele supprime"}</span>
+                    <span className="font-display text-lg font-bold text-ink">{modeleDuDetail?.nom ?? "Modèle supprimé"}</span>
                     {modeleDuDetail?.actif && <span className="badge badge-accent text-[10px]">Actif</span>}
                   </div>
                 </div>
                 {modeleDuDetail && (
                   <div className="flex flex-wrap gap-2">
                     {modeleDuDetail.actif
-                      ? <button type="button" className="btn text-sm" onClick={desactiver}><Power size={14} aria-hidden /> Desactiver</button>
-                      : <button type="button" className="btn btn-primary text-sm" onClick={() => activer(modeleDuDetail.id, modeleDuDetail.nom)}><CircleCheck size={14} aria-hidden /> Activer ce modele</button>}
+                      ? <button type="button" className="btn text-sm" onClick={desactiver}><Power size={14} aria-hidden /> Désactiver</button>
+                      : <button type="button" className="btn btn-primary text-sm" onClick={() => activer(modeleDuDetail.id, modeleDuDetail.nom)}><CircleCheck size={14} aria-hidden /> Activer ce modèle</button>}
                     {!modeleDuDetail.actif && (
                       <button type="button" className="btn btn-ghost text-sm text-danger" onClick={() => supprimer(modeleDuDetail.id, modeleDuDetail.nom)} aria-label={`Supprimer ${modeleDuDetail.nom}`}>
                         <Trash2 size={14} aria-hidden />
@@ -291,11 +291,11 @@ export default function IaPage() {
           )}
 
           {liste.length > 0 && (
-            <section className="panel p-5" aria-label="Historique des entrainements" data-testid="historique-ia">
+            <section className="panel p-5" aria-label="Historique des entraînements" data-testid="historique-ia">
               <h2 className="font-display text-lg font-bold text-ink">Historique</h2>
               <div className="mt-3 overflow-x-auto">
                 <table className="table-fm table-fm-compact">
-                  <thead><tr><th>Date</th><th>Statut</th><th className="max-sm:hidden">Modele</th><th>Face a l'actif</th><th className="text-right max-sm:hidden">Titulaires predits</th><th className="text-right max-sm:hidden">Meilleur repere</th><th><span className="sr-only">Actions</span></th></tr></thead>
+                  <thead><tr><th>Date</th><th>Statut</th><th className="max-sm:hidden">Modèle</th><th>Face à l'actif</th><th className="text-right max-sm:hidden">Titulaires prédits</th><th className="text-right max-sm:hidden">Meilleur repère</th><th><span className="sr-only">Actions</span></th></tr></thead>
                   <tbody>
                     {liste.map((e) => (
                       <tr key={e.id} className={detail?.id === e.id ? "is-mine" : ""}>

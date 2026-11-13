@@ -50,8 +50,8 @@ export function bilanMutations(statuts: (string | null | undefined)[]): BilanMut
     else if (c === "inconnue") inconnus++;
   }
   const violations: string[] = [];
-  if (mutes > MAX_MUTES) violations.push(`${mutes} joueurs mutes : le maximum est ${MAX_MUTES}.`);
-  if (horsDelai > MAX_HORS_DELAI) violations.push(`${horsDelai} mutes hors delai : le maximum est ${MAX_HORS_DELAI}.`);
+  if (mutes > MAX_MUTES) violations.push(`${mutes} joueurs mutés : le maximum est ${MAX_MUTES}.`);
+  if (horsDelai > MAX_HORS_DELAI) violations.push(`${horsDelai} mutés hors délai : le maximum est ${MAX_HORS_DELAI}.`);
   return {
     mutes, horsDelai, inconnus,
     placesMutes: Math.max(0, MAX_MUTES - mutes),
@@ -69,8 +69,8 @@ export function motifRefus(statutsActuels: (string | null | undefined)[], candid
   const c = categorieMutation(candidat);
   if (c !== "mutation" && c !== "hors_delai") return null;
   const b = bilanMutations(statutsActuels);
-  if (c === "hors_delai" && b.horsDelai >= MAX_HORS_DELAI) return `deja ${MAX_HORS_DELAI} mutes hors delai`;
-  if (b.mutes >= MAX_MUTES) return `deja ${MAX_MUTES} joueurs mutes`;
+  if (c === "hors_delai" && b.horsDelai >= MAX_HORS_DELAI) return `déjà ${MAX_HORS_DELAI} mutés hors délai`;
+  if (b.mutes >= MAX_MUTES) return `déjà ${MAX_MUTES} joueurs mutés`;
   return null;
 }
 

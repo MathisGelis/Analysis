@@ -28,7 +28,7 @@ export default async function ArbitresList() {
 
   const headerLibelle = equipePropre
     ? `${equipePropre.competitionLibelle ?? equipePropre.nom}${equipePropre.poule ? ` · Poule ${equipePropre.poule}` : ""}`
-    : "Aucune equipe selectionnee";
+    : "Aucune équipe sélectionnée";
 
   return (
     <div className="space-y-6 fade-up">
@@ -41,21 +41,21 @@ export default async function ArbitresList() {
 
       {arbitres.length === 0 ? (
         <section className="panel p-8 text-sm text-muted text-center">
-          Aucun arbitre en base. Les arbitres sont automatiquement ajoutes
-          a chaque import de feuille FMI.
+          Aucun arbitre en base. Les arbitres sont automatiquement ajoutés
+          à chaque import de feuille FMI.
         </section>
       ) : (
         <ArbitresFiltrable arbitres={arbitresChamp as any} championnat={championnat} />
       )}
 
       <section className="panel-inset p-4 text-xs text-muted leading-relaxed">
-        <strong className="text-ink">Profil arbitre :</strong> calcule a partir
+        <strong className="text-ink">Profil arbitre :</strong> calculé à partir
         du nombre de cartons donnes par match (en tant que principal uniquement) :
         <span className="text-accent"> Permissif</span> &lt; 2/match,
         <span className="text-amber"> Standard</span> 2 a 5/match,
         <span className="text-danger"> Strict</span> &gt; 5/match.
-        Les stats sont restreintes au championnat selectionne — l'historique
-        sur les saisons precedentes est visible dans la fiche de chaque
+        Les stats sont restreintes au championnat sélectionné — l'historique
+        sur les saisons précédentes est visible dans la fiche de chaque
         arbitre.
       </section>
     </div>

@@ -168,6 +168,28 @@ Toutes les routes sont prefixees par `/api`.
   - `GET /joueurs/recherche-avancee/options` : saisons ouvertes au compte, niveaux (categorie, division) de chacune,
     saisons proposees par defaut (la precedente et l'actuelle).
 
+### Calendrier FFF (matchs a venir d'une equipe)
+Le fichier `.ics` public que myFFF propose pour « ajouter les matchs au calendrier » (`media.fff.fr/calendars/AAAA/eq/xxx.ics`)
+alimente les matchs a venir (`features/calendrier-fff/`) :
+- `PUT  /calendrier-fff/equipes/:id/adresse` `{ url }` : enregistre l'adresse (`media.fff.fr/...`, `webcal://...`), `null` l'efface.
+  Seul un calendrier d'equipe de `media.fff.fr` est accepte (HTTPS, aucun port ni identifiant, chemin `/calendars/AAAA/eq/*.ics`) :
+  le serveur ne telecharge jamais autre chose (pas de redirection suivie, 15 s, 1 Mo) ;
+- `POST /calendrier-fff/equipes/:id/synchroniser` : telecharge et synchronise ; `POST .../importer` (champ `file`) : meme
+  traitement pour un fichier depose a la main, sans aucun telechargement. Les deux rendent un rapport (crees, modifies, disparus,
+  passes, deja joues, avertissements) ;
+- une tache quotidienne (5 min apres le demarrage, puis toutes les 24 h ; coupee par `ENTRETIEN_AUTO=false`) synchronise chaque
+  equipe qui a une adresse, pour la saison actuelle et les suivantes.
+
+Regles de la synchronisation : un match a venir inconnu est cree « prevu » (rattache a l'equipe, `idFff` = identifiant FFF) ; la
+feuille de match importee plus tard le complete (rapprochement `matchs/programme.ts`) ; un match deja relie n'est mis a jour que si
+la ligue l'a modifie depuis la derniere synchronisation (`DTSTAMP`), donc une retouche manuelle tient ; un match programme a la main
+(meme sens, 14 jours) est repris, jamais celui d'une autre equipe du club ; un match qui a deja sa feuille ou son score n'est
+jamais modifie ; les matchs passes ne sont pas crees (sans score ils fausseraient classement et statistiques) ; un match
+qui disparait du calendrier est **signale** (`calendrierDisparu`), jamais supprime. Refus : calendrier d'une autre saison que celle
+de l'equipe, ou sans aucun match en commun avec celui deja synchronise (probablement une autre equipe). Les adversaires sont
+retrouves par leur nom complet (lu dans l'adresse de la fiche match) avec la meme normalisation que l'import FMI
+(`clubs/nom-club.ts`), pour ne pas creer le meme club en double.
+
 ### Matchs (avec compositions + evenements imbriques)
 - `GET    /matchs?clubId=` · `GET /matchs/:id`. La liste porte `modifiable` (le compte peut-il modifier ou supprimer ce match ?),
   le detail porte `droits: { modifier, dispositifs }` : le front ne propose pas ce que l'API refuserait

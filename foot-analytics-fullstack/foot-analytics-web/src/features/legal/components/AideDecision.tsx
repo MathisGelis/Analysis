@@ -9,7 +9,7 @@ export function AideDecision({ className = "", texte }: { className?: string; te
   return (
     <p className={`flex items-start gap-1.5 text-[11px] leading-snug text-faint ${className}`} data-testid="aide-decision">
       <Info size={12} className="mt-px shrink-0" aria-hidden />
-      <span>{texte ?? "Aide a la decision, non contraignante : une estimation statistique, le choix revient au staff."}</span>
+      <span>{texte ?? "Aide à la décision, non contraignante : une estimation statistique, le choix revient au staff."}</span>
     </p>
   );
 }

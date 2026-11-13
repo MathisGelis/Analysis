@@ -20,7 +20,7 @@ describe("lireDetailFatigue", () => {
     facteurs: [
       { cle: "acwr", libelle: "Charge de la semaine", pression: 53, poids: 0.4, points: 21.2, detail: "x" },
       { cle: "residuelle", libelle: "Efforts des derniers jours", pression: 90, poids: 0.3, points: 27, detail: "y" },
-      { cle: "congestion", libelle: "Matchs recents", pression: 50, poids: 0.2, points: 10, detail: "z" },
+      { cle: "congestion", libelle: "Matchs récents", pression: 50, poids: 0.2, points: 10, detail: "z" },
     ],
     calculeLe: "2026-10-14T10:00:00.000Z",
   };
@@ -36,7 +36,7 @@ describe("lireDetailFatigue", () => {
   it("facteursPrincipaux : les plus lourds d'abord", () => {
     expect(facteursPrincipaux(detail as any, 2).map((f) => f.cle)).toEqual(["residuelle", "acwr"]);
   });
-  it("estEstimation : fiabilite partielle uniquement", () => {
+  it("estEstimation : fiabilité partielle uniquement", () => {
     expect(estEstimation(detail as any)).toBe(true);
     expect(estEstimation({ ...detail, fiabilite: "solide" } as any)).toBe(false);
     expect(estEstimation(null)).toBe(false);
@@ -44,7 +44,7 @@ describe("lireDetailFatigue", () => {
 });
 
 describe("plusFatigues", () => {
-  it("les plus fatigues d'abord, ceux sans score ecartes, limite respectee", () => {
+  it("les plus fatigués d'abord, ceux sans score ecartes, limite respectée", () => {
     const j = [{ n: "a", scoreFatigue: 40 }, { n: "b", scoreFatigue: null }, { n: "c", scoreFatigue: 80 }, { n: "d" }, { n: "e", scoreFatigue: 60 }];
     expect(plusFatigues(j, 2).map((x) => x.n)).toEqual(["c", "e"]);
     expect(plusFatigues([{ scoreFatigue: null }])).toEqual([]);

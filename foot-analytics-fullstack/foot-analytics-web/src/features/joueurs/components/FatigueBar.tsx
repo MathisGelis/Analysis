@@ -17,7 +17,7 @@ export function FatigueBar({
   largeur?: string;
 }) {
   const niveau = niveauFatigue(score);
-  if (score == null || !niveau) return <span className="text-xs text-faint" title="Pas de charge recente connue">—</span>;
+  if (score == null || !niveau) return <span className="text-xs text-faint" title="Pas de charge récente connue">—</span>;
   const estimation = estEstimation(lireDetailFatigue(detail));
   return (
     <div className="flex items-center gap-2" title={`Fatigue ${LIBELLE_NIVEAU[niveau].toLowerCase()}${estimation ? " (estimation)" : ""}`}>

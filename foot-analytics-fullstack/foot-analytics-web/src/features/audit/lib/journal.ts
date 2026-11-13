@@ -19,37 +19,38 @@ export interface PageJournal { total: number; page: number; parPage: number; ite
 
 const LIBELLES: Record<string, string> = {
   "connexion.reussie": "Connexion",
-  "connexion.echec": "Echec de connexion",
-  "connexion.verrouillage": "Compte verrouille (echecs)",
-  "session.rejeu": "Jeton rejoue : sessions revoquees",
-  "session.deconnexion_partout": "Deconnexion de tous les appareils",
-  "compte.creation": "Compte cree",
-  "compte.modification": "Compte modifie",
-  "compte.suppression": "Compte supprime",
-  "compte.desactivation": "Compte desactive",
-  "compte.reactivation": "Compte reactive",
-  "compte.desactivation_inactivite": "Compte desactive (12 mois sans connexion)",
-  "compte.mot_de_passe_reinitialise": "Mot de passe reinitialise",
-  "compte.mot_de_passe_change": "Mot de passe change",
-  "compte.cgu_acceptees": "Conditions d'utilisation acceptees",
-  "medical.lecture": "Donnees medicales consultees",
-  "medical.ecriture": "Donnees medicales modifiees",
+  "connexion.echec": "Échec de connexion",
+  "connexion.verrouillage": "Compte verrouillé (échecs)",
+  "session.rejeu": "Jeton rejoué : sessions révoquées",
+  "session.deconnexion_partout": "Déconnexion de tous les appareils",
+  "compte.creation": "Compte créé",
+  "compte.modification": "Compte modifié",
+  "compte.suppression": "Compte supprimé",
+  "compte.desactivation": "Compte désactivé",
+  "compte.reactivation": "Compte réactivé",
+  "compte.desactivation_inactivite": "Compte désactivé (12 mois sans connexion)",
+  "compte.mot_de_passe_reinitialise": "Mot de passe réinitialisé",
+  "compte.mot_de_passe_change": "Mot de passe changé",
+  "compte.cgu_acceptées": "Conditions d'utilisation acceptées",
+  "medical.lecture": "Données médicales consultées",
+  "medical.ecriture": "Données médicales modifiées",
   "export.pptx": "Export PowerPoint",
   "joueur.consultation_autre_club": "Fiche d'un joueur d'un autre club",
-  "joueur.recherche_avancee": "Recherche avancee de joueurs",
+  "joueur.recherche_avancee": "Recherche avancée de joueurs",
   "fmi.import": "Import de feuille de match",
-  "donnees.reinitialisation": "Donnees de demonstration rechargees",
+  "calendrier.synchronisation": "Synchronisation du calendrier FFF",
+  "donnees.reinitialisation": "Données de démonstration rechargées",
   "alerte.consultations_massives": "ALERTE : consultations massives",
-  "alerte.export_massif": "ALERTE : exports en serie",
-  "alerte.recherches_massives": "ALERTE : recherches avancees en serie",
-  "alerte.echecs_connexion": "ALERTE : echecs de connexion repetes",
+  "alerte.export_massif": "ALERTE : exports en série",
+  "alerte.recherches_massives": "ALERTE : recherches avancées en série",
+  "alerte.echecs_connexion": "ALERTE : échecs de connexion répétés",
 };
 
 const MOTIFS_ECHEC: Record<string, string> = {
-  mot_de_passe: "mot de passe errone",
+  mot_de_passe: "mot de passe erroné",
   login_inconnu: "identifiant inconnu",
-  verrouille: "compte verrouille",
-  compte_desactive: "compte desactive",
+  verrouille: "compte verrouillé",
+  compte_desactive: "compte désactivé",
   mot_de_passe_perime: "ancien mot de passe commun",
 };
 
@@ -59,11 +60,12 @@ export const CATEGORIES: { valeur: string; libelle: string }[] = [
   { valeur: "alerte.*", libelle: "Alertes" },
   { valeur: "connexion.*", libelle: "Connexions" },
   { valeur: "compte.*", libelle: "Comptes" },
-  { valeur: "medical.*", libelle: "Medical" },
+  { valeur: "medical.*", libelle: "Médical" },
   { valeur: "export.*", libelle: "Exports" },
   { valeur: "joueur.consultation_autre_club", libelle: "Fiches d'autres clubs" },
-  { valeur: "joueur.recherche_avancee", libelle: "Recherches avancees" },
+  { valeur: "joueur.recherche_avancee", libelle: "Recherches avancées" },
   { valeur: "fmi.*", libelle: "Imports FMI" },
+  { valeur: "calendrier.*", libelle: "Calendriers FFF" },
 ];
 
 export function libelleAction(action: string): string {
@@ -88,8 +90,11 @@ export function resumeDetails(t: Pick<TraceAudit, "action" | "details">): string
   if (typeof d.motif === "string") return MOTIFS_ECHEC[d.motif] ?? d.motif;
   if (Array.isArray(d.champs)) return `champs : ${d.champs.join(", ")}`;
   if (typeof d.pages === "number") return `${d.pages} page(s)`;
-  if (typeof d.resultats === "number") return `${d.resultats} joueur(s) trouve(s)`;
-  if (typeof d.role === "string") return `role : ${d.role}`;
+  if (typeof d.resultats === "number") return `${d.resultats} joueur(s) trouvé(s)`;
+  if (t.action === "calendrier.synchronisation" && typeof d.crees === "number") {
+    return `${d.crees} ajouté(s), ${d.modifies ?? 0} modifié(s), ${d.disparus ?? 0} disparu(s) (${d.source === "fichier" ? "fichier déposé" : "adresse"})`;
+  }
+  if (typeof d.role === "string") return `rôle : ${d.role}`;
   return "";
 }
 

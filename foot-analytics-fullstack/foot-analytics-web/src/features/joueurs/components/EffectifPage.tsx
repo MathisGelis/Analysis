@@ -4,12 +4,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Pencil, Plus, Save, Search, Trash2, Users, X } from "lucide-react";
 
 import { api } from "@/shared/lib/api";
 import { useOwnClubId } from "@/features/equipes/lib/own-club-context";
 import { useOwnEquipe } from "@/features/equipes/lib/own-equipe-context";
 import { Modal } from "@/shared/ui/Modal";
+import { EtatVide } from "@/shared/ui/EtatVide";
+import { LegendeColonnes } from "@/shared/ui/LegendeColonnes";
 import { Select } from "@/shared/ui/Select";
 import { optionsSimples } from "@/shared/lib/selecteur";
 import type { Joueur } from "@/shared/lib/types";
@@ -93,15 +95,15 @@ export default function EffectifPage() {
   async function handleDelete(j: Joueur) {
     if (!(await confirmer({
       titre: `Supprimer ${j.prenom} ${j.nom} ?`,
-      message: "Le joueur est supprime de la base, toutes saisons confondues (ses stats de match restent dans les feuilles).",
+      message: "Le joueur est supprimé de la base, toutes saisons confondues (ses stats de match restent dans les feuilles).",
       danger: true,
     }))) return;
     try {
       await api.deleteJoueur(j.id);
       await reload();
-      notifier.succes(`${j.prenom} ${j.nom} supprime.`);
+      notifier.succes(`${j.prenom} ${j.nom} supprimé.`);
     } catch (e) {
-      notifier.erreur("Suppression impossible : le backend est-il demarre ? " + (e as Error).message);
+      notifier.erreur("Suppression impossible : le backend est-il démarre ? " + (e as Error).message);
     }
   }
 
@@ -126,7 +128,7 @@ export default function EffectifPage() {
     <div className="space-y-6 fade-up">
       <header className="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <div className="h-section">{equipeNom || "Aucune equipe selectionnee"}</div>
+          <div className="h-section">{equipeNom || "Aucune équipe sélectionnée"}</div>
           <h1 className="font-display text-2xl font-bold text-ink">
             Effectif <span className="text-muted font-light">({data.length})</span>
           </h1>
@@ -145,8 +147,8 @@ export default function EffectifPage() {
             <Select valeur={tri.cle} onChange={(v)=>{ const cle = v as CleTri; setTri({ cle, sens: sensParDefaut(cle) }); }}
               className="btn" ariaLabel="Trier l'effectif par" options={OPTIONS_TRI} recherche={false} largeurListe={200}/>
             <button type="button" className="btn !p-2.5" onClick={() => setTri((t) => ({ ...t, sens: t.sens === "asc" ? "desc" : "asc" }))}
-              aria-label={tri.sens === "asc" ? "Ordre croissant, inverser" : "Ordre decroissant, inverser"}
-              title={tri.sens === "asc" ? "Croissant" : "Decroissant"}>
+              aria-label={tri.sens === "asc" ? "Ordre croissant, inverser" : "Ordre décroissant, inverser"}
+              title={tri.sens === "asc" ? "Croissant" : "Décroissant"}>
               {tri.sens === "asc" ? <ArrowUp size={14}/> : <ArrowDown size={14}/>}
             </button>
           </div>
@@ -159,23 +161,40 @@ export default function EffectifPage() {
       <section className="panel p-5">
         {loading ? (
           <div className="text-sm text-muted py-8 text-center">Chargement de l'effectif…</div>
+        ) : data.length === 0 ? (
+          joueurs.length === 0 ? (
+            <EtatVide
+              data-testid="effectif-vide" icone={Users}
+              titre={equipeId ? "Aucun joueur dans l'effectif" : "Aucune équipe sélectionnée"}
+              message={equipeId
+                ? "Ajoutez les joueurs de l'équipe, ou importez des feuilles de match : les joueurs qui y figurent rejoignent l'effectif automatiquement."
+                : "Choisissez une équipe avec le sélecteur en bas de la barre latérale pour voir son effectif."}
+              action={equipeId ? { libelle: "Ajouter un joueur", onClick: () => setCreating(true), icone: Plus } : undefined}
+            />
+          ) : (
+            <EtatVide
+              data-testid="effectif-filtre-vide" icone={Search} titre="Aucun joueur ne correspond"
+              message="Aucun joueur ne correspond à ce filtre ou à ce poste."
+              secondaire={{ libelle: "Effacer les filtres", onClick: () => { setQ(""); setPosteFilter("TOUS"); } }}
+            />
+          )
         ) : (
         <table className="table-fm table-dense">
           <thead>
             <tr>
               <ThTri cle="nom" tri={tri} onTri={trierPar}>Joueur</ThTri>
               <ThTri cle="poste" tri={tri} onTri={trierPar}>Poste</ThTri>
-              <ThTri cle="matchs" tri={tri} onTri={trierPar} className="text-center" titre="Matchs joues">Mat.</ThTri>
+              <ThTri cle="matchs" tri={tri} onTri={trierPar} className="text-center" titre="Matchs joués">Mat.</ThTri>
               <ThTri cle="titularisations" tri={tri} onTri={trierPar} className="hidden text-center min-[1100px]:table-cell" titre="Titularisations">Titu</ThTri>
               <ThTri cle="minutes" tri={tri} onTri={trierPar} className="hidden min-[1280px]:table-cell">Minutes</ThTri>
               <ThTri cle="note" tri={tri} onTri={trierPar} className="hidden min-[1440px]:table-cell">Note</ThTri>
               <ThTri cle="fatigue" tri={tri} onTri={trierPar} className="hidden lg:table-cell">Fatigue</ThTri>
               <ThTri cle="buts" tri={tri} onTri={trierPar} className="text-center max-sm:hidden" titre="Buts">B</ThTri>
-              <ThTri cle="passes" tri={tri} onTri={trierPar} className="text-center max-sm:hidden" titre="Passes decisives">PD</ThTri>
+              <ThTri cle="passes" tri={tri} onTri={trierPar} className="text-center max-sm:hidden" titre="Passes décisives">PD</ThTri>
               <ThTri cle="jaunes" tri={tri} onTri={trierPar} titre="Cartons jaunes">CJ</ThTri>
               <ThTri cle="rouges" tri={tri} onTri={trierPar} titre="Cartons rouges">CR</ThTri>
               <ThTri cle="statut" tri={tri} onTri={trierPar} className="hidden min-[1440px]:table-cell">Statut</ThTri>
-              <th className="hidden 2xl:table-cell">Postes joues</th>
+              <th className="hidden 2xl:table-cell">Postes joués</th>
               <th className="col-fixe text-right"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
@@ -185,7 +204,7 @@ export default function EffectifPage() {
                 <td>
                   <div className="flex items-center gap-2 sm:gap-3">
                     <span className="grid h-7 w-7 shrink-0 max-sm:hidden sm:h-8 sm:w-8 place-items-center rounded-lg bg-panel3 font-display text-sm font-bold text-muted"
-                      title="Numero le plus porte cette saison">{j.numeroFavori ?? "—"}</span>
+                      title="Numéro le plus porté cette saison">{j.numeroFavori ?? "—"}</span>
                     <div className="min-w-0 max-w-[9rem] sm:max-w-[13rem]">
                       <Link href={`/joueur/${j.id}`} className="font-semibold leading-snug text-ink transition-colors hover:text-accent">
                         {j.prenom} {j.nom}
@@ -248,6 +267,7 @@ export default function EffectifPage() {
           </tbody>
         </table>
         )}
+        {!loading && data.length > 0 && <LegendeColonnes abreviations={["Mat.", "Titu", "B", "PD", "CJ", "CR"]} />}
       </section>
 
       {edit && (
@@ -278,11 +298,11 @@ export default function EffectifPage() {
         <Modal open={true} onClose={() => setCreating(false)} maxWidth="max-w-md">
           <div className="space-y-3">
             <h2 className="font-display text-lg font-bold text-ink">
-              Selectionne une equipe
+              Sélectionne une équipe
             </h2>
             <p className="text-sm text-muted">
-              Pour ajouter un joueur a l'effectif, il faut d'abord choisir
-              une equipe via le selecteur en bas de la barre laterale.
+              Pour ajouter un joueur à l'effectif, il faut d'abord choisir
+              une équipe via le sélecteur en bas de la barre latérale.
             </p>
             <div className="flex justify-end">
               <button className="btn" onClick={() => setCreating(false)}>OK</button>
@@ -307,7 +327,7 @@ function ThTri({
     <th className={className} aria-sort={actif ? (tri.sens === "asc" ? "ascending" : "descending") : "none"}>
       <button type="button" onClick={() => onTri(cle)}
         className={`group inline-flex items-center gap-1 uppercase tracking-[inherit] transition-colors hover:text-ink ${actif ? "text-ink" : ""}`}
-        title={`Trier par ${(titre ?? libelle).toLowerCase()}`}>
+        title={titre ? `${titre} (cliquer pour trier)` : `Trier par ${libelle.toLowerCase()}`}>
         {children}
         {actif
           ? (tri.sens === "asc" ? <ArrowUp size={11} aria-hidden /> : <ArrowDown size={11} aria-hidden />)
@@ -347,7 +367,7 @@ function JoueurForm({
       }
       onSaved();
     } catch (e) {
-      setError("Echec : verifiez que le backend est demarre. " + (e as Error).message);
+      setError("Échec : vérifiez que le backend est démarré. " + (e as Error).message);
       setSaving(false);
     }
   }
@@ -362,14 +382,14 @@ function JoueurForm({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-          <Field label="Prenom"><input className="inp" value={form.prenom}
+          <Field label="Prénom"><input className="inp" value={form.prenom}
             onChange={(e)=>set("prenom", e.target.value)}/></Field>
           <Field label="Nom"><input className="inp" value={form.nom}
             onChange={(e)=>set("nom", e.target.value)}/></Field>
           <Field label="Poste">
             <Select valeur={form.poste} onChange={(v)=>set("poste", v)} ariaLabel="Poste" options={OPTIONS_POSTES}/>
           </Field>
-          <Field label="Numero"><input type="number" className="inp"
+          <Field label="Numéro"><input type="number" className="inp"
             value={form.numeroFavori ?? ""} onChange={(e)=>set("numeroFavori", e.target.value? +e.target.value: undefined)}/></Field>
           <Field label="Statut">
             <Select valeur={form.statutMutation} onChange={(v)=>set("statutMutation", v)} ariaLabel="Statut" options={optionsSimples(STATUTS_MUTATION)}/>

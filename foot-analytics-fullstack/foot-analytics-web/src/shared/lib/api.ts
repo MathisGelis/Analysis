@@ -26,6 +26,7 @@ import type { FicheCoach } from "@/features/coachs/lib/fiche-coach-types";
 import type { EntrainementDetail, EntrainementResume, EtatIa, ModeleListe, PlanningIa } from "@/features/ia/lib/ia-types";
 import type { PageJournal } from "@/features/audit/lib/journal";
 import { reconstruire, type EtatReconstruction } from "@/features/fmi/lib/reconstruction";
+import type { RapportFff } from "@/features/calendrier/lib/calendrier-fff";
 import type { CriteresApi, OptionsRecherche, ReponseRecherche } from "@/features/recherche-joueurs/lib/recherche-joueurs";
 
 import type {
@@ -34,6 +35,17 @@ import type {
 
 const RELAIS = "/api/backend";
 const estServeur = () => typeof window === "undefined";
+
+/**
+ * Les « erreurs » par lesquelles Next interrompt un rendu pour le passer en dynamique (lecture des cookies, fetch sans cache) ou
+ * pour rediriger : ce ne sont pas des pannes, et les avaler (repli sur des donnees de demo) ne sert a rien. On les relance.
+ */
+export function estSignalNext(e: unknown): boolean {
+  const o = e as { digest?: unknown; code?: unknown } | null;
+  const digest = typeof o?.digest === "string" ? o.digest : "";
+  return digest === "DYNAMIC_SERVER_USAGE" || digest === "BAILOUT_TO_CLIENT_SIDE_RENDERING" || digest.startsWith("NEXT_")
+    || o?.code === "NEXT_STATIC_GEN_BAILOUT";
+}
 
 type Json = Record<string, any>;
 
@@ -86,7 +98,8 @@ async function cibleEtEntetes(): Promise<{ base: string; entetes: Record<string,
     const { COOKIE_ACCES, urlApi } = await import("@/features/auth/lib/session-serveur");
     const token = (await cookies()).get(COOKIE_ACCES)?.value;
     return { base: urlApi(), entetes: token ? { Authorization: `Bearer ${token}` } : {} };
-  } catch {
+  } catch (e) {
+    if (estSignalNext(e)) throw e;
     // Hors contexte de requete (build) : pas de session.
     const { urlApi } = await import("@/features/auth/lib/session-serveur");
     return { base: urlApi(), entetes: {} };
@@ -149,25 +162,50 @@ async function parseJson<T>(res: Response, vide: T | null = null): Promise<T> {
   return JSON.parse(text) as T;
 }
 
+let lectureMemo: ((chemin: string) => Promise<{ statut: number; texte: string }>) | null = null;
+
+/**
+ * GET memorise pour la duree d'UNE requete de page (React.cache : propre a chaque requete, jamais partage entre comptes ni d'une
+ * requete a la suivante, donc sans risque pour des donnees filtrees par compte). Chaque appelant recoit sa propre Response.
+ */
+async function lectureUneFoisParRequete(path: string): Promise<Response> {
+  if (!lectureMemo) {
+    const { cache } = await import("react");
+    lectureMemo = cache(async (chemin: string) => {
+      const r = await fetchApi(chemin);
+      return { statut: r.status, texte: await r.text() };
+    });
+  }
+  const { statut, texte } = await lectureMemo(path);
+  return new Response(statut === 204 || statut === 205 ? null : texte, { status: statut });
+}
+
 async function req<T>(
   path: string,
-  opts: RequestInit & { fallback?: T } = {},
+  opts: RequestInit & { fallback?: T; introuvable?: boolean } = {},
 ): Promise<T> {
-  const { fallback, ...init } = opts;
+  // `introuvable` : un 404 de l'API (identifiant inconnu) rend `undefined` au lieu de lever l'erreur : la page appelle alors
+  // notFound() et affiche sa page « introuvable », au lieu de l'ecran d'erreur generique.
+  const { fallback, introuvable, ...init } = opts;
   try {
-    const res = await fetchApi(path, init);
+    // Cote serveur, une lecture n'est faite qu'UNE fois par requete de page (le layout et la page demandent les memes clubs et
+    // saisons) ; les ecritures, et tout appel avec options particulieres, partent toujours.
+    const lecture = estServeur() && (init.method ?? "GET").toUpperCase() === "GET" && !init.body && !init.headers;
+    const res = lecture ? await lectureUneFoisParRequete(path) : await fetchApi(path, init);
     if (!res.ok) {
       const corps = await res.json().catch(() => null);
       throw new ApiError(res.status, path, corps);
     }
     return await parseJson<T>(res, fallback !== undefined ? fallback : null);
   } catch (e) {
+    if (estSignalNext(e)) throw e;
     if (fallback !== undefined) {
       if (typeof console !== "undefined") {
         console.warn(`[api] repli demo pour ${path} :`, (e as Error).message);
       }
       return fallback;
     }
+    if (introuvable && e instanceof ApiError && e.statut === 404) return undefined as T;
     throw e;
   }
 }
@@ -193,6 +231,7 @@ export const api = {
   club: (id: string) =>
     req<Club | undefined>(`/clubs/${id}`, {
       fallback: DEMO_CLUBS.find((c) => c.id === id),
+      introuvable: true,
     }),
 
   // Equipes : voir la version enrichie plus bas (filtres saison + clubId).
@@ -207,6 +246,7 @@ export const api = {
   joueur: (id: string) =>
     req<Joueur | undefined>(`/joueurs/${id}`, {
       fallback: DEMO_JOUEURS.find((j) => j.id === id),
+      introuvable: true,
     }),
 
   /** Frequence des numeros de maillot portes par un joueur :
@@ -234,6 +274,7 @@ export const api = {
   match: (id: string) =>
     req<Match | undefined>(`/matchs/${id}`, {
       fallback: id === "m-fmi" ? DEMO_MATCH_FMI : DEMO_MATCHS.find((m) => m.id === id),
+      introuvable: true,
     }),
 
   // Scouting
@@ -331,6 +372,19 @@ export const api = {
     const fd = new FormData();
     fd.append("file", file);
     return uploadApi<any>(`/fmi/import${recompute ? "" : "?recompute=false"}`, fd, "Import FMI");
+  },
+
+  // Calendrier FFF d'une equipe : adresse du fichier .ics (myFFF), synchronisation, ou fichier depose a la main.
+  definirCalendrierFff: (equipeId: string, url: string | null) =>
+    req<{ calendrierUrl: string | null; calendrierSynchroLe: string | null }>(`/calendrier-fff/equipes/${equipeId}/adresse`, {
+      method: "PUT", body: JSON.stringify({ url }),
+    }),
+  synchroniserCalendrierFff: (equipeId: string) =>
+    req<RapportFff>(`/calendrier-fff/equipes/${equipeId}/synchroniser`, { method: "POST" }),
+  importerCalendrierFff: (equipeId: string, fichier: File) => {
+    const fd = new FormData();
+    fd.append("file", fichier);
+    return req<RapportFff>(`/calendrier-fff/equipes/${equipeId}/importer`, { method: "POST", body: fd });
   },
 
   // Reconstruit effectifs (tous clubs) + classement, en tache de fond suivie jusqu'a la fin (voir

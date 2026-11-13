@@ -18,7 +18,7 @@ const saisons: Saison[] = [
 describe("equipeDepuisCookie", () => {
   const equipes = [eq("a25"), eq("a26", { saisonId: "s26" }), eq("u20-25", { categorie: "U20", competitionLibelle: "U20 R2", poule: "B" })];
 
-  it("cookie sur la saison choisie (ou sans cookie de saison) : l'equipe telle quelle", () => {
+  it("cookie sur la saison choisie (ou sans cookie de saison) : l'équipe telle quelle", () => {
     expect(equipeDepuisCookie(equipes, "a25", "s25")?.id).toBe("a25");
     expect(equipeDepuisCookie(equipes, "a25", null)?.id).toBe("a25");
   });
@@ -34,18 +34,18 @@ describe("equipeDepuisCookie", () => {
 
 describe("equipeParDefaut", () => {
   const equipes = [eq("seniors"), eq("u20", { categorie: "U20" }), eq("autre", { clubId: "x" })];
-  it("l'equipe de mon club la plus active", () => {
+  it("l'équipe de mon club la plus active", () => {
     const matchs = [{ equipeDomId: "u20" }, { equipeExtId: "u20" }, { equipeDomId: "seniors" }, { equipeDomId: "autre" }];
     expect(equipeParDefaut(equipes, matchs, "moi", "s25")?.id).toBe("u20");
   });
-  it("sans match : premiere equipe du club ; sans equipe sur la saison : null", () => {
+  it("sans match : première équipe du club ; sans équipe sur la saison : null", () => {
     expect(equipeParDefaut(equipes, [], "moi", "s25")?.id).toBe("seniors");
     expect(equipeParDefaut(equipes, [], "moi", "s26")).toBeNull();
   });
 });
 
 describe("resoudreSaison", () => {
-  it("cookie > saison de l'equipe > saison active > premiere", () => {
+  it("cookie > saison de l'équipe > saison active > première", () => {
     expect(resoudreSaison(saisons, "s26", eq("x"))?.id).toBe("s26");
     expect(resoudreSaison(saisons, null, eq("x", { saisonId: "s26" }))?.id).toBe("s26");
     expect(resoudreSaison(saisons, null, null)?.id).toBe("s25");
@@ -55,13 +55,13 @@ describe("resoudreSaison", () => {
 });
 
 describe("championnatDe", () => {
-  it("ids de toutes les equipes du meme championnat", () => {
+  it("ids de toutes les équipes du même championnat", () => {
     const equipes = [eq("a"), eq("b", { clubId: "x" }), eq("c", { poule: "A" }), eq("d", { saisonId: "s26" })];
     const r = championnatDe(equipes[0], equipes);
     expect([...r.equipesDuChampionnat].sort()).toEqual(["a", "b"]);
     expect(r.championnat).toEqual({ saisonId: "s25", competitionLibelle: "Seniors D2", poule: "C" });
   });
-  it("sans equipe : rien", () => {
+  it("sans équipe : rien", () => {
     expect(championnatDe(null, [])).toEqual({ championnat: null, equipesDuChampionnat: new Set() });
   });
 });

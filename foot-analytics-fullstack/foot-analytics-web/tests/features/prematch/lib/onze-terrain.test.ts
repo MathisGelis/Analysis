@@ -25,7 +25,7 @@ describe("onze sur le terrain", () => {
     expect(j[7]).toEqual({ numero: 10, nom: "MOREAU" });
   });
 
-  it("les libelles des postes dans le meme ordre (le numero quand le poste est inconnu)", () => {
+  it("les libelles des postes dans le même ordre (le numéro quand le poste est inconnu)", () => {
     const l = libellesPostes([poste(1, "A", "GB"), poste(4, null, "DCD")], [[2, 4, 5, 3]]);
     expect(l).toEqual(["GB", "2", "DCD", "5", "3"]);
   });

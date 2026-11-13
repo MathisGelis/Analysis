@@ -27,20 +27,20 @@ export function ecartPoints(a: number | null | undefined, b: number | null | und
 export const nombre = (x: number | null | undefined, decimales = 2): string => (typeof x === "number" ? nf(decimales).format(x) : "—");
 
 export const LIBELLE_METHODE: Readonly<Record<Methode, string>> = {
-  modele: "Modele appris",
-  dernier: "Meme onze que le dernier match",
-  moteur: "Moteur a regles actuel",
+  modele: "Modèle appris",
+  dernier: "Même onze que le dernier match",
+  moteur: "Moteur à règles actuel",
   frequence: "Les 11 plus souvent titulaires",
 };
 
 export const LIBELLE_METHODE_COURT: Readonly<Record<Methode, string>> = {
-  modele: "IA", dernier: "Dernier onze", moteur: "Moteur a regles", frequence: "Plus titulaires",
+  modele: "IA", dernier: "Dernier onze", moteur: "Moteur à règles", frequence: "Plus titulaires",
 };
 
 export const METHODES: readonly Methode[] = ["modele", "moteur", "dernier", "frequence"];
 
 export const LIBELLE_STATUT: Readonly<Record<StatutEntrainement, string>> = {
-  en_cours: "En cours", termine: "Termine", echec: "Echec", annule: "Annule",
+  en_cours: "En cours", termine: "Terminé", echec: "Échec", annule: "Annulé",
 };
 
 /** Duree lisible : 4 s, 1 min 12 s, 2 h 05 min. */
@@ -62,7 +62,7 @@ export function dateHeure(iso: string | null | undefined): string {
 
 /** "fenetre de 10 matchs, regularisation 0,3, oubli en 12 semaines". */
 export function libelleHyper(h: Hyper): string {
-  return `fenetre de ${h.fenetre} matchs, regularisation ${nombre(h.l2, h.l2 < 1 ? 1 : 0)}${h.demiVie ? `, oubli en ${h.demiVie} semaines` : ""}`;
+  return `fenêtre de ${h.fenetre} matchs, régularisation ${nombre(h.l2, h.l2 < 1 ? 1 : 0)}${h.demiVie ? `, oubli en ${h.demiVie} semaines` : ""}`;
 }
 
 /** La meilleure methode de reference (hors modele) sur le onze, et sa valeur. */
@@ -126,7 +126,7 @@ export const echelleDePoids = (lignes: readonly LignePoids[]): number =>
 
 /** "Manques : A (12 %), B (inconnu)" : ce que le modele n'avait pas vu venir. */
 export function texteManques(e: ErreurFeuille): string {
-  return e.manques.map((m) => `${m.nom} (${m.proba === null ? "inconnu de l'equipe" : pct(m.proba, 0)})`).join(", ");
+  return e.manques.map((m) => `${m.nom} (${m.proba === null ? "inconnu de l'équipe" : pct(m.proba, 0)})`).join(", ");
 }
 
 /** "A (84 %), B (71 %)" : ceux qu'il avait annonces a tort. */
@@ -143,15 +143,15 @@ export function verdict(r: Pick<ResultatEntrainement, "global" | "recent">): { t
   const ref = meilleureReference(r.recent.modele.n > 0 ? r.recent : r.global);
   const mesure = r.recent.modele.n > 0 ? r.recent : r.global;
   const modele = mesure.modele.onze;
-  if (modele === null || !ref) return { ton: "neutre", texte: "Pas assez de predictions pour comparer l'IA aux methodes simples." };
+  if (modele === null || !ref) return { ton: "neutre", texte: "Pas assez de prédictions pour comparer l'IA aux méthodes simples." };
   const ecart = (modele - ref.onze) * 100;
   const nom = LIBELLE_METHODE[ref.methode].toLowerCase();
-  if (ecart >= 1) return { ton: "bon", texte: `L'IA predit mieux que le meilleur repere (${nom}) : ${ecartPoints(modele, ref.onze)} sur les dernieres semaines.` };
-  if (ecart > -1) return { ton: "neutre", texte: `L'IA fait jeu egal avec le meilleur repere (${nom}) : ${ecartPoints(modele, ref.onze)}. Il lui faut plus de matchs pour faire la difference.` };
+  if (ecart >= 1) return { ton: "bon", texte: `L'IA prédit mieux que le meilleur repère (${nom}) : ${ecartPoints(modele, ref.onze)} sur les dernières semaines.` };
+  if (ecart > -1) return { ton: "neutre", texte: `L'IA fait jeu égal avec le meilleur repère (${nom}) : ${ecartPoints(modele, ref.onze)}. Il lui faut plus de matchs pour faire la différence.` };
   return { ton: "mauvais", texte: `L'IA fait moins bien que ${nom} (${ecartPoints(modele, ref.onze)}) : ne l'activez pas tant que cela dure.` };
 }
 
-const MOIS = ["janv.", "fevr.", "mars", "avr.", "mai", "juin", "juil.", "aout", "sept.", "oct.", "nov.", "dec."] as const;
+const MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."] as const;
 
 /** La date ("jj/mm/aaaa") contenue dans le libelle d'une semaine ("Semaine du 08/12/2025"), en millisecondes UTC. */
 export function dateDeSemaine(libelle: string): number | null {
@@ -181,10 +181,10 @@ export function coupuresDeCourbe(courbe: readonly Pick<PointCourbe, "libelle">[]
 /* ------------------------------------------ reentrainement automatique ------------------------------------------ */
 
 const JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"] as const;
-const MOIS_LONGS = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"] as const;
+const MOIS_LONGS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"] as const;
 
 /** "chaque mercredi a 5 h (heure de Paris)". */
-export const texteFrequence = (p: Pick<PlanningIa, "jour" | "heure">): string => `chaque ${JOURS[p.jour] ?? "semaine"} a ${p.heure} h (heure de Paris)`;
+export const texteFrequence = (p: Pick<PlanningIa, "jour" | "heure">): string => `chaque ${JOURS[p.jour] ?? "semaine"} à ${p.heure} h (heure de Paris)`;
 
 /** "mercredi 8 octobre, 5 h" : un instant ISO, lu a l'heure de Paris quel que soit le fuseau du navigateur. */
 export function datePassage(iso: string | null | undefined): string {
@@ -209,8 +209,8 @@ export function badgeDecision(d: Decision | null | undefined): { texte: string; 
   if (d.appliquee) return { texte: "Remplace l'actif", ton: "ok" };
   if (d.action === "remplace") return { texte: "Au moins aussi bon que l'actif", ton: "ok" };
   if (d.action === "conserve") return { texte: "Non retenu", ton: "non" };
-  if (d.action === "sans_actif") return { texte: "Non active", ton: "neutre" };
-  return { texte: "Inchange", ton: "neutre" };
+  if (d.action === "sans_actif") return { texte: "Non activé", ton: "neutre" };
+  return { texte: "Inchangé", ton: "neutre" };
 }
 
 /** Le dernier entrainement automatique, en une phrase pour le panneau du planning. */
@@ -218,6 +218,6 @@ export function resumeDernierAuto(dernier: EntrainementResume | null | undefined
   if (!dernier) return null;
   const quand = dateHeure(dernier.creeLe);
   if (dernier.statut === "en_cours") return `En cours depuis le ${quand}.`;
-  if (dernier.statut === "echec" || dernier.statut === "annule") return `${LIBELLE_STATUT[dernier.statut]} le ${quand} : ${dernier.message ?? "sans precision"}`;
-  return `${quand} : ${dernier.decision?.raison ?? "termine."}`;
+  if (dernier.statut === "echec" || dernier.statut === "annule") return `${LIBELLE_STATUT[dernier.statut]} le ${quand} : ${dernier.message ?? "sans précision"}`;
+  return `${quand} : ${dernier.decision?.raison ?? "terminé."}`;
 }

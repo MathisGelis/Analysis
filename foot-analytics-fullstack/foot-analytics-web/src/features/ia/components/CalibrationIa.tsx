@@ -16,16 +16,16 @@ export function CalibrationIa({ bandes }: { bandes: BandeCalibration[] }) {
   return (
     <div>
       <div className="flex items-end gap-1.5" role="img"
-        aria-label={`Calibration : ecart moyen de ${pct(ecart)} entre probabilite annoncee et frequence observee`}>
+        aria-label={`Calibration : écart moyen de ${pct(ecart)} entre probabilité annoncée et fréquence observée`}>
         {bandes.map((b) => (
           <div key={b.de} className="flex min-w-0 flex-1 flex-col items-center gap-1" data-testid={`calibration-${Math.round(b.de * 100)}`}>
             <div className="flex h-28 w-full items-end justify-center gap-0.5">
               {b.n > 0 ? (
                 <>
                   <span className="w-1/2 max-w-[14px] rounded-t bg-accent" style={{ height: `${Math.max(2, (b.probaMoyenne ?? 0) * 100)}%` }}
-                    title={`Annonce : ${pct(b.probaMoyenne)}`} />
+                    title={`Annoncé : ${pct(b.probaMoyenne)}`} />
                   <span className="w-1/2 max-w-[14px] rounded-t bg-win" style={{ height: `${Math.max(2, (b.tauxObserve ?? 0) * 100)}%` }}
-                    title={`Observe : ${pct(b.tauxObserve)}`} />
+                    title={`Observé : ${pct(b.tauxObserve)}`} />
                 </>
               ) : <span className="h-px w-full bg-line" />}
             </div>
@@ -35,9 +35,9 @@ export function CalibrationIa({ bandes }: { bandes: BandeCalibration[] }) {
         ))}
       </div>
       <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted">
-        <li className="inline-flex items-center gap-2"><span aria-hidden className="h-2.5 w-2.5 rounded-sm bg-accent" /> Probabilite annoncee</li>
-        <li className="inline-flex items-center gap-2"><span aria-hidden className="h-2.5 w-2.5 rounded-sm bg-win" /> Part reellement titulaire</li>
-        <li>Ecart moyen : <span className="font-mono text-ink">{pct(ecart)}</span></li>
+        <li className="inline-flex items-center gap-2"><span aria-hidden className="h-2.5 w-2.5 rounded-sm bg-accent" /> Probabilité annoncée</li>
+        <li className="inline-flex items-center gap-2"><span aria-hidden className="h-2.5 w-2.5 rounded-sm bg-win" /> Part réellement titulaire</li>
+        <li>Écart moyen : <span className="font-mono text-ink">{pct(ecart)}</span></li>
       </ul>
     </div>
   );

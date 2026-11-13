@@ -33,7 +33,7 @@ describe("restreindreAuChampionnat", () => {
     expect(restreindreAuChampionnat([arbitre("a", "{pas du json")], champ)).toEqual([]);
   });
 
-  it("poule ou competition absentes : comparees comme null des deux cotes", () => {
+  it("poule ou compétition absentes : comparees comme null des deux cotes", () => {
     const sansPoule = { saisonId: "s25", competitionLibelle: null, poule: null };
     const parts = [{ saisonId: "s25", competitionLibelle: null, poule: null, matchsOfficies: 2 }];
     expect(participationDuChampionnat(parts, sansPoule)).toBeDefined();
@@ -61,7 +61,7 @@ describe("trierArbitres", () => {
     expect(noms(trierArbitres([a("ASSIST", 0, 40), a("PRINC", 1, 1)]))).toEqual(["PRINC", "ASSIST"]);
   });
 
-  it("apres les principaux : ceux qui n'ont officie qu'en assistant, par nombre de matchs puis A-Z", () => {
+  it("après les principaux : ceux qui n'ont officie qu'en assistant, par nombre de matchs puis A-Z", () => {
     const l = [a("ZED", 0, 5), a("ABEL", 0, 5), a("MAX", 0, 8)];
     expect(noms(trierArbitres(l))).toEqual(["MAX", "ABEL", "ZED"]);
   });

@@ -86,7 +86,7 @@ export default async function JoueurPage({
 
       {/* SAISON CONSULTEE : tout ce qui suit est lu sur cette saison */}
       {saisonsProposees.length > 0 && (
-        <nav aria-label="Saison consultee" className="flex items-center gap-2 flex-wrap">
+        <nav aria-label="Saison consultée" className="flex items-center gap-2 flex-wrap">
           <span className="text-[11px] uppercase tracking-wider text-faint flex items-center gap-1.5">
             <Calendar size={11} className="text-accent"/> Saison
           </span>
@@ -106,7 +106,7 @@ export default async function JoueurPage({
         <div className="pitch-lines hidden sm:block" />
         <div className="relative col-span-12 flex items-center gap-4 sm:gap-5 md:col-span-6">
           <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-accentstrong to-accentdeep font-display text-3xl font-bold sm:h-24 sm:w-24 sm:rounded-3xl sm:text-5xl text-white shadow-glow"
-            title="Numero le plus porte sur la saison">
+            title="Numéro le plus porté sur la saison">
             {numero ?? "?"}
           </div>
           <div className="flex-1 min-w-0">
@@ -149,7 +149,7 @@ export default async function JoueurPage({
               <Indisponible pourquoi={
                 !saisonActive ? "Mesure de la saison en cours"
                 : detailFatigue?.raison === "indisponible" ? "Joueur indisponible"
-                : "Pas de charge recente"} />
+                : "Pas de charge récente"} />
             )
           } />
           <Card label="Note moyenne" big={
@@ -191,7 +191,7 @@ export default async function JoueurPage({
                 value={j.dateNaissance ?? "—"}/>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <Mini icon={<Star size={14}/>} label="Numero favori"
+              <Mini icon={<Star size={14}/>} label="Numéro favori"
                 value={j.numeroFavori ?? "—"}/>
               <Mini icon={<Target size={14}/>} label="Poste"
                 value={j.poste ?? "—"}/>
@@ -214,16 +214,16 @@ export default async function JoueurPage({
               {equipe && <span className="text-faint">· {equipe.nom}</span>}
               {!entree && <span className="text-faint">· pas inscrit sur cette saison</span>}
               {entree && totaux.matchs === 0 && (
-                <span className="text-faint">· pas encore joue de match</span>
+                <span className="text-faint">· pas encore joué de match</span>
               )}
             </div>
             {/* KPI stats */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <Kpi label="Matchs joues" value={totaux.matchs} icon={<Calendar size={14}/>} />
+              <Kpi label="Matchs joués" value={totaux.matchs} icon={<Calendar size={14}/>} />
               <Kpi label="Titularisations" value={totaux.titularisations} icon={<Target size={14}/>}/>
               <Kpi label="Minutes" value={totaux.minutes} suffix="min" icon={<Activity size={14}/>}/>
               <Kpi label="Buts" value={totaux.buts} icon={<Target size={14}/>}/>
-              <Kpi label="Passes decisives" value={totaux.passesDecisives} icon={<Star size={14}/>}/>
+              <Kpi label="Passes décisives" value={totaux.passesDecisives} icon={<Star size={14}/>}/>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <Kpi label="Cartons jaunes" value={totaux.cartonsJaunes} icon={<span className="w-2.5 h-3 bg-amber rounded-sm"/>}/>
@@ -277,7 +277,7 @@ export default async function JoueurPage({
                             </td>
                             <td className="max-sm:hidden">
                               <span className={`badge ${m.titulaire ? "badge-accent" : ""}`}>
-                                {m.titulaire ? "Titulaire" : "Remplacant"}
+                                {m.titulaire ? "Titulaire" : "Remplaçant"}
                               </span>
                             </td>
                             <td className="text-right font-mono tabular-nums text-muted max-sm:hidden">{m.minutes}'</td>
@@ -314,10 +314,10 @@ export default async function JoueurPage({
               </div>
               <div className="col-span-12 space-y-4 md:col-span-7">
               <div className="panel p-5">
-                <div className="h-section mb-3">Charge des seances · {saison?.nom ?? "—"}</div>
+                <div className="h-section mb-3">Charge des séances · {saison?.nom ?? "—"}</div>
                 {chargesRecentes.length === 0 ? (
                   <p className="text-sm text-muted py-4">
-                    Aucune presence enregistree aux entrainements de cette saison.
+                    Aucune présence enregistrée aux entraînements de cette saison.
                   </p>
                 ) : (
                   <Sparkline values={chargesRecentes} width={500} height={120} color="rgb(var(--amber))"/>
@@ -327,7 +327,7 @@ export default async function JoueurPage({
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <Mini icon={<Activity size={14}/>} label="Fatigue"
                     value={fatigue != null ? `${fatigue}/100` : "—"}/>
-                  <Mini icon={<Activity size={14}/>} label="Minutes jouees 7j"
+                  <Mini icon={<Activity size={14}/>} label="Minutes jouées 7j"
                     value={saisonActive && detailFatigue ? detailFatigue.minutes7j : "—"}/>
                   <Mini icon={<Activity size={14}/>} label="Charge 28j (UA / sem.)"
                     value={saisonActive && j.chargeChronic28j != null ? Math.round(j.chargeChronic28j) : "—"}/>
@@ -348,7 +348,7 @@ export default async function JoueurPage({
               <div className="col-span-12 md:col-span-5 panel p-5">
                 <div className="h-section mb-3 flex items-center gap-2">
                   <AlertTriangle size={11} className="text-danger"/>
-                  Zones touchees
+                  Zones touchées
                 </div>
                 <CorpsHumain blessures={blessures} height={360}/>
                 <p className="text-[11px] text-faint text-center mt-2">

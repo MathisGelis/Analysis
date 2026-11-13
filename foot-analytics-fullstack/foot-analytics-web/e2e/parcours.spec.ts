@@ -58,7 +58,7 @@ async function ouvrirSelecteur(page: Page) {
   await selecteur(page).click();
 }
 
-test("acces : un visiteur anonyme est renvoye vers /login, et une cible externe est ignoree", async ({ browser }) => {
+test("accès : un visiteur anonyme est renvoye vers /login, et une cible externe est ignoree", async ({ browser }) => {
   const base = `http://localhost:${WEB_PORT}`;
   const anonyme = await browser.newContext();
   const p = await anonyme.newPage();
@@ -67,9 +67,9 @@ test("acces : un visiteur anonyme est renvoye vers /login, et une cible externe 
     await expect(p).toHaveURL(`${base}/login?from=%2Fmatchs`);
 
     // Pages legales publiques, liees depuis l'ecran de connexion ; CSP par nonce et noindex sur toutes les pages.
-    for (const [lien, titre] of [["Confidentialite", "Politique de confidentialite"], ["Mentions legales", "Mentions legales"], ["Conditions d'utilisation", "Conditions d'utilisation"]]) {
+    for (const [lien, titre] of [["Confidentialité", "Politique de confidentialité"], ["Mentions légales", "Mentions légales"], ["Conditions d'utilisation", "Conditions d'utilisation"]]) {
       await p.goto(`${base}/login`);
-      await p.getByRole("navigation", { name: "Informations legales" }).getByRole("link", { name: lien }).click();
+      await p.getByRole("navigation", { name: "Informations légales" }).getByRole("link", { name: lien }).click();
       await expect(p.getByRole("heading", { level: 1, name: titre })).toBeVisible();
     }
     const reponse = await p.goto(`${base}/confidentialite`);
@@ -133,7 +133,7 @@ test("application installable : manifeste standalone, icones ballon, service wor
   }
 });
 
-test("connexion : refus d'un mauvais mot de passe puis acces, equipe choisie d'office", async () => {
+test("connexion : refus d'un mauvais mot de passe puis accès, équipe choisie d'office", async () => {
   await page.goto("/login");
   await page.getByPlaceholder("MLEMAIRE").fill("AADMIN");
   await page.locator("input[type=password]").fill("pas-le-bon");
@@ -149,7 +149,7 @@ test("connexion : refus d'un mauvais mot de passe puis acces, equipe choisie d'o
   await expect(selecteur(page)).toContainText("Seniors D2 Poule C");
 });
 
-test("saison sans equipe : choisir la saison reimporte les equipes, la selection n'est jamais vide", async () => {
+test("saison sans équipe : choisir la saison reimporte les équipes, la selection n'est jamais vide", async () => {
   await page.goto("/");
   await ouvrirSelecteur(page);
   // 2026-2027 n'a encore aucune equipe pour le club : plutot que de laisser
@@ -158,10 +158,10 @@ test("saison sans equipe : choisir la saison reimporte les equipes, la selection
 
   await expect(selecteur(page)).toContainText("2026-2027");
   await expect(selecteur(page)).toContainText("Seniors D2 Poule C");
-  await expect(selecteur(page)).not.toContainText("Aucune equipe");
+  await expect(selecteur(page)).not.toContainText("Aucune équipe");
 });
 
-test("cookie d'equipe perime (equipe fusionnee ou supprimee) : la selection est reparee, jamais vide", async () => {
+test("cookie d'équipe perime (équipe fusionnee ou supprimée) : la selection est reparee, jamais vide", async () => {
   const base = `http://localhost:${WEB_PORT}`;
   const cookie = async (nom: string) => (await contexte.cookies()).find((c) => c.name === nom)?.value;
   const saisonId = await cookie("ownSaisonId");
@@ -182,38 +182,46 @@ test("cookie d'equipe perime (equipe fusionnee ou supprimee) : la selection est 
     { name: "ownSelValide", value: `equipe-disparue|${saisonId}`, url: base },
   ]);
   await page.goto("/effectif");
-  await expect(selecteur(page)).not.toContainText("Aucune equipe");
+  await expect(selecteur(page)).not.toContainText("Aucune équipe");
   await expect(selecteur(page)).toContainText("Seniors D2 Poule C");
   await expect.poll(() => cookie("ownEquipeId")).not.toBe("equipe-disparue");
 
   // 3. Un rafraichissement garde la selection.
   await page.reload();
   await expect(selecteur(page)).toContainText("Seniors D2 Poule C");
-  await expect(selecteur(page)).not.toContainText("Aucune equipe");
+  await expect(selecteur(page)).not.toContainText("Aucune équipe");
 });
 
 test("effectif 2026-2027 : ajout d'un joueur existant (recherche floue) puis d'un nouveau", async () => {
   await page.goto("/effectif");
   await expect(page.getByText("KABIFUP")).toHaveCount(0);
+  // Effectif vide : un message et un bouton, pas un tableau réduit à ses en-têtes.
+  const vide = page.getByTestId("effectif-vide");
+  await expect(vide).toContainText("Aucun joueur dans l'effectif");
+  await expect(page.locator("table.table-fm")).toHaveCount(0);
 
   // La modale recouvre la page : on cible ses boutons, pas celui de l'en-tete
   // (le tiroir des reglages, toujours monte, porte aussi "fixed inset-0").
   const modale = page.locator("div.fixed.inset-0.overflow-y-auto");
-  const titreModale = page.getByRole("heading", { name: "Ajouter un joueur a l'effectif" });
+  const titreModale = page.getByRole("heading", { name: "Ajouter un joueur à l'effectif" });
 
-  // Joueur existant, retrouve malgre la faute de frappe.
-  await page.getByRole("button", { name: /Ajouter/ }).first().click();
+  // Joueur existant, retrouve malgre la faute de frappe : on ouvre la modale depuis le bouton de l'état vide.
+  await vide.getByRole("button", { name: "Ajouter un joueur" }).click();
   await modale.getByPlaceholder(/Tape le nom/).fill("kabifupp");
   await modale.getByRole("button", { name: /Ajouter$/ }).last().click();
   await expect(titreModale).toBeHidden();
   await expect(page.getByRole("link", { name: /KABIFUP/ })).toBeVisible();
+  // Avec des joueurs : plus d'état vide, et la légende explique les abréviations des colonnes.
+  await expect(vide).toHaveCount(0);
+  await expect(page.getByTestId("legende-colonnes")).toContainText("CJ cartons jaunes");
+  await expect(page.getByTestId("legende-colonnes")).toContainText("PD passes décisives");
 
   // Nouveau joueur.
   await page.getByRole("button", { name: /Ajouter/ }).first().click();
   await modale.getByRole("button", { name: "Nouveau joueur" }).click();
   await modale.locator("input.inp").nth(0).fill("Alex");
   await modale.locator("input.inp").nth(1).fill("TESTEUR");
-  await modale.getByRole("button", { name: "Creer et ajouter" }).click();
+  await modale.getByRole("button", { name: "Créer et ajouter" }).click();
   await expect(titreModale).toBeHidden();
   await expect(page.getByRole("link", { name: /TESTEUR/ })).toBeVisible();
 });
@@ -236,13 +244,13 @@ test("suppression d'un joueur : confirmation dans une modale, notification, jama
   // Confirmer supprime et previent sans bloquer.
   await page.getByRole("button", { name: "Supprimer Alex TESTEUR" }).click();
   await page.getByRole("button", { name: "Supprimer", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Alex TESTEUR supprime" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Alex TESTEUR supprimé" })).toBeVisible();
   await expect(page.getByRole("link", { name: /TESTEUR/ })).toHaveCount(0);
   expect(dialogueNatif).toBe(false);
   page.removeAllListeners("dialog");
 });
 
-test("tactique : composition sur l'effectif reel, regle des mutes imposee, plan enregistre puis relu", async () => {
+test("tactique : composition sur l'effectif reel, règle des mutés imposee, plan enregistre puis relu", async () => {
   // Effectif de l'equipe choisie : 7 mutes, 3 mutes hors delai (donc 10 au total, plus que le maximum de 6),
   // et 9 joueurs sans mutation. Crees par l'API avec le jeton de la session.
   const equipeId = (await contexte.cookies()).find((c) => c.name === "ownEquipeId")!.value;
@@ -268,13 +276,13 @@ test("tactique : composition sur l'effectif reel, regle des mutes imposee, plan 
   await page.goto("/tactique");
   // Plus de jeu d'exemple : les joueurs sont ceux de l'effectif.
   await expect(page.getByText(/jeu d'exemple/)).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "11 de depart" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "11 de départ" })).toBeVisible();
   // Aucun dispositif identifie pour cette equipe (aucun match joue) : le dispositif par defaut, sans pretendre le contraire.
   await expect(page.getByRole("combobox", { name: "Dispositif" })).toContainText("4-2-3-1");
   await expect(page.getByTestId("dispositif-identifie")).toHaveCount(0);
 
   // Le onze suggere ne depasse jamais 6 mutes dont 2 hors delai (titulaires + remplacants).
-  await page.getByRole("button", { name: /Onze suggere/ }).click();
+  await page.getByRole("button", { name: /Onze suggéré/ }).click();
   const nombre = async (id: string) => Number((await page.getByTestId(id).innerText()).split("/")[0].trim());
   expect(await nombre("mutes")).toBeLessThanOrEqual(6);
   expect(await nombre("hors-delai")).toBeLessThanOrEqual(2);
@@ -286,7 +294,7 @@ test("tactique : composition sur l'effectif reel, regle des mutes imposee, plan 
 
   // Quota atteint : un mute de plus est grise dans la liste des remplacants, avec sa raison. On complete le banc
   // avec des mutes jusqu'a ce que la regle en refuse (6 mutes au plus sur la feuille).
-  const ajout = page.getByRole("combobox", { name: "Ajouter un remplacant" });
+  const ajout = page.getByRole("combobox", { name: "Ajouter un remplaçant" });
   const grisees = page.getByRole("option", { disabled: true });
   for (let i = 0; i < 4; i++) {
     await ajout.click();
@@ -298,25 +306,25 @@ test("tactique : composition sur l'effectif reel, regle des mutes imposee, plan 
   const grises = await grisees.allInnerTexts();
   await page.keyboard.press("Escape");
   expect(grises.length).toBeGreaterThan(0);
-  expect(grises.every((t) => /regle des mutes|indisponible/.test(t))).toBe(true);
+  expect(grises.every((t) => /règle des mutés|indisponible/.test(t))).toBe(true);
 
   // Enregistrement, puis le plan est relu apres rechargement.
   await choisir(page.getByRole("combobox", { name: "Dispositif" }), "3-5-2");
   await page.getByRole("button", { name: "Enregistrer" }).click();
-  await expect(page.getByText(/Composition enregistree/).first()).toBeVisible();
+  await expect(page.getByText(/Composition enregistrée/).first()).toBeVisible();
   await page.reload();
   await expect(page.getByRole("combobox", { name: "Dispositif" })).toContainText("3-5-2");
-  await expect(page.getByRole("status")).toContainText("Enregistre le");
+  await expect(page.getByRole("status")).toContainText("Enregistré le");
   expect(await nombre("mutes")).toBeLessThanOrEqual(6);
 });
 
-test("medical : blessures puis fatigue sur la saison en cours, resume des blessures sur une saison precedente", async () => {
+test("médical : blessures puis fatigue sur la saison en cours, résumé des blessures sur une saison précédente", async () => {
   // Saison choisie : 2026-2027, a venir. Aucune blessure : l'editeur le dit ; la fatigue n'existe pas encore, la section l'explique.
   await page.goto("/medical");
   await expect(page.getByRole("heading", { level: 1, name: /Seniors D2 Poule C/ })).toBeVisible();
-  await expect(page.getByTestId("medical-saison")).toContainText("saison a venir");
+  await expect(page.getByTestId("medical-saison")).toContainText("saison à venir");
   await expect(page.getByTestId("suivi-chiffres")).toBeVisible();
-  await expect(page.getByTestId("fatigue-effectif")).toContainText("elle apparait des que la saison est en cours");
+  await expect(page.getByTestId("fatigue-effectif")).toContainText("elle apparaît des que la saison est en cours");
   await expect(page.getByTestId("kpi-blessures")).toHaveCount(0);                     // le resume est reserve aux saisons precedentes
 
   // Deux blessures d'un joueur de l'effectif, dans la saison : une terminee, une sans retour.
@@ -340,8 +348,8 @@ test("medical : blessures puis fatigue sur la saison en cours, resume des blessu
   expect((await blessure(joueur.id, nomJoueur, { localisation: "Epaule", dateDebut: "2025-10-01", retourEstime: "2025-10-15", statut: "Retabli" })).ok).toBe(true);
 
   await page.goto("/medical");
-  await expect(page.getByTestId("suivi-chiffres")).toContainText("Blesses");
-  await expect(page.getByTestId("suivi-chiffres").locator(".panel", { hasText: "Blesses" })).toContainText("1");   // la seule sans retour
+  await expect(page.getByTestId("suivi-chiffres")).toContainText("Blessés");
+  await expect(page.getByTestId("suivi-chiffres").locator(".panel", { hasText: "Blessés" })).toContainText("1");   // la seule sans retour
   await expect(page.getByText("Blessures (2)")).toBeVisible();                        // les deux de la saison, pas celle de 2025
 
   // Saisie par la modale, sur telephone puis tablette : le formulaire tient dans l'ecran (boutons atteignables) et l'enregistrement aboutit.
@@ -351,13 +359,13 @@ test("medical : blessures puis fatigue sur la saison en cours, resume des blessu
   const modaleBlessure = page.locator(".panel-pop");
   await expect(modaleBlessure.getByRole("heading", { name: "Ajouter une blessure" })).toBeVisible();
   await choisir(modaleBlessure.getByRole("combobox", { name: "Joueur" }), nomJoueur);
-  await choisir(modaleBlessure.getByRole("combobox", { name: "Region" }), "Genou gauche");
+  await choisir(modaleBlessure.getByRole("combobox", { name: "Région" }), "Genou gauche");
   const largeurModale = await modaleBlessure.evaluate((m) => ({ debordement: m.scrollWidth - m.clientWidth, droite: m.getBoundingClientRect().right, ecran: innerWidth }));
   expect(largeurModale.debordement).toBeLessThanOrEqual(1);
   expect(largeurModale.droite).toBeLessThanOrEqual(largeurModale.ecran);
   await modaleBlessure.getByRole("button", { name: "Enregistrer" }).click();
   await expect(modaleBlessure).toContainText("chevauche");
-  await modaleBlessure.getByRole("button", { name: "Enregistrer quand meme" }).click();
+  await modaleBlessure.getByRole("button", { name: "Enregistrer quand même" }).click();
   await expect(modaleBlessure).toHaveCount(0);
   await page.setViewportSize({ width: 1280, height: 720 });
   await expect(page.getByText("Blessures (3)")).toBeVisible();
@@ -376,7 +384,7 @@ test("medical : blessures puis fatigue sur la saison en cours, resume des blessu
   await page.getByRole("button", { name: /^2024-2025/ }).click();
   await expect(selecteur(page)).toContainText("2024-2025");
   await page.goto("/medical");
-  await expect(page.getByTestId("medical-saison")).toContainText("Resume des blessures de la saison 2024-2025");
+  await expect(page.getByTestId("medical-saison")).toContainText("Résumé des blessures de la saison 2024-2025");
   await expect(page.getByTestId("kpi-blessures")).toContainText("2");
   await expect(page.getByTestId("kpi-joueurs")).toContainText("1");
   await expect(page.getByTestId("kpi-jours")).toContainText("52");                    // 45 + 7 jours
@@ -395,7 +403,7 @@ test("medical : blessures puis fatigue sur la saison en cours, resume des blessu
   await expect(page.getByTestId("medical-saison")).toContainText("2025-2026");
   await expect(page.getByTestId("kpi-blessures")).toHaveCount(0);
   await expect(page.getByTestId("fatigue-effectif")).toBeVisible();
-  await expect(page.getByTestId("fatigue-effectif")).toContainText("Aucune charge recente connue");
+  await expect(page.getByTestId("fatigue-effectif")).toContainText("Aucune charge récente connue");
 
   // L'effectif propose le tri par fatigue (et non plus par forme).
   await page.goto("/effectif");
@@ -405,23 +413,23 @@ test("medical : blessures puis fatigue sur la saison en cours, resume des blessu
   await page.keyboard.press("Escape");
 });
 
-test("import FMI : la feuille est importee puis consultable", async () => {
+test("import FMI : la feuille est importée puis consultable", async () => {
   test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis pour parser les PDF");
 
   await page.goto("/import");
   await page.waitForLoadState("networkidle");                                  // page hydratee : un fichier depose avant serait ignore
   await expect(page.getByText("Pipeline d'import")).toHaveCount(0);            // ni pipeline, ni pastille du parseur, ni encart "cote backend"
-  await expect(page.getByText(/pdfplumber|Cote backend/)).toHaveCount(0);
+  await expect(page.getByText(/pdfplumber|Côté backend/)).toHaveCount(0);
   await page.locator("input[type=file]").first().setInputFiles(FMI);
 
-  await expect(page.getByText("Importe", { exact: true })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText("Importé", { exact: true })).toBeVisible({ timeout: 60_000 });
   await page.getByRole("link", { name: "Voir" }).click();
   await expect(page.getByText("53415223")).toBeVisible();
   await expect(page.getByText("2–0")).toBeVisible();
 });
 
-test("recherche de joueurs : par saison, poste et situation, lien vers la fiche, criteres conserves au retour", async () => {
-  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : les joueurs viennent de la FMI importee");
+test("recherche de joueurs : par saison, poste et situation, lien vers la fiche, critères conserves au retour", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : les joueurs viennent de la FMI importée");
 
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Navigation principale" });
@@ -462,9 +470,9 @@ test("recherche de joueurs : par saison, poste et situation, lien vers la fiche,
   await expect(page.getByTestId("rj-poste")).toHaveText(/Attaquants/);
 });
 
-test("rapport d'equipe : sans match analyse sur la saison, la page l'explique sans planter ni inventer de tendance", async () => {
+test("rapport d'équipe : sans match analyse sur la saison, la page l'explique sans planter ni inventer de tendance", async () => {
   await page.goto("/rapports");
-  await cliquerJusquaNavigation(page.getByRole("link", { name: /^Analyse d'equipe : OL Sud E2E/ }), /\/rapports\/equipe\//);
+  await cliquerJusquaNavigation(page.getByRole("link", { name: /^Analyse d'équipe : OL Sud E2E/ }), /\/rapports\/equipe\//);
 
   await expect(page.getByRole("heading", { level: 1, name: /OL Sud E2E/ })).toBeVisible();
   await expect(page.getByText("Pas encore de match analyse")).toBeVisible();
@@ -475,8 +483,8 @@ test("rapport d'equipe : sans match analyse sur la saison, la page l'explique sa
   await expect(page.getByRole("img", { name: /au moins 6 matchs pour juger une dynamique/ })).toBeVisible();
 });
 
-test("rapport pre-match : un clic depuis /rapports, rapport lisible, imprimable sans la coquille", async () => {
-  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : l'adversaire vient de la FMI importee");
+test("rapport pré-match : un clic depuis /rapports, rapport lisible, imprimable sans la coquille", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : l'adversaire vient de la FMI importée");
 
   // L'adversaire est un club cree par l'import de la FMI (il n'a pas d'equipe sur la saison choisie).
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
@@ -490,13 +498,13 @@ test("rapport pre-match : un clic depuis /rapports, rapport lisible, imprimable 
   expect(adversaire, "l'import FMI cree au moins un club adverse").toBeTruthy();
 
   await page.goto(`/rapports/prematch/${adversaire!.id}`);
-  await expect(page.getByRole("heading", { level: 1, name: /^Rapport pre-match : .+ contre .+/ })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /^Rapport pré-match : .+ contre .+/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Pistes pour le match" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Les deux equipes" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Les deux équipes" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Face-a-face" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Arbitre" })).toBeVisible();
   // Aucun match programme : le rapport le dit au lieu d'inventer une rencontre.
-  await expect(page.getByText(/Aucun match programme/)).toBeVisible();
+  await expect(page.getByText(/Aucun match programmé/)).toBeVisible();
 
   // Impression : la barre laterale, la barre du haut et le bouton disparaissent.
   const bouton = page.getByRole("button", { name: "Imprimer / PDF" });
@@ -512,8 +520,8 @@ test("rapport pre-match : un clic depuis /rapports, rapport lisible, imprimable 
   await expect(page.getByText(/introuvable|n'existe pas|404/i).first()).toBeVisible();
 });
 
-test("rapport pre-match : export PowerPoint, pages au choix (sans la page convocation), champs inconnus laisses vides", async () => {
-  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : l'adversaire vient de la FMI importee");
+test("rapport pré-match : export PowerPoint, pages au choix (sans la page convocation), champs inconnus laisses vides", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : l'adversaire vient de la FMI importée");
 
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -533,20 +541,20 @@ test("rapport pre-match : export PowerPoint, pages au choix (sans la page convoc
   await expect(page.locator("label").getByText("Analyse", { exact: true })).toHaveCount(8);
 
   // Le modele du staff seul : sept pages ; puis tout recoche.
-  await page.getByRole("button", { name: "Modele seulement" }).click();
-  await expect(page.getByRole("button", { name: /Telecharger \(7 pages sur 15\)/ })).toBeVisible();
+  await page.getByRole("button", { name: "Modèle seulement" }).click();
+  await expect(page.getByRole("button", { name: /Télécharger \(7 pages sur 15\)/ })).toBeVisible();
   await expect(page.getByRole("checkbox", { name: /Nous contre eux/ })).not.toBeChecked();
   await page.getByRole("button", { name: "Tout cocher" }).click();
 
   // Sans la page convocation ("Le match") : quatorze pages.
   await page.getByRole("checkbox", { name: /Le match/ }).uncheck();
-  await expect(page.getByRole("button", { name: /Telecharger \(14 pages sur 15\)/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Télécharger \(14 pages sur 15\)/ })).toBeVisible();
   const [telechargement] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: /Telecharger/ }).click(),
+    page.getByRole("button", { name: /Télécharger/ }).click(),
   ]);
   expect(telechargement.suggestedFilename()).toMatch(/^avant-match-.+\.pptx$/);
-  await expect(page.getByText(/Completez les champs vides dans PowerPoint/)).toBeVisible();
+  await expect(page.getByText(/Complétez les champs vides dans PowerPoint/)).toBeVisible();
 
   // Le fichier : une archive de quatorze diapositives, sans la page "Le match" (donc sans "Convocation"), avec l'adversaire.
   const [diapos, convocation, adv] = execFileSync(process.env.PYTHON_BIN ?? "python3", ["-c", [
@@ -562,14 +570,14 @@ test("rapport pre-match : export PowerPoint, pages au choix (sans la page convoc
   await expect(page.getByRole("heading", { level: 2, name: "Exporter en PowerPoint" })).toHaveCount(0);
   await page.getByRole("button", { name: "Exporter en PowerPoint" }).click();
   await expect(page.getByRole("checkbox", { name: /Le match/ })).not.toBeChecked();
-  await page.getByRole("button", { name: "Tout decocher" }).click();
-  await expect(page.getByRole("button", { name: /Telecharger/ })).toBeDisabled();
+  await page.getByRole("button", { name: "Tout décocher" }).click();
+  await expect(page.getByRole("button", { name: /Télécharger/ })).toBeDisabled();
   await page.getByRole("button", { name: "Annuler" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Exporter en PowerPoint" })).toHaveCount(0);
 });
 
-test("rapports : un point d'entree unique, un dossier par club, anciennes pages scouting et predictions redirigees", async () => {
-  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : l'adversaire vient de la FMI importee");
+test("rapports : un point d'entree unique, un dossier par club, anciennes pages scouting et prédictions redirigees", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : l'adversaire vient de la FMI importée");
 
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -583,7 +591,7 @@ test("rapports : un point d'entree unique, un dossier par club, anciennes pages 
   // Une seule entree "Rapports" : Scouting et Predictions n'ont plus d'onglet.
   await page.goto("/");
   await expect(nav.getByRole("link", { name: "Rapports", exact: true })).toBeVisible();
-  for (const ancien of ["Scouting", "Predictions"]) await expect(nav.getByRole("link", { name: ancien, exact: true })).toHaveCount(0);
+  for (const ancien of ["Scouting", "Prédictions"]) await expect(nav.getByRole("link", { name: ancien, exact: true })).toHaveCount(0);
 
   // Un club adverse avec une equipe sur la saison choisie : son dossier apparait dans la liste.
   const saisonId = (await contexte.cookies()).find((c) => c.name === "ownSaisonId")!.value;
@@ -597,34 +605,34 @@ test("rapports : un point d'entree unique, un dossier par club, anciennes pages 
 
   await page.goto("/rapports");
   await expect(page.getByRole("heading", { level: 1, name: /^Rapports/ })).toBeVisible();
-  await expect(page.getByTestId("prochain-match")).toContainText("Aucun match programme");
+  await expect(page.getByTestId("prochain-match")).toContainText("Aucun match programmé");
   const dossiers = page.getByTestId("dossiers-clubs");
   // Mon club : un seul document, l'analyse (on ne prepare pas un match contre soi, on ne s'observe pas).
-  const moi = dossiers.getByTestId(/^dossier-/).filter({ hasText: "Mon equipe" });
+  const moi = dossiers.getByTestId(/^dossier-/).filter({ hasText: "Mon équipe" });
   await expect(moi.getByRole("link")).toHaveCount(1);
-  await expect(moi.getByRole("link", { name: /^Analyse d'equipe : OL Sud E2E/ })).toBeVisible();
+  await expect(moi.getByRole("link", { name: /^Analyse d'équipe : OL Sud E2E/ })).toBeVisible();
   // Un adversaire : les trois documents du dossier.
   const adv = dossiers.getByTestId(`dossier-${club.id}`);
-  await expect(adv.getByRole("link", { name: "Pre-match : Club Dossier" })).toHaveAttribute("href", `/rapports/prematch/${club.id}`);
-  await expect(adv.getByRole("link", { name: "Analyse d'equipe : Club Dossier" })).toHaveAttribute("href", `/rapports/equipe/${club.id}`);
+  await expect(adv.getByRole("link", { name: "Pré-match : Club Dossier" })).toHaveAttribute("href", `/rapports/prematch/${club.id}`);
+  await expect(adv.getByRole("link", { name: "Analyse d'équipe : Club Dossier" })).toHaveAttribute("href", `/rapports/equipe/${club.id}`);
   await expect(adv.getByRole("link", { name: "Scouting : Club Dossier" })).toHaveAttribute("href", `/club/${club.id}/scouting`);
 
   // Les trois documents sont relies par les memes onglets : on passe de l'un a l'autre sans repasser par la liste.
-  await cliquerJusquaNavigation(adv.getByRole("link", { name: "Pre-match : Club Dossier" }), /\/rapports\/prematch\//);
+  await cliquerJusquaNavigation(adv.getByRole("link", { name: "Pré-match : Club Dossier" }), /\/rapports\/prematch\//);
   const onglets = page.getByRole("navigation", { name: "Documents du club" });
-  await expect(onglets.getByRole("link", { name: "Pre-match" })).toHaveAttribute("aria-current", "page");
+  await expect(onglets.getByRole("link", { name: "Pré-match" })).toHaveAttribute("aria-current", "page");
   await cliquerJusquaNavigation(onglets.getByRole("link", { name: "Scouting" }), /\/club\/.+\/scouting$/);
   await expect(page.getByRole("navigation", { name: "Documents du club" }).getByRole("link", { name: "Scouting" })).toHaveAttribute("aria-current", "page");
-  await cliquerJusquaNavigation(page.getByRole("navigation", { name: "Documents du club" }).getByRole("link", { name: "Analyse d'equipe" }), /\/rapports\/equipe\//);
-  await expect(page.getByRole("navigation", { name: "Documents du club" }).getByRole("link", { name: "Analyse d'equipe" })).toHaveAttribute("aria-current", "page");
+  await cliquerJusquaNavigation(page.getByRole("navigation", { name: "Documents du club" }).getByRole("link", { name: "Analyse d'équipe" }), /\/rapports\/equipe\//);
+  await expect(page.getByRole("navigation", { name: "Documents du club" }).getByRole("link", { name: "Analyse d'équipe" })).toHaveAttribute("aria-current", "page");
 
   // Anciennes adresses : redirigees vers le point d'entree unique.
   await page.goto("/scouting");
   await expect(page).toHaveURL(/\/rapports$/);
 });
 
-test("entraineur : cliquable depuis la feuille de match, fiche avec bilan par saison et parcours", async () => {
-  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : les entraineurs viennent de la FMI importee");
+test("entraîneur : cliquable depuis la feuille de match, fiche avec bilan par saison et parcours", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : les entraîneurs viennent de la FMI importée");
 
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -634,21 +642,21 @@ test("entraineur : cliquable depuis la feuille de match, fiche avec bilan par sa
   const [match] = await get("/matchs");
   const staff: { coach: { id: string; nom: string; prenom: string } }[] = (await get(`/coachs/match/${match.id}`))
     .filter((l: any) => l.fonctions?.split("/").includes("E"));
-  expect(staff.length, "la feuille importee compte au moins un entraineur").toBeGreaterThan(0);
+  expect(staff.length, "la feuille importée compte au moins un entraîneur").toBeGreaterThan(0);
   const { id, nom } = staff[0].coach;
 
   await page.goto(`/matchs/${match.id}`);
   await cliquerJusquaNavigation(page.getByRole("link", { name: new RegExp(nom) }).first(), new RegExp(`/coachs/${id}`));
   await expect(page.getByRole("heading", { level: 1, name: new RegExp(nom) })).toBeVisible();
   // Portee : la saison choisie par defaut, la carriere complete au clic.
-  await cliquerJusquaNavigation(page.getByRole("navigation", { name: "Portee de la fiche" }).getByRole("link", { name: "Carriere complete" }), /portee=carriere/);
+  await cliquerJusquaNavigation(page.getByRole("navigation", { name: "Portée de la fiche" }).getByRole("link", { name: "Carrière complète" }), /portee=carriere/);
   await expect(page.getByRole("heading", { name: "Saison par saison" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Parcours" })).toBeVisible();
   await expect(page.getByText("1 match", { exact: false }).first()).toBeVisible();
 });
 
-test("systeme de jeu : saisi sur la fiche du match, repris par la prediction et le rapport pre-match", async () => {
-  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : le match vient de la FMI importee");
+test("système de jeu : saisi sur la fiche du match, repris par la prediction et le rapport pré-match", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : le match vient de la FMI importée");
 
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -659,12 +667,12 @@ test("systeme de jeu : saisi sur la fiche du match, repris par la prediction et 
 
   await page.goto(`/matchs/${match.id}`);
   // Aucun systeme suppose : la feuille FMI n'en contient pas.
-  const domicile = page.getByRole("combobox", { name: /^Systeme de jeu de / }).first();
-  await expect(domicile).toContainText("Non renseigne");
+  const domicile = page.getByRole("combobox", { name: /^Système de jeu de / }).first();
+  await expect(domicile).toContainText("Non renseigné");
   await choisir(domicile, "4-3-3");
-  await expect(page.getByText(/Systeme de .* : 4-3-3\./)).toBeVisible();
+  await expect(page.getByText(/Système de .* : 4-3-3\./)).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("combobox", { name: /^Systeme de jeu de / }).first()).toContainText("4-3-3");
+  await expect(page.getByRole("combobox", { name: /^Système de jeu de / }).first()).toContainText("4-3-3");
 
   // Un dispositif qui n'en est pas un est refuse par l'API (dix joueurs de champ).
   const refus = await fetch(`${API_URL}/matchs/${match.id}`, {
@@ -690,15 +698,15 @@ test("systeme de jeu : saisi sur la fiche du match, repris par la prediction et 
 
   // Rapport pre-match : le systeme saisi, d'ou il vient, et le onze place sur le terrain.
   await page.goto(`/rapports/prematch/${match.clubDom}`);
-  const section = page.locator("section", { has: page.getByRole("heading", { name: "Systeme de jeu probable" }) });
+  const section = page.locator("section", { has: page.getByRole("heading", { name: "Système de jeu probable" }) });
   await expect(section.getByText("4-3-3").first()).toBeVisible();
-  await expect(section.getByText("Dispositifs renseignes", { exact: true })).toBeVisible();
+  await expect(section.getByText("Dispositifs renseignés", { exact: true })).toBeVisible();
   await expect(section.getByText("Onze probable", { exact: true }).first()).toBeVisible();
 
   // Les predictions font partie du rapport pre-match (projection, systeme, onze), sans exemple fictif ; l'ancienne page
   // Predictions renvoie vers les rapports.
-  await expect(page.getByRole("heading", { name: "Projection du resultat" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Chez nous : joueurs a menager" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Projection du résultat" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Chez nous : joueurs à ménager" })).toBeVisible();
   await expect(page.getByText("Chaponnay")).toHaveCount(0);
   await page.goto("/ia");
   await expect(page).toHaveURL(/\/rapports$/);
@@ -706,8 +714,8 @@ test("systeme de jeu : saisi sur la fiche du match, repris par la prediction et 
   await expect(page).toHaveURL(new RegExp(`/rapports/prematch/${match.clubDom}$`));
 });
 
-test("systeme de jeu : un educateur d'un autre club renseigne un systeme vide, jamais un systeme deja saisi, et le refus est explique", async ({ browser }) => {
-  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : le match vient de la FMI importee");
+test("système de jeu : un éducateur d'un autre club renseigné un système vide, jamais un système déjà saisi, et le refus est explique", async ({ browser }) => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : le match vient de la FMI importée");
 
   const appeler = (jeton: string, chemin: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
     ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${jeton}`, ...(init.headers ?? {}) },
@@ -745,25 +753,25 @@ test("systeme de jeu : un educateur d'un autre club renseigne un systeme vide, j
 
     // Match d'un autre club : on le consulte, on ne le modifie pas (ni bouton Modifier, ni Supprimer).
     await a.goto(`/matchs/${match.id}`);
-    await expect(a.getByRole("heading", { level: 2, name: "Systemes de jeu" })).toBeVisible();
+    await expect(a.getByRole("heading", { level: 2, name: "Systèmes de jeu" })).toBeVisible();
     await expect(a.getByRole("button", { name: "Modifier" })).toHaveCount(0);
     await expect(a.getByRole("button", { name: "Supprimer" })).toHaveCount(0);
     // Le systeme deja saisi se lit (non modifiable) ; le systeme vide se renseigne.
-    const sections = a.locator("section", { has: a.getByRole("heading", { name: "Systemes de jeu" }) });
+    const sections = a.locator("section", { has: a.getByRole("heading", { name: "Systèmes de jeu" }) });
     await expect(sections.getByText("4-3-3", { exact: true })).toBeVisible();
-    await expect(a.getByRole("combobox", { name: /^Systeme de jeu de / })).toHaveCount(1);
+    await expect(a.getByRole("combobox", { name: /^Système de jeu de / })).toHaveCount(1);
 
     // Deuxieme onglet, meme compte : il renseigne le systeme du visiteur.
     await b.goto(`/matchs/${match.id}`);
-    await choisir(b.getByRole("combobox", { name: /^Systeme de jeu de / }), "3-5-2");
-    await expect(b.getByText(/Systeme de .* : 3-5-2\./)).toBeVisible();
+    await choisir(b.getByRole("combobox", { name: /^Système de jeu de / }), "3-5-2");
+    await expect(b.getByText(/Système de .* : 3-5-2\./)).toBeVisible();
 
     // Premier onglet, reste ouvert sur l'ancien etat : corriger ce systeme est refuse, et la raison est dite
     // (au lieu d'un "API 403 sur /matchs/..." muet).
-    await choisir(a.getByRole("combobox", { name: /^Systeme de jeu de / }), "4-4-2");
+    await choisir(a.getByRole("combobox", { name: /^Système de jeu de / }), "4-4-2");
     await expect(a.getByText(/Enregistrement impossible : Le dispositif de l'equipe visiteuse est deja renseigne \(3-5-2\)/)).toBeVisible();
     await a.reload();
-    await expect(a.getByRole("combobox", { name: /^Systeme de jeu de / })).toHaveCount(0);
+    await expect(a.getByRole("combobox", { name: /^Système de jeu de / })).toHaveCount(0);
     await expect(sections.getByText("3-5-2", { exact: true })).toBeVisible();
 
     // Cote API : corriger ou effacer est refuse avec sa raison ; modifier le match lui-meme aussi, et la liste le dit.
@@ -781,8 +789,8 @@ test("systeme de jeu : un educateur d'un autre club renseigne un systeme vide, j
   }
 });
 
-test("IA (administrateur) : onglet de l'administration, entrainement lance depuis l'ecran, echec explique faute de donnees", async () => {
-  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : l'entrainement lit les feuilles de match importees");
+test("IA (administrateur) : onglet de l'administration, entraînement lance depuis l'ecran, échec explique faute de données", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : l'entraînement lit les feuilles de match importées");
 
   await page.goto("/admin/utilisateurs");
   await page.waitForLoadState("networkidle");                                  // page hydratee : un clic donne trop tot sur un lien serait perdu
@@ -792,39 +800,39 @@ test("IA (administrateur) : onglet de l'administration, entrainement lance depui
   await cliquerJusquaNavigation(menu.getByRole("link", { name: "IA", exact: true }), /\/admin\/ia$/);
   await expect(menu.getByRole("link", { name: "IA", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("heading", { level: 1, name: "Intelligence artificielle" })).toBeVisible();
-  await expect(page.getByTestId("modele-actif")).toContainText("Aucun modele actif");
-  await expect(page.getByTestId("donnees-disponibles")).toContainText(/\d+ matchs? joues?/);
+  await expect(page.getByTestId("modele-actif")).toContainText("Aucun modèle actif");
+  await expect(page.getByTestId("donnees-disponibles")).toContainText(/\d+ matchs? joués?/);
   await expect(page.getByTestId("ia-vide")).toBeVisible();
 
   // Reentrainement automatique : actif par defaut, chaque mercredi a 5 h, le prochain passage est annonce. Le planificateur
   // ne tourne pas dans l'API de test (il demarre en production) : l'ecran le dit.
   const planning = page.getByTestId("planning-ia");
-  await expect(planning).toContainText("chaque mercredi a 5 h (heure de Paris)");
-  await expect(planning).toContainText(/Prochain passage : mercredi \d+ \w+, 5 h/);
-  await expect(planning).toContainText("Sans modele actif, il n'est jamais active tout seul");
+  await expect(planning).toContainText("chaque mercredi à 5 h (heure de Paris)");
+  await expect(planning).toContainText(/Prochain passage : mercredi \d+ \S+, 5 h/);
+  await expect(planning).toContainText("Sans modèle actif, il n'est jamais activé tout seul");
   await expect(page.getByTestId("planning-inactif")).toContainText("IA_PLANIFICATEUR=on");
   await planning.getByRole("button", { name: "Suspendre" }).click();
   await expect(planning).toContainText("Suspendu");
   await expect(planning).not.toContainText("Prochain passage");
   await page.reload();
   await expect(page.getByTestId("planning-ia")).toContainText("Suspendu");                  // le reglage survit au rechargement
-  await page.getByTestId("planning-ia").getByRole("button", { name: "Reactiver" }).click();
+  await page.getByTestId("planning-ia").getByRole("button", { name: "Réactiver" }).click();
   await expect(page.getByTestId("planning-ia")).toContainText(/Prochain passage : mercredi/);
 
-  await page.getByRole("button", { name: /Lancer un entrainement/ }).first().click();
-  await expect(page.getByRole("heading", { level: 2, name: "Lancer un entrainement" })).toBeVisible();
-  await page.getByRole("button", { name: "Lancer l'entrainement" }).click();
+  await page.getByRole("button", { name: /Lancer un entraînement/ }).first().click();
+  await expect(page.getByRole("heading", { level: 2, name: "Lancer un entraînement" })).toBeVisible();
+  await page.getByRole("button", { name: "Lancer l'entraînement" }).click();
 
   // La base de test ne compte qu'une feuille : l'IA ne peut pas apprendre en predisant la semaine suivante. Le serveur
   // l'explique (au lieu d'une erreur technique), l'historique le garde, et aucun modele n'est cree.
   await expect(page.getByTestId("dernier-echec")).toContainText(/au moins deux semaines/);
-  await expect(page.getByTestId("historique-ia")).toContainText("Echec");
-  await expect(page.getByTestId("modele-actif")).toContainText("Aucun modele actif");
+  await expect(page.getByTestId("historique-ia")).toContainText("Échec");
+  await expect(page.getByTestId("modele-actif")).toContainText("Aucun modèle actif");
   await expect(page.getByTestId("resultat-ia")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /Lancer un entrainement/ }).first()).toBeEnabled();
+  await expect(page.getByRole("button", { name: /Lancer un entraînement/ }).first()).toBeEnabled();
 });
 
-test("tactique : sans composition enregistree, le dispositif de depart est celui que le logiciel a identifie pour mon equipe", async () => {
+test("tactique : sans composition enregistrée, le dispositif de départ est celui que le logiciel a identifié pour mon équipe", async () => {
   const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { clubId: string; equipeId: string; saison2526: string };
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -858,17 +866,17 @@ test("tactique : sans composition enregistree, le dispositif de depart est celui
   await page.getByRole("button", { name: "2025-2026 ★", exact: true }).click();
   await expect(selecteur(page)).toContainText("2025-2026");
   await page.goto("/tactique");
-  await expect(page.getByRole("heading", { name: "11 de depart" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "11 de départ" })).toBeVisible();
   // Pas de composition enregistree : le dispositif de depart est celui que le logiciel a identifie, et la page dit d'ou il vient.
   await expect(page.getByRole("combobox", { name: "Dispositif" })).toContainText("4-3-3");
   await expect(page.getByTestId("dispositif-identifie")).toContainText("4-3-3");
-  await expect(page.getByTestId("dispositif-identifie")).toContainText("2 matchs renseignes");
+  await expect(page.getByTestId("dispositif-identifie")).toContainText("2 matchs renseignés");
   await expect(page.getByText(/Composition · 4-3-3/).first()).toBeVisible();
 
   // Une composition enregistree prime : elle garde son dispositif, meme si le logiciel en identifie un autre.
   await choisir(page.getByRole("combobox", { name: "Dispositif" }), "4-4-2");
   await page.getByRole("button", { name: "Enregistrer" }).click();
-  await expect(page.getByText(/Composition enregistree/).first()).toBeVisible();
+  await expect(page.getByText(/Composition enregistrée/).first()).toBeVisible();
   await page.reload();
   await expect(page.getByRole("combobox", { name: "Dispositif" })).toContainText("4-4-2");
   await expect(page.getByTestId("dispositif-identifie")).toHaveCount(0);
@@ -877,7 +885,7 @@ test("tactique : sans composition enregistree, le dispositif de depart est celui
   for (const id of matchs) await appeler(`/matchs/${id}`, { method: "DELETE" });
 });
 
-test("accessibilite : aucune violation axe sur les pages principales, en theme nuit et jour", async () => {
+test("accessibilite : aucune violation axe sur les pages principales, en thème nuit et jour", async () => {
   test.setTimeout(180_000);
   const axe = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
   // Une page de rapport pre-match vise un club cree par l'import FMI : on va le chercher par l'API.
@@ -889,7 +897,7 @@ test("accessibilite : aucune violation axe sur les pages principales, en theme n
     headers: { Authorization: `Bearer ${token}` },
   })).json();
   const adversaire = clubs.find((c) => c.nom !== "OL Sud E2E");
-  const pages = ["/", "/rapports", "/recherche", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical", "/admin/ia",
+  const pages = ["/", "/rapports", "/recherche", "/matchs", "/effectif", "/tactique", "/arbitres", "/classement", "/calendrier", "/medical", "/admin/ia", "/admin/utilisateurs",
     ...(adversaire ? [`/rapports/prematch/${adversaire.id}`] : [])];
 
   const violations: string[] = [];
@@ -912,24 +920,68 @@ test("accessibilite : aucune violation axe sur les pages principales, en theme n
   expect(violations, "violations d'accessibilite (axe-core)").toEqual([]);
 });
 
-test("saison archivee : calendrier, entrainements, tactique et predictions sont fermes, avec leur raison ; le reste reste consultable", async () => {
+test("accessibilité mobile : aucune violation axe, tiroir du menu fermé inerte (jamais atteignable au clavier)", async ({ browser }) => {
+  test.setTimeout(180_000);
+  const axe = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+  const ctx = await browser.newContext({ storageState: await contexte.storageState(), viewport: { width: 390, height: 844 } });
+  const p = await ctx.newPage();
+  try {
+    const violations: string[] = [];
+    for (const chemin of ["/", "/effectif", "/matchs", "/calendrier", "/classement", "/admin/utilisateurs"]) {
+      await p.goto(chemin);
+      await p.waitForLoadState("networkidle");
+      await p.evaluate(axe);
+      const trouves: string[] = await p.evaluate(async () => {
+        const r = await (window as any).axe.run(document, { resultTypes: ["violations"] });
+        return r.violations.map((v: any) => `${v.impact} ${v.id} x${v.nodes.length} : ${v.nodes[0].target.join(" ")}`);
+      });
+      violations.push(...trouves.map((t) => `${chemin} (mobile) ${t}`));
+    }
+    expect(violations, "violations d'accessibilité en mobile (axe-core)").toEqual([]);
+
+    // Fermé, le tiroir est inerte ; ouvert, ses liens redeviennent atteignables.
+    await p.goto("/");
+    const tiroir = p.locator("div.fixed.inset-0.z-50[inert]");
+    await expect(tiroir).toHaveCount(1);
+    await p.getByRole("button", { name: "Ouvrir le menu" }).click();
+    await expect(p.locator("div.fixed.inset-0.z-50[inert]")).toHaveCount(0);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("page introuvable : une fiche inconnue dit ce qui manque et ramène à la liste", async () => {
+  for (const [chemin, titre, retour, versLaListe] of [
+    ["/joueur/identifiant-inconnu", "Joueur introuvable", "Retour à l'effectif", /\/effectif$/],
+    ["/matchs/identifiant-inconnu", "Match introuvable", "Retour aux matchs", /\/matchs$/],
+    ["/club/identifiant-inconnu", "Club introuvable", "Retour au classement", /\/classement$/],
+  ] as const) {
+    // (Le statut HTTP reste 200 : le chargement progressif de la page envoie l'en-tete avant de savoir que la fiche manque.)
+    await page.goto(chemin);
+    await expect(page.getByRole("heading", { level: 1, name: titre })).toBeVisible();
+    await expect(page.getByText("Cette page n'a pas pu s'afficher")).toHaveCount(0);
+    await cliquerJusquaNavigation(page.getByRole("link", { name: retour }), versLaListe);
+  }
+});
+
+test("saison archivée : calendrier, entraînements, tactique et prédictions sont fermes, avec leur raison ; le reste reste consultable", async () => {
   const nav = page.getByRole("navigation", { name: "Navigation principale" });
   // Saison active (2025-2026) : toute la preparation du match est ouverte.
   await page.goto("/");
   await ouvrirSelecteur(page);
   await page.getByRole("button", { name: "2025-2026 ★", exact: true }).click();   // (le bouton du selecteur porte lui aussi ce nom de saison)
   await page.goto("/");
-  for (const nom of ["Calendrier", "Entrainements", "Tactique", "Saisons", "IA"]) await expect(nav.getByRole("link", { name: nom, exact: true })).toBeVisible();   // l'administrateur voit les Saisons et l'IA
+  for (const nom of ["Calendrier", "Entraînements", "Tactique", "Saisons", "IA"]) await expect(nav.getByRole("link", { name: nom, exact: true })).toBeVisible();   // l'administrateur voit les Saisons et l'IA
 
   // Saison archivee (2024-2025) : ces onglets disparaissent de la navigation (Saisons et IA, reserves a l'administrateur, restent).
   await ouvrirSelecteur(page);
   await page.getByRole("button", { name: /^2024-2025/ }).click();
   await page.goto("/");
-  for (const nom of ["Calendrier", "Entrainements", "Tactique"]) await expect(nav.getByRole("link", { name: nom, exact: true })).toHaveCount(0);
-  for (const nom of ["Effectif", "Medical", "Matchs", "Rapports", "Classement", "Saisons", "IA"]) await expect(nav.getByRole("link", { name: nom, exact: true })).toBeVisible();
+  for (const nom of ["Calendrier", "Entraînements", "Tactique"]) await expect(nav.getByRole("link", { name: nom, exact: true })).toHaveCount(0);
+  for (const nom of ["Effectif", "Médical", "Matchs", "Rapports", "Classement", "Saisons", "IA"]) await expect(nav.getByRole("link", { name: nom, exact: true })).toBeVisible();
 
   // Taper l'adresse ne contourne rien : la page dit pourquoi, et propose de revenir a la saison en cours.
-  for (const [chemin, page_] of [["/tactique", "Tactique"], ["/entrainements", "Entrainements"], ["/calendrier", "Calendrier"]] as const) {
+  for (const [chemin, page_] of [["/tactique", "Tactique"], ["/entrainements", "Entraînements"], ["/calendrier", "Calendrier"]] as const) {
     await page.goto(chemin);
     const indisponible = page.getByTestId("page-indisponible");
     await expect(indisponible).toHaveAttribute("data-restriction", "saison-passee");
@@ -939,13 +991,13 @@ test("saison archivee : calendrier, entrainements, tactique et predictions sont 
   }
   // L'ancienne page Predictions renvoie vers les rapports, ou le pre-match est ferme lui aussi.
   await page.goto("/rapports");
-  await expect(page.getByTestId("rapports-saison-passee")).toContainText("le pre-match (avec ses predictions) se prepare sur la saison en cours");
+  await expect(page.getByTestId("rapports-saison-passee")).toContainText("le pré-match (avec ses prédictions) se prépare sur la saison en cours");
   await expect(page.getByTestId("prochain-match")).toHaveCount(0);
   await page.goto("/rapports/prematch/un-club");
-  await expect(page.getByTestId("page-indisponible")).toContainText("Rapport pre-match : disponible sur la saison en cours");
+  await expect(page.getByTestId("page-indisponible")).toContainText("Rapport pré-match : disponible sur la saison en cours");
 
   // Revenir a la saison en cours rouvre ces pages.
-  await page.getByRole("button", { name: /Revenir a 2025-2026/ }).click();
+  await page.getByRole("button", { name: /Revenir à 2025-2026/ }).click();
   await expect(page.getByTestId("page-indisponible")).toHaveCount(0);       // la page se recharge sur la saison en cours : on attend ce rechargement avant de naviguer
   await page.waitForLoadState("load");
   await page.goto("/tactique");
@@ -991,19 +1043,19 @@ test("effectif : trier par n'importe quelle colonne de stats, en cliquant son en
   await expect(ligne.first().locator("td").nth(7)).toContainText("1");
   // Le selecteur propose les memes tris, y compris les colonnes masquees sur petit ecran.
   await page.getByRole("combobox", { name: "Trier l'effectif par" }).click();
-  await expect(page.getByRole("option", { name: "Tri · Passes decisives" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Tri · Passes décisives" })).toBeVisible();
   await expect(page.getByRole("option", { name: "Tri · Minutes" })).toBeVisible();
   await page.keyboard.press("Escape");
 });
 
-test("calendrier : un match ajoute (adversaire choisi dans une liste) apparait au calendrier, puis comme prochain match du dashboard", async () => {
+test("calendrier : un match ajoute (adversaire choisi dans une liste) apparaît au calendrier, puis comme prochain match du dashboard", async () => {
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
   })).json();
   // La saison choisie est 2026-2027 : le mois suivant est toujours a venir.
   await page.goto("/calendrier");
-  await page.getByRole("button", { name: /^[A-Z][a-z]{2,3}\.$/ }).last().click();
+  await page.getByRole("button", { name: /^\p{Lu}\p{Ll}{2,3}\.$/u }).last().click();
   await page.getByTitle("Ajouter un match").first().click();
 
   const modale = page.locator("div.fixed.inset-0.overflow-y-auto");
@@ -1016,7 +1068,7 @@ test("calendrier : un match ajoute (adversaire choisi dans une liste) apparait a
   await modale.getByRole("button", { name: "Changer" }).click();
   await modale.getByRole("combobox", { name: "Rechercher l'adversaire" }).fill("olympique");
   await modale.getByRole("option", { name: /Olympique Test FC/ }).click();
-  await modale.getByRole("button", { name: "Creer le match" }).click();
+  await modale.getByRole("button", { name: "Créer le match" }).click();
   await expect(modale).toBeHidden();
 
   // Au calendrier, par son nom (le club vient d'etre cree : il ne doit pas apparaitre comme un identifiant).
@@ -1032,52 +1084,52 @@ test("calendrier : un match ajoute (adversaire choisi dans une liste) apparait a
 
   // Dashboard : c'est le prochain match, avec sa date en toutes lettres.
   await page.goto("/");
-  const echeance = page.locator("section").filter({ hasText: "Prochaine echeance" }).first();
+  const echeance = page.locator("section").filter({ hasText: "Prochaine échéance" }).first();
   await expect(echeance).toContainText("Olympique Test FC");
-  await expect(echeance).not.toContainText("Aucun match a venir");
-  await expect(echeance).toContainText(/(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche) \d{1,2} \w+ \d{4}/);
+  await expect(echeance).not.toContainText("Aucun match à venir");
+  await expect(echeance).toContainText(/(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche) \d{1,2} \S+ \d{4}/);
 
   // Page Matchs : aucun filtre n'est pre-applique.
   await page.goto("/matchs");
-  await expect(page.getByRole("combobox", { name: "Equipe" })).toContainText("Toutes");
-  await expect(page.getByRole("combobox", { name: "Journee" })).toContainText("Toutes");
+  await expect(page.getByRole("combobox", { name: "Équipe" })).toContainText("Toutes");
+  await expect(page.getByRole("combobox", { name: "Journée" })).toContainText("Toutes");
   await expect(page.getByRole("link", { name: /Olympique Test FC/ }).first()).toBeVisible();
 
   // Menage : la suite des parcours repart sans match a venir.
   await fetch(`${API_URL}/matchs/${idMatch}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
 });
 
-test("calendrier : la modale reprend l'heure prevue, une seance se rouvre d'un clic ; entrainements : 6 par page, recents d'abord, presence moyenne", async () => {
+test("calendrier : la modale reprend l'heure prevue, une séance se rouvre d'un clic ; entraînements : 6 par page, récents d'abord, présence moyenne", async () => {
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
   })).json();
   await page.goto("/calendrier");
   await page.waitForLoadState("networkidle");
-  await page.getByRole("button", { name: /^[A-Z][a-z]{2,3}\.$/ }).last().click();
+  await page.getByRole("button", { name: /^\p{Lu}\p{Ll}{2,3}\.$/u }).last().click();
   // Le creneau prevu (jour + heure) propose l'heure du planning dans la modale de creation.
-  const prevu = page.getByRole("button", { name: /Entrainement \d{2}:\d{2}/ }).first();
+  const prevu = page.getByRole("button", { name: /Entraînement \d{2}:\d{2}/ }).first();
   const heurePrevue = (await prevu.innerText()).match(/\d{2}:\d{2}/)![0];
   await prevu.click();
   const modale = page.locator("div.fixed.inset-0.overflow-y-auto");
-  await expect(modale.getByRole("heading", { name: "Nouvel entrainement" })).toBeVisible();
+  await expect(modale.getByRole("heading", { name: "Nouvel entraînement" })).toBeVisible();
   await expect(modale).toContainText(heurePrevue);
-  await modale.getByPlaceholder("Sortie de balle / pressing").fill("Theme initial e2e");
-  await modale.getByRole("button", { name: "Creer la seance" }).click();
+  await modale.getByPlaceholder("Sortie de balle / pressing").fill("Thème initial e2e");
+  await modale.getByRole("button", { name: "Créer la séance" }).click();
   await expect(modale).toBeHidden();
 
   // Un clic sur la seance rouvre la modale en edition.
-  await page.getByRole("button", { name: /Theme initial e2e/ }).click();
-  await expect(modale.getByRole("heading", { name: "Modifier la seance" })).toBeVisible();
-  await modale.getByPlaceholder("Sortie de balle / pressing").fill("Theme modifie e2e");
+  await page.getByRole("button", { name: /Thème initial e2e/ }).click();
+  await expect(modale.getByRole("heading", { name: "Modifier la séance" })).toBeVisible();
+  await modale.getByPlaceholder("Sortie de balle / pressing").fill("Thème modifie e2e");
   await modale.getByRole("button", { name: "Enregistrer" }).click();
   await expect(modale).toBeHidden();
-  await expect(page.getByRole("button", { name: /Theme modifie e2e/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Theme initial e2e/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Thème modifie e2e/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Thème initial e2e/ })).toHaveCount(0);
 
   // Entrainements : 12 seances au total -> 6 sur chaque page.
   const entr = await (await fetch(`${API_URL}/entrainements`, { headers: { Authorization: `Bearer ${token}` } })).json();
-  const creee = entr.find((e: any) => e.theme === "Theme modifie e2e");
+  const creee = entr.find((e: any) => e.theme === "Thème modifie e2e");
   const ids: string[] = [creee.id];
   for (let i = 0; i < 11; i++) {
     const r = await fetch(`${API_URL}/entrainements`, {
@@ -1105,7 +1157,7 @@ test("calendrier : un match cree puis modifie reste unique, et un doublon est re
   const modale = page.locator("div.fixed.inset-0.overflow-y-auto");
   const ouvrirAjout = async () => {
     await page.goto("/calendrier");
-    await page.getByRole("button", { name: /^[A-Z][a-z]{2,3}\.$/ }).last().click();
+    await page.getByRole("button", { name: /^\p{Lu}\p{Ll}{2,3}\.$/u }).last().click();
     await page.getByTitle("Ajouter un match").first().click();
     await expect(modale.getByRole("heading", { name: "Nouveau match" })).toBeVisible();
   };
@@ -1114,7 +1166,7 @@ test("calendrier : un match cree puis modifie reste unique, et un doublon est re
   await ouvrirAjout();
   await modale.getByRole("combobox", { name: "Rechercher l'adversaire" }).fill("Racing Doublon");
   await modale.getByRole("button", { name: /Club absent de la liste/ }).click();
-  await modale.getByRole("button", { name: "Creer le match" }).click();
+  await modale.getByRole("button", { name: "Créer le match" }).click();
   await expect(modale).toBeHidden();
   const lien = page.getByRole("link", { name: /Racing Doublon/ });
   await expect(lien).toHaveCount(1);
@@ -1124,7 +1176,7 @@ test("calendrier : un match cree puis modifie reste unique, et un doublon est re
   await ouvrirAjout();
   await modale.getByRole("combobox", { name: "Rechercher l'adversaire" }).fill("racing");
   await modale.getByRole("option", { name: /Racing Doublon/ }).click();
-  await modale.getByRole("button", { name: "Creer le match" }).click();
+  await modale.getByRole("button", { name: "Créer le match" }).click();
   await expect(modale.getByText(/deja programme a cette date/)).toBeVisible();
   await modale.getByRole("button", { name: "Annuler" }).click();
   await expect(page.getByRole("link", { name: /Racing Doublon/ })).toHaveCount(1);
@@ -1139,7 +1191,7 @@ test("calendrier : un match cree puis modifie reste unique, et un doublon est re
 
   // Echap ferme la liste ouverte, pas la modale qui la contient.
   const statut = modale.getByRole("combobox", { name: "Statut" });
-  await expect(statut).toContainText("Prevu");
+  await expect(statut).toContainText("Prévu");
   await statut.click();
   await expect(page.getByRole("listbox")).toBeVisible();
   await page.keyboard.press("Escape");
@@ -1152,7 +1204,7 @@ test("calendrier : un match cree puis modifie reste unique, et un doublon est re
   await modale.getByRole("button", { name: "Ouvrir le calendrier" }).click();
   const calendrier = page.getByRole("dialog", { name: "Choisir une date" });
   await expect(calendrier).toBeVisible();
-  await calendrier.getByRole("button", { name: new RegExp(`^${nouveauJour} [a-z]+ ${annee}$`) }).click();
+  await calendrier.getByRole("button", { name: new RegExp(`^${nouveauJour} \\S+ ${annee}$`) }).click();
   await expect(calendrier).toHaveCount(0);
   await expect(champDate).toHaveValue(`${nouveauJour}/${mois}/${annee}`);
   await modale.getByRole("button", { name: "Ouvrir le calendrier" }).click();
@@ -1165,7 +1217,7 @@ test("calendrier : un match cree puis modifie reste unique, et un doublon est re
 
   // Une seule instance au calendrier, a la nouvelle date.
   await page.goto("/calendrier");
-  await page.getByRole("button", { name: /^[A-Z][a-z]{2,3}\.$/ }).last().click();
+  await page.getByRole("button", { name: /^\p{Lu}\p{Ll}{2,3}\.$/u }).last().click();
   await expect(page.getByRole("link", { name: /Racing Doublon/ })).toHaveCount(1);
   const tous = await (await fetch(`${API_URL}/matchs`, { headers: { Authorization: `Bearer ${token}` } })).json();
   expect(tous.filter((m: any) => m.id === idMatch || (m.clubExt === match.clubExt && m.clubDom === match.clubDom))).toHaveLength(1);
@@ -1174,7 +1226,7 @@ test("calendrier : un match cree puis modifie reste unique, et un doublon est re
   await fetch(`${API_URL}/matchs/${idMatch}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
 });
 
-test("referent de club : cree les comptes de ses educateurs, sans rien voir ni pouvoir au-dela de son club", async ({ browser }) => {
+test("référent de club : cree les comptes de ses éducateurs, sans rien voir ni pouvoir au-dela de son club", async ({ browser }) => {
   const appeler = async (chemin: string, jeton: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
     ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${jeton}`, ...(init.headers ?? {}) },
   });
@@ -1226,25 +1278,25 @@ test("referent de club : cree les comptes de ses educateurs, sans rien voir ni p
     for (const chemin of ["/saisons", "/admin/ia"]) {
       await p.goto(chemin);
       await expect(p.getByTestId("page-indisponible")).toHaveAttribute("data-restriction", "admin");
-      await expect(p.getByTestId("page-indisponible")).toContainText("reserve a l'administrateur");
+      await expect(p.getByTestId("page-indisponible")).toContainText("réservé à l'administrateur");
     }
     await p.goto("/");
 
     // Entree dediee dans la navigation ; pas d'acces aux autres clubs (le club est impose par son jeton).
     // Au meme endroit que l'administration (en bas de la barre laterale, a cote de la deconnexion), pas dans les menus.
-    await expect(p.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Mes educateurs" })).toHaveCount(0);
-    await p.getByRole("link", { name: "Mes educateurs" }).click();
-    await expect(p.getByRole("heading", { name: "Mes educateurs" })).toBeVisible();
-    await expect(p.getByText("Aucun educateur pour l'instant")).toBeVisible();
+    await expect(p.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Mes éducateurs" })).toHaveCount(0);
+    await p.getByRole("link", { name: "Mes éducateurs" }).click();
+    await expect(p.getByRole("heading", { name: "Mes éducateurs" })).toBeVisible();
+    await expect(p.getByText("Aucun éducateur pour l'instant")).toBeVisible();
 
     // Deux educateurs : le referent ne choisit ni role ni club, seulement les equipes (aucune coche = toutes).
     const creer = async (prenom: string, nom: string) => {
-      await p.getByRole("button", { name: "Nouvel educateur" }).click();
+      await p.getByRole("button", { name: "Nouvel éducateur" }).click();
       const modale = p.locator("div.fixed.inset-0.overflow-y-auto");
       await expect(modale.getByText("Administrateur")).toHaveCount(0);       // pas de choix de role
       await modale.getByPlaceholder("Mathis").fill(prenom);
       await modale.getByPlaceholder("Lemaire").fill(nom);
-      await modale.getByRole("button", { name: "Creer le compte" }).click();
+      await modale.getByRole("button", { name: "Créer le compte" }).click();
       await expect(modale.getByText("Mot de passe temporaire")).toBeVisible();
       // Tire au hasard, affiche une seule fois.
       const temporaire = (await modale.getByTestId("mot-de-passe-temporaire").textContent()) ?? "";
@@ -1299,7 +1351,7 @@ test("referent de club : cree les comptes de ses educateurs, sans rien voir ni p
   }
 });
 
-test("comptes : equipe de la saison actuelle sans la poule, saisons de l'historique, createur affiche, restrictions appliquees", async ({ browser }) => {
+test("comptes : équipe de la saison actuelle sans la poule, saisons de l'historique, créateur affiche, restrictions appliquees", async ({ browser }) => {
   const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { clubId: string; equipeId: string; saison2425: string; saison2526: string };
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -1316,8 +1368,8 @@ test("comptes : equipe de la saison actuelle sans la poule, saisons de l'histori
   await page.getByRole("button", { name: "Nouveau compte" }).click();
   await modale.getByPlaceholder("Mathis").fill("Eric");
   await modale.getByPlaceholder("Lemaire").fill("Coach");
-  await choisir(modale.getByRole("combobox", { name: "Club autorise" }), "OL Sud E2E");
-  const equipes = modale.getByRole("group", { name: /^Equipes attribuees/ });
+  await choisir(modale.getByRole("combobox", { name: "Club autorisé" }), "OL Sud E2E");
+  const equipes = modale.getByRole("group", { name: /^Équipes attribuées/ });
   await expect(equipes).toContainText("saison 2025-2026");
   await expect(equipes.getByRole("checkbox")).toHaveCount(1);                                 // un niveau, pas une ligne par poule ni par saison
   await expect(equipes.getByText("Seniors D2", { exact: true })).toBeVisible();
@@ -1331,7 +1383,7 @@ test("comptes : equipe de la saison actuelle sans la poule, saisons de l'histori
   await saisons.getByRole("checkbox", { name: "2024-2025" }).check();
   await expect(saisons.getByRole("checkbox")).toHaveCount(1);                                 // seules les saisons passees se choisissent
   await expect(modale.getByTestId("resume-saisons")).toContainText("+ 2024-2025");
-  await modale.getByRole("button", { name: "Creer le compte" }).click();
+  await modale.getByRole("button", { name: "Créer le compte" }).click();
   await expect(modale.getByText("Mot de passe temporaire")).toBeVisible();
   const temporaireEric = (await modale.getByTestId("mot-de-passe-temporaire").textContent()) ?? "";
   await modale.getByRole("button", { name: "OK" }).click();
@@ -1352,7 +1404,7 @@ test("comptes : equipe de la saison actuelle sans la poule, saisons de l'histori
 
   // La modification montre ce que le compte a deja : niveau coche, saison choisie.
   await ligne.getByRole("button", { name: "Modifier ECOACH" }).click();
-  await expect(modale.getByRole("group", { name: /^Equipes attribuees/ }).getByRole("checkbox", { name: "Seniors D2" })).toBeChecked();
+  await expect(modale.getByRole("group", { name: /^Équipes attribuées/ }).getByRole("checkbox", { name: "Seniors D2" })).toBeChecked();
   await expect(modale.getByRole("group", { name: "Saisons consultables" }).getByRole("button", { name: "Choisir des saisons" })).toHaveAttribute("aria-pressed", "true");
   await expect(modale.getByRole("group", { name: "Saisons consultables" }).getByRole("checkbox", { name: "2024-2025" })).toBeChecked();
   await modale.getByRole("button", { name: "Annuler" }).click();
@@ -1391,7 +1443,7 @@ test("comptes : equipe de la saison actuelle sans la poule, saisons de l'histori
       await p.reload();
       await expect(p.getByRole("dialog", { name: "Conditions d'utilisation" })).toHaveCount(0);
       await selecteur(p).click();
-      const liste = p.getByRole("dialog", { name: "Choix de la saison et de l'equipe" });
+      const liste = p.getByRole("dialog", { name: "Choix de la saison et de l'équipe" });
       await expect(liste).toBeVisible();
       await expect(liste.getByRole("button", { name: /^2025-2026/ })).toBeVisible();
       return {
@@ -1452,7 +1504,7 @@ test("recherche : Ctrl+K et / placent le curseur, fiches seulement, Entree ouvre
   await page.keyboard.type("blessures");
   await expect(page.getByText(/Rien ne correspond/)).toBeVisible();
   await expect(page.getByRole("option")).toHaveCount(0);
-  await expect(page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Medical", exact: true })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Médical", exact: true })).toBeVisible();
 
   // Echap efface d'abord la saisie, puis rend la main, sans jamais naviguer.
   const url = page.url();
@@ -1482,36 +1534,36 @@ test("recherche : un club se trouve par son nom et ouvre sa fiche", async () => 
   await expect(page).toHaveURL(new RegExp(`/club/${club.id}`));
 });
 
-test("recherche : un entraineur se trouve par son nom et ouvre sa fiche", async () => {
-  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : les entraineurs viennent de la FMI importee");
+test("recherche : un entraîneur se trouve par son nom et ouvre sa fiche", async () => {
+  test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : les entraîneurs viennent de la FMI importée");
 
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
   })).json();
   const [coach] = await (await fetch(`${API_URL}/coachs`, { headers: { Authorization: `Bearer ${token}` } })).json();
-  expect(coach, "la feuille importee compte au moins un entraineur").toBeTruthy();
+  expect(coach, "la feuille importée compte au moins un entraîneur").toBeTruthy();
 
   await page.goto("/");
   await page.getByRole("combobox", { name: /Rechercher/ }).fill(coach.nom);
-  await expect(page.getByText("Entraineurs", { exact: true })).toBeVisible();
+  await expect(page.getByText("Entraîneurs", { exact: true })).toBeVisible();
   await page.getByRole("option", { name: new RegExp(coach.nom) }).first().click();
   await expect(page).toHaveURL(/\/coachs\//);
 });
 
-test("barre laterale : repliee en rail, l'etat survit au rechargement", async () => {
+test("barre latérale : repliee en rail, l'état survit au rechargement", async () => {
   await page.goto("/effectif");
-  await page.getByRole("button", { name: "Replier la barre laterale" }).click();
-  await expect(page.getByRole("button", { name: "Deplier la barre laterale" })).toBeVisible();
+  await page.getByRole("button", { name: "Replier la barre latérale" }).click();
+  await expect(page.getByRole("button", { name: "Déplier la barre latérale" })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole("button", { name: "Deplier la barre laterale" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Déplier la barre latérale" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Deplier la barre laterale" }).click();
-  await expect(page.getByRole("button", { name: "Replier la barre laterale" })).toBeVisible();
+  await page.getByRole("button", { name: "Déplier la barre latérale" }).click();
+  await expect(page.getByRole("button", { name: "Replier la barre latérale" })).toBeVisible();
 });
 
-test("mobile : menu en tiroir, ferme apres navigation, sans debordement horizontal", async ({ browser }) => {
+test("mobile : menu en tiroir, ferme après navigation, sans debordement horizontal", async ({ browser }) => {
   const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, storageState: await contexte.storageState() });
   const p = await mobile.newPage();
   try {
@@ -1606,6 +1658,74 @@ test("responsive : aucune page ne deborde de l'ecran, sur mobile et tablette (po
     }
   }
   expect(debordements, "pages qui debordent de l'ecran").toEqual([]);
+});
+
+/** Un calendrier d'equipe au format de la FFF (clubs fictifs), a partir de demain : un match par semaine. */
+function calendrierFff(sansJournee?: number): string {
+  const adversaires: [string, string, boolean][] = [
+    ["AS E2E UN 3", "association-sportive-e2e-un", true], ["FC E2E DEUX", "football-club-e2e-deux", false],
+    ["US E2E TROIS 2", "union-sportive-e2e-trois", true], ["RC E2E QUATRE", "racing-club-e2e-quatre", false],
+    ["ES E2E CINQ", "entente-sportive-e2e-cinq", true], ["AS E2E UN 3", "association-sportive-e2e-un", false],
+  ];
+  const lignes = ["BEGIN:VCALENDAR", "VERSION:2.0", "X-WR-CALNAME:OL SUD E2E - SEM 2 - Calendrier d'essai"];
+  adversaires.forEach(([nom, slug, domicile], i) => {
+    if (i + 1 === sansJournee) return;
+    const d = new Date(Date.now() + (1 + 7 * i) * 86_400_000).toISOString().slice(0, 10).replace(/-/g, "");
+    const id = 88000001 + i;
+    lignes.push(
+      "BEGIN:VEVENT", `UID:${id}@fff.fr`, "DTSTAMP:20260906T150000Z", `DTSTART;TZID=Europe/Paris:${d}T150000`,
+      `SUMMARY:J${i + 1} - ${domicile ? `OL SUD E2E 2 - ${nom}` : `${nom} - OL SUD E2E 2`}`,
+      `DESCRIPTION:SENIORS D2\\n\\nVoir la fiche match: https://epreuves.fff.fr/competition/match/${id}-${domicile ? `ol-sud-e2e-${slug}` : `${slug}-ol-sud-e2e`}/match`,
+      "LOCATION:STADE E2E", "END:VEVENT");
+  });
+  lignes.push("END:VCALENDAR");
+  return lignes.join("\r\n");
+}
+
+test("calendrier FFF : un fichier .ics depose cree les matchs à venir, le rejouer ne change rien, un match absent est signale, un fichier invalide est refuse", async () => {
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const duCalendrier = async (): Promise<{ idFff: string; calendrierDisparu: boolean }[]> =>
+    ((await (await fetch(`${API_URL}/matchs`, { headers: { Authorization: `Bearer ${token}` } })).json()) as any[]).filter((m) => m.idFff);
+  const fichier = (contenu: string) => ({ name: "6701_SEM_4.ics", mimeType: "text/calendar", buffer: Buffer.from(contenu) });
+  const ouvrir = async () => {
+    await page.goto("/calendrier");
+    await page.waitForLoadState("networkidle");
+    await page.getByTestId("cal-fff-ouvrir").click();
+    await expect(page.getByRole("heading", { name: "Calendrier FFF" })).toBeVisible();
+  };
+
+  await ouvrir();
+  await expect(page.getByTestId("cal-fff-fichier")).toBeAttached();
+  await page.getByTestId("cal-fff-fichier").setInputFiles(fichier(calendrierFff()));
+  await expect(page.getByTestId("cal-fff-bilan")).toHaveText(/^6 matchs ajoutés \(6 matchs dans le calendrier\)/);
+  await expect(page.getByTestId("cal-fff-rapport")).toContainText("Football Club E2e Deux");
+  expect(await duCalendrier()).toHaveLength(6);
+
+  // Rejouer le meme fichier : rien ne change, aucun doublon.
+  await page.getByTestId("cal-fff-fichier").setInputFiles(fichier(calendrierFff()));
+  await expect(page.getByTestId("cal-fff-bilan")).toHaveText("Calendrier à jour : 6 matchs, rien ne change.");
+  expect(await duCalendrier()).toHaveLength(6);
+
+  // Un match disparait du calendrier : signale, jamais supprime.
+  await page.getByTestId("cal-fff-fichier").setInputFiles(fichier(calendrierFff(3)));
+  await expect(page.getByTestId("cal-fff-bilan")).toContainText("1 match disparu du calendrier");
+  await expect(page.getByTestId("cal-fff-rapport")).toContainText("à vérifier, rien n'est supprimé");
+  const apres = await duCalendrier();
+  expect(apres).toHaveLength(6);
+  expect(apres.filter((m) => m.calendrierDisparu).map((m) => m.idFff)).toEqual(["88000003"]);
+
+  // Un fichier qui n'est pas un calendrier de la FFF : refuse, avec la raison.
+  await page.getByTestId("cal-fff-fichier").setInputFiles(fichier("ceci n'est pas un calendrier"));
+  await expect(page.getByTestId("cal-fff-erreur")).toContainText("Aucun match lisible");
+
+  // Une adresse qui n'est pas celle de la FFF est refusee par l'API.
+  await page.getByTestId("cal-fff-adresse").fill("https://exemple.org/agenda.ics");
+  await expect(page.getByText(/ne ressemble pas à un calendrier d'équipe de la FFF/)).toBeVisible();
+  await page.getByTestId("cal-fff-enregistrer").click();
+  await expect(page.getByTestId("cal-fff-erreur")).toContainText("Adresse invalide");
 });
 
 function pdfplumberDisponible(): boolean {

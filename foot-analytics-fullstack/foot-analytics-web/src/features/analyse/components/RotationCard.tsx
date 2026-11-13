@@ -10,7 +10,7 @@ import { decimal } from "@/features/analyse/lib/tendances-format";
 
 import { PastilleSens } from "./PastilleSens";
 
-const LIGNE_LABEL: Record<string, string> = { GB: "Gardiens", DEF: "Defense", MIL: "Milieu", ATT: "Attaque" };
+const LIGNE_LABEL: Record<string, string> = { GB: "Gardiens", DEF: "Défense", MIL: "Milieu", ATT: "Attaque" };
 
 export function RotationCard({
   rotation, stabilite,
@@ -31,17 +31,17 @@ export function RotationCard({
         </div>
         {valeurs.length > 0 && (
           <div className="flex h-16 items-end gap-[3px]" role="img"
-            aria-label={`Titulaires changes d'un match a l'autre : ${valeurs.join(", ")}`}>
+            aria-label={`Titulaires changes d'un match à l'autre : ${valeurs.join(", ")}`}>
             {valeurs.map((v, i) => (
               <div key={i} className="flex-1 rounded-t-sm" style={{ height: `${Math.max(3, (v / max) * 100)}%`, background: "rgb(var(--chart-1))", opacity: i >= valeurs.length - 5 ? 1 : 0.5 }} title={`${v} changement(s)`} />
             ))}
           </div>
         )}
-        <div className="mt-1 flex justify-between text-[10px] text-faint"><span>Debut de saison</span><span>Dernier match</span></div>
+        <div className="mt-1 flex justify-between text-[10px] text-faint"><span>Début de saison</span><span>Dernier match</span></div>
       </div>
 
       <div>
-        <div className="h-section mb-2 flex items-center gap-2"><Shield size={11} className="text-accent" />Stabilite ({stabilite.global} / 100)</div>
+        <div className="h-section mb-2 flex items-center gap-2"><Shield size={11} className="text-accent" />Stabilité ({stabilite.global} / 100)</div>
         <ul className="space-y-2">
           {stabilite.parLigne.map((s) => (
             <li key={s.ligne} className="flex items-center gap-3">

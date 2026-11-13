@@ -14,37 +14,37 @@ export default function Cgu() {
       <section>
         <h2>Objet</h2>
         <p>
-          Foot Analytics aide les staffs techniques a suivre leur effectif et a preparer leurs matchs. L'acces est reserve
-          aux personnes a qui un compte a ete cree par l'administrateur ou par le referent de leur club.
+          Foot Analytics aide les staffs techniques à suivre leur effectif et à préparer leurs matchs. L'accès est réservé
+          aux personnes à qui un compte a été créé par l'administrateur ou par le référent de leur club.
         </p>
       </section>
       <section>
         <h2>Engagements de l'utilisateur</h2>
         <ul>
           <li>Garder son mot de passe personnel et secret, ne jamais partager son compte.</li>
-          <li>N'utiliser les donnees qu'a des fins de preparation sportive du club, sans les diffuser hors du staff.</li>
-          <li>Ne pas extraire massivement de donnees (fiches de joueurs, exports en serie) : ces usages sont detectes.</li>
-          <li>Ne saisir des donnees de sante que si l'on y est habilite par le club, et seulement le necessaire.</li>
+          <li>N'utiliser les données qu'à des fins de préparation sportive du club, sans les diffuser hors du staff.</li>
+          <li>Ne pas extraire massivement de données (fiches de joueurs, exports en série) : ces usages sont détectés.</li>
+          <li>Ne saisir des données de santé que si l'on y est habilité par le club, et seulement le nécessaire.</li>
         </ul>
       </section>
       <section>
-        <h2>Statistiques et predictions</h2>
+        <h2>Statistiques et prédictions</h2>
         <p>
-          Onze et systeme probables, scores, fatigue estimee et analyses sont des estimations statistiques : une aide a la
-          decision, non contraignante. Les choix sportifs restent ceux du staff.
+          Onze et système probables, scores, fatigue estimée et analyses sont des estimations statistiques : une aide à la
+          décision, non contraignante. Les choix sportifs restent ceux du staff.
         </p>
       </section>
       <section>
-        <h2>Tracabilite et comptes</h2>
+        <h2>Traçabilité et comptes</h2>
         <p>
-          Les connexions et les operations sensibles (gestion des comptes, donnees medicales, exports, consultation de
-          fiches d'autres clubs) sont journalisees pendant 12 mois. Un compte sans connexion depuis 12 mois est desactive ;
-          son gestionnaire peut le reactiver.
+          Les connexions et les opérations sensibles (gestion des comptes, données médicales, exports, consultation de
+          fiches d'autres clubs) sont journalisees pendant 12 mois. Un compte sans connexion depuis 12 mois est désactivé ;
+          son gestionnaire peut le réactiver.
         </p>
       </section>
       <section>
-        <h2>Donnees personnelles</h2>
-        <p>Voir la politique de confidentialite.</p>
+        <h2>Données personnelles</h2>
+        <p>Voir la politique de confidentialité.</p>
       </section>
     </PageLegale>
   );

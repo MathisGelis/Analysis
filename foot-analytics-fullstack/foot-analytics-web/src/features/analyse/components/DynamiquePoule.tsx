@@ -44,7 +44,7 @@ export function DynamiquePoule({ poule, equipeId }: { poule: DonneesPoule; equip
     <div className="space-y-4">
       {(enForme.length > 0 || enDifficulte.length > 0) && (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Podium titre="En pleine montee" icone={<Flame size={12} aria-hidden />} equipes={enForme} ton="text-win" />
+          <Podium titre="En pleine montée" icone={<Flame size={12} aria-hidden />} equipes={enForme} ton="text-win" />
           <Podium titre="En perte de vitesse" icone={<Snowflake size={12} aria-hidden />} equipes={enDifficulte} ton="text-loss" />
         </div>
       )}
@@ -54,14 +54,14 @@ export function DynamiquePoule({ poule, equipeId }: { poule: DonneesPoule; equip
           <thead>
             <tr>
               <th className="w-8">#</th>
-              <th>Equipe</th>
+              <th>Équipe</th>
               <th className="text-right">Pts</th>
               <th className="hidden md:table-cell">5 derniers</th>
               <th className="text-right">Pt/match</th>
               <th>Tendance</th>
               <th className="hidden lg:table-cell">Attaque</th>
-              <th className="hidden lg:table-cell">Defense</th>
-              <th className="hidden min-[1500px]:table-cell">Serie</th>
+              <th className="hidden lg:table-cell">Défense</th>
+              <th className="hidden min-[1500px]:table-cell">Série</th>
             </tr>
           </thead>
           <tbody>
@@ -100,7 +100,7 @@ export function DynamiquePoule({ poule, equipeId }: { poule: DonneesPoule; equip
         </table>
       </div>
       <p className="text-[11px] text-faint">
-        Tendance : points par match sur les derniers matchs contre le reste de la saison. Attaque et defense comparent les buts marques et encaisses.
+        Tendance : points par match sur les derniers matchs contre le reste de la saison. Attaque et défense comparent les buts marqués et encaissés.
       </p>
     </div>
   );

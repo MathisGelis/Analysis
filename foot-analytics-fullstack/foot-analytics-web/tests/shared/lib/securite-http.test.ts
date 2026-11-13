@@ -4,7 +4,7 @@ import { nouveauNonce, politiqueCsp } from "@/shared/lib/securite-http";
 import { entetesSecurite } from "../../../next.config.mjs";
 
 describe("Content-Security-Policy", () => {
-  it("scripts du site seulement, avec le nonce de la requete ; aucune ressource externe ; pas d'iframe", () => {
+  it("scripts du site seulement, avec le nonce de la requête ; aucune ressource externe ; pas d'iframe", () => {
     const csp = politiqueCsp("abc123");
     expect(csp).toContain("default-src 'self'");
     expect(csp).toContain("script-src 'self' 'nonce-abc123' 'strict-dynamic'");
@@ -23,12 +23,12 @@ describe("Content-Security-Policy", () => {
     expect(csp).toContain("ws:");
   });
 
-  it("un nonce different a chaque requete", () => {
+  it("un nonce différent à chaque requête", () => {
     expect(nouveauNonce()).not.toBe(nouveauNonce());
   });
 });
 
-describe("en-tetes de securite statiques", () => {
+describe("en-tetes de sécurité statiques", () => {
   it("nosniff, pas d'iframe, noindex ; HSTS en production seulement", () => {
     const prod = Object.fromEntries(entetesSecurite(true).map((h: { key: string; value: string }) => [h.key, h.value]));
     expect(prod["X-Content-Type-Options"]).toBe("nosniff");

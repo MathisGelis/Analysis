@@ -6,7 +6,7 @@ const etat = (statut: EtatReconstruction["statut"], extra: Partial<EtatReconstru
   ({ id: "t1", statut, resultat: null, erreur: null, ...extra });
 
 describe("reconstruction en tache de fond (suivi)", () => {
-  it("lance, relit l'etat jusqu'a la fin et rend le resultat", async () => {
+  it("lance, relit l'état jusqu'a la fin et rend le résultat", async () => {
     const lectures = [etat("en_cours"), etat("terminee", { resultat: { joueurs: 30, classement: 12 } })];
     const attentes: number[] = [];
     const r = await reconstruire({
@@ -18,7 +18,7 @@ describe("reconstruction en tache de fond (suivi)", () => {
     expect(attentes).toEqual([2000, 2000]);
   });
 
-  it("un echec du serveur remonte avec son message", async () => {
+  it("un échec du serveur remonte avec son message", async () => {
     await expect(reconstruire({
       lancer: async () => etat("en_cours"),
       lire: async () => etat("echec", { erreur: "base injoignable" }),

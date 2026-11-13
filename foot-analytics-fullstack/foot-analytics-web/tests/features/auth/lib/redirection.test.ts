@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { cheminInterne } from "@/features/auth/lib/redirection";
 
 describe("cheminInterne", () => {
-  it("accepte les chemins internes, avec requete et ancre", () => {
+  it("accepte les chemins internes, avec requête et ancre", () => {
     expect(cheminInterne("/matchs")).toBe("/matchs");
     expect(cheminInterne("/arbitres/12?portee=carriere#haut")).toBe("/arbitres/12?portee=carriere#haut");
     expect(cheminInterne("/")).toBe("/");
@@ -13,10 +13,10 @@ describe("cheminInterne", () => {
       expect(cheminInterne(v)).toBe("/");
     }
   });
-  it("refuse les caracteres de controle", () => {
+  it("refuse les caractères de controle", () => {
     expect(cheminInterne("/ok\r\nSet-Cookie: a=b")).toBe("/");
   });
-  it("valeur absente : defaut fourni", () => {
+  it("valeur absente : défaut fourni", () => {
     expect(cheminInterne(null)).toBe("/");
     expect(cheminInterne("", "/accueil")).toBe("/accueil");
   });

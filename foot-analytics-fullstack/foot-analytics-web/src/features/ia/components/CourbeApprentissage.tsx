@@ -37,7 +37,7 @@ export function CourbeApprentissage({ courbe, mesure, hauteur = 260 }: { courbe:
   const debut = courbe.findIndex((p) => p.n > 0);
   const points = debut < 0 ? [] : courbe.slice(debut);
   const n = points.length;
-  if (n === 0) return <p className="text-sm text-muted">Aucune semaine n'a pu etre predite.</p>;
+  if (n === 0) return <p className="text-sm text-muted">Aucune semaine n'a pu être prédite.</p>;
 
   const series = METHODES.map((m) => ({ m, valeurs: serieCourbe(points, m, mesure) }));
   const { min, max } = bornesCourbe(series.flatMap((s) => s.valeurs));
@@ -78,7 +78,7 @@ export function CourbeApprentissage({ courbe, mesure, hauteur = 260 }: { courbe:
 
   return (
     <div>
-      <ul className="mb-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted" aria-label="Legende">
+      <ul className="mb-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted" aria-label="Légende">
         {METHODES.map((m) => (
           <li key={m} className="inline-flex items-center gap-2">
             <svg width="30" height="8" aria-hidden>
@@ -92,7 +92,7 @@ export function CourbeApprentissage({ courbe, mesure, hauteur = 260 }: { courbe:
       <div ref={conteneur} className="relative">
         <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-labelledby={`${id}-t`} aria-describedby={`${id}-d`}
           onMouseMove={survolDe} onMouseLeave={() => setSurvol(null)}>
-          <title id={`${id}-t`}>{mesure === "onze" ? "Titulaires bien predits" : "Postes exacts"} par semaine, IA et methodes de reference</title>
+          <title id={`${id}-t`}>{mesure === "onze" ? "Titulaires bien prédits" : "Postes exacts"} par semaine, IA et méthodes de référence</title>
           <desc id={`${id}-d`}>
             {`${n} semaines. Moyenne de l'IA : ${pct(moyenneModele)}.`}
           </desc>
@@ -129,7 +129,7 @@ export function CourbeApprentissage({ courbe, mesure, hauteur = 260 }: { courbe:
           <div role="status" className="pointer-events-none absolute top-2 z-10 w-56 rounded-xl border border-line2/60 bg-panel p-3 text-xs shadow-pop"
             style={{ left: `${Math.min(Math.max((x(survol) / W) * 100, 24), 76)}%`, transform: "translateX(-50%)" }}>
             <div className="font-semibold text-ink">{actif.libelle}</div>
-            <div className="mb-1.5 text-faint">{actif.journees ? `${actif.journees} · ` : ""}{actif.n} compositions predites</div>
+            <div className="mb-1.5 text-faint">{actif.journees ? `${actif.journees} · ` : ""}{actif.n} compositions prédites</div>
             {METHODES.map((m) => (
               <div key={m} className="flex items-center justify-between gap-3">
                 <span className={m === "modele" ? "font-semibold text-ink" : "text-muted"}>{LIBELLE_METHODE[m]}</span>

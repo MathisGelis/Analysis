@@ -28,7 +28,7 @@ export function DisciplineCard({
         <div className="stat-tile !p-3">
           <div className="stat-label">Rythme</div>
           <div className="mt-1 font-display text-2xl font-bold tabular-nums text-ink">{decimal(d.recentJaunesParMatch)}</div>
-          <div className="text-[11px] text-faint">recent, contre {decimal(d.avantJaunesParMatch)}</div>
+          <div className="text-[11px] text-faint">récent, contre {decimal(d.avantJaunesParMatch)}</div>
         </div>
       </div>
 
@@ -37,7 +37,7 @@ export function DisciplineCard({
           <div className="mb-2 flex items-baseline justify-between">
             <span className="h-section">Par tranche de 15 minutes</span>
             {d.partFinDeMatch !== null && (
-              <span className="text-[11px] text-muted">{Math.round(d.partFinDeMatch * 100)} % apres la 75e</span>
+              <span className="text-[11px] text-muted">{Math.round(d.partFinDeMatch * 100)} % après la 75e</span>
             )}
           </div>
           <div className="flex h-24 items-end gap-2" role="img"

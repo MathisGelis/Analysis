@@ -63,22 +63,22 @@ export function ComparatifEquipes({
       <tbody>
         <Ligne label="Classement" moi={rang(moi.rang)} adv={rang(adv.rang)} avantage={meilleur(ordre(moi), ordre(adv), false)} />
         <Ligne label="Points" moi={moi.pts ?? "—"} adv={adv.pts ?? "—"} avantage={meilleur(moi.pts, adv.pts, true)} />
-        <Ligne label="Matchs joues" moi={moi.matchs} adv={adv.matchs} />
+        <Ligne label="Matchs joués" moi={moi.matchs} adv={adv.matchs} />
         <Ligne label="Points / match" moi={num(moi, moi.ppm)} adv={num(adv, adv.ppm)}
           avantage={vide(moi) || vide(adv) ? null : meilleur(moi.ppm, adv.ppm, true)} />
-        <Ligne label="Buts marques / match" moi={num(moi, moi.bpm)} adv={num(adv, adv.bpm)}
+        <Ligne label="Buts marqués / match" moi={num(moi, moi.bpm)} adv={num(adv, adv.bpm)}
           avantage={vide(moi) || vide(adv) ? null : meilleur(moi.bpm, adv.bpm, true)} />
-        <Ligne label="Buts encaisses / match" moi={num(moi, moi.bcm)} adv={num(adv, adv.bcm)}
+        <Ligne label="Buts encaissés / match" moi={num(moi, moi.bcm)} adv={num(adv, adv.bcm)}
           avantage={vide(moi) || vide(adv) ? null : meilleur(moi.bcm, adv.bcm, false)} />
         <Ligne label="Dynamique"
-          moi={moi.sens === "insuffisant" ? <span className="text-faint">Trop tot</span> : <PastilleSens sens={moi.sens} libelle={moi.libelle} />}
-          adv={adv.sens === "insuffisant" ? <span className="text-faint">Trop tot</span> : <PastilleSens sens={adv.sens} libelle={adv.libelle} />} />
+          moi={moi.sens === "insuffisant" ? <span className="text-faint">Trop tôt</span> : <PastilleSens sens={moi.sens} libelle={moi.libelle} />}
+          adv={adv.sens === "insuffisant" ? <span className="text-faint">Trop tôt</span> : <PastilleSens sens={adv.sens} libelle={adv.libelle} />} />
         <Ligne label="Forme (5 derniers)"
           moi={<span className="inline-flex justify-end"><FormeStrip values={moi.formeRecente} /></span>}
           adv={<FormeStrip values={adv.formeRecente} />} />
-        <Ligne label="Serie en cours" moi={serie(moi)} adv={serie(adv)} />
-        <Ligne label={domicileMoi === true ? "A domicile (ce match)" : "A domicile"} moi={lieu(moi, "domicile")} adv={lieu(adv, "domicile")} />
-        <Ligne label={domicileMoi === false ? "A l'exterieur (ce match)" : "A l'exterieur"} moi={lieu(moi, "exterieur")} adv={lieu(adv, "exterieur")} />
+        <Ligne label="Série en cours" moi={serie(moi)} adv={serie(adv)} />
+        <Ligne label={domicileMoi === true ? "À domicile (ce match)" : "À domicile"} moi={lieu(moi, "domicile")} adv={lieu(adv, "domicile")} />
+        <Ligne label={domicileMoi === false ? "À l'extérieur (ce match)" : "À l'extérieur"} moi={lieu(moi, "exterieur")} adv={lieu(adv, "exterieur")} />
       </tbody>
     </table>
   );

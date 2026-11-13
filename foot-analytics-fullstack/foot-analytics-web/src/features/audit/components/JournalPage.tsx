@@ -52,7 +52,7 @@ export default function JournalPage() {
   useEffect(() => { void charger(); }, [charger]);
 
   const nbPages = useMemo(() => (donnees ? Math.max(1, Math.ceil(donnees.total / donnees.parPage)) : 1), [donnees]);
-  const nomCompte = (id: string | null) => (id ? comptes.get(id) ?? `${id.slice(0, 8)}…` : "Systeme");
+  const nomCompte = (id: string | null) => (id ? comptes.get(id) ?? `${id.slice(0, 8)}…` : "Système");
   const nomClub = (id: string | null) => (id ? clubs.get(id)?.nom ?? "—" : "—");
 
   return (
@@ -61,8 +61,8 @@ export default function JournalPage() {
         <div className="h-section flex items-center gap-2"><ScrollText size={11} className="text-accent"/>Administration</div>
         <h1 className="font-display text-2xl font-bold text-ink">Journal d'audit</h1>
         <p className="mt-1 max-w-2xl text-xs text-muted">
-          Connexions, gestion des comptes, donnees medicales, exports et fiches de joueurs d'autres clubs. Les traces ne
-          se modifient pas et sont effacees automatiquement apres 12 mois. Elles ne contiennent ni nom ni donnee medicale.
+          Connexions, gestion des comptes, données médicales, exports et fiches de joueurs d'autres clubs. Les traces ne
+          se modifient pas et sont effacées automatiquement après 12 mois. Elles ne contiennent ni nom ni donnée médicale.
         </p>
       </header>
 
@@ -89,7 +89,7 @@ export default function JournalPage() {
           <label className="block w-full max-w-xs">
             <span className="text-[11px] uppercase tracking-wider text-faint">Afficher</span>
             <Select
-              ariaLabel="Categorie d'evenements"
+              ariaLabel="Catégorie d'événements"
               valeur={categorie}
               onChange={(v) => { setCategorie(v); setPage(1); }}
               options={CATEGORIES}
@@ -107,11 +107,11 @@ export default function JournalPage() {
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Evenement</th>
+                  <th>Événement</th>
                   <th>Compte</th>
                   <th className="max-sm:hidden">Cible</th>
-                  <th className="max-sm:hidden">Club vise</th>
-                  <th className="max-md:hidden">Details</th>
+                  <th className="max-sm:hidden">Club visé</th>
+                  <th className="max-md:hidden">Détails</th>
                   <th className="max-md:hidden">Adresse</th>
                 </tr>
               </thead>
@@ -140,7 +140,7 @@ export default function JournalPage() {
         {nbPages > 1 && (
           <nav className="flex items-center justify-center gap-3" aria-label="Pagination du journal">
             <button className="btn text-xs" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-              <ChevronLeft size={12}/> Precedent
+              <ChevronLeft size={12}/> Précédent
             </button>
             <span className="text-xs tabular-nums text-muted">Page {page} / {nbPages}</span>
             <button className="btn text-xs" disabled={page >= nbPages} onClick={() => setPage(page + 1)}>

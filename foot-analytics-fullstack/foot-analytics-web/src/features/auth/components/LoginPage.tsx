@@ -62,7 +62,7 @@ export default function LoginPage() {
             spellCheck={false}
           />
           <span className="mt-1.5 block text-xs text-faint">
-            1ere lettre du prenom + nom, en majuscules.
+            1ere lettre du prénom + nom, en majuscules.
           </span>
         </label>
 

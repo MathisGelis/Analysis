@@ -20,7 +20,7 @@ describe("nombres", () => {
     expect(pct(undefined)).toBe("—");
   });
 
-  it("ecartPoints : signe, virgule, pluriel a partir de 2", () => {
+  it("ecartPoints : signe, virgule, pluriel à partir de 2", () => {
     expect(ecartPoints(0.845, 0.838)).toBe("+0,7 pt");
     expect(ecartPoints(0.80, 0.838)).toBe("-3,8 pts");
     expect(ecartPoints(0.84, 0.84)).toBe("0,0 pt");
@@ -46,19 +46,19 @@ describe("nombres", () => {
   });
 
   it("libelleHyper", () => {
-    expect(libelleHyper({ fenetre: 10, l2: 0.3, demiVie: null })).toBe("fenetre de 10 matchs, regularisation 0,3");
-    expect(libelleHyper({ fenetre: 6, l2: 3, demiVie: 12 })).toBe("fenetre de 6 matchs, regularisation 3, oubli en 12 semaines");
+    expect(libelleHyper({ fenetre: 10, l2: 0.3, demiVie: null })).toBe("fenêtre de 10 matchs, régularisation 0,3");
+    expect(libelleHyper({ fenetre: 6, l2: 3, demiVie: 12 })).toBe("fenêtre de 6 matchs, régularisation 3, oubli en 12 semaines");
   });
 });
 
 describe("meilleureReference et verdict", () => {
-  it("la meilleure reference est celle du onze le plus haut, hors modele", () => {
+  it("la meilleure référence est celle du onze le plus haut, hors modèle", () => {
     expect(meilleureReference(notes(0.9, 0.8, 0.84, 0.82))).toEqual({ methode: "moteur", onze: 0.84 });
     expect(meilleureReference(notes(0.9, 0.8, null, 0.82))).toEqual({ methode: "frequence", onze: 0.82 });
     expect(meilleureReference(notes(0.9, null, null, null))).toBeNull();
   });
 
-  it("verdict : mieux, a egalite, ou moins bien que le meilleur repere, sur les dernieres semaines", () => {
+  it("verdict : mieux, a egalite, ou moins bien que le meilleur repère, sur les dernières semaines", () => {
     const g = notes(0.7, 0.7, 0.7, 0.7);
     expect(verdict({ global: g, recent: notes(0.86, 0.8, 0.84, 0.82) })).toMatchObject({ ton: "bon", texte: expect.stringContaining("+2,0 pts") });
     expect(verdict({ global: g, recent: notes(0.845, 0.8, 0.84, 0.82) }).ton).toBe("neutre");
@@ -68,7 +68,7 @@ describe("meilleureReference et verdict", () => {
     expect(verdict({ global: notes(null, null, null, null), recent: notes(null, null, null, null) }).ton).toBe("neutre");
   });
 
-  it("verdict : sans dernieres semaines (peu de donnees), il juge sur toute la periode", () => {
+  it("verdict : sans dernières semaines (peu de données), il juge sur toute la période", () => {
     const vide = notes(null, null, null, null);
     expect(verdict({ global: notes(0.9, 0.8, 0.8, 0.8), recent: vide }).ton).toBe("bon");
   });
@@ -81,13 +81,13 @@ describe("courbe", () => {
   });
   const courbe = [point(0, 0, null), point(1, 8, 0.8), point(2, 8, 0.85)];
 
-  it("serieCourbe : les valeurs d'une methode et d'une mesure, null conserve", () => {
+  it("serieCourbe : les valeurs d'une méthode et d'une mesure, null conservé", () => {
     expect(serieCourbe(courbe, "modele", "onze")).toEqual([null, 0.8, 0.85]);
     expect(serieCourbe(courbe, "modele", "postes")).toEqual([null, 0.75, 0.8]);
     expect(serieCourbe(courbe, "dernier", "postes")).toEqual([null, null, null]);
   });
 
-  it("semainesNotees : sans la premiere semaine (aucune prediction possible)", () => {
+  it("semainesNotees : sans la première semaine (aucune prediction possible)", () => {
     expect(semainesNotees(courbe).map((p) => p.etape)).toEqual([1, 2]);
   });
 
@@ -101,16 +101,16 @@ describe("courbe", () => {
 });
 
 describe("axe de la courbe", () => {
-  it("dateDeSemaine et moisCourt : la date du libelle, le mois en ASCII et l'annee sur deux chiffres", () => {
+  it("dateDeSemaine et moisCourt : la date du libelle, le mois en ASCII et l'année sur deux chiffres", () => {
     expect(dateDeSemaine("Semaine du 08/12/2025")).toBe(Date.UTC(2025, 11, 8));
     expect(dateDeSemaine("sans date")).toBeNull();
-    expect(moisCourt("Semaine du 08/12/2025")).toBe("dec. 25");
+    expect(moisCourt("Semaine du 08/12/2025")).toBe("déc. 25");
     expect(moisCourt("Semaine du 01/09/2024")).toBe("sept. 24");
-    expect(moisCourt("Semaine du 03/02/2026")).toBe("fevr. 26");
+    expect(moisCourt("Semaine du 03/02/2026")).toBe("févr. 26");
     expect(moisCourt("sans date")).toBe("sans date");
   });
 
-  it("coupuresDeCourbe : l'indice de la premiere semaine apres plus de 45 jours sans match (l'inter-saison)", () => {
+  it("coupuresDeCourbe : l'indice de la première semaine après plus de 45 jours sans match (l'inter-saison)", () => {
     const sem = (d: string) => ({ libelle: `Semaine du ${d}` });
     const courbe = [sem("01/09/2025"), sem("08/09/2025"), sem("15/09/2025"), sem("11/05/2026"), sem("07/09/2026"), sem("14/09/2026")];
     expect(coupuresDeCourbe(courbe)).toEqual([3, 4]);
@@ -122,7 +122,7 @@ describe("axe de la courbe", () => {
 
 describe("poids appris", () => {
   const catalogue: Caracteristique[] = [
-    { id: "biais", libelle: "Point de depart", aide: "x" },
+    { id: "biais", libelle: "Point de départ", aide: "x" },
     { id: "taux", libelle: "Taux", aide: "y" },
     { id: "absent", libelle: "Absent", aide: "z" },
   ];
@@ -134,16 +134,16 @@ describe("poids appris", () => {
     expect(sensDuPoids(-0.15)).toBe("neutre");
   });
 
-  it("lignesDePoids : libelle, valeur apprise, valeur de depart et variation, dans l'ordre du catalogue", () => {
+  it("lignesDePoids : libelle, valeur apprise, valeur de départ et variation, dans l'ordre du catalogue", () => {
     const l = lignesDePoids(catalogue, { noms: ["taux", "biais"], w: [2.5, -3] }, { noms: ["biais", "taux"], w: [-3.5, 4] });
     expect(l.map((x) => x.id)).toEqual(["biais", "taux", "absent"]);
-    expect(l[0]).toMatchObject({ libelle: "Point de depart", appris: -3, depart: -3.5, variation: 0.5, sens: "defavorise" });
+    expect(l[0]).toMatchObject({ libelle: "Point de départ", appris: -3, depart: -3.5, variation: 0.5, sens: "defavorise" });
     expect(l[1]).toMatchObject({ appris: 2.5, depart: 4, variation: -1.5, sens: "favorise" });
     expect(l[2]).toMatchObject({ appris: 0, depart: 0, variation: 0, sens: "neutre" });      // poids absent : zero
     expect(lignesDePoids(catalogue, null, null)).toEqual([]);
   });
 
-  it("echelleDePoids : au moins 1, sinon la plus grande valeur absolue (appris ou de depart)", () => {
+  it("echelleDePoids : au moins 1, sinon la plus grande valeur absolue (appris ou de départ)", () => {
     const l = lignesDePoids(catalogue, { noms: ["biais", "taux", "absent"], w: [0.2, -5.5, 1] }, { noms: ["biais", "taux", "absent"], w: [0, 4, 0] });
     expect(echelleDePoids(l)).toBe(5.5);
     expect(echelleDePoids([])).toBe(1);
@@ -157,11 +157,11 @@ describe("erreurs", () => {
     fauxPositifs: [{ nom: "Paul MARTIN", proba: 0.84 }],
   };
 
-  it("manques : ce que le modele n'avait pas vu venir, avec sa probabilite ou 'inconnu de l'equipe'", () => {
-    expect(texteManques(e).replace(/\s/g, " ")).toBe("Jean DUPONT (12 %), Nouveau GB (inconnu de l'equipe)");
+  it("manqués : ce que le modèle n'avait pas vu venir, avec sa probabilité ou 'inconnu de l'équipe'", () => {
+    expect(texteManques(e).replace(/\s/g, " ")).toBe("Jean DUPONT (12 %), Nouveau GB (inconnu de l'équipe)");
   });
 
-  it("faux positifs : ceux annonces a tort", () => {
+  it("faux positifs : ceux annonces à tort", () => {
     expect(texteFauxPositifs(e).replace(/\s/g, " ")).toBe("Paul MARTIN (84 %)");
   });
 });
@@ -170,10 +170,10 @@ describe("dernierReussi", () => {
   const run = (id: string, statut: EntrainementResume["statut"], modele: boolean): EntrainementResume => ({
     id, statut, progression: 100, message: null, options: { optimiser: true, saisonIds: null }, lancePar: null, modeleId: modele ? `m-${id}` : null,
     termineLe: null, creeLe: "2026-10-05T10:00:00.000Z", declencheur: "manuel", decision: null,
-    modele: modele ? { id: `m-${id}`, nom: "Modele", actif: false, resume: {} as never } : null,
+    modele: modele ? { id: `m-${id}`, nom: "Modèle", actif: false, resume: {} as never } : null,
   });
 
-  it("le premier entrainement termine qui a un modele (la liste est du plus recent au plus ancien)", () => {
+  it("le premier entraînement termine qui a un modèle (la liste est du plus récent au plus ancien)", () => {
     expect(dernierReussi([run("a", "echec", false), run("b", "termine", true), run("c", "termine", true)])?.id).toBe("b");
     expect(dernierReussi([run("a", "annule", false)])).toBeNull();
     expect(dernierReussi([])).toBeNull();

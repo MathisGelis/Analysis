@@ -27,7 +27,7 @@ import {
   KeyRound, Pencil, Plus, Save, ShieldCheck, Trash2, UserCog, X,
 } from "lucide-react";
 
-const LIBELLE_ROLE: Record<string, string> = { admin: "Admin", referent: "Referent", user: "Educateur" };
+const LIBELLE_ROLE: Record<string, string> = { admin: "Admin", referent: "Référent", user: "Éducateur" };
 import { useFeedback } from "@/shared/lib/feedback-context";
 
 const dateFr = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString("fr-FR") : "");
@@ -67,11 +67,11 @@ export default function AdminUtilisateurs() {
   useEffect(() => { reload(); }, []);
 
   async function onDelete(id: string) {
-    if (!(await confirmer({ titre: "Supprimer ce compte ?", message: "Cette action est irreversible.", danger: true }))) return;
+    if (!(await confirmer({ titre: "Supprimer ce compte ?", message: "Cette action est irréversible.", danger: true }))) return;
     try {
       await api.deleteUtilisateur(id);
       await reload();
-      notifier.succes("Compte supprime.");
+      notifier.succes("Compte supprimé.");
     } catch (e: any) {
       notifier.erreur(e?.message ?? "Erreur");
     }
@@ -84,16 +84,16 @@ export default function AdminUtilisateurs() {
           <div className="h-section flex items-center gap-2">
             <ShieldCheck size={11} className="text-accent"/>{estReferent ? "Mon club" : "Administration"}
           </div>
-          <h1 className="font-display text-2xl font-bold text-ink">{estReferent ? "Mes educateurs" : "Comptes utilisateurs"}</h1>
+          <h1 className="font-display text-2xl font-bold text-ink">{estReferent ? "Mes éducateurs" : "Comptes utilisateurs"}</h1>
           {estReferent && (
             <p className="mt-1 max-w-xl text-xs text-muted">
-              Cree un compte pour chacun de tes educateurs : il ne voit que ton club, et seulement les equipes que tu coches
-              (aucune coche = toutes les equipes du club). Son mot de passe initial est a lui transmettre ; il devra le changer a sa premiere connexion.
+              Crée un compte pour chacun de tes éducateurs : il ne voit que ton club, et seulement les équipes que tu coches
+              (aucune coche = toutes les équipes du club). Son mot de passe initial est à lui transmettre ; il devra le changer à sa première connexion.
             </p>
           )}
         </div>
         <button className="btn btn-accent" onClick={() => setAdding(true)}>
-          <Plus size={14}/> {estReferent ? "Nouvel educateur" : "Nouveau compte"}
+          <Plus size={14}/> {estReferent ? "Nouvel éducateur" : "Nouveau compte"}
         </button>
       </header>
 
@@ -103,20 +103,20 @@ export default function AdminUtilisateurs() {
         {loading ? (
           <p className="text-muted text-sm">Chargement…</p>
         ) : users.length === 0 ? (
-          <p className="text-muted text-sm py-6 text-center">{estReferent ? "Aucun educateur pour l'instant : cree son premier compte." : "Aucun compte."}</p>
+          <p className="text-muted text-sm py-6 text-center">{estReferent ? "Aucun éducateur pour l'instant : crée son premier compte." : "Aucun compte."}</p>
         ) : (
           <table className="table-fm">
             <thead>
               <tr>
                 <th>Login</th>
                 <th>Nom</th>
-                {!estReferent && <th className="max-sm:hidden">Role</th>}
+                {!estReferent && <th className="max-sm:hidden">Rôle</th>}
                 {!estReferent && <th className="max-sm:hidden">Club</th>}
-                <th className="max-sm:hidden">Equipes</th>
+                <th className="max-sm:hidden">Équipes</th>
                 <th className="max-sm:hidden">Saisons</th>
-                <th className="max-sm:hidden">Cree par</th>
+                <th className="max-sm:hidden">Créé par</th>
                 <th>Statut</th>
-                <th></th>
+                <th><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -157,20 +157,20 @@ export default function AdminUtilisateurs() {
                         </>
                       ) : u.createurSupprime ? (
                         <>
-                          <div className="text-muted">Compte supprime</div>
+                          <div className="text-muted">Compte supprimé</div>
                           {u.createdAt && <div className="text-[10px] text-faint">{dateFr(u.createdAt)}</div>}
                         </>
                       ) : (
-                        <span className="text-faint" title="Compte anterieur au suivi du createur, ou creation initiale">—</span>
+                        <span className="text-faint" title="Compte antérieur au suivi du créateur, ou création initiale">—</span>
                       )}
                     </td>
                     <td data-testid={`statut-${u.login}`}>
                       {u.actif === false
-                        ? <span className="badge badge-danger text-[10px]" title={u.desactiveLe ? `Desactive le ${dateFr(u.desactiveLe)}` : undefined}>Desactive</span>
+                        ? <span className="badge badge-danger text-[10px]" title={u.desactiveLe ? `Désactivé le ${dateFr(u.desactiveLe)}` : undefined}>Désactivé</span>
                         : u.verrouille
-                          ? <span className="badge badge-danger text-[10px]" title="Trop d'echecs de connexion : verrouille quelques minutes">Verrouille</span>
+                          ? <span className="badge badge-danger text-[10px]" title="Trop d'échecs de connexion : verrouillé quelques minutes">Verrouillé</span>
                           : u.mustChangePassword
-                            ? <span className="badge badge-amber text-[10px]">Mdp a changer</span>
+                            ? <span className="badge badge-amber text-[10px]">Mdp à changer</span>
                             : <span className="badge text-[10px]">Actif</span>}
                     </td>
                     <td className="text-right">
@@ -261,8 +261,8 @@ function UserForm({
 
   async function submit() {
     setError(null);
-    if (!prenom.trim() || !nom.trim()) { setError("Prenom et nom requis."); return; }
-    if (avecClub && !clubId) { setError("Selectionne un club pour ce compte."); return; }
+    if (!prenom.trim() || !nom.trim()) { setError("Prénom et nom requis."); return; }
+    if (avecClub && !clubId) { setError("Sélectionne un club pour ce compte."); return; }
     setSaving(true);
     try {
       if (isEdit) {
@@ -298,12 +298,12 @@ function UserForm({
       <Modal open={true} onClose={() => { onSaved(); }} maxWidth="max-w-md">
         <div className="space-y-4">
           <h2 className="font-display text-xl font-bold text-ink flex items-center gap-2">
-            <KeyRound size={18} className="text-accent"/> {isEdit ? "Mot de passe reinitialise" : "Compte cree"}
+            <KeyRound size={18} className="text-accent"/> {isEdit ? "Mot de passe réinitialisé" : "Compte créé"}
           </h2>
           <p className="text-sm text-muted">
-            Communique ces identifiants {estReferent ? "a ton educateur" : isEdit ? "a l'utilisateur" : "au nouvel utilisateur"} de
-            vive voix ou par un canal prive (jamais dans un groupe). Le mot de passe est a usage unique : il devra le
-            changer a sa premiere connexion. Il ne sera plus affiche ensuite.
+            Communique ces identifiants {estReferent ? "à ton éducateur" : isEdit ? "à l'utilisateur" : "au nouvel utilisateur"} de
+            vive voix ou par un canal privé (jamais dans un groupe). Le mot de passe est à usage unique : il devra le
+            changer à sa première connexion. Il ne sera plus affiché ensuite.
           </p>
           <div className="panel-inset p-4 space-y-2">
             <div>
@@ -327,13 +327,13 @@ function UserForm({
         <div className="flex items-center justify-between">
           <h2 className="font-display text-xl font-bold text-ink flex items-center gap-2">
             <UserCog size={18} className="text-accent"/>
-            {isEdit ? "Modifier le compte" : (estReferent ? "Nouvel educateur" : "Nouveau compte")}
+            {isEdit ? "Modifier le compte" : (estReferent ? "Nouvel éducateur" : "Nouveau compte")}
           </h2>
           <button onClick={onClose} className="btn text-xs"><X size={14}/></button>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Prenom">
+          <Field label="Prénom">
             <input className="select-fm" value={prenom}
               onChange={(e) => setPrenom(e.target.value)} placeholder="Mathis"/>
           </Field>
@@ -343,16 +343,16 @@ function UserForm({
           </Field>
         </div>
 
-        <Field label="Identifiant (calcule)">
+        <Field label="Identifiant (calculé)">
           <div className="select-fm bg-panel text-ink font-mono font-bold tracking-wider">
             {login || "—"}
           </div>
         </Field>
 
         {!estReferent && (
-          <Groupe label="Role">
+          <Groupe label="Rôle">
             <div className="flex flex-wrap gap-2">
-              {([["user", "Educateur (staff)"], ["referent", "Referent de club"], ["admin", "Administrateur"]] as const).map(([r, libelle]) => (
+              {([["user", "Éducateur (staff)"], ["referent", "Référent de club"], ["admin", "Administrateur"]] as const).map(([r, libelle]) => (
                 <button key={r} type="button" aria-pressed={role === r}
                   onClick={() => setRole(r)}
                   className={`btn text-xs ${role === r ? "btn-accent" : ""}`}>
@@ -362,7 +362,7 @@ function UserForm({
             </div>
             {role === "referent" && (
               <p className="mt-1 text-[10px] text-faint">
-                Acces a son club et a toutes ses equipes ; peut creer et gerer les comptes de ses educateurs.
+                Accès à son club et à toutes ses équipes ; peut créer et gérer les comptes de ses éducateurs.
               </p>
             )}
           </Groupe>
@@ -371,10 +371,10 @@ function UserForm({
         {avecClub && (
           <>
             {!estReferent && (
-              <Field label="Club autorise">
-                <Select className="select-fm" valeur={clubId} ariaLabel="Club autorise"
+              <Field label="Club autorisé">
+                <Select className="select-fm" valeur={clubId} ariaLabel="Club autorisé"
                   onChange={(v) => { setClubId(v); setCochees(new Set()); }}
-                  options={[{ valeur: "", libelle: "— Selectionne un club —" }, ...clubs.map((c) => ({ valeur: c.id, libelle: c.nom }))]}/>
+                  options={[{ valeur: "", libelle: "— Sélectionne un club —" }, ...clubs.map((c) => ({ valeur: c.id, libelle: c.nom }))]}/>
               </Field>
             )}
             {estReferent && (
@@ -384,11 +384,11 @@ function UserForm({
             )}
 
             {clubId && role !== "referent" && (
-              <Groupe label={`Equipes attribuees${saisonCourante ? ` · saison ${saisonCourante.nom}` : ""} (${cochees.size} / ${niveaux.length})`}>
+              <Groupe label={`Équipes attribuées${saisonCourante ? ` · saison ${saisonCourante.nom}` : ""} (${cochees.size} / ${niveaux.length})`}>
                 <div className="grid grid-cols-1 gap-1 max-h-48 overflow-auto panel-inset p-2 sm:grid-cols-2">
                   {niveaux.length === 0 ? (
                     <p className="text-xs text-muted col-span-2 text-center py-3">
-                      Aucune equipe de ce club sur la saison actuelle.
+                      Aucune équipe de ce club sur la saison actuelle.
                     </p>
                   ) : niveaux.map((n) => {
                     const on = cochees.has(n.cle);
@@ -404,8 +404,8 @@ function UserForm({
                   })}
                 </div>
                 <p className="text-[10px] text-faint mt-1">
-                  Aucune coche = acces a toutes les equipes du club. L'equipe attribuee reste la sienne d'une saison a l'autre,
-                  meme si sa poule change.
+                  Aucune coche = accès à toutes les équipes du club. L'équipe attribuée reste la sienne d'une saison à l'autre,
+                  même si sa poule change.
                 </p>
               </Groupe>
             )}
@@ -424,7 +424,7 @@ function UserForm({
                 {mode === "choix" && (
                   <div className="mt-2 grid grid-cols-2 gap-1 max-h-40 overflow-auto panel-inset p-2 sm:grid-cols-3">
                     {passees.length === 0 ? (
-                      <p className="col-span-full py-2 text-center text-xs text-muted">Aucune saison passee en base.</p>
+                      <p className="col-span-full py-2 text-center text-xs text-muted">Aucune saison passée en base.</p>
                     ) : passees.map((sa) => {
                       const on = saisonsChoisies.has(sa.id);
                       return (
@@ -441,7 +441,7 @@ function UserForm({
                 )}
                 <p className="text-[10px] text-faint mt-1" data-testid="resume-saisons">
                   {mode === "toutes"
-                    ? "Voit toutes les saisons, y compris celles qui seront creees."
+                    ? "Voit toutes les saisons, y compris celles qui seront créées."
                     : `Voit la saison actuelle${saisonCourante ? ` (${saisonCourante.nom})` : ""}${
                         mode === "choix" && saisonsChoisies.size > 0
                           ? ` + ${passees.filter((x) => saisonsChoisies.has(x.id)).map((x) => x.nom).join(" · ")}`
@@ -454,13 +454,13 @@ function UserForm({
         )}
 
         {isEdit && (
-          <Field label="Securite du compte">
+          <Field label="Sécurité du compte">
             <label className="flex items-start gap-2 text-sm text-ink">
               <input type="checkbox" className="mt-1" checked={reinitialiser} onChange={(e) => setReinitialiser(e.target.checked)}/>
               <span>
-                Reinitialiser le mot de passe
+                Réinitialiser le mot de passe
                 <span className="block text-[10px] text-faint">
-                  Un mot de passe temporaire est tire au hasard et affiche une fois ; ses sessions en cours sont fermees.
+                  Un mot de passe temporaire est tiré au hasard et affiché une fois ; ses sessions en cours sont fermées.
                 </span>
               </span>
             </label>
@@ -470,7 +470,7 @@ function UserForm({
                 <span>
                   Compte actif
                   <span className="block text-[10px] text-faint">
-                    Desactive, il ne peut plus se connecter (desactivation automatique apres 12 mois sans connexion).
+                    Désactivé, il ne peut plus se connecter (désactivation automatique après 12 mois sans connexion).
                   </span>
                 </span>
               </label>
@@ -488,7 +488,7 @@ function UserForm({
           <button className="btn" onClick={onClose}>Annuler</button>
           <button className="btn btn-accent" onClick={submit} disabled={saving}>
             <Save size={14}/>
-            {saving ? "Sauvegarde…" : (isEdit ? "Enregistrer" : "Creer le compte")}
+            {saving ? "Sauvegarde…" : (isEdit ? "Enregistrer" : "Créer le compte")}
           </button>
         </div>
       </div>

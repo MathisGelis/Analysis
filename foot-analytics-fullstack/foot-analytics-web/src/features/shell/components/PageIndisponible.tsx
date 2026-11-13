@@ -20,13 +20,13 @@ export function PageIndisponible({
     <section className="panel mx-auto max-w-2xl space-y-3 p-8 text-center fade-up" data-testid="page-indisponible" data-restriction={restriction}>
       <Icone size={26} className="mx-auto text-amber" aria-hidden />
       <h1 className="font-display text-xl font-bold text-ink">
-        {restriction === "admin" ? `${page} : reserve a l'administrateur` : `${page} : disponible sur la saison en cours`}
+        {restriction === "admin" ? `${page} : réservé à l'administrateur` : `${page} : disponible sur la saison en cours`}
       </h1>
       <p className="mx-auto max-w-lg text-sm text-muted">
         {restriction === "admin"
-          ? "Cette page n'est pas ouverte aux educateurs ni aux referents. Demandez a un administrateur si vous avez besoin d'y faire quelque chose."
-          : <>La preparation du prochain match (calendrier, entrainements, tactique, predictions) n&apos;a de sens que sur la saison en cours ou a venir.
-              {saisonChoisie ? <> Vous consultez la saison <strong className="text-ink">{saisonChoisie.nom}</strong>, terminee.</> : null}</>}
+          ? "Cette page n'est pas ouverte aux éducateurs ni aux referents. Demandez à un administrateur si vous avez besoin d'y faire quelque chose."
+          : <>La préparation du prochain match (calendrier, entraînements, tactique, prédictions) n&apos;a de sens que sur la saison en cours ou à venir.
+              {saisonChoisie ? <> Vous consultez la saison <strong className="text-ink">{saisonChoisie.nom}</strong>, terminée.</> : null}</>}
       </p>
       <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
         {restriction === "saison-passee" && saisonActive && <BoutonSaisonEnCours primaire />}

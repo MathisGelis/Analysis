@@ -67,7 +67,7 @@ Fair-play, Import FMI (upload reel vers le parseur du backend).
 | **Fair-play** | KPIs cartons, motifs, par journee, joueurs a surveiller, profil estime |
 | **Scouting** | Notes d'observation sur un club (ouvertes depuis son dossier dans Rapports ; remplace l'Excel Chaponnay) |
 | **Analytics** | xG vs G, heatmaps off/def, tendances |
-| **Calendrier** | Vue mois, matchs + entrainements ; ferme sur une saison anterieure a la saison en cours |
+| **Calendrier** | Vue mois, matchs + entrainements ; ferme sur une saison anterieure a la saison en cours. Bouton **Calendrier FFF** : on colle l'adresse du fichier `.ics` de l'equipe (celle de myFFF) ou on depose le fichier, les matchs a venir sont crees, mis a jour quand la ligue les decale, et signales (⚠) s'ils disparaissent du calendrier ; synchronisation automatique chaque jour |
 | **Rapports** | **Point d'entree unique** : le prochain match en un clic et un dossier par club (pre-match avec ses predictions : projection du resultat, systeme et onze probables, pistes ; analyse d'equipe ; scouting). Le pre-match s'imprime en PDF et **s'exporte en PowerPoint** (pages au choix) |
 | **Recherche joueurs** | Recherche par criteres (`/recherche`) : poste (ligne ou poste precis), saison, categorie, division et club joues, matchs minimum, et situation une autre saison (sans club connu, meme club, autre club). Exemple : un attaquant qui a joue en U16 R2 la saison derniere et n'a pas de club connu cette saison. D'apres les feuilles de match importees ; les criteres sont dans l'URL (codes seulement), revenir d'une fiche rouvre la recherche |
 | **Import FMI** | Drag&drop PDF, simulation pipeline parser → base |
@@ -148,6 +148,22 @@ parcours e2e « responsive » verifie qu'aucune page ne deborde de l'ecran en 36
 ```bash
 npm run lint      # ESLint 10 (config flat : regles Next core-web-vitals, hooks React, a11y JSX) sur src, tests et e2e
 ```
+
+### Performances
+
+Mesures sur le build de production (parcours de test, serveur local), avant -> apres :
+- **Requetes par page** : 37-45 -> 27-31 (hors dashboard). La moitie venait du **prechargement** des liens de la barre laterale
+  (une quinzaine de requetes par page) : il est coupe, et ne part plus qu'a l'intention (survol, focus clavier, doigt pose).
+- **Anciennes adresses** (`/scouting`, `/ia`, `/rapports/equipe`) : 75 -> 29 requetes. Elles sont redirigees dans `next.config.mjs`,
+  avant tout rendu, au lieu de passer par une page qui ne fait que `redirect()` (deux rendus serveur).
+- **Appels API du serveur** : une lecture n'est plus faite qu'une fois par requete de page (`React.cache`, propre a chaque requete),
+  et l'API ne recoit plus les signaux internes de Next comme des pannes (les « repli demo » du build ont disparu).
+- **Calendrier** : 821 -> 777 elements DOM (cases vides de la grille et libelle du jour mobile retires du DOM).
+
+Choix assume : les saisons et les clubs ne sont **pas** mis dans le cache de donnees de Next (`revalidate`, tags). L'API les filtre
+par compte (saisons ouvertes, equipes), et ce cache est partage entre les requetes : une reponse mise en cache pour un compte
+pourrait etre servie a un autre, ou rester perimee apres un changement de droits. Le gain (une requete serveur a quelques
+millisecondes de l'API) ne vaut pas ce risque.
 
 ### Application installable (PWA)
 

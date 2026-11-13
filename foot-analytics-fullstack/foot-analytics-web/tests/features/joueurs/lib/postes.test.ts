@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { postesCompacts } from "@/features/joueurs/lib/postes";
 
 describe("postesCompacts", () => {
-  it("garde les deux plus frequents et compte le reste", () => {
+  it("garde les deux plus fréquents et compte le reste", () => {
     expect(postesCompacts("9 (7) / 10 (6) / 13 (2) / 3 (1)")).toEqual({ visibles: ["9 (7)", "10 (6)"], restants: 2 });
   });
   it("peu de postes : rien de masque", () => {

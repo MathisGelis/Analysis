@@ -52,7 +52,7 @@ export default async function MatchsPage() {
 
   const headerLibelle = equipePropre
     ? `${equipePropre.competitionLibelle ?? equipePropre.nom}${equipePropre.poule ? ` · Poule ${equipePropre.poule}` : ""}`
-    : "Aucun championnat selectionne";
+    : "Aucun championnat sélectionné";
 
   return (
     <div className="space-y-6 fade-up">
@@ -72,9 +72,9 @@ export default async function MatchsPage() {
             Aucun match pour l'instant sur cette saison.
           </div>
           <p className="text-xs text-faint max-w-md mx-auto">
-            Le tableau se remplit automatiquement au fur et a mesure
-            des imports de feuilles FMI. C'est normal en debut de
-            saison — importe une premiere FMI pour demarrer.
+            Le tableau se remplit automatiquement au fur et à mesure
+            des imports de feuilles FMI. C'est normal en début de
+            saison — importe une première FMI pour démarrer.
           </p>
         </section>
       ) : (
