@@ -59,7 +59,7 @@ const REGIONS = [
 const STATUTS = ["Indisponible", "Reprise", "Retabli"];
 const OPTIONS_STATUTS = optionsSimples(STATUTS);
 const OPTIONS_REGIONS: OptionSelect[] = [
-  { valeur: "", libelle: "— Selectionne —" },
+  { valeur: "", libelle: "— Sélectionne —" },
   ...REGIONS.flatMap((g) => g.items.map((r) => ({ valeur: r, libelle: r, groupe: g.group }))),
 ];
 
@@ -82,7 +82,7 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
   const isEdit = !!blessure?.id;
   const today = new Date().toISOString().slice(0, 10);
   const optionsJoueurs = useMemo<OptionSelect[]>(() => [
-    { valeur: "", libelle: "— Selectionne —" },
+    { valeur: "", libelle: "— Sélectionne —" },
     ...joueurs
       .slice()
       .sort((a, b) => `${a.prenom ?? ""} ${a.nom}`.localeCompare(`${b.prenom ?? ""} ${b.nom}`))
@@ -147,9 +147,9 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
   const save = async (forcer = false) => {
     setError(null);
     setConflits([]);
-    if (!form.joueurId) { setError("Selectionne un joueur."); return; }
-    if (!form.localisation) { setError("Selectionne une region."); return; }
-    if (!form.dateDebut) { setError("Date de debut requise."); return; }
+    if (!form.joueurId) { setError("Sélectionne un joueur."); return; }
+    if (!form.localisation) { setError("Sélectionne une région."); return; }
+    if (!form.dateDebut) { setError("Date de début requise."); return; }
 
     // Le nom du joueur n'est pas recopie dans la blessure (minimisation) : il se lit sur sa fiche.
     const payload = {
@@ -173,7 +173,7 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
       if (e instanceof ApiError && e.statut === 409 && e.corps?.code === "BLESSURE_CHEVAUCHANTE") {
         setConflits(e.corps.conflits ?? []);
       } else {
-        setError(messageApi(e, "Erreur a la sauvegarde"));
+        setError(messageApi(e, "Erreur à la sauvegarde"));
       }
     } finally {
       setSaving(false);
@@ -195,19 +195,19 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
         </Field>
 
         {/* Region */}
-        <Field label="Region">
+        <Field label="Région">
           <Select
-            valeur={form.localisation} onChange={(v) => set("localisation", v)} ariaLabel="Region"
+            valeur={form.localisation} onChange={(v) => set("localisation", v)} ariaLabel="Région"
             className="select-fm" options={OPTIONS_REGIONS}
           />
         </Field>
 
         {/* Dates */}
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Date debut">
-            <DatePicker valeur={form.dateDebut} onChange={(v) => set("dateDebut", v)} ariaLabel="Date debut" className="select-fm"/>
+          <Field label="Date début">
+            <DatePicker valeur={form.dateDebut} onChange={(v) => set("dateDebut", v)} ariaLabel="Date début" className="select-fm"/>
           </Field>
-          <Field label="Date retour (si blessure terminee)">
+          <Field label="Date retour (si blessure terminée)">
             <DatePicker valeur={form.retourEstime} onChange={onChangeDateRetour} ariaLabel="Date retour" className="select-fm"/>
           </Field>
         </div>
@@ -221,11 +221,11 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
         </Field>
 
         {/* Details */}
-        <Field label="Details (notes, examen prevu...)">
+        <Field label="Détails (notes, examen prévu...)">
           <textarea
             value={form.details}
             onChange={(e) => set("details", e.target.value)}
-            placeholder="Ex : IRM prevu le 12/04, reprise course progressive..."
+            placeholder="Ex : IRM prévu le 12/04, reprise course progressive..."
             rows={3}
             className="select-fm resize-none"
           />
@@ -240,19 +240,19 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
         {conflits.length > 0 && (
           <div className="text-xs text-amber bg-amber/10 border border-amber/30 rounded px-3 py-2 space-y-1">
             <div className="font-semibold">
-              Cette periode chevauche {conflits.length > 1 ? "des blessures existantes" : "une blessure existante"} de ce joueur :
+              Cette période chevauche {conflits.length > 1 ? "des blessures existantes" : "une blessure existante"} de ce joueur :
             </div>
             <ul className="list-disc pl-4 text-muted">
               {conflits.map((c) => (
                 <li key={c.id}>
-                  {c.localisation ?? "Zone non precisee"}
+                  {c.localisation ?? "Zone non précisée"}
                   {" · "}{c.dateDebut ?? "?"} → {c.retourEstime ?? "en cours"}
-                  {c.memeZone && <span className="text-danger"> · meme zone (doublon probable)</span>}
+                  {c.memeZone && <span className="text-danger"> · même zone (doublon probable)</span>}
                 </li>
               ))}
             </ul>
             <div className="text-muted">
-              Deux blessures simultanees sont possibles (zones differentes). Verifie
+              Deux blessures simultanées sont possibles (zones différentes). Vérifie
               qu'il ne s'agit pas d'un doublon avant de confirmer.
             </div>
           </div>
@@ -266,7 +266,7 @@ export function BlessureModal({ open, onClose, onSaved, blessure, joueurs, joueu
             className="btn btn-accent text-xs flex items-center gap-1">
             <Save size={11}/> {saving
               ? "Sauvegarde..."
-              : conflits.length > 0 ? "Enregistrer quand meme" : "Enregistrer"}
+              : conflits.length > 0 ? "Enregistrer quand même" : "Enregistrer"}
           </button>
         </div>
       </div>

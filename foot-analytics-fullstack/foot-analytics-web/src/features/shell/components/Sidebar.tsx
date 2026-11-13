@@ -67,14 +67,14 @@ function Contenu({
           </button>
         ) : !compact ? (
           <button type="button" onClick={onBasculerReplie} className="btn btn-ghost !p-2 hidden lg:inline-flex"
-            aria-label="Replier la barre laterale" title="Replier">
+            aria-label="Replier la barre latérale" title="Replier">
             <PanelLeftClose size={16} />
           </button>
         ) : null}
       </div>
       {compact && (
         <button type="button" onClick={onBasculerReplie} className="btn btn-ghost !p-2 mx-auto mb-2"
-          aria-label="Deplier la barre laterale" title="Deplier">
+          aria-label="Déplier la barre latérale" title="Déplier">
           <PanelLeftOpen size={16} />
         </button>
       )}

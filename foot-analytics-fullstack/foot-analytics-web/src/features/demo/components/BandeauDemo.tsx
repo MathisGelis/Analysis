@@ -13,8 +13,8 @@ export function BandeauDemo({ children }: { children?: React.ReactNode }) {
       className="panel-inset p-3 flex items-start gap-3 border-l-2 border-amber text-xs text-muted">
       <FlaskConical size={16} className="text-amber shrink-0 mt-0.5"/>
       <p>
-        <strong className="text-ink">Donnees de demonstration.</strong>{" "}
-        {children ?? "Cette page utilise un jeu d'exemple embarque, pas vos feuilles de match : les chiffres ne concernent ni votre equipe ni la saison choisie."}
+        <strong className="text-ink">Données de démonstration.</strong>{" "}
+        {children ?? "Cette page utilise un jeu d'exemple embarqué, pas vos feuilles de match : les chiffres ne concernent ni votre équipe ni la saison choisie."}
       </p>
     </div>
   );

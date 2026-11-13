@@ -54,8 +54,8 @@ export function SaisonGuard({
           <AlertCircle size={16} className="text-amber shrink-0"/>
           <p className="text-xs text-muted flex-1 min-w-[16rem]">
             <strong className="text-ink">{libelle}</strong> : saison{" "}
-            <strong className="text-ink">{saisonChoisie.nom}</strong> archivee, en
-            consultation seule. Les ajouts et modifications sont reserves a la
+            <strong className="text-ink">{saisonChoisie.nom}</strong> archivée, en
+            consultation seule. Les ajouts et modifications sont réservés à la
             saison en cours{saisonActive ? ` (${saisonActive.nom})` : ""}.
           </p>
           {saisonActive && <BoutonSaisonEnCours />}
@@ -65,8 +65,8 @@ export function SaisonGuard({
         <div className="panel-inset p-3 mb-4 flex items-center gap-3 border-l-2 border-sky fade-up">
           <Info size={16} className="text-sky shrink-0"/>
           <p className="text-xs text-muted">
-            Saison <strong className="text-ink">{saisonChoisie.nom}</strong> a venir :
-            tu prepares la saison, les ajouts sont autorises.
+            Saison <strong className="text-ink">{saisonChoisie.nom}</strong> à venir :
+            tu prépares la saison, les ajouts sont autorisés.
           </p>
         </div>
       )}

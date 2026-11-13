@@ -23,7 +23,7 @@ import { MatchActions } from "./MatchActions";
 import { SystemeMatch } from "./SystemeMatch";
 
 /** Un match sans feuille n'a pas de score : le statut remplace le "resultat final". */
-const LIBELLE_STATUT: Record<string, string> = { prevu: "A venir", a_venir: "A venir", reporte: "Reporte", annule: "Annule" };
+const LIBELLE_STATUT: Record<string, string> = { prevu: "À venir", a_venir: "À venir", reporte: "Reporté", annule: "Annulé" };
 
 export default async function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: matchId } = await params;
@@ -107,7 +107,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         <div className="flex items-center gap-2">
           {aPreparer && (
             <Link href={`/rapports/prematch/${adversaireId}?matchId=${match.id}`} className="btn btn-primary text-xs">
-              <Target size={12}/> Rapport pre-match
+              <Target size={12}/> Rapport pré-match
             </Link>
           )}
           {/* Modifier / supprimer : seulement si l'API l'autorise (un match d'un autre club se consulte, il ne se modifie pas). */}
@@ -132,7 +132,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
 
           <div className="text-center px-4">
             <div className="text-[10px] uppercase tracking-[0.18em] text-faint mb-1">
-              {LIBELLE_STATUT[statut] ?? "Resultat final"}
+              {LIBELLE_STATUT[statut] ?? "Résultat final"}
             </div>
             <div className="font-display text-5xl sm:text-6xl font-black text-ink tabular-nums leading-none">
               {LIBELLE_STATUT[statut]
@@ -165,7 +165,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
               : (m.arbitre ?? "—")
           }/>
           <Meta icon={<FileText size={12}/>} label="N° FMI" value={m.numeroFmi ?? "—"}/>
-          <Meta icon={<span className="text-accent">●</span>} label="Competition" value={libelleCompetition}/>
+          <Meta icon={<span className="text-accent">●</span>} label="Compétition" value={libelleCompetition}/>
         </div>
       </header>
 
@@ -205,10 +205,10 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
       {statut === "joue" && (
         <section className="panel p-4" aria-labelledby="systemes-match">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h2 id="systemes-match" className="h-section">Systemes de jeu</h2>
+            <h2 id="systemes-match" className="h-section">Systèmes de jeu</h2>
             <span className="text-[11px] text-faint">
-              renseignes par le staff : la feuille de match n'en contient pas. Ils servent a predire le systeme du prochain adversaire.
-              {verrouille && " Sur ce match, tu peux renseigner un systeme vide ; un systeme deja saisi ne se corrige que depuis un club du match."}
+              renseignés par le staff : la feuille de match n'en contient pas. Ils servent à prédire le système du prochain adversaire.
+              {verrouille && " Sur ce match, tu peux renseigner un système vide ; un système déjà saisi ne se corrige que depuis un club du match."}
             </span>
           </div>
           <div className="mt-3 grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
@@ -222,16 +222,16 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
       {planRealise?.etat === "ok" && (
         <section className="panel p-5" aria-labelledby="plan-realise">
           <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h2 id="plan-realise" className="h-section flex items-center gap-2"><ClipboardCheck size={11} className="text-accent"/>Plan contre realise</h2>
-            <span className="text-[11px] text-faint">le onze prepare dans l'onglet Tactique, compare a la feuille de match</span>
+            <h2 id="plan-realise" className="h-section flex items-center gap-2"><ClipboardCheck size={11} className="text-accent"/>Plan contre réalisé</h2>
+            <span className="text-[11px] text-faint">le onze préparé dans l'onglet Tactique, compare à la feuille de match</span>
           </div>
           <PlanRealise donnees={planRealise} />
         </section>
       )}
       {planRealise?.etat === "pas_de_plan" && (
         <p className="flex items-center gap-2 px-1 text-xs text-faint">
-          <ClipboardCheck size={13} aria-hidden /> Aucun plan de jeu n'avait ete prepare pour ce match.
-          <Link href="/tactique" className="text-accent hover:underline">Preparer le prochain</Link>
+          <ClipboardCheck size={13} aria-hidden /> Aucun plan de jeu n'avait été préparé pour ce match.
+          <Link href="/tactique" className="text-accent hover:underline">Préparer le prochain</Link>
         </p>
       )}
 
@@ -254,8 +254,8 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
           </div>
           <PitchHeatmap matrix={heatmap}/>
           <p className="text-[11px] text-muted mt-2">
-            Donnees illustratives : cette carte n'est pas calculee a partir du
-            match. Elle sera derivee des evenements quand le module xT sera branche.
+            Données illustratives : cette carte n'est pas calculée à partir du
+            match. Elle sera dérivée des événements quand le module xT sera branche.
           </p>
         </div>
       </section>
@@ -391,7 +391,7 @@ function CompoTable({ club, compo, joueurs, cartons }: any) {
                 <td className="hidden sm:table-cell text-[11px] font-mono text-faint">{p.licence}</td>
                 <td>
                   <span className={`badge ${p.titulaire ? "badge-accent" : ""}`}>
-                    {p.titulaire ? "Titulaire" : "Remplacant"}
+                    {p.titulaire ? "Titulaire" : "Remplaçant"}
                   </span>
                 </td>
               </tr>

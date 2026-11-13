@@ -18,7 +18,7 @@ import { TabBar } from "@/shared/ui/TabBar";
 const TABS = [
   { id: "infos", label: "Informations", icon: User },
   { id: "stats", label: "Stats", icon: BarChart3 },
-  { id: "medical", label: "Medical", icon: HeartPulse },
+  { id: "medical", label: "Médical", icon: HeartPulse },
   { id: "historique", label: "Historique", icon: Calendar },
 ] as const;
 

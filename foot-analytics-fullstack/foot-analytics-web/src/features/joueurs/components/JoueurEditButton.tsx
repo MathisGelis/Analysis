@@ -61,7 +61,7 @@ export function JoueurEditButton({ joueur }: { joueur: Joueur }) {
       setOpen(false);
       router.refresh();
     } catch (e) {
-      setError("Echec : " + (e as Error).message);
+      setError("Échec : " + (e as Error).message);
       setSaving(false);
     }
   }
@@ -89,7 +89,7 @@ export function JoueurEditButton({ joueur }: { joueur: Joueur }) {
               <Field label="Poste">
                 <Select valeur={form.poste} onChange={(v) => set("poste", v)} ariaLabel="Poste" options={OPTIONS_POSTES}/>
               </Field>
-              <Field label="Numero">
+              <Field label="Numéro">
                 <input type="number" className="inp" value={form.numeroFavori ?? ""}
                   onChange={(e) => set("numeroFavori",
                     e.target.value ? +e.target.value : undefined)} />

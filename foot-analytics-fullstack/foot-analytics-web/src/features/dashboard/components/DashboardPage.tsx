@@ -98,7 +98,7 @@ export default async function Dashboard() {
   // que d'afficher "aucun but" a une equipe qui en a marque 56.
   const butsAttribues = effectif.reduce((s, j) => s + (j.buts ?? 0), 0);
   const messageButeurs = bilan.bp > 0 && butsAttribues === 0
-    ? "Buteurs non renseignes dans les feuilles de match importees."
+    ? "Buteurs non renseignés dans les feuilles de match importées."
     : "Pas de but inscrit cette saison.";
 
   // Courbes des indicateurs : une valeur par match joue, dans l'ordre.
@@ -139,7 +139,7 @@ export default async function Dashboard() {
               <h1 className="mt-1.5">
                 <Link href={`/club/${clubPropreId}`}
                   className="block font-display text-3xl font-bold leading-[1.05] text-ink transition-colors hover:text-accent sm:text-[40px]">
-                  {club?.nom ?? "Club non defini"}
+                  {club?.nom ?? "Club non défini"}
                 </Link>
               </h1>
               {equipe ? (
@@ -150,7 +150,7 @@ export default async function Dashboard() {
                 </div>
               ) : (
                 <div className="mt-2 text-sm text-amber">
-                  Aucune equipe sur cette saison : choisis-en une dans le selecteur de la barre laterale.
+                  Aucune équipe sur cette saison : choisis-en une dans le sélecteur de la barre latérale.
                 </div>
               )}
             </div>
@@ -161,7 +161,7 @@ export default async function Dashboard() {
               icon={<Trophy size={13} />} gradient />
             <HeroStat label="Points" value={maLigne?.pts ?? bilan.pts} gradient />
             <HeroStat label="Diff. buts" value={diff} showSign tone={diff >= 0 ? "win" : "loss"} />
-            <HeroStat label="Joues" value={maLigne?.joues ?? bilan.joues} icon={<Calendar size={13} />} />
+            <HeroStat label="Joués" value={maLigne?.joues ?? bilan.joues} icon={<Calendar size={13} />} />
           </div>
         </div>
 
@@ -191,11 +191,11 @@ export default async function Dashboard() {
         <div className="panel relative overflow-hidden p-6 lg:col-span-8">
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
-              <span className="h-section">Prochaine echeance</span>
+              <span className="h-section">Prochaine échéance</span>
               <h2 className="mt-1 font-display text-2xl font-bold text-ink">
                 {prochain
-                  ? (prochain.journee && prochain.journee !== "—" ? `Journee ${prochain.journee}` : (prochain.competition || "Match"))
-                  : "Aucun match a venir"}
+                  ? (prochain.journee && prochain.journee !== "—" ? `Journée ${prochain.journee}` : (prochain.competition || "Match"))
+                  : "Aucun match à venir"}
               </h2>
             </div>
             {prochain && (
@@ -203,7 +203,7 @@ export default async function Dashboard() {
                 <Link href={`/matchs/${prochain.id}`} className="btn text-sm">Fiche du match</Link>
                 <Link href={`/rapports/prematch/${prochain.equipeDomId === equipe?.id ? prochain.clubExt : prochain.clubDom}?matchId=${prochain.id}`}
                   className="btn btn-primary text-sm">
-                  Rapport pre-match <ArrowRight size={14} />
+                  Rapport pré-match <ArrowRight size={14} />
                 </Link>
               </div>
             )}
@@ -217,7 +217,7 @@ export default async function Dashboard() {
                 <div className="flex min-w-0 flex-col items-center gap-2 text-center sm:flex-row sm:justify-end sm:text-right">
                   <div className="min-w-0 sm:order-1">
                     <div className="truncate font-display text-lg font-bold text-ink">{club?.nom ?? "Mon club"}</div>
-                    <div className="text-xs text-muted">{dom ? "A domicile" : "A l'exterieur"}</div>
+                    <div className="text-xs text-muted">{dom ? "À domicile" : "À l'extérieur"}</div>
                   </div>
                   <ClubBadge clubId={clubPropreId} size={56} className="sm:order-2" />
                 </div>
@@ -230,7 +230,7 @@ export default async function Dashboard() {
                   <ClubBadge clubId={advId} size={56} />
                   <div className="min-w-0">
                     <div className="truncate font-display text-lg font-bold text-ink">{clubNom(advId)}</div>
-                    <div className="text-xs text-muted">{dom ? "Visiteur" : "Recoit"}</div>
+                    <div className="text-xs text-muted">{dom ? "Visiteur" : "Reçoit"}</div>
                   </div>
                 </div>
               </div>
@@ -239,8 +239,8 @@ export default async function Dashboard() {
             <div className="grid place-items-center rounded-2xl border border-dashed border-line2 py-10 text-center">
               <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-accent/10 text-accent"><MapPin size={22} /></div>
               <p className="max-w-sm text-sm text-muted">
-                {calendrierOuvert ? "Aucun match programme. Ajoute-le depuis le calendrier, ou importe une feuille de match."
-                  : "Aucun match programme sur cette saison. Importe une feuille de match."}
+                {calendrierOuvert ? "Aucun match programmé. Ajoute-le depuis le calendrier, ou importe une feuille de match."
+                  : "Aucun match programmé sur cette saison. Importe une feuille de match."}
               </p>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 {calendrierOuvert && <Link href="/calendrier" className="btn btn-primary text-sm"><Calendar size={14} /> Ouvrir le calendrier</Link>}
@@ -250,7 +250,7 @@ export default async function Dashboard() {
           )}
           {aRenseigner.length > 0 && (
             <p className="mt-3 text-xs text-muted">
-              {aRenseigner.length} match{aRenseigner.length > 1 ? "s" : ""} passe{aRenseigner.length > 1 ? "s" : ""} sans feuille :{" "}
+              {aRenseigner.length} match{aRenseigner.length > 1 ? "s" : ""} passé{aRenseigner.length > 1 ? "s" : ""} sans feuille :{" "}
               <Link href="/matchs" className="text-accent underline underline-offset-2">importe leur feuille ou saisis le score</Link>.
             </p>
           )}
@@ -277,11 +277,11 @@ export default async function Dashboard() {
                 <span className={`pill-${dernier.issue.toLowerCase() as "v" | "n" | "d"} mb-1.5 ml-auto`}>{dernier.issue}</span>
               </div>
               <div className="mt-3 text-xs text-faint">
-                Journee {dernier.journee.replace(/\D/g, "")} · {dernier.date}
+                Journée {dernier.journee.replace(/\D/g, "")} · {dernier.date}
               </div>
             </Link>
           ) : (
-            <div className="py-8 text-sm text-muted">Aucun match joue.</div>
+            <div className="py-8 text-sm text-muted">Aucun match joué.</div>
           )}
         </div>
       </section>
@@ -290,12 +290,12 @@ export default async function Dashboard() {
           INDICATEURS : chacun avec sa courbe sur les matchs joues
           ============================================================ */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Kpi label="Matchs joues" value={bilan.joues} icon={<Calendar size={14} />}
+        <Kpi label="Matchs joués" value={bilan.joues} icon={<Calendar size={14} />}
           serie={seriePoints} serieLabel="Points cumules" />
-        <Kpi label="Buts marques" value={bilan.bp} icon={<Target size={14} />} tone="accent"
+        <Kpi label="Buts marqués" value={bilan.bp} icon={<Target size={14} />} tone="accent"
           sous={bilan.joues ? `${(bilan.bp / bilan.joues).toFixed(1)} par match` : "—"}
           serie={serieButsPour} serieLabel="Buts par match" />
-        <Kpi label="Buts encaisses" value={bilan.bc} icon={<ShieldAlert size={14} />} tone="danger"
+        <Kpi label="Buts encaissés" value={bilan.bc} icon={<ShieldAlert size={14} />} tone="danger"
           sous={bilan.joues ? `${(bilan.bc / bilan.joues).toFixed(1)} par match` : "—"}
           serie={serieButsContre} serieLabel="Buts par match" color="rgb(var(--chart-2))" />
         <Kpi label="Cartons" value={totalCJ + totalCR} icon={<Flag size={14} />} tone="amber"
@@ -309,8 +309,8 @@ export default async function Dashboard() {
         <TopList
           title="Fatigue" icon={<Flame size={15} />} accent="amber"
           empty={estSaisonActive
-            ? "Pas de charge recente connue (matchs ou seances des 4 dernieres semaines)."
-            : "La fatigue est un instantane : elle n'existe que sur la saison active."}
+            ? "Pas de charge récente connue (matchs ou séances des 4 dernières semaines)."
+            : "La fatigue est un instantané : elle n'existe que sur la saison active."}
           items={topFatigue.map((j: any) => ({
             id: j.id, nom: `${j.prenom ?? ""} ${j.nom}`.trim(),
             poste: j.poste, valeur: j.scoreFatigue ?? 0, valeurLabel: "/100",
@@ -412,7 +412,7 @@ function RepartitionBar({ v, n, d }: { v: number; n: number; d: number }) {
   return (
     <div className="w-full">
       <div className="flex h-2 gap-[2px] overflow-hidden rounded-full bg-line" role="img"
-        aria-label={`${v} victoires, ${n} nuls, ${d} defaites`}>
+        aria-label={`${v} victoires, ${n} nuls, ${d} défaites`}>
         {seg(v, "win")}{seg(n, "draw")}{seg(d, "loss")}
       </div>
       <div className="mt-1.5 flex justify-between text-xs">

@@ -44,26 +44,26 @@ function FaceAuModeleActif({ detail }: { detail: EntrainementDetail }) {
   const b = badgeDecision(d)!;
   const c = d.comparaison;
   return (
-    <Bloc titre="Face au modele actif" testid="decision-ia"
-      aide="Un nouveau modele ne remplace l'actif que s'il fait au moins aussi bien sur des semaines que l'actif n'avait pas vues : le nouveau les a predites en marche avant, l'actif avec ses reglages figes.">
+    <Bloc titre="Face au modèle actif" testid="decision-ia"
+      aide="Un nouveau modèle ne remplace l'actif que s'il fait au moins aussi bien sur des semaines que l'actif n'avait pas vues : le nouveau les a prédites en marche avant, l'actif avec ses réglages figés.">
       <div className="flex flex-wrap items-center gap-2">
         <span className={`badge text-[10px] ${b.ton === "ok" ? "badge-accent" : b.ton === "non" ? "badge-amber" : ""}`}>{b.texte}</span>
         <span className="badge text-[10px]">{detail.declencheur === "auto" ? "Reentrainement automatique" : "Lancement manuel"}</span>
       </div>
       <p className="mt-2 text-sm text-ink" data-testid="decision-raison">{d.raison}</p>
       {detail.declencheur === "manuel" && d.action === "remplace" && !d.appliquee && (
-        <p className="mt-1 text-xs text-muted">Un lancement manuel n'active jamais le modele : c'est a vous de l'activer.</p>
+        <p className="mt-1 text-xs text-muted">Un lancement manuel n'active jamais le modèle : c'est à vous de l'activer.</p>
       )}
       {c && (
         <div className="mt-3 overflow-x-auto">
           <table className="table-fm">
-            <thead><tr><th>Modele</th><th className="text-right">Titulaires predits</th><th className="text-right">Postes exacts</th><th className="text-right">Perte (plus bas = mieux)</th></tr></thead>
+            <thead><tr><th>Modèle</th><th className="text-right">Titulaires prédits</th><th className="text-right">Postes exacts</th><th className="text-right">Perte (plus bas = mieux)</th></tr></thead>
             <tbody>
-              <tr className="is-mine"><td className="font-semibold text-ink">Nouveau modele</td><td className="text-right font-mono">{pct(c.nouveau.onze)}</td><td className="text-right font-mono">{pct(c.nouveau.postes)}</td><td className="text-right font-mono">{nombre(c.nouveau.perte, 3)}</td></tr>
+              <tr className="is-mine"><td className="font-semibold text-ink">Nouveau modèle</td><td className="text-right font-mono">{pct(c.nouveau.onze)}</td><td className="text-right font-mono">{pct(c.nouveau.postes)}</td><td className="text-right font-mono">{nombre(c.nouveau.perte, 3)}</td></tr>
               <tr><td className="text-muted">{c.actif.nom} (actif)</td><td className="text-right font-mono text-muted">{pct(c.ancien.onze)}</td><td className="text-right font-mono text-muted">{pct(c.ancien.postes)}</td><td className="text-right font-mono text-muted">{nombre(c.ancien.perte, 3)}</td></tr>
             </tbody>
           </table>
-          <p className="mt-2 text-xs text-faint">{c.feuilles} feuilles sur {c.semaines} semaine{c.semaines > 1 ? "s" : ""}, a partir de la {c.depuis.charAt(0).toLowerCase() + c.depuis.slice(1)}.</p>
+          <p className="mt-2 text-xs text-faint">{c.feuilles} feuilles sur {c.semaines} semaine{c.semaines > 1 ? "s" : ""}, à partir de la {c.depuis.charAt(0).toLowerCase() + c.depuis.slice(1)}.</p>
         </div>
       )}
     </Bloc>
@@ -96,9 +96,9 @@ export function ResultatIa({ detail }: { detail: EntrainementDetail }) {
         <div className="min-w-0">
           <p className="text-sm font-semibold text-ink">{v.texte}</p>
           <p className="mt-1 text-xs text-muted">
-            Entraine en {dureeFr(r.dureeMs)} sur {r.donnees.feuilles} feuilles d'equipe ({r.donnees.etapes} semaines, {r.donnees.equipes} equipes
+            Entraîné en {dureeFr(r.dureeMs)} sur {r.donnees.feuilles} feuilles d'équipe ({r.donnees.etapes} semaines, {r.donnees.equipes} équipes
             {r.donnees.premiere && r.donnees.derniere ? `, du ${r.donnees.premiere} au ${r.donnees.derniere}` : ""}).
-            Reglages retenus : {libelleHyper(r.hyper)}.
+            Réglages retenus : {libelleHyper(r.hyper)}.
           </p>
           {r.alertes.length > 0 && (
             <ul className="mt-2 space-y-0.5 text-xs text-amber">
@@ -109,24 +109,24 @@ export function ResultatIa({ detail }: { detail: EntrainementDetail }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tuile testid="kpi-onze" label="Titulaires bien predits" valeur={pct(g.modele.onze)}
-          aide={ref ? `${ecartPoints(g.modele.onze, ref.onze)} face au meilleur repere (${LIBELLE_METHODE[ref.methode].toLowerCase()})` : undefined} />
+        <Tuile testid="kpi-onze" label="Titulaires bien prédits" valeur={pct(g.modele.onze)}
+          aide={ref ? `${ecartPoints(g.modele.onze, ref.onze)} face au meilleur repère (${LIBELLE_METHODE[ref.methode].toLowerCase()})` : undefined} />
         <Tuile testid="kpi-postes" label="Postes exacts" valeur={pct(g.modele.postes)}
-          aide={g.modele.nPostes > 0 ? `Sur ${g.modele.nPostes} feuilles aux numeros lisibles` : "Numeros non lisibles"} />
+          aide={g.modele.nPostes > 0 ? `Sur ${g.modele.nPostes} feuilles aux numéros lisibles` : "Numéros non lisibles"} />
         <Tuile testid="kpi-parfaits" label="Onzes parfaits" valeur={`${g.modele.parfaits}`}
-          aide={`sur ${g.modele.n} compositions predites`} />
+          aide={`sur ${g.modele.n} compositions prédites`} />
         <Tuile testid="kpi-nouveaux" label="Joueurs jamais vus" valeur={pct(r.nouveaux)}
-          aide="des titulaires reels etaient inconnus de leur equipe : imprevisibles" />
+          aide="des titulaires réels étaient inconnus de leur équipe : imprévisibles" />
       </div>
 
       {detail.decision && <FaceAuModeleActif detail={detail} />}
 
-      <Bloc titre="Comparaison avec des methodes simples" testid="comparaison-ia"
-        aide="Sur exactement les memes matchs. 'Titulaires' : part des 11 titulaires reels predits. 'Postes' : part des 11 couples (numero, joueur) exacts.">
+      <Bloc titre="Comparaison avec des méthodes simples" testid="comparaison-ia"
+        aide="Sur exactement les mêmes matchs. 'Titulaires' : part des 11 titulaires réels prédits. 'Postes' : part des 11 couples (numéro, joueur) exacts.">
         <div className="overflow-x-auto">
           <table className="table-fm">
             <thead>
-              <tr><th>Methode</th><th className="text-right">Titulaires</th><th className="text-right">Titulaires, dernieres semaines</th><th className="text-right">Postes</th><th className="text-right">Onzes parfaits</th></tr>
+              <tr><th>Méthode</th><th className="text-right">Titulaires</th><th className="text-right">Titulaires, dernières semaines</th><th className="text-right">Postes</th><th className="text-right">Onzes parfaits</th></tr>
             </thead>
             <tbody>
               {METHODES.map((m) => (
@@ -144,9 +144,9 @@ export function ResultatIa({ detail }: { detail: EntrainementDetail }) {
       </Bloc>
 
       <Bloc titre="Courbe d'apprentissage" testid="courbe-ia"
-        aide="Chaque semaine est predite avant d'etre decouverte, avec ce que l'IA avait appris des semaines precedentes. Plus la courbe de l'IA monte, plus elle apprend.">
-        <div className="mb-3 flex gap-2" role="group" aria-label="Mesure affichee">
-          {([["onze", "Titulaires predits"], ["postes", "Postes exacts"]] as const).map(([id, label]) => (
+        aide="Chaque semaine est prédite avant d'être découverte, avec ce que l'IA avait appris des semaines précédentes. Plus la courbe de l'IA monte, plus elle apprend.">
+        <div className="mb-3 flex gap-2" role="group" aria-label="Mesure affichée">
+          {([["onze", "Titulaires prédits"], ["postes", "Postes exacts"]] as const).map(([id, label]) => (
             <button key={id} type="button" aria-pressed={mesure === id} onClick={() => setMesure(id)}
               className={`btn text-xs ${mesure === id ? "btn-accent" : ""}`}>{label}</button>
           ))}
@@ -155,10 +155,10 @@ export function ResultatIa({ detail }: { detail: EntrainementDetail }) {
       </Bloc>
 
       {Object.keys(r.parSaison).length > 1 && (
-        <Bloc titre="Par saison" aide="La precision de chaque methode, saison par saison (la premiere saison souffre du demarrage a froid).">
+        <Bloc titre="Par saison" aide="La précision de chaque méthode, saison par saison (la première saison souffre du démarrage à froid).">
           <div className="overflow-x-auto">
             <table className="table-fm">
-              <thead><tr><th>Saison</th><th className="text-right">Predictions</th>{METHODES.map((m) => <th key={m} className="text-right">{LIBELLE_METHODE_COURT[m]}</th>)}</tr></thead>
+              <thead><tr><th>Saison</th><th className="text-right">Prédictions</th>{METHODES.map((m) => <th key={m} className="text-right">{LIBELLE_METHODE_COURT[m]}</th>)}</tr></thead>
               <tbody>
                 {Object.entries(r.parSaison).map(([id, notes]) => (
                   <tr key={id}>
@@ -174,18 +174,18 @@ export function ResultatIa({ detail }: { detail: EntrainementDetail }) {
       )}
 
       <Bloc titre="Ce que l'IA a appris" testid="poids-ia"
-        aide="Le poids de chaque indice dans sa decision. Elle part des reglages du moteur a regles et les corrige a chaque semaine, d'apres ses erreurs.">
+        aide="Le poids de chaque indice dans sa décision. Elle part des réglages du moteur à règles et les corrige à chaque semaine, d'après ses erreurs.">
         <div className="grid gap-8 lg:grid-cols-2">
           <PoidsAppris titre="Qui est titulaire ?" lignes={lignesT} />
           <div className="space-y-8">
-            <PoidsAppris titre="Quel numero (quel poste) ?" lignes={lignesN} />
+            <PoidsAppris titre="Quel numéro (quel poste) ?" lignes={lignesN} />
             {lignesS.length > 0 && <PoidsAppris titre="Quel dispositif ?" lignes={lignesS} />}
           </div>
         </div>
       </Bloc>
 
-      <Bloc titre="Ses probabilites sont-elles justes ?" testid="calibration-ia"
-        aide="Quand l'IA annonce 70 % de chances qu'un joueur commence, il commence bien environ 7 fois sur 10 ? Deux barres de meme hauteur : le modele est bien calibre.">
+      <Bloc titre="Ses probabilités sont-elles justes ?" testid="calibration-ia"
+        aide="Quand l'IA annonce 70 % de chances qu'un joueur commence, il commence bien environ 7 fois sur 10 ? Deux barres de même hauteur : le modèle est bien calibre.">
         <CalibrationIa bandes={r.calibration} />
       </Bloc>
 
@@ -194,9 +194,9 @@ export function ResultatIa({ detail }: { detail: EntrainementDetail }) {
         {r.systeme ? (
           <div className="overflow-x-auto">
             <table className="table-fm">
-              <thead><tr><th>Methode</th><th className="text-right">Bon dispositif</th><th className="text-right">Dans les 3 premiers</th><th className="text-right">Bonne defense (a 4, a 3...)</th></tr></thead>
+              <thead><tr><th>Méthode</th><th className="text-right">Bon dispositif</th><th className="text-right">Dans les 3 premiers</th><th className="text-right">Bonne défense (a 4, a 3...)</th></tr></thead>
               <tbody>
-                {([["modele", "Modele appris"], ["moteur", "Moteur a regles actuel"], ["dernier", "Dernier dispositif saisi"], ["frequent", "Le plus courant"]] as const).map(([k, label]) => (
+                {([["modele", "Modèle appris"], ["moteur", "Moteur à règles actuel"], ["dernier", "Dernier dispositif saisi"], ["frequent", "Le plus courant"]] as const).map(([k, label]) => (
                   <tr key={k}>
                     <td className={k === "modele" ? "font-semibold text-ink" : "text-muted"}>{label}</td>
                     <td className="text-right font-mono">{pct(r.systeme![k].top1)}</td>
@@ -209,22 +209,22 @@ export function ResultatIa({ detail }: { detail: EntrainementDetail }) {
             <p className="mt-2 text-xs text-faint">Sur {r.systeme.n} matchs dont le dispositif est saisi.</p>
             <p className="mt-1 text-xs" data-testid="systeme-retenu">
               {r.poids.systemeRetenu
-                ? <span className="text-win">Retenu : a fait au moins aussi bien que le moteur a regles, il choisit le dispositif probable quand ce modele est actif.</span>
-                : <span className="text-amber">Non retenu : pas assez de dispositifs saisis, ou moins bon que le moteur a regles. Le dispositif probable reste calcule par le moteur a regles.</span>}
+                ? <span className="text-win">Retenu : a fait au moins aussi bien que le moteur à règles, il choisit le dispositif probable quand ce modèle est actif.</span>
+                : <span className="text-amber">Non retenu : pas assez de dispositifs saisis, ou moins bon que le moteur à règles. Le dispositif probable reste calculé par le moteur à règles.</span>}
             </p>
           </div>
         ) : (
-          <p className="text-sm text-muted">Aucun dispositif saisi par le staff sur les matchs de la base : le modele de dispositif n'a rien pu apprendre. Saisissez les dispositifs sur les fiches de match pour l'entrainer.</p>
+          <p className="text-sm text-muted">Aucun dispositif saisi par le staff sur les matchs de la base : le modèle de dispositif n'a rien pu apprendre. Saisissez les dispositifs sur les fiches de match pour l'entraîner.</p>
         )}
       </Bloc>
 
       <Bloc titre="Ou l'IA se trompe" testid="erreurs-ia"
-        aide="Les erreurs notees pendant l'entrainement : les compositions les plus ratees, et les joueurs que l'IA a le plus de mal a lire.">
+        aide="Les erreurs notées pendant l'entraînement : les compositions les plus ratées, et les joueurs que l'IA a le plus de mal à lire.">
         <ErreursIa pires={r.pires} difficiles={r.difficiles} />
       </Bloc>
 
-      <Bloc titre="Reglages essayes" testid="essais-ia"
-        aide="Chaque combinaison a ete jouee sur toute la periode ; la perte mesure la justesse des probabilites (plus bas = mieux). Le meilleur est retenu.">
+      <Bloc titre="Réglages essayes" testid="essais-ia"
+        aide="Chaque combinaison a été jouée sur toute la période ; la perte mesure la justesse des probabilités (plus bas = mieux). Le meilleur est retenu.">
         <div className="overflow-x-auto">
           <table className="table-fm">
             <thead><tr><th>Historique relu</th><th className="text-right">Prudence</th><th className="text-right">Oubli</th><th className="text-right">Perte</th><th className="text-right">Titulaires</th></tr></thead>
@@ -243,12 +243,12 @@ export function ResultatIa({ detail }: { detail: EntrainementDetail }) {
         </div>
       </Bloc>
 
-      <Bloc titre="Donnees utilisees" testid="donnees-ia">
+      <Bloc titre="Données utilisées" testid="donnees-ia">
         <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
           {([
-            ["Matchs lus", r.donnees.matchsLus], ["Feuilles d'equipe", r.donnees.feuilles], ["Semaines", r.donnees.etapes], ["Equipes", r.donnees.equipes],
+            ["Matchs lus", r.donnees.matchsLus], ["Feuilles d'équipe", r.donnees.feuilles], ["Semaines", r.donnees.etapes], ["Équipes", r.donnees.equipes],
             ["Matchs sans date", r.donnees.ecartes.sansDate], ["Matchs sans feuille", r.donnees.ecartes.sansFeuille],
-            ["Feuilles incompletes", r.donnees.ecartes.feuilleIncomplete], ["Premieres feuilles (sans historique)", r.sansHistorique],
+            ["Feuilles incomplètes", r.donnees.ecartes.feuilleIncomplete], ["Premières feuilles (sans historique)", r.sansHistorique],
           ] as const).map(([label, valeur]) => (
             <div key={label}><dt className="text-xs text-faint">{label}</dt><dd className="font-mono text-ink">{valeur}</dd></div>
           ))}

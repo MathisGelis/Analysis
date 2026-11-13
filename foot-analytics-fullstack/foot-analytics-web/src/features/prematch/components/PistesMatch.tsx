@@ -15,8 +15,8 @@ const TON = {
 
 /** Libelle du pied de carte, selon le ton : avant le match (pistes) ou apres (plan contre realise). */
 const LIBELLES = {
-  prematch: { atout: "A exploiter", vigilance: "Vigilance", info: "A savoir" },
-  plan: { atout: "Conforme", vigilance: "A regarder", info: "Constat" },
+  prematch: { atout: "À exploiter", vigilance: "Vigilance", info: "À savoir" },
+  plan: { atout: "Conforme", vigilance: "À regarder", info: "Constat" },
 } as const;
 
 export function PistesMatch({ pistes, variante = "prematch" }: { pistes: Piste[]; variante?: keyof typeof LIBELLES }) {

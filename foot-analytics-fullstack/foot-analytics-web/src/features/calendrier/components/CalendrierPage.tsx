@@ -41,8 +41,8 @@ import { CalendrierFffPanneau } from "./CalendrierFffPanneau";
 
 const JOURS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const MOIS_FR = [
-  "Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin",
-  "Juillet", "Aout", "Septembre", "Octobre", "Novembre", "Decembre",
+  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
 ];
 
 interface MatchEv {
@@ -216,7 +216,7 @@ function CalendrierContent() {
     return (
       <div className="space-y-6 fade-up">
         <h1 className="font-display text-2xl font-bold text-ink">Calendrier</h1>
-        <p className="text-muted">Selectionne une equipe dans la sidebar.</p>
+        <p className="text-muted">Sélectionne une équipe dans la sidebar.</p>
       </div>
     );
   }
@@ -243,13 +243,13 @@ function CalendrierContent() {
             {MOIS_FR[addMonths(cursor, 1).getMonth()].slice(0, 4)}. <ChevronRight size={14}/>
           </button>
           <button className="btn" onClick={() => setFffOpen(true)} disabled={lectureSeule || !monEquipe} data-testid="cal-fff-ouvrir"
-            title={lectureSeule ? "Saison archivee : consultation seule" : "Importer les matchs depuis le calendrier FFF (myFFF)"}>
+            title={lectureSeule ? "Saison archivée : consultation seule" : "Importer les matchs depuis le calendrier FFF (myFFF)"}>
             <CalendarSync size={14}/> Calendrier FFF
           </button>
           <button className="btn" onClick={() => setPlanningOpen(true)}
             disabled={lectureSeule}
-            title={lectureSeule ? "Saison archivee : consultation seule" : undefined}>
-            <Settings2 size={14}/> Jours prevus
+            title={lectureSeule ? "Saison archivée : consultation seule" : undefined}>
+            <Settings2 size={14}/> Jours prévus
           </button>
         </div>
       </header>
@@ -260,13 +260,13 @@ function CalendrierContent() {
           <span className="w-2.5 h-2.5 rounded-sm bg-accent"/> Match
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-sm bg-amber"/> Entrainement
+          <span className="w-2.5 h-2.5 rounded-sm bg-amber"/> Entraînement
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm bg-sky"/> Autre
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-sm border border-amber/30 bg-amber/5"/> Jour prevu (sans seance)
+          <span className="w-2.5 h-2.5 rounded-sm border border-amber/30 bg-amber/5"/> Jour prévu (sans séance)
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm border-2 border-accent"/> Aujourd'hui
@@ -316,7 +316,7 @@ function CalendrierContent() {
                   }`}>
                     <button
                       onClick={() => setAddOpen({ date: iso, type: "entrainement" })}
-                      title="Ajouter un entrainement"
+                      title="Ajouter un entraînement"
                       className="text-xs md:text-[9px] px-3 py-2 md:px-1 md:py-0.5 rounded hover:bg-amber/20 text-amber">+E</button>
                     <button
                       onClick={() => setAddOpen({ date: iso, type: "match" })}
@@ -324,7 +324,7 @@ function CalendrierContent() {
                       className="text-xs md:text-[9px] px-3 py-2 md:px-1 md:py-0.5 rounded hover:bg-accent/20 text-accent">+M</button>
                     <button
                       onClick={() => setAddOpen({ date: iso, type: "autre" })}
-                      title="Ajouter un evenement"
+                      title="Ajouter un événement"
                       className="text-xs md:text-[9px] px-3 py-2 md:px-1 md:py-0.5 rounded hover:underline text-sky">+A</button>
                   </div>
                 </div>
@@ -344,7 +344,7 @@ function CalendrierContent() {
                           {advId && <ClubBadge clubId={advId} size={12}/>}
                           <span className="font-bold truncate flex-1">{adv?.nom ?? advId}</span>
                           {m.calendrierDisparu && (
-                            <span title="Ne figure plus au calendrier FFF : reporte ou annule ? A verifier." data-testid="match-disparu" className="shrink-0">
+                            <span title="Ne figure plus au calendrier FFF : reporté ou annulé ? À vérifier." data-testid="match-disparu" className="shrink-0">
                               <TriangleAlert size={10} className="text-amber" aria-label="Ne figure plus au calendrier FFF"/>
                             </span>
                           )}
@@ -362,7 +362,7 @@ function CalendrierContent() {
                     <button key={s.id} type="button"
                       onClick={() => setSeanceEdit(s)}
                       disabled={lectureSeule}
-                      title={lectureSeule ? "Saison archivee : consultation seule" : "Modifier la seance"}
+                      title={lectureSeule ? "Saison archivée : consultation seule" : "Modifier la séance"}
                       className="block w-full text-left px-1.5 py-1 rounded-sm text-[10px] leading-tight
                         bg-amber/15 text-ink border border-amber/40 enabled:hover:bg-amber/25">
                       <div className="flex items-center gap-1">
@@ -404,9 +404,9 @@ function CalendrierContent() {
                         hover:bg-amber/5 hover:text-amber transition text-left">
                       <div className="flex items-center gap-1">
                         <CalendarCheck size={9}/>
-                        <span>Entrainement {planning.heure}</span>
+                        <span>Entraînement {planning.heure}</span>
                       </div>
-                      <div className="text-[8px] text-muted">Prevu · clic pour creer</div>
+                      <div className="text-[8px] text-muted">Prévu · clic pour créer</div>
                     </button>
                   )}
                 </div>
@@ -489,8 +489,8 @@ function PlanningModal({
       <ModalHeader
         icon={<CalIcon size={18} className="text-accent"/>}
         iconBg="bg-accent/15"
-        title="Jours d'entrainement prevus"
-        subtitle="Apparaissent en placeholder sur le calendrier, tant qu'aucune seance reelle n'est creee. Stocke localement (par equipe)."
+        title="Jours d'entraînement prévus"
+        subtitle="Apparaissent en placeholder sur le calendrier, tant qu'aucune séance réelle n'est créée. Stocké localement (par équipe)."
         onClose={onClose}
       />
 
@@ -511,11 +511,11 @@ function PlanningModal({
             })}
           </div>
           <p className="text-[10px] text-faint mt-2">
-            {jours.size === 0 ? "Aucun jour selectionne." : `${jours.size} jour${jours.size > 1 ? "s" : ""} selectionne${jours.size > 1 ? "s" : ""}.`}
+            {jours.size === 0 ? "Aucun jour sélectionné." : `${jours.size} jour${jours.size > 1 ? "s" : ""} sélectionné${jours.size > 1 ? "s" : ""}.`}
           </p>
         </Section>
 
-        <Section label="Heure de la seance">
+        <Section label="Heure de la séance">
           <TimePicker24 value={heure} onChange={setHeure}/>
         </Section>
       </div>
@@ -580,7 +580,7 @@ function MatchModal({
 
   async function save() {
     setError(null);
-    if (!monEquipe) { setError("Equipe non chargee : recharge la page."); return; }
+    if (!monEquipe) { setError("Équipe non chargée : recharge la page."); return; }
     if (!adversaire) { setError("Choisis l'adversaire."); return; }
     setSaving(true);
     try {
@@ -654,7 +654,7 @@ function MatchModal({
           <Section label="Heure">
             <TimePicker24 value={heure} onChange={setHeure}/>
           </Section>
-          <Section label="Cote">
+          <Section label="Côté">
             <div className="flex gap-1.5">
               <button onClick={() => setDomicile(true)}
                 className={`flex-1 px-3 py-2 rounded-md text-xs font-semibold border transition ${
@@ -668,14 +668,14 @@ function MatchModal({
                   !domicile ? "bg-accent/15 border-accent/40 text-accent"
                             : "border-line text-muted hover:bg-line/30"
                 }`}>
-                Exterieur
+                Extérieur
               </button>
             </div>
           </Section>
         </div>
 
         {typeMatch === "Championnat" && (
-          <Section label="Journee (optionnel)">
+          <Section label="Journée (optionnel)">
             <input className="inp" value={journee}
               onChange={(e) => setJournee(e.target.value)}
               placeholder="J23"/>
@@ -692,7 +692,7 @@ function MatchModal({
       <ModalFooter>
         <button className="btn" onClick={onClose}>Annuler</button>
         <button className="btn btn-accent" onClick={save} disabled={saving || !monEquipe}>
-          <Save size={14}/> {saving ? "Sauvegarde..." : "Creer le match"}
+          <Save size={14}/> {saving ? "Sauvegarde..." : "Créer le match"}
         </button>
       </ModalFooter>
     </Modal>
@@ -715,7 +715,7 @@ function AutreEventModal({
 
   function save() {
     setError(null);
-    if (!titre.trim()) { setError("Renseigne un titre."); return; }
+    if (!titre.trim()) { setError("Renseigné un titre."); return; }
     const ev: AutreEv = {
       id: `autre-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       date,
@@ -731,21 +731,21 @@ function AutreEventModal({
       <ModalHeader
         icon={<FileText size={18} className="text-sky"/>}
         iconBg="bg-sky/15"
-        title="Autre evenement"
+        title="Autre événement"
         subtitle={`Date : ${formatDateFr(date)}`}
         onClose={onClose}
       />
 
       <div className="space-y-5">
         <p className="text-xs text-muted leading-relaxed">
-          Reunion, deplacement, formation, evenement administratif... Stocke
-          localement par equipe sur ce navigateur.
+          Réunion, déplacement, formation, événement administratif... Stocké
+          localement par équipe sur ce navigateur.
         </p>
 
         <Section label="Titre">
           <input className="inp" value={titre} autoFocus
             onChange={(e) => setTitre(e.target.value)}
-            placeholder="Reunion staff / AG club / etc."/>
+            placeholder="Réunion staff / AG club / etc."/>
         </Section>
 
         <Section label="Heure (optionnel)">

@@ -49,7 +49,7 @@ export function ArbitresMatchBlock({
     const raw = drafts[linkId];
     const v = raw === "" ? null : Number(raw);
     if (v != null && (isNaN(v) || v < 0 || v > 10)) {
-      notifier.erreur("La note doit etre comprise entre 0 et 10.");
+      notifier.erreur("La note doit être comprise entre 0 et 10.");
       return;
     }
     setSavingId(linkId);
@@ -58,7 +58,7 @@ export function ArbitresMatchBlock({
       setLocal((arr) => arr.map((l) => l.id === linkId ? { ...l, note: updated.note } : l));
       setDrafts((d) => { const n = { ...d }; delete n[linkId]; return n; });
     } catch (e) {
-      notifier.erreur("Echec de la sauvegarde : " + (e as Error).message);
+      notifier.erreur("Échec de la sauvegarde : " + (e as Error).message);
     } finally {
       setSavingId(null);
     }
@@ -72,7 +72,7 @@ export function ArbitresMatchBlock({
       </div>
 
       {sorted.length === 0 ? (
-        <p className="text-sm text-muted py-2">Aucun arbitre enregistre sur ce match.</p>
+        <p className="text-sm text-muted py-2">Aucun arbitre enregistré sur ce match.</p>
       ) : (
         <table className="table-fm table-fm-compact">
           <thead>
@@ -135,7 +135,7 @@ export function ArbitresMatchBlock({
                         <Star size={11}/> {l.note}
                       </span>
                     ) : (
-                      <span className="text-faint text-xs">non notee</span>
+                      <span className="text-faint text-xs">non notée</span>
                     )}
                   </td>
                 </tr>

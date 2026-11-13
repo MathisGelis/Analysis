@@ -48,9 +48,9 @@ export function AccordCgu() {
         <p className="text-sm leading-relaxed text-muted">
           {utilisateur?.cguVersion ? "Les conditions d'utilisation ont change." : "Bienvenue."} Avant de continuer, lis les{" "}
           <Link href="/cgu" target="_blank" className="text-accent underline underline-offset-2">conditions d'utilisation</Link> et la{" "}
-          <Link href="/confidentialite" target="_blank" className="text-accent underline underline-offset-2">politique de confidentialite</Link>.
-          En bref : donnees reservees a la preparation sportive du club, compte personnel, pas d'extraction massive, et des
-          statistiques qui restent une aide a la decision.
+          <Link href="/confidentialite" target="_blank" className="text-accent underline underline-offset-2">politique de confidentialité</Link>.
+          En bref : données réservées à la préparation sportive du club, compte personnel, pas d'extraction massive, et des
+          statistiques qui restent une aide à la décision.
         </p>
         <label className="flex items-start gap-2 text-sm text-ink">
           <input type="checkbox" className="mt-1" checked={coche} onChange={(e) => setCoche(e.target.checked)} />
@@ -59,7 +59,7 @@ export function AccordCgu() {
         {erreur && <p role="alert" className="text-sm text-danger">{erreur}</p>}
         <div className="flex flex-wrap justify-end gap-2">
           <button type="button" className="btn" onClick={() => void deconnecter()}>
-            <LogOut size={14} /> Me deconnecter
+            <LogOut size={14} /> Me déconnecter
           </button>
           <button type="button" className="btn btn-accent" disabled={!coche || envoi} onClick={accepter}>
             {envoi ? "Enregistrement..." : "Accepter et continuer"}

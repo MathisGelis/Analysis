@@ -7,25 +7,25 @@ describe("construireNavigation", () => {
     const liens = construireNavigation("club-1").flatMap((s) => s.items);
     expect(liens.find((l) => l.label === "Mon club")?.href).toBe("/club/club-1");
   });
-  it("sans club : 'Mon club' retombe sur le dashboard plutot que sur /club/null", () => {
+  it("sans club : 'Mon club' retombe sur le dashboard plutôt que sur /club/null", () => {
     const liens = construireNavigation(null).flatMap((s) => s.items);
     expect(liens.find((l) => l.label === "Mon club")?.href).toBe("/");
   });
-  it("toutes les pages de gestion restent accessibles depuis la barre laterale (la recherche ne propose plus de pages)", () => {
+  it("toutes les pages de gestion restent accessibles depuis la barre latérale (la recherche ne propose plus de pages)", () => {
     const hrefs = construireNavigation("c").flatMap((s) => s.items.map((l) => l.href));
     for (const page of ["/", "/classement", "/calendrier", "/effectif", "/entrainements", "/medical", "/matchs", "/tactique",
       "/arbitres", "/rapports", "/import", "/saisons"]) {
       expect(hrefs).toContain(page);
     }
   });
-  it("les rapports ont UNE entree : scouting et predictions n'ont plus d'onglet (ils s'ouvrent depuis le dossier d'un club)", () => {
+  it("les rapports ont UNE entree : scouting et prédictions n'ont plus d'onglet (ils s'ouvrent depuis le dossier d'un club)", () => {
     const liens = construireNavigation("c").flatMap((s) => s.items);
     expect(liens.map((l) => l.href)).not.toContain("/scouting");
     expect(liens.map((l) => l.href)).not.toContain("/ia");
     expect(construireNavigation("c").find((s) => s.section === "Analyse")?.items.map((l) => l.label)).toEqual(["Rapports", "Recherche joueurs"]);
-    expect(liens.find((l) => l.href === "/medical")?.label).toBe("Medical");
+    expect(liens.find((l) => l.href === "/medical")?.label).toBe("Médical");
   });
-  it("la gestion des comptes n'est dans aucun menu : elle est en bas de la barre laterale, pour tous les roles", () => {
+  it("la gestion des comptes n'est dans aucun menu : elle est en bas de la barre latérale, pour tous les rôles", () => {
     const hrefs = construireNavigation("c").flatMap((s) => s.items.map((l) => l.href));
     expect(hrefs).not.toContain("/admin/utilisateurs");
   });
@@ -38,13 +38,13 @@ describe("construireNavigation", () => {
 describe("construireNavigation selon le compte et la saison", () => {
   const hrefs = (acces: Parameters<typeof construireNavigation>[1]) => construireNavigation("c", acces).flatMap((s) => s.items.map((l) => l.href));
 
-  it("saison en cours, a venir ou inconnue : tout est la (administrateur)", () => {
+  it("saison en cours, à venir ou inconnue : tout est la (administrateur)", () => {
     for (const mode of ["active", "future", "inconnue"] as const) {
       expect(hrefs({ role: "admin", mode })).toEqual(hrefs(undefined));
     }
   });
 
-  it("saison passee : calendrier, entrainements et tactique disparaissent, le reste demeure", () => {
+  it("saison passée : calendrier, entraînements et tactique disparaissent, le reste demeure", () => {
     const liens = hrefs({ role: "admin", mode: "passee" });
     for (const page of ["/calendrier", "/entrainements", "/tactique"]) expect(liens).not.toContain(page);
     for (const page of ["/", "/effectif", "/medical", "/matchs", "/rapports", "/classement", "/arbitres", "/import", "/saisons", "/admin/ia"]) {
@@ -52,7 +52,7 @@ describe("construireNavigation selon le compte et la saison", () => {
     }
   });
 
-  it("les onglets Saisons et IA sont reserves a l'administrateur : ni le referent ni l'educateur ne les voient", () => {
+  it("les onglets Saisons et IA sont réservés à l'administrateur : ni le référent ni l'éducateur ne les voient", () => {
     expect(hrefs({ role: "admin", mode: "active" })).toEqual(expect.arrayContaining(["/saisons", "/admin/ia"]));
     for (const role of ["referent", "user", null, undefined]) {
       expect(hrefs({ role, mode: "active" })).not.toContain("/saisons");
@@ -60,27 +60,27 @@ describe("construireNavigation selon le compte et la saison", () => {
     }
     expect(hrefs({ role: "user", mode: "active" })).toContain("/import");                          // le reste de la section Donnees demeure
   });
-  it("l'IA est dans le menu de gauche de l'administrateur, section Donnees, juste apres les Saisons", () => {
-    const donnees = construireNavigation("c", { role: "admin", mode: "active" }).find((s) => s.section === "Donnees");
+  it("l'IA est dans le menu de gauche de l'administrateur, section Données, juste après les Saisons", () => {
+    const donnees = construireNavigation("c", { role: "admin", mode: "active" }).find((s) => s.section === "Données");
     expect(donnees?.items.map((l) => l.label)).toEqual(["Import feuilles FMI", "Saisons", "IA"]);
   });
 
-  it("meme un educateur sur une saison passee garde chaque section (aucune ne reste vide)", () => {
+  it("même un éducateur sur une saison passée garde chaque section (aucune ne reste vide)", () => {
     const sections = construireNavigation("c", { role: "user", mode: "passee" });
-    expect(sections.map((s) => s.section)).toEqual(["Vue d'ensemble", "Mon equipe", "Match", "Analyse", "Donnees"]);
+    expect(sections.map((s) => s.section)).toEqual(["Vue d'ensemble", "Mon équipe", "Match", "Analyse", "Données"]);
     expect(sections.every((s) => s.items.length > 0)).toBe(true);
     expect(sections.find((s) => s.section === "Vue d'ensemble")?.items.map((l) => l.label)).toEqual(["Dashboard", "Classement"]);
     expect(sections.find((s) => s.section === "Match")?.items.map((l) => l.label)).toEqual(["Matchs", "Arbitres"]);
-    expect(sections.find((s) => s.section === "Donnees")?.items.map((l) => l.label)).toEqual(["Import feuilles FMI"]);
+    expect(sections.find((s) => s.section === "Données")?.items.map((l) => l.label)).toEqual(["Import feuilles FMI"]);
   });
 });
 
 describe("lienGestionComptes", () => {
-  it("administrateur : Administration ; referent de club : Mes educateurs ; meme page, meme emplacement", () => {
+  it("administrateur : Administration ; référent de club : Mes éducateurs ; même page, même emplacement", () => {
     expect(lienGestionComptes("admin")).toMatchObject({ href: "/admin/utilisateurs", label: "Administration" });
-    expect(lienGestionComptes("referent")).toMatchObject({ href: "/admin/utilisateurs", label: "Mes educateurs" });
+    expect(lienGestionComptes("referent")).toMatchObject({ href: "/admin/utilisateurs", label: "Mes éducateurs" });
   });
-  it("educateur, role inconnu ou absent : aucun lien", () => {
+  it("éducateur, rôle inconnu ou absent : aucun lien", () => {
     expect(lienGestionComptes("user")).toBeNull();
     expect(lienGestionComptes(undefined)).toBeNull();
     expect(lienGestionComptes(null)).toBeNull();

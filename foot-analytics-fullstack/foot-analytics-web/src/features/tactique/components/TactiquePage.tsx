@@ -40,7 +40,7 @@ import { DernierPlanRealise } from "./DernierPlanRealise";
 
 export default function Tactique() {
   return (
-    <SaisonGuard libelle="La preparation tactique">
+    <SaisonGuard libelle="La préparation tactique">
       <TactiqueContent />
     </SaisonGuard>
   );
@@ -137,7 +137,7 @@ function TactiqueContent() {
           capitaineId: cap, notes: (plan.notes ?? "").trim(),
         }));
         if (propre.retires > 0) {
-          notifier.info(`${propre.retires} joueur${propre.retires > 1 ? "s" : ""} du plan enregistre ne fait${propre.retires > 1 ? "ont" : ""} plus partie de l'effectif : poste${propre.retires > 1 ? "s" : ""} libere${propre.retires > 1 ? "s" : ""}.`);
+          notifier.info(`${propre.retires} joueur${propre.retires > 1 ? "s" : ""} du plan enregistré ne fait${propre.retires > 1 ? "ont" : ""} plus partie de l'effectif : poste${propre.retires > 1 ? "s" : ""} libéré${propre.retires > 1 ? "s" : ""}.`);
         }
       } else {
         // Pas de plan enregistre : on part du dispositif que le logiciel a identifie pour mon equipe (derniers matchs), a defaut
@@ -213,7 +213,7 @@ function TactiqueContent() {
     const place = Math.max(0, MAX_REMPLACANTS - remplacants.length);
     if (surplus.length > 0) {
       setRemplacants((r) => [...r, ...surplus.slice(0, place)]);
-      notifier.info(`${surplus.length} joueur${surplus.length > 1 ? "s" : ""} sans poste dans le ${nouvelle} : passe${surplus.length > 1 ? "s" : ""} sur le banc.`);
+      notifier.info(`${surplus.length} joueur${surplus.length > 1 ? "s" : ""} sans poste dans le ${nouvelle} : passé${surplus.length > 1 ? "s" : ""} sur le banc.`);
     }
     if (capitaineId && !nt.includes(capitaineId)) setCapitaineId(null);
   }
@@ -225,11 +225,11 @@ function TactiqueContent() {
     setErreurRegle(null);
     const regle = s.ecartes.filter((e) => e.raison === "regle des mutes").length;
     const indispo = s.ecartes.filter((e) => e.raison === "indisponible").length;
-    const details = [indispo ? `${indispo} indisponible${indispo > 1 ? "s" : ""} ecarte${indispo > 1 ? "s" : ""}` : null, regle ? `${regle} ecarte${regle > 1 ? "s" : ""} par la regle des mutes` : null].filter(Boolean);
-    notifier.info(`Onze suggere d'apres le temps de jeu, la note et la fraicheur${details.length ? ` (${details.join(", ")})` : ""}.`);
+    const details = [indispo ? `${indispo} indisponible${indispo > 1 ? "s" : ""} ecarte${indispo > 1 ? "s" : ""}` : null, regle ? `${regle} ecarte${regle > 1 ? "s" : ""} par la règle des mutés` : null].filter(Boolean);
+    notifier.info(`Onze suggéré d'après le temps de jeu, la note et la fraîcheur${details.length ? ` (${details.join(", ")})` : ""}.`);
   }
   async function vider() {
-    if (groupe.length > 0 && !(await confirmer({ titre: "Vider la composition ?", message: "Les titulaires et les remplacants sont retires (rien n'est supprime tant que tu n'enregistres pas).", libelleConfirmer: "Vider" }))) return;
+    if (groupe.length > 0 && !(await confirmer({ titre: "Vider la composition ?", message: "Les titulaires et les remplaçants sont retirés (rien n'est supprimé tant que tu n'enregistres pas).", libelleConfirmer: "Vider" }))) return;
     setTitulaires(Array(NB_TITULAIRES).fill(null));
     setRemplacants([]);
     setCapitaineId(null);
@@ -246,7 +246,7 @@ function TactiqueContent() {
       });
       setEnregistre(instantane());
       setModifieLe(plan.modifieLe);
-      notifier.succes(prochain ? "Composition enregistree pour le prochain match." : "Composition enregistree.");
+      notifier.succes(prochain ? "Composition enregistrée pour le prochain match." : "Composition enregistrée.");
     } catch (e) {
       const corps = e instanceof ApiError ? e.corps : null;
       if (corps?.code === "REGLE_MUTATIONS") {
@@ -268,7 +268,7 @@ function TactiqueContent() {
 
   // ---- Etats vides -----------------------------------------------------------------------------
   if (!equipeId) {
-    return <EtatVide titre="Aucune equipe selectionnee" texte="Choisis une equipe dans le selecteur en bas a gauche pour preparer sa composition." />;
+    return <EtatVide titre="Aucune équipe sélectionnée" texte="Choisis une équipe dans le sélecteur en bas à gauche pour préparer sa composition." />;
   }
   if (chargement) {
     return (
@@ -284,7 +284,7 @@ function TactiqueContent() {
   if (joueurs.length === 0) {
     return (
       <EtatVide titre="Aucun joueur dans l'effectif"
-        texte="La composition se construit a partir de l'effectif de l'equipe. Ajoute des joueurs ou importe une feuille de match."
+        texte="La composition se construit à partir de l'effectif de l'équipe. Ajoute des joueurs ou importe une feuille de match."
         lien={{ href: "/effectif", libelle: "Ouvrir l'effectif" }} />
     );
   }
@@ -303,12 +303,12 @@ function TactiqueContent() {
         <div className="flex flex-wrap items-center gap-2">
           <Select valeur={formation} onChange={choisirFormation} disabled={lectureSeule} className="btn" ariaLabel="Dispositif"
             options={optionsFormations} recherche={false}/>
-          <button onClick={suggerer} className="btn" disabled={lectureSeule}><Sparkles size={13} /> Onze suggere</button>
+          <button onClick={suggerer} className="btn" disabled={lectureSeule}><Sparkles size={13} /> Onze suggéré</button>
           <button onClick={vider} className="btn" disabled={lectureSeule || groupe.length === 0}><Eraser size={13} /> Vider</button>
           <button onClick={enregistrer} className="btn btn-primary" disabled={!peutEnregistrer}
-            title={lectureSeule ? "Saison archivee : consultation seule"
-              : !bilan.valide ? "La regle des mutes n'est pas respectee"
-              : !modifie ? "Aucune modification a enregistrer" : undefined}>
+            title={lectureSeule ? "Saison archivée : consultation seule"
+              : !bilan.valide ? "La règle des mutés n'est pas respectée"
+              : !modifie ? "Aucune modification à enregistrer" : undefined}>
             <Save size={13} /> {sauvegarde ? "Enregistrement..." : "Enregistrer"}
           </button>
         </div>
@@ -316,10 +316,10 @@ function TactiqueContent() {
 
       <p className="-mt-3 text-[11px] text-faint" role="status">
         {modifieLe && !modifie
-          ? `Enregistre le ${new Date(modifieLe).toLocaleDateString("fr-FR")} a ${new Date(modifieLe).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}.`
-          : modifie ? (enregistre === null ? "Suggestion non enregistree : ajuste-la puis enregistre." : "Modifications non enregistrees.") : ""}
+          ? `Enregistré le ${new Date(modifieLe).toLocaleDateString("fr-FR")} à ${new Date(modifieLe).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}.`
+          : modifie ? (enregistre === null ? "Suggestion non enregistrée : ajuste-la puis enregistre." : "Modifications non enregistrées.") : ""}
         {enregistre === null && depart && (
-          <span data-testid="dispositif-identifie"> Dispositif de depart propose par le logiciel : {depart.systeme} ({depart.detail}).</span>
+          <span data-testid="dispositif-identifie"> Dispositif de départ propose par le logiciel : {depart.systeme} ({depart.detail}).</span>
         )}
         {sansFiche > 0 && ` ${sansFiche} joueur${sansFiche > 1 ? "s" : ""} sans fiche ne ${sansFiche > 1 ? "sont" : "est"} pas proposable${sansFiche > 1 ? "s" : ""}.`}
       </p>
@@ -331,8 +331,8 @@ function TactiqueContent() {
             onSelectionne={lectureSeule ? undefined : choisirPoste} indexSelectionne={poste}
             titre={`Composition · ${formation}`} oriente="bas" />
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[11px] text-faint">
-            <span className="flex items-center gap-1.5"><span className="rounded-full bg-amber px-1.5 text-[9px] font-extrabold text-[rgb(var(--bg))]">M</span> Mute</span>
-            <span className="flex items-center gap-1.5"><span className="rounded-full bg-danger px-1.5 text-[9px] font-extrabold text-[rgb(var(--bg))]">HD</span> Mute hors delai</span>
+            <span className="flex items-center gap-1.5"><span className="rounded-full bg-amber px-1.5 text-[9px] font-extrabold text-[rgb(var(--bg))]">M</span> Muté</span>
+            <span className="flex items-center gap-1.5"><span className="rounded-full bg-danger px-1.5 text-[9px] font-extrabold text-[rgb(var(--bg))]">HD</span> Muté hors délai</span>
             <span>Clique un poste pour le choisir.</span>
           </div>
         </div>
@@ -349,7 +349,7 @@ function TactiqueContent() {
 
           <section className="panel p-5" aria-labelledby="onze-depart">
             <div className="mb-3 flex items-center justify-between">
-              <h2 id="onze-depart" className="h-section">11 de depart</h2>
+              <h2 id="onze-depart" className="h-section">11 de départ</h2>
               <span className="badge badge-accent" data-testid="nb-titulaires">{titulaires.filter(Boolean).length}/{NB_TITULAIRES}</span>
             </div>
             <ol className="space-y-2">
@@ -389,11 +389,11 @@ function TactiqueContent() {
 
           <section className="panel p-5" aria-labelledby="remplacants">
             <div className="mb-3 flex items-center justify-between">
-              <h2 id="remplacants" className="h-section">Remplacants</h2>
+              <h2 id="remplacants" className="h-section">Remplaçants</h2>
               <span className="badge" data-testid="nb-remplacants">{remplacants.length}/{MAX_REMPLACANTS}</span>
             </div>
             {remplacants.length === 0 ? (
-              <p className="mb-3 text-xs text-faint">Aucun remplacant : ajoute-les ci-dessous.</p>
+              <p className="mb-3 text-xs text-faint">Aucun remplaçant : ajoute-les ci-dessous.</p>
             ) : (
               <ul className="mb-3 space-y-1.5">
                 {remplacants.map((id) => {
@@ -420,7 +420,7 @@ function TactiqueContent() {
             {remplacants.length < MAX_REMPLACANTS && (
               <div className="flex items-center gap-2">
                 <Plus size={14} className="shrink-0 text-faint" aria-hidden />
-                <SelecteurJoueur ariaLabel="Ajouter un remplacant" valeur="" vide="Ajouter un remplacant..." disabled={lectureSeule}
+                <SelecteurJoueur ariaLabel="Ajouter un remplaçant" valeur="" vide="Ajouter un remplaçant..." disabled={lectureSeule}
                   options={optionsJoueurs({ joueurs, ligne: null, liste: groupe, ailleurs: new Set(groupe) })}
                   onChange={ajouterRemplacant} />
               </div>
@@ -430,7 +430,7 @@ function TactiqueContent() {
           <section className="panel p-5" aria-labelledby="vigilances">
             <h2 id="vigilances" className="h-section mb-3">Points de vigilance</h2>
             {alertes.length === 0 ? (
-              <p className="text-xs text-muted">Rien a signaler : onze complet, joueurs disponibles et reposes.</p>
+              <p className="text-xs text-muted">Rien à signaler : onze complet, joueurs disponibles et reposes.</p>
             ) : (
               <ul className="space-y-2">
                 {alertes.map((a) => (
@@ -444,7 +444,7 @@ function TactiqueContent() {
             <label className="mt-4 block text-xs text-muted">
               <span className="mb-1 block text-[11px] uppercase tracking-wider text-faint">Consignes</span>
               <textarea className="inp w-full resize-y text-xs" rows={3} maxLength={600} value={notes} disabled={lectureSeule}
-                onChange={(e) => setNotes(e.target.value)} placeholder="Coups de pied arretes, pressing, joueur a surveiller..." />
+                onChange={(e) => setNotes(e.target.value)} placeholder="Coups de pied arrêtés, pressing, joueur à surveiller..." />
             </label>
           </section>
 
@@ -461,8 +461,8 @@ function ProchainMatchPuce({ prochain }: { prochain: ProchainMatch | null }) {
     <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
       <CalendarClock size={12} className="text-faint" aria-hidden />
       {prochain
-        ? <>Prochain match : <b className="text-ink">{adversaire?.nom ?? "adversaire"}</b> · {prochain.date || "date a confirmer"} · {prochain.domicile ? "domicile" : "exterieur"}</>
-        : "Aucun match a venir : la composition enregistree est le plan courant de l'equipe."}
+        ? <>Prochain match : <b className="text-ink">{adversaire?.nom ?? "adversaire"}</b> · {prochain.date || "date à confirmer"} · {prochain.domicile ? "domicile" : "extérieur"}</>
+        : "Aucun match à venir : la composition enregistrée est le plan courant de l'équipe."}
     </p>
   );
 }

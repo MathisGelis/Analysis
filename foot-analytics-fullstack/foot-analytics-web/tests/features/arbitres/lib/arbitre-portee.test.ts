@@ -7,7 +7,7 @@ const p = (saisonId: string, o: Record<string, any> = {}) => ({
 });
 
 describe("parsePortee", () => {
-  it("saison par defaut, carriere seulement sur demande explicite", () => {
+  it("saison par défaut, carrière seulement sur demande explicite", () => {
     expect(parsePortee(undefined)).toBe("saison");
     expect(parsePortee("nimporte")).toBe("saison");
     expect(parsePortee("carriere")).toBe("carriere");
@@ -59,7 +59,7 @@ describe("decompteMotifs", () => {
     expect(d.total).toBe(parts.reduce((s, x) => s + x.cartonsJaunesDonnes + x.cartonsRougesDonnes, 0));
   });
 
-  it("une participation sans detail (donnees d'avant la mise a jour) : on ne devine pas, null", () => {
+  it("une participation sans détail (données d'avant la mise à jour) : on ne devine pas, null", () => {
     expect(decompteMotifs([champ([{ motif: "A", n: 1 }], 0), p("s1")])).toBeNull();
   });
 

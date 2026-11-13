@@ -95,7 +95,7 @@ function Recherche() {
     [options],
   );
   const optionsCategories: OptionSelect[] = useMemo(
-    () => [{ valeur: "", libelle: "Toutes les categories" }, ...categoriesDe(options, form.saisonId).map((c) => ({ valeur: c, libelle: c }))],
+    () => [{ valeur: "", libelle: "Toutes les catégories" }, ...categoriesDe(options, form.saisonId).map((c) => ({ valeur: c, libelle: c }))],
     [options, form.saisonId],
   );
   const optionsDivisions: OptionSelect[] = useMemo(
@@ -122,34 +122,34 @@ function Recherche() {
         <div className="h-section flex items-center gap-2"><UserSearch size={11} className="text-accent" />Scouting · recrutement</div>
         <h1 className="font-display text-2xl font-bold text-ink">Recherche de joueurs</h1>
         <p className="mt-1 max-w-2xl text-xs text-muted">
-          Par poste, niveau joue une saison et situation une autre saison : par exemple un attaquant qui a joue en U16 R2
-          la saison derniere et qui n'a pas de club connu cette saison.
+          Par poste, niveau joué une saison et situation une autre saison : par exemple un attaquant qui a joué en U16 R2
+          la saison dernière et qui n'a pas de club connu cette saison.
         </p>
       </header>
 
       <form
         className="panel p-5 space-y-5"
         onSubmit={(e) => { e.preventDefault(); void lancer(form); }}
-        aria-label="Criteres de recherche"
+        aria-label="Critères de recherche"
       >
         <fieldset className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <legend className="h-section mb-2">Le joueur</legend>
           <Champ libelle="Poste">
             <Select ariaLabel="Poste" valeur={form.poste} options={OPTIONS_POSTE} onChange={(v) => maj({ poste: v })} data-testid="rj-poste" />
           </Champ>
-          <Champ libelle="Matchs joues">
-            <Select ariaLabel="Matchs joues minimum" valeur={form.minMatchs} options={OPTIONS_MATCHS_MIN} onChange={(v) => maj({ minMatchs: v })} />
+          <Champ libelle="Matchs joués">
+            <Select ariaLabel="Matchs joués minimum" valeur={form.minMatchs} options={OPTIONS_MATCHS_MIN} onChange={(v) => maj({ minMatchs: v })} />
           </Champ>
         </fieldset>
 
         <fieldset className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <legend className="h-section mb-2">A joue</legend>
+          <legend className="h-section mb-2">A joué</legend>
           <Champ libelle="Saison">
-            <Select ariaLabel="Saison jouee" valeur={form.saisonId} options={optionsSaisons} placeholder="Choisir une saison"
+            <Select ariaLabel="Saison jouée" valeur={form.saisonId} options={optionsSaisons} placeholder="Choisir une saison"
               onChange={(v) => setForm((f) => changerSaison(f, v, options))} data-testid="rj-saison" />
           </Champ>
-          <Champ libelle="Categorie">
-            <Select ariaLabel="Categorie" valeur={form.categorie} options={optionsCategories}
+          <Champ libelle="Catégorie">
+            <Select ariaLabel="Catégorie" valeur={form.categorie} options={optionsCategories}
               onChange={(v) => setForm((f) => ({ ...f, categorie: v, division: divisionsDe(options, f.saisonId, v).includes(f.division) ? f.division : "" }))}
               data-testid="rj-categorie" />
           </Champ>
@@ -179,16 +179,16 @@ function Recherche() {
             <Search size={14} /> {chargement ? "Recherche…" : "Rechercher"}
           </button>
           <button type="button" className="btn btn-ghost text-sm" onClick={() => setForm(formulaireInitial(options))}>
-            <RotateCcw size={13} /> Reinitialiser
+            <RotateCcw size={13} /> Réinitialiser
           </button>
         </div>
 
         <p className="panel-inset flex items-start gap-2 p-3 text-xs text-muted">
           <Info size={14} className="mt-0.5 shrink-0 text-sky" aria-hidden />
           <span>
-            La recherche porte sur les feuilles de match importees dans l'application. « Sans club connu » veut dire : aucune
-            feuille de match ni aucun effectif cette saison dans la base, pas une information de la Federation. Seules les
-            donnees de championnat servent (jamais les donnees privees d'un club), et chaque recherche est tracee.
+            La recherche porte sur les feuilles de match importées dans l'application. « Sans club connu » veut dire : aucune
+            feuille de match ni aucun effectif cette saison dans la base, pas une information de la Fédération. Seules les
+            données de championnat servent (jamais les données privées d'un club), et chaque recherche est tracée.
           </span>
         </p>
       </form>
@@ -205,12 +205,12 @@ function Recherche() {
           </div>
           {reponse.donnees.total > reponse.donnees.resultats.length && (
             <p className="text-xs text-amber">
-              Les {reponse.donnees.resultats.length} premiers (les plus utilises) sont affiches : affine les criteres pour voir les autres.
+              Les {reponse.donnees.resultats.length} premiers (les plus utilisés) sont affichés : affine les critères pour voir les autres.
             </p>
           )}
 
           {reponse.donnees.resultats.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted">Aucun joueur ne correspond a ces criteres.</p>
+            <p className="py-6 text-center text-sm text-muted">Aucun joueur ne correspond à ces critères.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="table-fm table-fm-compact" data-testid="rj-table">
@@ -219,7 +219,7 @@ function Recherche() {
                     <th>Joueur</th>
                     <th>Poste</th>
                     <th>Club · {nomSaison(reponse.form.saisonId)}</th>
-                    <th className="text-right" title="Matchs joues">M</th>
+                    <th className="text-right" title="Matchs joués">M</th>
                     <th className="text-right max-sm:hidden" title="Titularisations">Tit.</th>
                     <th className="text-right max-md:hidden">Min</th>
                     <th className="text-right">Buts</th>
@@ -251,7 +251,7 @@ function Ligne({ r, avecCible, nomClub }: {
       </td>
       <td className="text-xs">
         {r.poste ?? "—"}
-        {r.posteDeduit && <span className="ml-1 text-faint" title="Deduit des numeros portes">(n°)</span>}
+        {r.posteDeduit && <span className="ml-1 text-faint" title="Déduit des numéros portés">(n°)</span>}
       </td>
       <td>
         <div className="flex min-w-0 items-center gap-2">

@@ -46,7 +46,7 @@ export default async function globalSetup() {
   });
   const saisons = await appel<{ id: string; nom: string }[]>("/saisons", token);
   const s2627 = saisons.find((s) => s.nom === "2026-2027");
-  if (!s2627) throw new Error("La saison 2026-2027 devrait etre creee au demarrage de l'API");
+  if (!s2627) throw new Error("La saison 2026-2027 devrait être créée au démarrage de l'API");
   const s2425 = await appel<{ id: string }>("/saisons", token, "POST", { nom: "2024-2025", anneeDebut: 2024 });
   const s2526 = await appel<{ id: string }>("/saisons", token, "POST", { nom: "2025-2026", anneeDebut: 2025 });
   await appel(`/saisons/${s2526.id}/activer`, token, "PATCH");

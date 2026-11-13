@@ -23,7 +23,7 @@ export const COLONNES_TRI: ColonneTri[] = [
   { cle: "note", libelle: "Note", sensParDefaut: "desc" },
   { cle: "fatigue", libelle: "Fatigue", sensParDefaut: "desc" },
   { cle: "buts", libelle: "Buts", sensParDefaut: "desc" },
-  { cle: "passes", libelle: "Passes decisives", sensParDefaut: "desc" },
+  { cle: "passes", libelle: "Passes décisives", sensParDefaut: "desc" },
   { cle: "jaunes", libelle: "Cartons jaunes", sensParDefaut: "desc" },
   { cle: "rouges", libelle: "Cartons rouges", sensParDefaut: "desc" },
   { cle: "discipline", libelle: "Discipline", sensParDefaut: "desc" },

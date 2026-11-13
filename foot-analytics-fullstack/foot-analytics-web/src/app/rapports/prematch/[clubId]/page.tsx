@@ -6,8 +6,8 @@
 import RapportPrematch from "@/features/prematch/components/RapportPrematchPage";
 import { GardePage } from "@/features/shell/components/GardePage";
 
-export const metadata = { title: "Rapport pre-match · Foot Analytics" };
+export const metadata = { title: "Rapport pré-match · Foot Analytics" };
 
 export default function Route(props: React.ComponentProps<typeof RapportPrematch>) {
-  return <GardePage chemin="/rapports/prematch" page="Rapport pre-match"><RapportPrematch {...props} /></GardePage>;
+  return <GardePage chemin="/rapports/prematch" page="Rapport pré-match"><RapportPrematch {...props} /></GardePage>;
 }

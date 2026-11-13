@@ -11,7 +11,7 @@ export interface ResultatMatch {
   matchId: string;
   journee: string;
   date: string;
-  lieu: "Domicile" | "Exterieur";
+  lieu: "Domicile" | "Extérieur";
   advClubId: string;
   butsMarques: number;
   butsEncaisses: number;
@@ -67,7 +67,7 @@ export function resultatsDeLEquipe(
     const bc = (dom ? m.scoreExt : m.scoreDom) ?? 0;
     joues.push({
       matchId: m.id, journee: m.journee ?? "—", date: m.date ?? "",
-      lieu: dom ? "Domicile" : "Exterieur",
+      lieu: dom ? "Domicile" : "Extérieur",
       advClubId: dom ? m.clubExt : m.clubDom,
       butsMarques: bm, butsEncaisses: bc,
       issue: bm > bc ? "V" : bm === bc ? "N" : "D",
@@ -110,7 +110,7 @@ export function prochainMatch<T extends { date?: string | null; statut?: string 
 }
 
 const JOURS_LONGS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
-const MOIS_LONGS = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"];
+const MOIS_LONGS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
 
 /** "dimanche 18 octobre 2026" pour une date FMI ou ISO ; la date telle quelle si illisible, vide si absente. */
 export function dateLongueFr(s?: string | null): string {

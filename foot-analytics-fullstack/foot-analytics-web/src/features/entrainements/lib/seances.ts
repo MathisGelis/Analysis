@@ -8,7 +8,7 @@ const LIBELLES_ESPACES: Record<string, string> = {
   terrain_entier: "Terrain entier",
   demi_terrain: "Demi-terrain",
   quart_terrain: "Quart de terrain",
-  espace_reduit: "Espace reduit",
+  espace_reduit: "Espace réduit",
   salle: "Salle",
   autre: "Autre",
 };

@@ -33,19 +33,19 @@ const pluriel = (n: number, un: string, plusieurs: string) => `${n} ${n > 1 ? pl
 /** La phrase de bilan : ce qui a change, ou « rien ne change ». */
 export function bilanFff(r: RapportFff): string {
   const morceaux: string[] = [];
-  if (r.crees.length) morceaux.push(pluriel(r.crees.length, "match ajoute", "matchs ajoutes"));
-  if (r.modifies.length) morceaux.push(pluriel(r.modifies.length, "match modifie", "matchs modifies"));
+  if (r.crees.length) morceaux.push(pluriel(r.crees.length, "match ajouté", "matchs ajoutés"));
+  if (r.modifies.length) morceaux.push(pluriel(r.modifies.length, "match modifié", "matchs modifiés"));
   if (r.disparus.length) morceaux.push(pluriel(r.disparus.length, "match disparu du calendrier", "matchs disparus du calendrier"));
   if (r.reapparus) morceaux.push(pluriel(r.reapparus, "match revenu", "matchs revenus"));
-  if (!morceaux.length) return `Calendrier a jour : ${pluriel(r.total, "match", "matchs")}, rien ne change.`;
+  if (!morceaux.length) return `Calendrier à jour : ${pluriel(r.total, "match", "matchs")}, rien ne change.`;
   return `${morceaux.join(", ")} (${pluriel(r.total, "match", "matchs")} dans le calendrier).`;
 }
 
-/** Ce que le rapport ne fait volontairement pas : a dire, pour ne pas laisser croire a un oubli. */
+/** Ce que le rapport ne fait volontairement pas : à dire, pour ne pas laisser croire a un oubli. */
 export function notesFff(r: RapportFff): string[] {
   const notes: string[] = [];
-  if (r.passes) notes.push(`${pluriel(r.passes, "match deja passe n'est pas cree", "matchs deja passes ne sont pas crees")} : ils apparaitront avec l'import de leur feuille de match.`);
-  if (r.dejaJoues) notes.push(`${pluriel(r.dejaJoues, "match a deja sa feuille", "matchs ont deja leur feuille")} : inchange${r.dejaJoues > 1 ? "s" : ""}.`);
+  if (r.passes) notes.push(`${pluriel(r.passes, "match déjà passé n'est pas créé", "matchs déjà passés ne sont pas créés")} : ils apparaîtront avec l'import de leur feuille de match.`);
+  if (r.dejaJoues) notes.push(`${pluriel(r.dejaJoues, "match a déjà sa feuille", "matchs ont déjà leur feuille")} : inchangé${r.dejaJoues > 1 ? "s" : ""}.`);
   return notes;
 }
 

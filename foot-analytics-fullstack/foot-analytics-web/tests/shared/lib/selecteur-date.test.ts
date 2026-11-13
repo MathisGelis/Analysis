@@ -41,7 +41,7 @@ describe("isoValide / conversions", () => {
 });
 
 describe("isoDepuisValeur", () => {
-  it("lit les formats presents en base : ISO, ISO avec heure, JJ/MM/AAAA de la FMI", () => {
+  it("lit les formats présents en base : ISO, ISO avec heure, JJ/MM/AAAA de la FMI", () => {
     expect(isoDepuisValeur("2026-10-18")).toBe("2026-10-18");
     expect(isoDepuisValeur("2026-10-18T14:00:00.000Z")).toBe("2026-10-18");
     expect(isoDepuisValeur("2026-10-18 14:00")).toBe("2026-10-18");
@@ -67,7 +67,7 @@ describe("formaterFrappe", () => {
     expect(formaterFrappe("120320041234")).toBe("12/03/2004");
   });
 
-  it("le separateur tape apres deux chiffres est conserve, et la saisie deja formatee ne bouge pas", () => {
+  it("le separateur tape après deux chiffres est conservé, et la saisie déjà formatee ne bouge pas", () => {
     expect(formaterFrappe("12/")).toBe("12/");
     expect(formaterFrappe("12/03/")).toBe("12/03/");
     expect(formaterFrappe("12/03/2004")).toBe("12/03/2004");
@@ -81,7 +81,7 @@ describe("formaterFrappe", () => {
 });
 
 describe("arithmetique de dates", () => {
-  it("jours : passe les fins de mois et d'annee", () => {
+  it("jours : passe les fins de mois et d'année", () => {
     expect(ajouterJours("2026-10-31", 1)).toBe("2026-11-01");
     expect(ajouterJours("2026-01-01", -1)).toBe("2025-12-31");
     expect(ajouterJours("2028-02-28", 1)).toBe("2028-02-29");
@@ -114,12 +114,12 @@ describe("grilleDuMois", () => {
     expect(g[41].dansMois).toBe(false);
   });
 
-  it("mois qui commence un lundi : pas de jours du mois precedent en tete", () => {
+  it("mois qui commence un lundi : pas de jours du mois précédent en tete", () => {
     const g = grilleDuMois(2026, 6);                         // 1er juin 2026 = lundi
     expect(g[0]).toEqual({ iso: "2026-06-01", jour: 1, dansMois: true });
   });
 
-  it("fevrier bissextile", () => {
+  it("février bissextile", () => {
     expect(grilleDuMois(2028, 2).filter((c) => c.dansMois)).toHaveLength(29);
   });
 });
@@ -127,7 +127,7 @@ describe("grilleDuMois", () => {
 describe("libelles", () => {
   it("libelle long et pages d'annees", () => {
     expect(libelleLong("2026-10-18")).toBe("18 octobre 2026");
-    expect(libelleLong("2026-02-01")).toBe("1er fevrier 2026");
+    expect(libelleLong("2026-02-01")).toBe("1er février 2026");
     expect(debutPageAnnees(2026)).toBe(2016);
     expect(debutPageAnnees(2015)).toBe(2004);
   });

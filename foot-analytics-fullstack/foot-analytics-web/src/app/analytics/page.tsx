@@ -2,6 +2,6 @@
 //
 // Route /analytics : la page vit dans features/demo.
 
-export const metadata = { title: "Analytics avancees · Foot Analytics" };
+export const metadata = { title: "Analytics avancées · Foot Analytics" };
 
 export { default } from "@/features/demo/components/AnalyticsPage";

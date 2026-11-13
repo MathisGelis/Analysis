@@ -39,7 +39,7 @@ describe("initialesClub", () => {
 });
 
 describe("identiteClub", () => {
-  it("deterministe : meme id, meme identite", () => {
+  it("deterministe : même id, même identité", () => {
     const a = identiteClub({ id: "934df026", nom: "O. Lyon Sud" });
     expect(identiteClub({ id: "934df026", nom: "O. Lyon Sud" })).toEqual(a);
   });
@@ -54,7 +54,7 @@ describe("identiteClub", () => {
     }
     expect(vus.size).toBeGreaterThanOrEqual(12);
   });
-  it("la couleur par defaut de la base n'est pas une vraie couleur ; une couleur choisie l'est", () => {
+  it("la couleur par défaut de la base n'est pas une vraie couleur ; une couleur choisie l'est", () => {
     expect(identiteClub({ id: "a", nom: "A", couleur: "#b6f24a" }).couleurPerso).toBeNull();
     expect(identiteClub({ id: "a", nom: "A", couleur: "#B6F24A" }).couleurPerso).toBeNull();
     expect(identiteClub({ id: "a", nom: "A", couleur: "#5ab8ff" }).couleurPerso).toBe("#5ab8ff");

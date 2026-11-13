@@ -17,7 +17,7 @@ function fichiers(dossier: string): string[] {
 
 const INTERDITS: [RegExp, string][] = [
   [/<select[\s>]/, "<select> natif : utiliser shared/ui/Select"],
-  [/<datalist[\s>]/, "<datalist> natif : utiliser un selecteur maison (voir features/calendrier/components/AdversairePicker)"],
+  [/<datalist[\s>]/, "<datalist> natif : utiliser un sélecteur maison (voir features/calendrier/components/AdversairePicker)"],
   [/type=["'](date|time|datetime-local|month|week)["']/, "champ de date ou d'heure natif : utiliser shared/ui/DatePicker / TimePicker24"],
   [/\b(window\.)?(alert|confirm|prompt)\(/, "boite de dialogue du navigateur : utiliser useFeedback (notifier, confirmer)"],
 ];

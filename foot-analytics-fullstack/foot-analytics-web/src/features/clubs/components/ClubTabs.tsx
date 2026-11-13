@@ -141,7 +141,7 @@ export function ClubTabs({
                 {equipe.coach && <> · Coach {equipe.coach}</>}
                 {dispositif && (
                   <> · Dispositif <span className="text-accent font-semibold" title={dispositif.detail}>{dispositif.systeme}</span>
-                    {dispositif.source === "prevu" && <span className="text-faint"> (prevu)</span>}</>
+                    {dispositif.source === "prevu" && <span className="text-faint"> (prévu)</span>}</>
                 )}
               </div>
             )}
@@ -159,10 +159,10 @@ export function ClubTabs({
 
         {/* stats ligne */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-x-4 gap-y-3 mt-4 pt-4 sm:mt-5 sm:pt-5 border-t border-line relative">
-          <Stat label="Joues" value={bilan.joues} />
+          <Stat label="Joués" value={bilan.joues} />
           <Stat label="Victoires" value={bilan.v} accent="win" />
           <Stat label="Nuls" value={bilan.n} accent="draw" />
-          <Stat label="Defaites" value={bilan.d} accent="loss" />
+          <Stat label="Défaites" value={bilan.d} accent="loss" />
           <Stat label="BM / BC" value={`${bilan.bp} / ${bilan.bc}`} />
           <div className="col-span-2 md:col-span-1"><Stat label="Forme" value={<FormeStrip values={bilan.forme} />} /></div>
         </div>
@@ -201,17 +201,17 @@ function OverviewPanel({
     <div className="grid grid-cols-12 gap-4">
       {/* KPIs */}
       <div className="col-span-12 md:col-span-8 panel p-5">
-        <div className="h-section mb-3">Performances · buts par journee</div>
+        <div className="h-section mb-3">Performances · buts par journée</div>
         {resultats.length === 0 ? (
           <p className="text-sm text-muted py-6 text-center">
-            Aucune feuille de match importee pour ce club. Importez via la page « Import FMI ».
+            Aucune feuille de match importée pour ce club. Importez via la page « Import FMI ».
           </p>
         ) : (
           <BarsChart
             data={resultats.map((r: ResultatLigne) => ({
               label: r.journee, a: r.butsMarques, b: r.butsEncaisses,
             }))}
-            legend={["Marques", "Encaisses"]}
+            legend={["Marqués", "Encaissés"]}
             afficherLegende={false}
             height={210}
           />
@@ -222,8 +222,8 @@ function OverviewPanel({
         <div className="h-section mb-3">Indicateurs</div>
         <div className="space-y-3">
           <Mini label="Buts / match" value={bilan.bpMoy != null ? bilan.bpMoy : (bilan.joues ? +(bilan.bp / bilan.joues).toFixed(2) : 0)} />
-          <Mini label="Encaisses / match" value={bilan.bcMoy != null ? bilan.bcMoy : (bilan.joues ? +(bilan.bc / bilan.joues).toFixed(2) : 0)} />
-          <Mini label="Difference" value={bilan.diff ?? bilan.bp - bilan.bc} accent={bilan.bp - bilan.bc >= 0 ? "win" : "loss"} />
+          <Mini label="Encaissés / match" value={bilan.bcMoy != null ? bilan.bcMoy : (bilan.joues ? +(bilan.bc / bilan.joues).toFixed(2) : 0)} />
+          <Mini label="Différence" value={bilan.diff ?? bilan.bp - bilan.bc} accent={bilan.bp - bilan.bc >= 0 ? "win" : "loss"} />
           <Mini label="Cartons jaunes" value={cumulCJ} accent="amber" />
           <Mini label="Cartons rouges" value={cumulCR} accent="loss" />
           <Dispositif dispositif={dispositif} situation={situation} />
@@ -232,9 +232,9 @@ function OverviewPanel({
 
       {/* dernier 5 resultats */}
       <div className="col-span-12 md:col-span-7 panel p-5">
-        <div className="h-section mb-3">5 derniers resultats</div>
+        <div className="h-section mb-3">5 derniers résultats</div>
         {dernier5.length === 0 ? (
-          <p className="text-sm text-muted py-4">Pas encore de resultat.</p>
+          <p className="text-sm text-muted py-4">Pas encore de résultat.</p>
         ) : (
           <table className="table-fm">
             <thead>
@@ -274,14 +274,14 @@ function OverviewPanel({
 
       {/* fatigue */}
       <div className="col-span-12 md:col-span-5 panel p-5">
-        <div className="h-section mb-3">Fatigue a surveiller</div>
+        <div className="h-section mb-3">Fatigue à surveiller</div>
         {!saisonActif ? (
           <p className="text-sm text-muted py-4">
             La fatigue est une mesure du moment : elle n'est suivie que sur la saison en cours.
           </p>
         ) : topFatigue.length === 0 ? (
           <p className="text-sm text-muted py-4">
-            Pas de charge recente connue (matchs ou seances des 4 dernieres semaines).
+            Pas de charge récente connue (matchs ou séances des 4 dernières semaines).
           </p>
         ) : (
           <ul className="space-y-2">
@@ -312,9 +312,9 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
   if (sorted.length === 0) {
     return (
       <div className="panel p-8 text-center text-sm text-muted">
-        Aucun joueur sur cette saison pour cette equipe. L'effectif se construit
-        avec les compositions des feuilles FMI importees, ou en ajoutant des
-        joueurs a la main.
+        Aucun joueur sur cette saison pour cette équipe. L'effectif se construit
+        avec les compositions des feuilles FMI importées, ou en ajoutant des
+        joueurs à la main.
       </div>
     );
   }
@@ -324,7 +324,7 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
         <div className="h-section">Effectif complet ({sorted.length})</div>
         {!isMine && (
           <div className="text-[11px] text-faint italic">
-            Mode scouting · temps de jeu non affiche (peu fiable depuis FMI)
+            Mode scouting · temps de jeu non affiché (peu fiable depuis FMI)
           </div>
         )}
       </div>
@@ -338,7 +338,7 @@ function EffectifPanel({ joueurs, isMine }: { joueurs: Joueur[]; isMine: boolean
             <th className="text-center"><Abr k="B" /></th>
             <th className="text-center max-sm:hidden"><Abr k="PD" /></th>
             <th className="text-center"><Abr k="CJ" /></th><th className="text-center"><Abr k="CR" /></th>
-            <th className="max-sm:hidden">Statut</th><th className="max-sm:hidden">Postes joues</th>
+            <th className="max-sm:hidden">Statut</th><th className="max-sm:hidden">Postes joués</th>
           </tr>
         </thead>
         <tbody>
@@ -471,8 +471,8 @@ function ScoutingPanel({
 
       {/* KPIs scouting */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Kpi label="Buts marques" value={bilan.bp} sub={`${(bilan.bp/Math.max(bilan.joues,1)).toFixed(2)} / match`}/>
-        <Kpi label="Buts encaisses" value={bilan.bc} sub={`${(bilan.bc/Math.max(bilan.joues,1)).toFixed(2)} / match`}/>
+        <Kpi label="Buts marqués" value={bilan.bp} sub={`${(bilan.bp/Math.max(bilan.joues,1)).toFixed(2)} / match`}/>
+        <Kpi label="Buts encaissés" value={bilan.bc} sub={`${(bilan.bc/Math.max(bilan.joues,1)).toFixed(2)} / match`}/>
         <Kpi label="Cartons jaunes" value={cumulCJ} sub="cumul saison" accent="amber"/>
         <Kpi label="Cartons rouges" value={cumulCR} sub="cumul saison" accent="loss"/>
       </section>
@@ -507,7 +507,7 @@ function ScoutingPanel({
           {rapport?.joueursCles?.length > 0 && (
             <>
               <div className="h-section mt-5 mb-2 flex items-center gap-1.5">
-                <Star size={11} className="text-amber"/> Joueurs cles
+                <Star size={11} className="text-amber"/> Joueurs clés
               </div>
               <ul className="space-y-1">
                 {rapport.joueursCles.map((s: string) => (
@@ -545,21 +545,21 @@ function ScoutingPanel({
                     </li>
                   ))}
                 </ul>
-                <p className="mt-3 text-[11px] text-muted">Dispositif non renseigne : le onze est presente sans terrain plutot que d'en supposer un.</p>
+                <p className="mt-3 text-[11px] text-muted">Dispositif non renseigné : le onze est présenté sans terrain plutôt que d'en supposer un.</p>
               </div>
             )}
             <p className="mt-2 text-[11px] text-muted">
               Feuille du {onze.match.date ?? "dernier match"}
               {contreLe ? <> contre <Link href={`/club/${contreLe.adversaireId}`} className="text-accent hover:underline">{contreLe.adversaire}</Link></> : null}
-              {" "}({onze.match.bp}-{onze.match.bc}, {onze.match.domicile ? "domicile" : "exterieur"}).
-              {formationOnze && !formationOnze.exact && " Dispositif probable : il n'est pas renseigne pour ce match."}
+              {" "}({onze.match.bp}-{onze.match.bc}, {onze.match.domicile ? "domicile" : "extérieur"}).
+              {formationOnze && !formationOnze.exact && " Dispositif probable : il n'est pas renseigné pour ce match."}
             </p>
           </div>
         ) : (
           <div className="col-span-12 lg:col-span-8 panel p-5 flex items-center justify-center">
             <p className="text-sm text-muted text-center">
-              Pas de composition recente pour ce club.<br/>
-              Importez une feuille FMI pour generer le dernier onze.
+              Pas de composition récente pour ce club.<br/>
+              Importez une feuille FMI pour générer le dernier onze.
             </p>
           </div>
         )}
@@ -608,7 +608,7 @@ function ScoutingPanel({
           <div className="font-display text-2xl font-bold">{bilanDom}</div>
         </div>
         <div className="col-span-12 md:col-span-6 panel p-5">
-          <div className="h-section mb-3">Bilan exterieur ({ext.length} matchs)</div>
+          <div className="h-section mb-3">Bilan extérieur ({ext.length} matchs)</div>
           <div className="font-display text-2xl font-bold">{bilanExt}</div>
         </div>
       </section>
@@ -616,12 +616,12 @@ function ScoutingPanel({
       {/* Resultats par journee */}
       {resultats.length > 0 && (
         <section className="panel p-5">
-          <div className="h-section mb-3">Resultats par journee</div>
+          <div className="h-section mb-3">Résultats par journée</div>
           <BarsChart
             data={resultats.map((m: ResultatLigne) => ({
               label: m.journee, a: m.butsMarques, b: m.butsEncaisses,
             }))}
-            legend={["Marques","Encaisses"]}
+            legend={["Marqués", "Encaissés"]}
             afficherLegende={false}
             height={200}
           />
@@ -631,10 +631,10 @@ function ScoutingPanel({
       {/* Derniere composition detaillee */}
       {onze && (
         <section className="panel p-5">
-          <div className="h-section mb-3">Derniere composition</div>
+          <div className="h-section mb-3">Dernière composition</div>
           <table className="table-fm">
             <thead>
-              <tr><th>#</th><th>Joueur</th><th>Poste</th><th>Role</th></tr>
+              <tr><th>#</th><th>Joueur</th><th>Poste</th><th>Rôle</th></tr>
             </thead>
             <tbody>
               {[...onze.titulaires.map((j) => ({ j, titulaire: true })), ...onze.remplacants.map((j) => ({ j, titulaire: false }))].map(({ j, titulaire }) => {
@@ -649,7 +649,7 @@ function ScoutingPanel({
                     <td>
                       {j.capitaine ? <span className="badge badge-amber">Capitaine</span>
                         : titulaire ? <span className="badge badge-accent">Titulaire</span>
-                        : j.minutes > 0 ? <span className="badge">Remplacant · {j.minutes}'</span>
+                        : j.minutes > 0 ? <span className="badge">Remplaçant · {j.minutes}'</span>
                         : <span className="badge text-faint">Banc</span>}
                     </td>
                   </tr>
@@ -676,7 +676,7 @@ function Dispositif({
       <div>
         <div className="font-display text-4xl font-black text-accent">{dispositif.systeme}</div>
         <div className="mt-1 text-xs text-muted">
-          {dispositif.source === "prevu" ? "Prevu : " : ""}{dispositif.detail}
+          {dispositif.source === "prevu" ? "Prévu : " : ""}{dispositif.detail}
           {dispositif.source !== "prevu" && p && p.alternatives.length > 0 && (
             <> · sinon {p.alternatives.map((a) => `${a.systeme} (${a.poids} %)`).join(", ")}</>
           )}
@@ -684,7 +684,7 @@ function Dispositif({
       </div>
     ) : (
       <div className="flex items-center justify-between border-b border-line/60 pb-2 last:border-0">
-        <span className="text-xs text-muted">Dispositif{dispositif.source === "prevu" ? " prevu" : ""}</span>
+        <span className="text-xs text-muted">Dispositif{dispositif.source === "prevu" ? " prévu" : ""}</span>
         <span className="font-display font-bold tabular-nums text-accent" title={dispositif.detail}>{dispositif.systeme}</span>
       </div>
     );
@@ -695,13 +695,13 @@ function Dispositif({
   );
   return grand ? (
     <p className="text-sm text-muted">
-      Aucun dispositif renseigne{situation ? ` (${situation.systeme.matchs} match${situation.systeme.matchs > 1 ? "s" : ""} joue${situation.systeme.matchs > 1 ? "s" : ""})` : ""} :
+      Aucun dispositif renseigné{situation ? ` (${situation.systeme.matchs} match${situation.systeme.matchs > 1 ? "s" : ""} joué${situation.systeme.matchs > 1 ? "s" : ""})` : ""} :
       la feuille de match n'en contient pas, il se saisit sur la fiche d'un match.{lien}
     </p>
   ) : (
     <div className="flex items-center justify-between border-b border-line/60 pb-2 last:border-0">
       <span className="text-xs text-muted">Dispositif</span>
-      <span className="text-xs text-faint">{lien ? <>non renseigne · {lien}</> : "non renseigne"}</span>
+      <span className="text-xs text-faint">{lien ? <>non renseigné · {lien}</> : "non renseigné"}</span>
     </div>
   );
 }

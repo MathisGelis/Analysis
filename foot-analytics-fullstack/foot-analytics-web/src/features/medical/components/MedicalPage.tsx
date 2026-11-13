@@ -24,12 +24,12 @@ export default async function Medical() {
     return (
       <div className="space-y-6 fade-up">
         <header>
-          <div className="h-section">Medical</div>
+          <div className="h-section">Médical</div>
           <h1 className="font-display text-2xl font-bold text-ink">Suivi de l&apos;effectif</h1>
         </header>
         <section className="panel p-8 text-center">
-          <div className="mb-2 text-sm text-muted">Aucune equipe selectionnee.</div>
-          <p className="mx-auto max-w-sm text-xs text-faint">Choisissez une equipe dans le selecteur en bas a gauche pour voir son suivi medical.</p>
+          <div className="mb-2 text-sm text-muted">Aucune équipe sélectionnée.</div>
+          <p className="mx-auto max-w-sm text-xs text-faint">Choisissez une équipe dans le sélecteur en bas à gauche pour voir son suivi médical.</p>
         </section>
       </div>
     );
@@ -48,14 +48,14 @@ export default async function Medical() {
   return (
     <div className="space-y-6 fade-up">
       <header>
-        <div className="h-section">{passee ? "Medical · resume de la saison" : "Medical & fatigue"}</div>
+        <div className="h-section">{passee ? "Médical · résumé de la saison" : "Médical & fatigue"}</div>
         <h1 className="font-display text-2xl font-bold text-ink">{libelleEquipe}</h1>
         {saison && (
           <div className="mt-1 flex items-center gap-1.5 text-xs text-muted" data-testid="medical-saison">
             <HeartPulse size={11} className="text-accent" aria-hidden />
             {passee
-              ? <>Resume des blessures de la saison <strong className="text-ink">{saison.nom}</strong><span className="text-faint">· saison terminee</span></>
-              : <>Saison <strong className="text-ink">{saison.nom}</strong>{!saisonEnCours && <span className="text-faint">· saison a venir</span>}</>}
+              ? <>Résumé des blessures de la saison <strong className="text-ink">{saison.nom}</strong><span className="text-faint">· saison terminée</span></>
+              : <>Saison <strong className="text-ink">{saison.nom}</strong>{!saisonEnCours && <span className="text-faint">· saison à venir</span>}</>}
           </div>
         )}
       </header>

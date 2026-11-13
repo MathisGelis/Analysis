@@ -29,7 +29,7 @@ describe("cookies de session", () => {
     expect(optionsCookie(900).secure).toBe(false);
   });
 
-  it("pose le jeton d'acces et, s'il y en a un, le jeton de rafraichissement ; efface l'ancien cookie lisible", () => {
+  it("pose le jeton d'accès et, s'il y en a un, le jeton de rafraichissement ; efface l'ancien cookie lisible", () => {
     const p = pot();
     poserJetons(p, { token: "acces", refreshToken: "rafraichissement", expiresIn: 900 });
     expect(p.poses.get(COOKIE_ACCES)).toMatchObject({ valeur: "acces", options: { httpOnly: true, maxAge: 900 } });
@@ -48,7 +48,7 @@ describe("cookies de session", () => {
   });
 });
 
-describe("jeton d'acces a renouveler", () => {
+describe("jeton d'accès a renouveler", () => {
   it("absent, sans expiration, expire ou expirant dans moins de 30 s", () => {
     const maintenant = 1_000_000_000_000;
     expect(accesARenouveler(null, maintenant)).toBe(true);
@@ -59,7 +59,7 @@ describe("jeton d'acces a renouveler", () => {
 });
 
 describe("requetes d'un autre site", () => {
-  it("une ecriture depuis une autre origine est refusee, pas une lecture", () => {
+  it("une ecriture depuis une autre origine est refusée, pas une lecture", () => {
     expect(origineEtrangere(requete("POST", { origin: "https://evil.example" }))).toBe(true);
     expect(origineEtrangere(requete("POST", { origin: "https://app.example" }))).toBe(false);
     expect(origineEtrangere(requete("GET", { origin: "https://evil.example" }))).toBe(false);
@@ -69,7 +69,7 @@ describe("requetes d'un autre site", () => {
 });
 
 describe("adresse du navigateur transmise a l'API", () => {
-  it("seulement avec le secret partage ; jamais les en-tetes fournis par le client", () => {
+  it("seulement avec le secret partagé ; jamais les en-tetes fournis par le client", () => {
     const depuis = new Headers({ "x-forwarded-for": "203.0.113.7, 10.0.0.1" });
     expect(ipNavigateur(depuis)).toBe("203.0.113.7");
 

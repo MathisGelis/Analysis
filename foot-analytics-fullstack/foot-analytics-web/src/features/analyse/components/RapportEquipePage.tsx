@@ -71,7 +71,7 @@ export default async function RapportEquipe({
   const ancres = [
     t.insights.length > 0 && ["constats", "Constats"],
     courbeOk && ["forme", "Dynamique"],
-    courbeOk && ["buts", "Attaque et defense"],
+    courbeOk && ["buts", "Attaque et défense"],
     ["contexte", "Contexte"],
     ["discipline", "Discipline"],
     rapport.faiblesses.length > 0 && ["points", "Points d'attention"],
@@ -94,7 +94,7 @@ export default async function RapportEquipe({
         <div className="col-span-12 lg:col-span-5 flex items-center gap-4">
           <ClubBadge clubId={rapport.clubId} size={56}/>
           <div className="min-w-0">
-            <div className="text-xs uppercase tracking-[0.18em] text-faint">Rapport d'equipe</div>
+            <div className="text-xs uppercase tracking-[0.18em] text-faint">Rapport d'équipe</div>
             <h1 className="font-display text-3xl font-bold text-ink leading-tight">
               {rapport.clubNom}
             </h1>
@@ -102,7 +102,7 @@ export default async function RapportEquipe({
               {perimetre.equipeNom
                 ? <>{perimetre.equipeNom}{perimetre.competition ? ` · ${perimetre.competition}` : ""} · </>
                 : equipe && <>{equipe.categorie} {equipe.division}{equipe.poule ? ` · Poule ${equipe.poule}` : ""} · </>}
-              {perimetre.saisonNom ? <>saison {perimetre.saisonNom}{perimetre.saisonActive ? "" : " (terminee)"}</> : "toutes saisons"}
+              {perimetre.saisonNom ? <>saison {perimetre.saisonNom}{perimetre.saisonActive ? "" : " (terminée)"}</> : "toutes saisons"}
             </p>
             {jugeable && (
               <div className="mt-2.5 flex flex-wrap items-center gap-2">
@@ -117,14 +117,14 @@ export default async function RapportEquipe({
           </div>
         </div>
         <div className="col-span-12 lg:col-span-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <ScoreCard label="Danger" note="menace de l'equipe" value={rapport.scoreDanger}
+          <ScoreCard label="Danger" note="menace de l'équipe" value={rapport.scoreDanger}
             icon={<Flame size={14}/>} color="rgb(var(--danger))" />
-          <ScoreCard label="Chaos" note="instabilite du onze" value={rapport.scoreChaos}
+          <ScoreCard label="Chaos" note="instabilité du onze" value={rapport.scoreChaos}
             icon={<RotateCcw size={14}/>} color="rgb(var(--amber))" />
           <ScoreCard label="Fatigue" note={niveauFatigueEquipe ? `${LIBELLE_NIVEAU[niveauFatigueEquipe]} · titulaires` : "titulaires types"} value={rapport.fatigueMoy}
-            absent="Mesure du moment : disponible sur la saison en cours, avec des seances ou des matchs recents."
+            absent="Mesure du moment : disponible sur la saison en cours, avec des séances ou des matchs récents."
             icon={<Activity size={14}/>} color={niveauFatigueEquipe ? COULEUR_NIVEAU[niveauFatigueEquipe] : "rgb(var(--accent))"} />
-          <ScoreCard label="Dynamique" note={jugeable ? t.forme.libelle : "trop tot"} value={t.forme.score}
+          <ScoreCard label="Dynamique" note={jugeable ? t.forme.libelle : "trop tôt"} value={t.forme.score}
             absent="Il faut au moins 6 matchs pour juger une dynamique."
             icon={<Zap size={14}/>} color="rgb(var(--chart-3))" />
         </div>
@@ -134,9 +134,9 @@ export default async function RapportEquipe({
         <section className="panel p-8 text-center space-y-2">
           <div className="font-display text-lg font-bold text-ink">Pas encore de match analyse</div>
           <p className="text-sm text-muted max-w-xl mx-auto">
-            Aucune feuille de match n'a ete importee pour {rapport.clubNom}
+            Aucune feuille de match n'a été importée pour {rapport.clubNom}
             {saison ? <> sur la saison <strong className="text-ink">{saison.nom}</strong></> : null}.
-            Le rapport se construit tout seul des les premieres feuilles FMI.
+            Le rapport se construit tout seul des les premières feuilles FMI.
           </p>
           <Link href="/import" className="btn btn-primary inline-flex">Importer une FMI</Link>
         </section>
@@ -153,9 +153,9 @@ export default async function RapportEquipe({
         <section className="panel flex items-start gap-3 p-5">
           <Info size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden />
           <div>
-            <div className="text-sm font-semibold text-ink">Pas encore assez de matchs pour degager des tendances</div>
+            <div className="text-sm font-semibold text-ink">Pas encore assez de matchs pour dégager des tendances</div>
             <p className="mt-0.5 text-xs text-muted">
-              {t.matchs} match{t.matchs > 1 ? "s" : ""} analyse{t.matchs > 1 ? "s" : ""} : il en faut au moins 6 pour comparer la forme recente au reste de la saison.
+              {t.matchs} match{t.matchs > 1 ? "s" : ""} analyse{t.matchs > 1 ? "s" : ""} : il en faut au moins 6 pour comparer la forme récente au reste de la saison.
               Les mesures ci-dessous restent valables, mais sans courbe ni verdict de dynamique.
             </p>
           </div>
@@ -165,7 +165,7 @@ export default async function RapportEquipe({
       {/* Ce qu'il faut retenir */}
       {t.insights.length > 0 && (
         <Section id="constats" titre="Ce qu'il faut retenir" icone={<Sparkles size={11} className="text-accent"/>}
-          aide="constats detectes automatiquement sur les resultats de la saison">
+          aide="constats détectés automatiquement sur les résultats de la saison">
           <InsightsGrid insights={t.insights} />
         </Section>
       )}
@@ -184,7 +184,7 @@ export default async function RapportEquipe({
               <ComparatifForme forme={t.forme} />
               {t.series.enCours.length > 0 && (
                 <div>
-                  <div className="h-section mb-2">Series en cours</div>
+                  <div className="h-section mb-2">Séries en cours</div>
                   <div className="flex flex-wrap gap-2">
                     {t.series.enCours.map((s) => (
                       <span key={s.type} className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${
@@ -206,14 +206,14 @@ export default async function RapportEquipe({
 
       {/* Attaque et defense */}
       {courbeOk && (
-        <Section id="buts" titre="Attaque et defense" icone={<Crosshair size={11} className="text-accent"/>}
+        <Section id="buts" titre="Attaque et défense" icone={<Crosshair size={11} className="text-accent"/>}
           aide={`buts par match, moyenne glissante sur ${t.forme.fenetre} matchs`}>
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
             <div className="xl:col-span-7">
               <CourbeGlissante points={t.courbe} noms={noms} unite="buts par match" yMax={yButs}
                 series={[
-                  { label: "Marques", valeurs: t.courbe.map((p) => p.bpGlissant), variable: "--chart-1" },
-                  { label: "Encaisses", valeurs: t.courbe.map((p) => p.bcGlissant), variable: "--chart-2" },
+                  { label: "Marqués", valeurs: t.courbe.map((p) => p.bpGlissant), variable: "--chart-1" },
+                  { label: "Encaissés", valeurs: t.courbe.map((p) => p.bcGlissant), variable: "--chart-2" },
                 ]} />
             </div>
             <div className="xl:col-span-5">
@@ -226,7 +226,7 @@ export default async function RapportEquipe({
       {/* Contexte : lieu et niveau des adversaires */}
       <section id="contexte" className="grid scroll-mt-24 grid-cols-12 gap-4">
         <div className={`panel col-span-12 p-5 ${t.parNiveau ? "lg:col-span-6" : ""}`}>
-          <div className="h-section mb-4 flex items-center gap-2"><MapPin size={11} className="text-accent"/>Domicile et exterieur</div>
+          <div className="h-section mb-4 flex items-center gap-2"><MapPin size={11} className="text-accent"/>Domicile et extérieur</div>
           <LieuxCard lieux={t.lieux} />
         </div>
         {t.parNiveau && (
@@ -253,7 +253,7 @@ export default async function RapportEquipe({
               Buts par tranche de 15 minutes : indisponible, {t.butsParTranche.couverture > 0
                 ? <>les feuilles de match ne donnent la minute que de {Math.round(t.butsParTranche.couverture * 100)} % des buts.</>
                 : <>les feuilles de match ne donnent pas la minute des buts.</>}{" "}
-              Le graphique apparaitra des que les buteurs seront renseignes.
+              Le graphique apparaîtra des que les buteurs seront renseignés.
             </p>
           )}
         </div>
@@ -297,15 +297,15 @@ export default async function RapportEquipe({
         <div className="col-span-12 lg:col-span-7 panel p-5">
           <div className="h-section mb-3 flex items-center gap-2">
             <Award size={11} className="text-accent"/>
-            Joueurs cles
+            Joueurs clés
             <span className="text-[10px] text-faint normal-case font-normal tracking-normal ml-1">
-              (titulaires reguliers a fort impact positif)
+              (titulaires réguliers à fort impact positif)
             </span>
           </div>
           {rapport.joueursCles.length === 0 ? (
             <p className="text-sm text-muted py-4 text-center">
-              Pas assez de donnees pour identifier des joueurs cles
-              (au moins la moitie des matchs joues avec un impact positif).
+              Pas assez de données pour identifier des joueurs clés
+              (au moins la moitié des matchs joués avec un impact positif).
             </p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -347,13 +347,13 @@ export default async function RapportEquipe({
             <TrendingDown size={11} className="text-danger"/>
             Maillons faibles
             <span className="text-[10px] text-faint normal-case font-normal tracking-normal ml-1">
-              (titulaires reguliers dont la presence coute des points a l'equipe)
+              (titulaires réguliers dont la présence coûte des points à l'équipe)
             </span>
           </div>
           <p className="text-[11px] text-faint mb-3">
-            Ces joueurs ont joue au moins la moitie des matchs, mais l'equipe
+            Ces joueurs ont joué au moins la moitié des matchs, mais l'équipe
             obtient en moyenne MOINS de points quand ils sont sur le terrain.
-            A traiter en priorite (forme, role tactique, role mental).
+            À traiter en priorité (forme, rôle tactique, rôle mental).
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {rapport.impactsFaibles.map((j: any) => (
@@ -391,12 +391,12 @@ export default async function RapportEquipe({
           <AideDecision className="-mt-1.5 mb-3" />
           {rapport.compoProbableSource === "modele" ? (
             <p className="-mt-1.5 mb-3 text-[11px] text-faint">
-              Predite par le modele de l'IA ({rapport.compoProbableModele ?? "modele actif"}), d'apres les {rapport.compoProbableSur} dernieres feuilles :
-              la colonne Chance est sa probabilite que le joueur commence le prochain match.
+              Prédite par le modèle de l'IA ({rapport.compoProbableModele ?? "modèle actif"}), d'après les {rapport.compoProbableSur} dernières feuilles :
+              la colonne Chance est sa probabilité que le joueur commence le prochain match.
             </p>
           ) : rapport.numeros?.fiabilite?.exploitable && (
             <p className="-mt-1.5 mb-3 text-[11px] text-faint">
-              Un joueur par numero de maillot (1 gardien, 2 DD, 3 DG, 4 DCD, 5 DCG, 6 MDC, 7 AG, 8 MC, 9 BU, 10 MO, 11 AD), sur les {rapport.numeros.matchs} dernieres feuilles.
+              Un joueur par numéro de maillot (1 gardien, 2 DD, 3 DG, 4 DCD, 5 DCG, 6 MDC, 7 AG, 8 MC, 9 BU, 10 MO, 11 AD), sur les {rapport.numeros.matchs} dernières feuilles.
             </p>
           )}
           {(rapport.suspendus?.length ?? 0) > 0 && (
@@ -406,7 +406,7 @@ export default async function RapportEquipe({
           )}
           {rapport.compoProbable.length === 0 ? (
             <p className="text-sm text-muted py-4 text-center">
-              Aucun joueur recurrent — trop peu de matchs pour deduire une compo.
+              Aucun joueur récurrent — trop peu de matchs pour déduire une compo.
             </p>
           ) : (
             <table className="table-fm">
@@ -439,7 +439,7 @@ export default async function RapportEquipe({
           )}
           {rapport.numeros && (rapport.numeros.indices.length > 0 || rapport.numeros.notes.length > 0) && (
             <div className="mt-4 border-t border-line pt-3">
-              <div className="stat-label mb-1.5">Ce que disent les numeros</div>
+              <div className="stat-label mb-1.5">Ce que disent les numéros</div>
               <ul className="space-y-1 text-xs leading-relaxed text-muted">
                 {rapport.numeros.indices.slice(0, 4).map((i: any) => <li key={i.texte}>{i.texte}</li>)}
                 {rapport.numeros.notes.map((n: string) => <li key={n} className="text-faint">{n}</li>)}
@@ -456,7 +456,7 @@ export default async function RapportEquipe({
           </div>
           {rapport.changementsMoy.moyenne === 0 ? (
             <p className="text-sm text-muted py-4 text-center">
-              Aucun changement enregistre.
+              Aucun changement enregistré.
             </p>
           ) : (
             <>
@@ -478,7 +478,7 @@ export default async function RapportEquipe({
               {rapport.changementsMoy.nbChangementsAvant60 > 0 && (
                 <p className="text-[11px] text-amber mt-3 italic">
                   {rapport.changementsMoy.nbChangementsAvant60} changement(s)
-                  effectue(s) avant la 60e minute — peut indiquer un onze
+                  effectué(s) avant la 60e minute — peut indiquer un onze
                   initial mal calibre.
                 </p>
               )}
@@ -492,7 +492,7 @@ export default async function RapportEquipe({
         <section className="panel p-5 border-l-2 border-amber">
           <div className="h-section mb-3 flex items-center gap-2">
             <AlertTriangle size={11} className="text-amber"/>
-            Changement{rapport.changementsCoach.length > 1 ? "s" : ""} d'entraineur detecte{rapport.changementsCoach.length > 1 ? "s" : ""}
+            Changement{rapport.changementsCoach.length > 1 ? "s" : ""} d'entraîneur détecté{rapport.changementsCoach.length > 1 ? "s" : ""}
             <span className="badge badge-amber text-[9px] !px-1.5 !py-0">
               {rapport.changementsCoach.length}
             </span>
@@ -510,8 +510,8 @@ export default async function RapportEquipe({
             ))}
           </ul>
           <p className="text-[11px] text-faint mt-3 italic">
-            Detecte automatiquement depuis l'enchainement des feuilles FMI :
-            un changement d'entraineur (fonction E) entre deux journees
+            Détecté automatiquement depuis l'enchaînement des feuilles FMI :
+            un changement d'entraîneur (fonction E) entre deux journées
             successives indique une bascule de staff.
           </p>
         </section>
@@ -522,13 +522,13 @@ export default async function RapportEquipe({
         <section id="staff" className="panel scroll-mt-24 p-5">
           <div className="h-section mb-3 flex items-center gap-2">
             <Users size={11} className="text-accent"/>
-            Staff identifie ({rapport.coachs.length})
+            Staff identifié ({rapport.coachs.length})
           </div>
           <p className="text-[11px] text-faint mb-3">
-            Liste des entraineurs, adjoints, medecins et dirigeants ayant
-            accompagne l'equipe sur les FMI analysees. Les delegues de
-            rencontre (DR) sont exclus des cumuls. Le taux de reussite est
-            calcule uniquement sur les matchs ou le staff etait present.
+            Liste des entraîneurs, adjoints, médecins et dirigeants ayant
+            accompagne l'équipe sur les FMI analysées. Les délégués de
+            rencontre (DR) sont exclus des cumuls. Le taux de réussite est
+            calculé uniquement sur les matchs où le staff était présent.
           </p>
           <table className="table-fm">
             <thead>
@@ -540,7 +540,7 @@ export default async function RapportEquipe({
                 <th className="text-right"><Abr k="% V" /></th>
                 <th className="text-center max-sm:hidden"><Abr k="CJ" /></th>
                 <th className="text-center max-sm:hidden"><Abr k="CR" /></th>
-                <th className="max-sm:hidden">Periode</th>
+                <th className="max-sm:hidden">Période</th>
               </tr>
             </thead>
             <tbody>
@@ -596,7 +596,7 @@ export default async function RapportEquipe({
             Combinaisons de joueurs gagnantes
           </div>
           <p className="text-[11px] text-faint mb-3">
-            Trios de defense, milieu et duos d'attaque alignes plusieurs
+            Trios de défense, milieu et duos d'attaque alignés plusieurs
             fois ensemble, avec leur taux de victoire.
           </p>
           <table className="table-fm">
@@ -642,14 +642,14 @@ export default async function RapportEquipe({
       <section id="joueurs" className="panel scroll-mt-24 p-5">
         <div className="h-section mb-3 flex items-center gap-2">
           <Zap size={11} className="text-accent"/>
-          Impact de chaque joueur sur les resultats
+          Impact de chaque joueur sur les résultats
         </div>
         <p className="text-[11px] text-faint mb-3">
-          Comparaison des points par match selon la presence (titulaire ou
-          remplacant rentre en jeu) ou l'absence du joueur. L'<strong>impact
-          pondere</strong> tient compte du nombre de matchs joues : un joueur
-          n'ayant joue qu'un match victorieux ne ressort pas artificiellement
-          au top. La liste est triee par cet indicateur.
+          Comparaison des points par match selon la présence (titulaire ou
+          remplaçant rentre en jeu) ou l'absence du joueur. L'<strong>impact
+          pondéré</strong> tient compte du nombre de matchs joués : un joueur
+          n'ayant joué qu'un match victorieux ne ressort pas artificiellement
+          au top. La liste est triée par cet indicateur.
         </p>
         <table className="table-fm">
           <thead>
@@ -661,7 +661,7 @@ export default async function RapportEquipe({
               <th className="text-right max-sm:hidden">PPM avec</th>
               <th className="text-right max-sm:hidden">PPM sans</th>
               <th className="text-right">Delta</th>
-              <th className="text-right">Impact pondere</th>
+              <th className="text-right">Impact pondéré</th>
             </tr>
           </thead>
           <tbody>

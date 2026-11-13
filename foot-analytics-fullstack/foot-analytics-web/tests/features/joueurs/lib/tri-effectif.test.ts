@@ -29,24 +29,24 @@ describe("trierEffectif", () => {
     expect(noms(trierEffectif(effectif, "matchs", "asc"))).toEqual(["DURAND", "ABEL", "MARTIN"]);
   });
 
-  it("une donnee absente reste en fin de liste dans les deux sens", () => {
+  it("une donnée absente reste en fin de liste dans les deux sens", () => {
     expect(noms(trierEffectif(effectif, "fatigue", "desc"))).toEqual(["ABEL", "DURAND", "MARTIN"]);
     expect(noms(trierEffectif(effectif, "fatigue", "asc"))).toEqual(["DURAND", "ABEL", "MARTIN"]);
     expect(noms(trierEffectif(effectif, "note", "desc")).at(-1)).toBe("MARTIN");
     expect(noms(trierEffectif(effectif, "note", "asc")).at(-1)).toBe("MARTIN");
   });
 
-  it("discipline : un rouge pese trois jaunes", () => {
+  it("discipline : un rouge pèse trois jaunes", () => {
     const l = [j("A", { cartonsJaunes: 2 }), j("B", { cartonsRouges: 1 }), j("C", { cartonsJaunes: 1 })];
     expect(noms(trierEffectif(l, "discipline", "desc"))).toEqual(["B", "A", "C"]);
   });
 
-  it("poste : du gardien aux attaquants, un poste inconnu apres", () => {
+  it("poste : du gardien aux attaquants, un poste inconnu après", () => {
     const l = [j("A", { poste: "AT" }), j("B", { poste: "GB" }), j("C", { poste: "??" }), j("D", { poste: "DC" })];
     expect(noms(trierEffectif(l, "poste", "asc"))).toEqual(["B", "D", "A", "C"]);
   });
 
-  it("nom : insensible aux accents et a la casse ; ne modifie pas la liste d'origine", () => {
+  it("nom : insensible aux accents et à la casse ; ne modifie pas la liste d'origine", () => {
     const l = [j("Émile"), j("zola"), j("Abel")];
     const copie = [...l];
     expect(noms(trierEffectif(l, "nom", "asc"))).toEqual(["Abel", "Émile", "zola"]);
@@ -61,7 +61,7 @@ describe("sensParDefaut", () => {
     expect(sensParDefaut("poste")).toBe("asc");
   });
 
-  it("chaque cle du selecteur est unique", () => {
+  it("chaque clé du sélecteur est unique", () => {
     const cles = COLONNES_TRI.map((c) => c.cle);
     expect(new Set(cles).size).toBe(cles.length);
   });

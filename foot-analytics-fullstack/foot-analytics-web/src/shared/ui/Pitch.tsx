@@ -47,7 +47,7 @@ export function Pitch({
 }: PitchProps) {
   const lignes = parseFormation(formation);
   const formationConnue = !!formation && formation.trim().length > 0;
-  const formationAffichee = formationConnue ? formation : `${FORMATION_DEFAUT} (par defaut)`;
+  const formationAffichee = formationConnue ? formation : `${FORMATION_DEFAUT} (par défaut)`;
   const W = 320, H = 460;
   const padT = 24, padB = 24;
   const usable = H - padT - padB;

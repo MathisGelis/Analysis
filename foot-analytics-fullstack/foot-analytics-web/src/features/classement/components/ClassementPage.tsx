@@ -51,7 +51,7 @@ export default async function Classement() {
   // Recompose la valeur a afficher dans le header.
   const headerLibelle = equipePropre
     ? `${equipePropre.competitionLibelle ?? equipePropre.nom}${equipePropre.poule ? ` · Poule ${equipePropre.poule}` : ""}`
-    : "Aucune equipe selectionnee";
+    : "Aucune équipe sélectionnée";
 
   return (
     <div className="space-y-6 fade-up">
@@ -60,9 +60,9 @@ export default async function Classement() {
         <h1 className="font-display text-2xl font-bold text-ink">Classement</h1>
         {equipePropre && classement.length === 0 && (
           <p className="text-xs text-faint mt-2">
-            Aucune ligne de classement pour cette competition.
-            Verifie que les matchs ont bien ete importes et lance un
-            rebuild si necessaire ({" "}
+            Aucune ligne de classement pour cette compétition.
+            Vérifie que les matchs ont bien été importés et lance un
+            rebuild si nécessaire ({" "}
             <code className="text-accent">POST /api/derivation/rebuild-all</code>
             ).
           </p>

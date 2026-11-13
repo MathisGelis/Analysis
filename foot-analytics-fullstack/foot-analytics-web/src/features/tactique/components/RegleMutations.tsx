@@ -27,9 +27,9 @@ export function RegleMutations({ bilan, effectifTotal }: { bilan: BilanMutations
     <section className={`panel p-5 ${valide ? "" : "border-danger/50"}`} aria-labelledby="regle-mutes">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <h2 id="regle-mutes" className="h-section">Regle des mutes</h2>
+          <h2 id="regle-mutes" className="h-section">Règle des mutés</h2>
           <p className="mt-1 text-[11px] leading-relaxed text-faint">
-            Au plus {MAX_MUTES} joueurs mutes sur la feuille de match (titulaires et remplacants), dont {MAX_HORS_DELAI} maximum hors delai.
+            Au plus {MAX_MUTES} joueurs mutés sur la feuille de match (titulaires et remplaçants), dont {MAX_HORS_DELAI} maximum hors délai.
           </p>
         </div>
         <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${
@@ -42,7 +42,7 @@ export function RegleMutations({ bilan, effectifTotal }: { bilan: BilanMutations
       <div className="space-y-3">
         <div>
           <div className="mb-1 flex items-baseline justify-between text-xs">
-            <span className="text-muted">Joueurs mutes</span>
+            <span className="text-muted">Joueurs mutés</span>
             <b className={`font-display text-base tabular-nums ${mutes > MAX_MUTES ? "text-danger" : "text-ink"}`} data-testid="mutes">
               {mutes}<span className="text-xs font-medium text-faint"> / {MAX_MUTES}</span>
             </b>
@@ -51,7 +51,7 @@ export function RegleMutations({ bilan, effectifTotal }: { bilan: BilanMutations
         </div>
         <div>
           <div className="mb-1 flex items-baseline justify-between text-xs">
-            <span className="text-muted">dont hors delai</span>
+            <span className="text-muted">dont hors délai</span>
             <b className={`font-display text-base tabular-nums ${horsDelai > MAX_HORS_DELAI ? "text-danger" : "text-ink"}`} data-testid="hors-delai">
               {horsDelai}<span className="text-xs font-medium text-faint"> / {MAX_HORS_DELAI}</span>
             </b>
@@ -68,7 +68,7 @@ export function RegleMutations({ bilan, effectifTotal }: { bilan: BilanMutations
       {inconnus > 0 && (
         <p className="mt-3 flex items-start gap-2 text-[11px] leading-relaxed text-muted">
           <Info size={13} className="mt-0.5 shrink-0 text-faint" aria-hidden />
-          {inconnus} joueur{inconnus > 1 ? "s" : ""} au statut de mutation inconnu sur {effectifTotal} : a renseigner dans l'effectif pour que la regle soit verifiee.
+          {inconnus} joueur{inconnus > 1 ? "s" : ""} au statut de mutation inconnu sur {effectifTotal} : à renseigner dans l'effectif pour que la règle soit vérifiée.
         </p>
       )}
     </section>

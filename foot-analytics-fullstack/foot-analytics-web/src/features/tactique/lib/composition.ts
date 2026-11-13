@@ -156,7 +156,7 @@ export function suggererOnze(entree: {
   }
   // Ceux que la regle des mutes a empeches d'entrer : le coach doit savoir pourquoi ils manquent.
   for (const j of classes) {
-    if (!pris.has(j.id) && motifRefus(statuts, j.statutMutation) !== null) ecartes.push({ id: j.id, raison: "regle des mutes" });
+    if (!pris.has(j.id) && motifRefus(statuts, j.statutMutation) !== null) ecartes.push({ id: j.id, raison: "règle des mutés" });
   }
   return { titulaires, remplacants, ecartes };
 }
@@ -187,12 +187,12 @@ export function vigilances(entree: {
   const bilan = bilanMutations([...presents, ...banc].map((j) => j.statutMutation));
   if (!entree.sansMutations) for (const violation of bilan.violations) v.push({ niveau: "alerte", texte: violation });
   if (bilan.inconnus > 0) {
-    v.push({ niveau: "info", texte: `${bilan.inconnus} joueur${bilan.inconnus > 1 ? "s" : ""} au statut de mutation inconnu : la regle ne peut pas etre verifiee pour eux.` });
+    v.push({ niveau: "info", texte: `${bilan.inconnus} joueur${bilan.inconnus > 1 ? "s" : ""} au statut de mutation inconnu : la règle ne peut pas être vérifiée pour eux.` });
   }
   const indispos = [...presents, ...banc].filter((j) => j.indisponible);
   if (indispos.length > 0) v.push({ niveau: "alerte", texte: `Indisponible${indispos.length > 1 ? "s" : ""} dans le groupe : ${indispos.map((j) => (j.suspendu ? `${nom(j)} (suspendu, rouge au dernier match)` : nom(j))).join(", ")}.` });
   const fatigues = presents.filter((j) => (j.scoreFatigue ?? 0) >= 75);
-  if (fatigues.length > 0) v.push({ niveau: "alerte", texte: `Fatigue en surcharge chez ${fatigues.map(nom).join(", ")} : envisager de les menager.` });
+  if (fatigues.length > 0) v.push({ niveau: "alerte", texte: `Fatigue en surcharge chez ${fatigues.map(nom).join(", ")} : envisager de les ménager.` });
   const reprises = [...presents, ...banc].filter((j) => j.enReprise && !j.indisponible);
   if (reprises.length > 0) v.push({ niveau: "info", texte: `Retour de blessure : ${reprises.map(nom).join(", ")}.` });
 
@@ -203,10 +203,10 @@ export function vigilances(entree: {
     v.push({ niveau: "info", texte: `Hors de leur ligne : ${horsPoste.map(({ j, slot }) => `${nom(j!)} (${slot.libelle})`).join(", ")}.` });
   }
   if (presents.length > 0 && presents.length < NB_TITULAIRES) {
-    v.push({ niveau: "info", texte: `${NB_TITULAIRES - presents.length} poste${NB_TITULAIRES - presents.length > 1 ? "s" : ""} a pourvoir.` });
+    v.push({ niveau: "info", texte: `${NB_TITULAIRES - presents.length} poste${NB_TITULAIRES - presents.length > 1 ? "s" : ""} à pourvoir.` });
   }
   if (titulaires[0] && banc.length > 0 && !banc.some((j) => ligneDuPoste(j.poste) === "GB")) {
-    v.push({ niveau: "info", texte: "Aucun gardien remplacant sur le banc." });
+    v.push({ niveau: "info", texte: "Aucun gardien remplaçant sur le banc." });
   }
   return v;
 }
@@ -249,7 +249,7 @@ export function optionsJoueurs(entree: {
         groupe: entree.ligne && ligneDuPoste(j.poste) === entree.ligne ? "poste" : "autres",
         refus: j.id === entree.courantId ? null
           : j.indisponible ? "indisponible"
-          : motifRefus(autres, j.statutMutation) ? "regle des mutes" : null,
+          : motifRefus(autres, j.statutMutation) ? "règle des mutés" : null,
       };
     })
     .sort((a, b) =>

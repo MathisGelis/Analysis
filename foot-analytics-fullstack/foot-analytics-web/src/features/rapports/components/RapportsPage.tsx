@@ -64,7 +64,7 @@ export default async function Rapports() {
     <div className="space-y-6 fade-up">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="h-section">Preparer, analyser, observer</div>
+          <div className="h-section">Préparer, analyser, observer</div>
           <h1 className="font-display text-2xl font-bold text-ink">
             Rapports{saison && <span className="font-light text-muted"> · {saison.nom}</span>}
           </h1>
@@ -76,8 +76,8 @@ export default async function Rapports() {
       {!prematchOuvert && (
         <p className="panel-inset flex items-center gap-2 border-l-2 border-amber p-3 text-xs text-muted" data-testid="rapports-saison-passee">
           <Info size={14} className="shrink-0 text-amber" aria-hidden />
-          La saison {saison?.nom ?? "choisie"} est terminee : le pre-match (avec ses predictions) se prepare sur la saison en cours.
-          L'analyse d'equipe et le scouting restent consultables.
+          La saison {saison?.nom ?? "choisie"} est terminée : le pré-match (avec ses prédictions) se prépare sur la saison en cours.
+          L'analyse d'équipe et le scouting restent consultables.
         </p>
       )}
 
@@ -95,17 +95,17 @@ export default async function Rapports() {
                   <div className="min-w-0">
                     <div className="truncate font-display text-lg font-bold text-ink">{clubs.find((c) => c.id === prochainAdvId)?.nom ?? "Adversaire"}</div>
                     <div className="text-xs text-muted">
-                      {prochain.journee ? `Journee ${String(prochain.journee).replace(/\D/g, "") || prochain.journee}` : "Prochain match"}
+                      {prochain.journee ? `Journée ${String(prochain.journee).replace(/\D/g, "") || prochain.journee}` : "Prochain match"}
                       {prochain.date ? ` · ${prochain.date}` : ""}
                     </div>
                   </div>
                 </div>
               ) : (
-                <p className="mt-1 text-sm text-muted">Aucun match programme : ouvrez le pre-match d'un adversaire dans la liste ci-dessous pour preparer la rencontre.</p>
+                <p className="mt-1 text-sm text-muted">Aucun match programmé : ouvrez le pré-match d'un adversaire dans la liste ci-dessous pour préparer la rencontre.</p>
               )}
             </div>
             {prochain && prochainAdvId && (
-              <Link href={`/rapports/prematch/${prochainAdvId}?matchId=${prochain.id}`} className="btn btn-primary text-sm">Rapport pre-match</Link>
+              <Link href={`/rapports/prematch/${prochainAdvId}?matchId=${prochain.id}`} className="btn btn-primary text-sm">Rapport pré-match</Link>
             )}
           </div>
         </section>
@@ -114,8 +114,8 @@ export default async function Rapports() {
       {/* Les dossiers : un par club */}
       <section className="panel p-5" aria-label="Dossiers des clubs" data-testid="dossiers-clubs">
         <p className="mb-4 max-w-3xl text-xs text-muted">
-          Un dossier par club : <strong className="text-ink">Pre-match</strong> (projection du resultat, systeme et onze probables, pistes),
-          <strong className="text-ink"> Analyse d'equipe</strong> (tendances, joueurs cles, discipline) et <strong className="text-ink">Scouting</strong> (vos notes d'observation).
+          Un dossier par club : <strong className="text-ink">Pré-match</strong> (projection du résultat, système et onze probables, pistes),
+          <strong className="text-ink"> Analyse d'équipe</strong> (tendances, joueurs clés, discipline) et <strong className="text-ink">Scouting</strong> (vos notes d'observation).
         </p>
         {monClub && (
           <ul className="mb-5">
@@ -167,7 +167,7 @@ function LigneClub({
       <div className="min-w-0 flex-1 basis-48">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="truncate font-display text-sm font-bold text-ink">{club.nom}</span>
-          {moi && <span className="badge badge-accent text-[10px]!">Mon equipe</span>}
+          {moi && <span className="badge badge-accent text-[10px]!">Mon équipe</span>}
           {prochain && <span className="badge badge-accent text-[10px]!">Prochain match</span>}
           {scouting && <span className="badge badge-amber text-[10px]!" title={scouting.date ? `Rapport de scouting du ${scouting.date}` : "Rapport de scouting"}><FileText size={9} aria-hidden /> Scouting</span>}
         </div>

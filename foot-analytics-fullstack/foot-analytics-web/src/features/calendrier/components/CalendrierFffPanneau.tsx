@@ -91,18 +91,18 @@ export function CalendrierFffPanneau({ equipe, onClose, onSynchronise }: Props) 
 
       <div className="space-y-5">
         <section className="space-y-2">
-          <label htmlFor="cal-fff-adresse" className="text-[10px] uppercase tracking-[0.18em] text-faint font-semibold">Adresse du calendrier de l'equipe</label>
+          <label htmlFor="cal-fff-adresse" className="text-[10px] uppercase tracking-[0.18em] text-faint font-semibold">Adresse du calendrier de l'équipe</label>
           <input
             id="cal-fff-adresse" className="inp w-full font-mono text-xs" value={adresse} spellCheck={false} autoComplete="off"
             placeholder="media.fff.fr/calendars/2026/eq/6701_SEM_4.ics" data-testid="cal-fff-adresse"
             onChange={(e) => setAdresse(e.target.value)}
           />
           <p className="text-xs text-muted">
-            Dans myFFF, le bouton qui ajoute les matchs de l'equipe a ton calendrier donne cette adresse (elle peut commencer par
-            <code className="mx-1">webcal://</code>). Les matchs a venir sont ajoutes, et l'application se met a jour toute seule chaque jour.
+            Dans myFFF, le bouton qui ajoute les matchs de l'équipe à ton calendrier donne cette adresse (elle peut commencer par
+            <code className="mx-1">webcal://</code>). Les matchs à venir sont ajoutés, et l'application se met à jour toute seule chaque jour.
           </p>
           {adresse.trim() && !adressePlausible(adresse) && (
-            <p className="text-xs text-amber" role="status">Cette adresse ne ressemble pas a un calendrier d'equipe de la FFF (media.fff.fr/calendars/.../eq/....ics).</p>
+            <p className="text-xs text-amber" role="status">Cette adresse ne ressemble pas à un calendrier d'équipe de la FFF (media.fff.fr/calendars/.../eq/....ics).</p>
           )}
           <div className="flex flex-wrap items-center gap-2">
             <button className="btn btn-accent" onClick={enregistrer} disabled={!!occupe || !adresse.trim() || !changee} data-testid="cal-fff-enregistrer">
@@ -117,12 +117,12 @@ export function CalendrierFffPanneau({ equipe, onClose, onSynchronise }: Props) 
               </>
             )}
           </div>
-          {enregistree && <p className="text-[11px] text-faint" data-testid="cal-fff-synchro">Derniere synchronisation : {derniereSynchro(synchroLe)}</p>}
+          {enregistree && <p className="text-[11px] text-faint" data-testid="cal-fff-synchro">Dernière synchronisation : {derniereSynchro(synchroLe)}</p>}
         </section>
 
         <section className="space-y-2 border-t border-line pt-5">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-faint font-semibold">Ou deposer le fichier .ics</div>
-          <p className="text-xs text-muted">Meme traitement, sans que le serveur aille chercher quoi que ce soit : utile si l'adresse ne marche pas.</p>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-faint font-semibold">Ou déposer le fichier .ics</div>
+          <p className="text-xs text-muted">Même traitement, sans que le serveur aille chercher quoi que ce soit : utile si l'adresse ne marche pas.</p>
           <label className={`btn cursor-pointer ${occupe ? "opacity-60 pointer-events-none" : ""}`}>
             <FileUp size={14} /> {occupe === "fichier" ? "Lecture..." : "Choisir un fichier"}
             <input ref={fichier} type="file" accept=".ics,text/calendar" className="hidden" disabled={!!occupe} data-testid="cal-fff-fichier"
@@ -154,16 +154,16 @@ function RapportAffiche({ rapport }: { rapport: RapportFff }) {
   return (
     <section className="panel-inset p-4 space-y-3" data-testid="cal-fff-rapport" aria-live="polite">
       <p className="text-sm font-semibold text-ink" data-testid="cal-fff-bilan">{bilanFff(rapport)}</p>
-      <Liste titre="Ajoutes" lignes={rapport.crees.map(libelleLigne)} />
-      <Liste titre="Modifies par la ligue" lignes={rapport.modifies.map((m) => `${libelleLigne(m)} : ${m.avant} -> ${m.apres}`)} />
+      <Liste titre="Ajoutés" lignes={rapport.crees.map(libelleLigne)} />
+      <Liste titre="Modifiés par la ligue" lignes={rapport.modifies.map((m) => `${libelleLigne(m)} : ${m.avant} -> ${m.apres}`)} />
       {rapport.disparus.length > 0 && (
         <div className="flex gap-2">
           <TriangleAlert size={14} className="text-amber shrink-0 mt-0.5" aria-hidden />
-          <Liste ton="amber" titre="Ne figurent plus au calendrier FFF (reportes ? annules ?) : a verifier, rien n'est supprime"
+          <Liste ton="amber" titre="Ne figurent plus au calendrier FFF (reportés ? annulés ?) : à vérifier, rien n'est supprimé"
             lignes={rapport.disparus.map(libelleLigne)} />
         </div>
       )}
-      <Liste titre="A savoir" lignes={[...notesFff(rapport), ...rapport.avertissements]} />
+      <Liste titre="À savoir" lignes={[...notesFff(rapport), ...rapport.avertissements]} />
     </section>
   );
 }

@@ -81,10 +81,10 @@ function json(statut: number, message: string, code?: string) {
 
 /** Relais vers l'API : jeton d'acces en en-tete, sans les cookies du site. */
 async function relayer(req: NextRequest): Promise<NextResponse> {
-  if (origineEtrangere(req)) return json(403, "Requete d'un autre site refusee.");
+  if (origineEtrangere(req)) return json(403, "Requête d'un autre site refusée.");
   const { jeton, nouveaux, perdue } = await jetonDeRequete(req);
   if (!jeton) {
-    const res = json(401, "Session expiree : reconnecte-toi.", "SESSION_EXPIREE");
+    const res = json(401, "Session expirée : reconnecte-toi.", "SESSION_EXPIREE");
     if (perdue) effacerSession(res.cookies);
     return res;
   }

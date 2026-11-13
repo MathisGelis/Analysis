@@ -18,11 +18,11 @@ export function MotifsCartons({
       <section className="panel p-5">
         <div className="h-section mb-2 flex items-center gap-2">
           <AlertTriangle size={11} className="text-amber"/>
-          Motifs de cartons les plus frequents
+          Motifs de cartons les plus fréquents
         </div>
         <p className="text-sm text-ink">{motifsTop}</p>
         <p className="text-[11px] text-faint mt-1">
-          Resume partiel : le detail complet des motifs apparait apres la prochaine reconstruction des statistiques.
+          Résumé partiel : le détail complet des motifs apparaît après la prochaine reconstruction des statistiques.
         </p>
       </section>
     );
@@ -31,7 +31,7 @@ export function MotifsCartons({
 
   const lignes = [
     ...decompte.motifs.map((m) => ({ libelle: m.motif, n: m.n, absent: false })),
-    ...(decompte.sansMotif > 0 ? [{ libelle: "Motif non renseigne", n: decompte.sansMotif, absent: true }] : []),
+    ...(decompte.sansMotif > 0 ? [{ libelle: "Motif non renseigné", n: decompte.sansMotif, absent: true }] : []),
   ];
   const max = Math.max(...lignes.map((l) => l.n));
 
@@ -42,7 +42,7 @@ export function MotifsCartons({
           <AlertTriangle size={11} className="text-amber"/>
           Motifs des {decompte.total} carton{decompte.total > 1 ? "s" : ""}
         </h2>
-        <span className="text-[11px] text-faint">jaunes et rouges, matchs ou il etait arbitre principal</span>
+        <span className="text-[11px] text-faint">jaunes et rouges, matchs où il était arbitre principal</span>
       </div>
       <ul className="space-y-2">
         {lignes.map((l) => (
@@ -59,12 +59,12 @@ export function MotifsCartons({
       </ul>
       {decompte.sansMotif > 0 && (
         <p className="mt-3 text-[11px] text-faint">
-          Pour {decompte.sansMotif} carton{decompte.sansMotif > 1 ? "s" : ""}, la feuille de match ne precise pas le motif.
+          Pour {decompte.sansMotif} carton{decompte.sansMotif > 1 ? "s" : ""}, la feuille de match ne précise pas le motif.
         </p>
       )}
       {decompte.total !== cartons && (
         <p className="mt-2 text-[11px] text-amber">
-          Ce detail couvre {decompte.total} carton{decompte.total > 1 ? "s" : ""} sur les {cartons} annonces : relancer la reconstruction des statistiques.
+          Ce détail couvre {decompte.total} carton{decompte.total > 1 ? "s" : ""} sur les {cartons} annoncés : relancer la reconstruction des statistiques.
         </p>
       )}
     </section>

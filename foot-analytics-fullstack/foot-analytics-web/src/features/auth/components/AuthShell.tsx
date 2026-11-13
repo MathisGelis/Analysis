@@ -11,14 +11,14 @@ import { LiensLegaux } from "@/features/legal/components/LiensLegaux";
 
 const ATOUTS = [
   { icon: FileUp, titre: "Import des feuilles de match", texte: "Glissez la FMI en PDF : compositions, cartons, remplacements et arbitres sont lus pour vous." },
-  { icon: BarChart3, titre: "Des stats par equipe et par saison", texte: "Chaque chiffre est calcule sur la bonne poule et la bonne saison, jamais melange." },
-  { icon: ShieldCheck, titre: "Scouting et preparation", texte: "Rapports adverses, joueurs cles, discipline : de quoi preparer le prochain match." },
+  { icon: BarChart3, titre: "Des stats par équipe et par saison", texte: "Chaque chiffre est calculé sur la bonne poule et la bonne saison, jamais mélange." },
+  { icon: ShieldCheck, titre: "Scouting et préparation", texte: "Rapports adverses, joueurs clés, discipline : de quoi préparer le prochain match." },
 ];
 
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative z-10 grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
-      <aside aria-label="Presentation" className="relative hidden overflow-hidden border-r border-line lg:block">
+      <aside aria-label="Présentation" className="relative hidden overflow-hidden border-r border-line lg:block">
         <div className="absolute inset-0 bg-linear-to-br from-accentstrong/30 via-panel to-accent2/15" />
         <div className="pitch-lines opacity-100!" style={{ maskPosition: "right 20% top 45%", WebkitMaskPosition: "right 20% top 45%", maskSize: "auto 120%", WebkitMaskSize: "auto 120%" }} />
         <div className="relative flex h-full flex-col justify-between p-12 xl:p-16">
@@ -32,7 +32,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
 
           <div className="max-w-lg">
             <h2 className="font-display text-4xl font-bold leading-[1.08] text-ink xl:text-5xl">
-              Preparez le prochain match <span className="text-gradient">avec les bons chiffres.</span>
+              Préparez le prochain match <span className="text-gradient">avec les bons chiffres.</span>
             </h2>
             <ul className="mt-10 space-y-5">
               {ATOUTS.map(({ icon: Icone, titre, texte }) => (
@@ -49,7 +49,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             </ul>
           </div>
 
-          <p className="text-xs text-faint">Outil prive du staff technique.</p>
+          <p className="text-xs text-faint">Outil privé du staff technique.</p>
         </div>
       </aside>
 

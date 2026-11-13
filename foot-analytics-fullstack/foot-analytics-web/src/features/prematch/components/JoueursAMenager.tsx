@@ -15,7 +15,7 @@ export function JoueursAMenager({ joueurs, saisonActive }: { joueurs: JoueurFati
     return (
       <p className="text-sm text-muted">
         {saisonActive
-          ? "Aucune charge recente connue : la fatigue se calcule sur les seances et les matchs des 28 derniers jours."
+          ? "Aucune charge récente connue : la fatigue se calcule sur les séances et les matchs des 28 derniers jours."
           : "La fatigue est une mesure du moment : elle n'est disponible que sur la saison en cours."}
       </p>
     );

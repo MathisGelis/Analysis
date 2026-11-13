@@ -25,12 +25,12 @@ export function ProfilCard({ profil, moities }: { profil: Tendances["profil"]; m
     <ul>
       <Ligne label="Sans encaisser" valeur={String(profil.matchsSansEncaisser)} detail={sur} />
       <Ligne label="Sans marquer" valeur={String(profil.matchsSansMarquer)} detail={sur} />
-      <Ligne label="Matchs serres (un but d'ecart ou moins)" valeur={String(profil.matchsSerres)}
+      <Ligne label="Matchs serres (un but d'écart ou moins)" valeur={String(profil.matchsSerres)}
         detail={serres.joues ? `${serres.v}V ${serres.n}N ${serres.d}D` : undefined} />
-      <Ligne label="Grosses victoires (3 buts d'ecart ou plus)" valeur={String(profil.grossesVictoires)} />
-      <Ligne label="Grosses defaites (3 buts d'ecart ou plus)" valeur={String(profil.grossesDefaites)} />
+      <Ligne label="Grosses victoires (3 buts d'écart ou plus)" valeur={String(profil.grossesVictoires)} />
+      <Ligne label="Grosses défaites (3 buts d'écart ou plus)" valeur={String(profil.grossesDefaites)} />
       {moities && (
-        <Ligne label="1re moitie → 2e moitie de saison" valeur={`${decimal(moities.premiere.ppm, 2)} → ${decimal(moities.seconde.ppm, 2)}`} detail="pt/match" />
+        <Ligne label="1re moitié → 2e moitié de saison" valeur={`${decimal(moities.premiere.ppm, 2)} → ${decimal(moities.seconde.ppm, 2)}`} detail="pt/match" />
       )}
     </ul>
   );

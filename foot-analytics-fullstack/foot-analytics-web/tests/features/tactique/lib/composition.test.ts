@@ -34,7 +34,7 @@ describe("parseFormation / slotsDeFormation", () => {
   it("refuse les dispositifs incoherents", () => {
     for (const f of ["4-4-3", "4-4", "abc", "", null, undefined, "4-4-2-1-1-1", "0-5-5", "7-2-1"]) expect(parseFormation(f)).toBeNull();
   });
-  it("4-2-3-1 : gardien, 4 defenseurs, 2 puis 3 milieux, 1 attaquant, dans l'ordre du terrain", () => {
+  it("4-2-3-1 : gardien, 4 défenseurs, 2 puis 3 milieux, 1 attaquant, dans l'ordre du terrain", () => {
     const slots = slotsDeFormation("4-2-3-1");
     expect(slots.map((s) => s.ligne)).toEqual(["GB", "DEF", "DEF", "DEF", "DEF", "MIL", "MIL", "MIL", "MIL", "MIL", "ATT"]);
     expect(slots.map((s) => s.index)).toEqual([...Array(11).keys()]);
@@ -54,16 +54,16 @@ describe("parseFormation / slotsDeFormation", () => {
   });
 });
 
-describe("formationDeDepart : le dispositif identifie par le logiciel devient le dispositif par defaut", () => {
-  it("un dispositif identifie et valide est repris tel quel (liste habituelle ou non)", () => {
+describe("formationDeDepart : le dispositif identifié par le logiciel devient le dispositif par défaut", () => {
+  it("un dispositif identifié et valide est repris tel quel (liste habituelle ou non)", () => {
     expect(formationDeDepart("4-3-3")).toEqual({ formation: "4-3-3", identifie: true });
     expect(formationDeDepart("4-4-1-1")).toEqual({ formation: "4-4-1-1", identifie: true });
     expect(formationDeDepart(" 3 - 5 - 2 ")).toEqual({ formation: "3-5-2", identifie: true });
   });
-  it("rien d'identifie, ou un dispositif incoherent : le dispositif par defaut, non annonce comme identifie", () => {
+  it("rien d'identifié, ou un dispositif incoherent : le dispositif par défaut, non annonce comme identifié", () => {
     for (const x of [null, undefined, "", "abc", "4-4-3", "4-4"]) expect(formationDeDepart(x)).toEqual({ formation: FORMATION_DEFAUT, identifie: false });
   });
-  it("le selecteur propose la liste habituelle, plus le dispositif courant s'il n'y est pas", () => {
+  it("le sélecteur propose la liste habituelle, plus le dispositif courant s'il n'y est pas", () => {
     expect(formationsProposees("4-3-3")).toEqual([...FORMATIONS]);
     expect(formationsProposees("4-4-1-1")).toEqual([...FORMATIONS, "4-4-1-1"]);
     expect(formationsProposees("n'importe quoi")).toEqual([...FORMATIONS]);
@@ -71,7 +71,7 @@ describe("formationDeDepart : le dispositif identifie par le logiciel devient le
 });
 
 describe("suggererOnze", () => {
-  it("onze complet, chacun a son poste, gardien dans le but, sans doublon", () => {
+  it("onze complet, chacun à son poste, gardien dans le but, sans doublon", () => {
     const joueurs = effectif();
     const r = suggererOnze({ formation: "4-4-2", joueurs });
     expect(r.titulaires.every(Boolean)).toBe(true);
@@ -81,7 +81,7 @@ describe("suggererOnze", () => {
     r.titulaires.forEach((id, i) => expect(ligneDuPoste(par.get(id!)!.poste)).toBe(slots[i].ligne));
   });
 
-  it("le banc est complete (3 remplacants par defaut), sans doublon avec les titulaires, avec un gardien", () => {
+  it("le banc est complète (3 remplaçants par défaut), sans doublon avec les titulaires, avec un gardien", () => {
     const joueurs = effectif();
     const r = suggererOnze({ formation: "4-4-2", joueurs });
     expect(r.remplacants).toHaveLength(3);
@@ -90,14 +90,14 @@ describe("suggererOnze", () => {
     expect(r.remplacants.some((id) => ligneDuPoste(par.get(id)!.poste) === "GB")).toBe(true);
   });
 
-  it("le banc peut etre elargi a la demande, jamais au-dela du maximum autorise", () => {
+  it("le banc peut être elargi à la demande, jamais au-dela du maximum autorisé", () => {
     const joueurs = effectif();
     expect(suggererOnze({ formation: "4-4-2", joueurs, maxRemplacants: 5 }).remplacants).toHaveLength(5);
     expect(suggererOnze({ formation: "4-4-2", joueurs, maxRemplacants: 12 }).remplacants).toHaveLength(7);
     expect(suggererOnze({ formation: "4-4-2", joueurs, maxRemplacants: 0 }).remplacants).toHaveLength(0);
   });
 
-  it("prefere les joueurs les plus utilises", () => {
+  it("prefere les joueurs les plus utilisés", () => {
     const joueurs = effectif();
     const r = suggererOnze({ formation: "4-4-2", joueurs });
     // Le 1er gardien (20 titularisations) devant le second (19).
@@ -122,7 +122,7 @@ describe("suggererOnze", () => {
     expect(dc[0]).toBe(joueurs[2].id);
   });
 
-  it("jamais plus de 6 mutes dont 2 hors delai, meme si les meilleurs joueurs le sont", () => {
+  it("jamais plus de 6 mutés dont 2 hors délai, même si les meilleurs joueurs le sont", () => {
     // Les 10 meilleurs sont mutes : 4 hors delai et 6 mutes.
     const joueurs = effectif((i) => (i < 4 ? { statutMutation: "Mutation hors delai" } : i < 12 ? { statutMutation: "Mutation" } : {}));
     const r = suggererOnze({ formation: "4-4-2", joueurs });
@@ -132,7 +132,7 @@ describe("suggererOnze", () => {
     expect(b.valide).toBe(true);
     expect(b.mutes).toBeLessThanOrEqual(6);
     expect(b.horsDelai).toBeLessThanOrEqual(2);
-    expect(r.ecartes.some((e) => e.raison === "regle des mutes")).toBe(true);
+    expect(r.ecartes.some((e) => e.raison === "règle des mutés")).toBe(true);
     expect(r.titulaires.every(Boolean)).toBe(true);            // la regle n'empeche pas d'avoir un onze complet
   });
 
@@ -162,10 +162,10 @@ describe("vigilances", () => {
     expect(v.filter((x) => x.niveau === "alerte")).toEqual([]);
   });
 
-  it("depassement de la regle des mutes : alerte", () => {
+  it("depassement de la règle des mutés : alerte", () => {
     const beaucoup = joueurs.map((j, i) => (i < 8 ? { ...j, statutMutation: "Mutation" } : j));
     const v = vigilances({ formation: "4-4-2", titulaires: base.titulaires, remplacants: base.remplacants, joueurs: beaucoup });
-    expect(v.some((x) => x.niveau === "alerte" && /joueurs mutes/.test(x.texte))).toBe(true);
+    expect(v.some((x) => x.niveau === "alerte" && /joueurs mutés/.test(x.texte))).toBe(true);
   });
 
   it("indisponible et surcharge : alertes nominatives", () => {
@@ -188,8 +188,8 @@ describe("vigilances", () => {
     const sansGardien = base.remplacants.filter((id) => ligneDuPoste(joueurs.find((j) => j.id === id)!.poste) !== "GB");
     const v = vigilances({ formation: "4-4-2", titulaires, remplacants: sansGardien, joueurs });
     expect(v.some((x) => /Hors de leur ligne/.test(x.texte))).toBe(true);
-    expect(v.some((x) => /1 poste a pourvoir/.test(x.texte))).toBe(true);
-    expect(v.some((x) => /gardien remplacant/.test(x.texte))).toBe(true);
+    expect(v.some((x) => /1 poste à pourvoir/.test(x.texte))).toBe(true);
+    expect(v.some((x) => /gardien remplaçant/.test(x.texte))).toBe(true);
   });
 });
 
@@ -207,20 +207,20 @@ describe("changerDispositif", () => {
   // 4-4-2 : GB, DEF x4, MIL x4, ATT x2
   const onze = ["gb", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "a1", "a2"];
 
-  it("meme ligne, meme joueur : passage a 4-2-3-1 conserve defense et gardien, reorganise milieu et attaque", () => {
+  it("même ligne, même joueur : passage a 4-2-3-1 conservé défense et gardien, reorganise milieu et attaque", () => {
     const r = changerDispositif("4-4-2", "4-2-3-1", onze);
     expect(r.titulaires).toEqual(["gb", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", null, "a1"]);
     // 4-2-3-1 a 5 milieux (2 + 3) : les 4 milieux de depart y entrent ; il manque 1 milieu et un attaquant sort.
     expect(r.surplus).toEqual(["a2"]);
   });
 
-  it("3 defenseurs : le 4e sort en surplus au lieu d'etre perdu", () => {
+  it("3 défenseurs : le 4e sort en surplus au lieu d'être perdu", () => {
     const r = changerDispositif("4-4-2", "3-5-2", onze);
     expect(r.titulaires.slice(0, 4)).toEqual(["gb", "d1", "d2", "d3"]);
     expect(r.surplus).toEqual(["d4"]);
   });
 
-  it("meme dispositif : rien ne bouge", () => {
+  it("même dispositif : rien ne bouge", () => {
     expect(changerDispositif("4-4-2", "4-4-2", onze)).toEqual({ titulaires: onze, surplus: [] });
   });
 
@@ -249,17 +249,17 @@ describe("optionsJoueurs", () => {
     expect(o.map((x) => x.groupe)).toEqual(["poste", "poste", "poste", "autres"]);
   });
 
-  it("retire ceux deja places ailleurs ; le joueur courant reste choisissable", () => {
+  it("retire ceux déjà places ailleurs ; le joueur courant reste choisissable", () => {
     const o = optionsJoueurs({ ...base, ailleurs: new Set([dc2.id, at.id]), courantId: dc1.id, liste: [dc1.id] });
     expect(o.map((x) => x.joueur.id)).toEqual([dc1.id, blesse.id]);
   });
 
-  it("indisponible : refuse, sauf s'il est deja en place (le coach doit pouvoir le retirer)", () => {
+  it("indisponible : refuse, sauf s'il est déjà en place (le coach doit pouvoir le retirer)", () => {
     expect(optionsJoueurs(base).find((x) => x.joueur.id === blesse.id)?.refus).toBe("indisponible");
     expect(optionsJoueurs({ ...base, courantId: blesse.id, liste: [blesse.id] }).find((x) => x.joueur.id === blesse.id)?.refus).toBeNull();
   });
 
-  describe("regle des mutes", () => {
+  describe("règle des mutés", () => {
     const six = Array.from({ length: 6 }, () => joueur("MD", { statutMutation: "Mutation" }));
     const mute = joueur("DC", { statutMutation: "Mutation" });
     const horsDelai = joueur("DC", { statutMutation: "Mutation hors delai" });
@@ -268,10 +268,10 @@ describe("optionsJoueurs", () => {
     const candidats = [mute, horsDelai, libre, inconnu];
     const refus = (o: ReturnType<typeof optionsJoueurs>) => Object.fromEntries(o.map((x) => [x.joueur.id, x.refus]));
 
-    it("avec 6 mutes deja listes, un 7e est refuse ; un non-mute ou un statut inconnu ne l'est jamais", () => {
+    it("avec 6 mutés déjà listes, un 7e est refuse ; un non-mute ou un statut inconnu ne l'est jamais", () => {
       const r = refus(optionsJoueurs({ ...base, joueurs: [...six, ...candidats], liste: six.map((j) => j.id), ailleurs: new Set(six.map((j) => j.id)) }));
-      expect(r[mute.id]).toBe("regle des mutes");
-      expect(r[horsDelai.id]).toBe("regle des mutes");
+      expect(r[mute.id]).toBe("règle des mutés");
+      expect(r[horsDelai.id]).toBe("règle des mutés");
       expect(r[libre.id]).toBeNull();
       expect(r[inconnu.id]).toBeNull();
     });
@@ -283,7 +283,7 @@ describe("optionsJoueurs", () => {
       expect(r[mute.id]).toBeNull();
     });
 
-    it("un joueur deja sur le banc peut etre promu titulaire : il ne compte pas deux fois dans les 6", () => {
+    it("un joueur déjà sur le banc peut être promu titulaire : il ne compte pas deux fois dans les 6", () => {
       const r = refus(optionsJoueurs({
         ...base, joueurs: [...six, libre], liste: six.map((j) => j.id), ailleurs: new Set(),
       }));
@@ -291,13 +291,13 @@ describe("optionsJoueurs", () => {
       expect(r[six[0].id]).toBeNull();
     });
 
-    it("3e mute hors delai refuse alors qu'un mute dans les delais passe", () => {
+    it("3e mute hors délai refuse alors qu'un mute dans les delais passe", () => {
       const hd1 = joueur("MD", { statutMutation: "Mutation hors delai" });
       const hd2 = joueur("MD", { statutMutation: "Mutation hors delai" });
       const r = refus(optionsJoueurs({
         ...base, joueurs: [hd1, hd2, horsDelai, mute], liste: [hd1.id, hd2.id], ailleurs: new Set([hd1.id, hd2.id]),
       }));
-      expect(r[horsDelai.id]).toBe("regle des mutes");
+      expect(r[horsDelai.id]).toBe("règle des mutés");
       expect(r[mute.id]).toBeNull();
     });
   });

@@ -37,7 +37,7 @@ export function ExportPowerPoint({
       lien.click();
       lien.remove();
       URL.revokeObjectURL(url);
-      notifier.succes(`${nom} : ${resumeChoix(pages, choix)}. Completez les champs vides dans PowerPoint.`);
+      notifier.succes(`${nom} : ${resumeChoix(pages, choix)}. Complétez les champs vides dans PowerPoint.`);
       setOuvert(false);
     } catch (e) {
       notifier.erreur(`Export impossible : ${messageApi(e)}`);
@@ -54,17 +54,17 @@ export function ExportPowerPoint({
       <Modal open={ouvert} onClose={() => !occupe && setOuvert(false)} maxWidth="max-w-xl">
         <h2 className="font-display text-lg font-bold text-ink">Exporter en PowerPoint</h2>
         <p className="mt-1 text-sm text-muted">
-          Choisissez les pages du rapport. Les pages du modele du staff gardent sa mise en page ; les pages d'analyse en
-          reprennent le style pour les statistiques que le modele n'a pas la place d'accueillir. Ce que le rapport ne connait
-          pas (convocation, terrain, style de jeu, ambiance...) reste vide : vous le completez dans PowerPoint.
+          Choisissez les pages du rapport. Les pages du modèle du staff gardent sa mise en page ; les pages d'analyse en
+          reprennent le style pour les statistiques que le modèle n'a pas la place d'accueillir. Ce que le rapport ne connaît
+          pas (convocation, terrain, style de jeu, ambiance...) reste vide : vous le complétez dans PowerPoint.
         </p>
 
         <div className="mt-4 flex items-center justify-between gap-3 text-xs">
           <span className="text-muted" aria-live="polite">{resumeChoix(pages, choix)}</span>
           <span className="flex flex-wrap justify-end gap-x-3 gap-y-1">
             <button type="button" className="text-accent underline underline-offset-2" onClick={() => setChoix(toutesLesPages(pages))}>Tout cocher</button>
-            <button type="button" className="text-accent underline underline-offset-2" onClick={() => setChoix(pagesDuGroupe(pages, "modele"))}>Modele seulement</button>
-            <button type="button" className="text-accent underline underline-offset-2" onClick={() => setChoix(new Set())}>Tout decocher</button>
+            <button type="button" className="text-accent underline underline-offset-2" onClick={() => setChoix(pagesDuGroupe(pages, "modele"))}>Modèle seulement</button>
+            <button type="button" className="text-accent underline underline-offset-2" onClick={() => setChoix(new Set())}>Tout décocher</button>
           </span>
         </div>
 
@@ -94,7 +94,7 @@ export function ExportPowerPoint({
         <div className="mt-5 flex items-center justify-end gap-2">
           <button type="button" className="btn text-sm" onClick={() => setOuvert(false)} disabled={occupe}>Annuler</button>
           <button type="button" className="btn btn-primary text-sm" onClick={telecharger} disabled={occupe || voulues.length === 0}>
-            <Download size={14} aria-hidden /> {occupe ? "Generation..." : `Telecharger (${resumeChoix(pages, choix)})`}
+            <Download size={14} aria-hidden /> {occupe ? "Génération..." : `Télécharger (${resumeChoix(pages, choix)})`}
           </button>
         </div>
       </Modal>

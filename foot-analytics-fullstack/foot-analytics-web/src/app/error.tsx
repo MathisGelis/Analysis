@@ -33,15 +33,15 @@ export default function Erreur({
       </h1>
       <p className="text-sm text-muted mt-3 leading-relaxed">
         {apiInjoignable
-          ? "Le serveur de donnees ne repond pas correctement. Verifie que l'API tourne (par defaut sur le port 4000), puis reessaie."
-          : "Un probleme inattendu est survenu pendant le chargement. Reessayer suffit souvent."}
+          ? "Le serveur de données ne répond pas correctement. Vérifie que l'API tourne (par défaut sur le port 4000), puis reessaie."
+          : "Un problème inattendu est survenu pendant le chargement. Réessayer suffit souvent."}
       </p>
       {error.digest && (
-        <p className="text-[11px] text-faint font-mono mt-2">Reference : {error.digest}</p>
+        <p className="text-[11px] text-faint font-mono mt-2">Référence : {error.digest}</p>
       )}
       <div className="flex items-center justify-center gap-2 mt-6">
         <button onClick={reset} className="btn btn-accent">
-          <RefreshCw size={14} /> Reessayer
+          <RefreshCw size={14} /> Réessayer
         </button>
         <Link href="/" className="btn btn-ghost">
           <Home size={14} /> Dashboard
