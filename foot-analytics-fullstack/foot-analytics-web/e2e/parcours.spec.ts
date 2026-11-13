@@ -1649,7 +1649,7 @@ test("calendrier FFF : un fichier .ics depose cree les matchs a venir, le rejoue
   await expect(page.getByTestId("cal-fff-fichier")).toBeAttached();
   await page.getByTestId("cal-fff-fichier").setInputFiles(fichier(calendrierFff()));
   await expect(page.getByTestId("cal-fff-bilan")).toHaveText(/^6 matchs ajoutes \(6 matchs dans le calendrier\)/);
-  await expect(page.getByTestId("cal-fff-rapport")).toContainText("Football Club E2E Deux");
+  await expect(page.getByTestId("cal-fff-rapport")).toContainText("Football Club E2e Deux");
   expect(await duCalendrier()).toHaveLength(6);
 
   // Rejouer le meme fichier : rien ne change, aucun doublon.
