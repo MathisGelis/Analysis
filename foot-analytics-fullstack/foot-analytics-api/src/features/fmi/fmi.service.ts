@@ -19,7 +19,7 @@ import { ActeurAudit, JournalAuditService } from "@/features/audit/journal-audit
 import { MatchsService } from "@/features/matchs/matchs.service";
 import { ClubsService } from "@/features/clubs/clubs.service";
 import { DerivationService } from "@/features/derivation/derivation.service";
-import { cleNomClub, sansSuffixeEquipe } from "@/features/clubs/nom-club";
+import { cleNomClub, clubParAbrege, sansSuffixeEquipe } from "@/features/clubs/nom-club";
 import { ArbitresService } from "@/features/arbitres/arbitres.service";
 import { CoachsService } from "@/features/coachs/coachs.service";
 import { EquipesService } from "@/features/equipes/equipes.service";
@@ -44,6 +44,12 @@ export function resumeErreur(e: any): string {
   const type = (derniere.match(/^([A-Za-z_][\w.]*(Error|Exception))\b/) ?? [])[1] ?? e?.name ?? "Error";
   return [type, code].filter(Boolean).join(", ");
 }
+
+type CacheClubs = {
+  clubsByCleanedName: Map<string, string>; clubsByFff: Map<string, string>; clean: (s: string) => string;
+  /** Les clubs connus (id, nom), pour reconnaitre un sigle (FCLCR = FC Lyon Croix Rousse). */
+  clubs?: { id: string; nom: string }[];
+};
 
 @Injectable()
 export class FmiService {
@@ -194,7 +200,7 @@ export class FmiService {
    */
   private async resolveClub(
     nom: string,
-    cache?: { clubsByCleanedName: Map<string, string>; clubsByFff: Map<string, string>; clean: (s: string) => string },
+    cache?: CacheClubs,
     numeroFff?: string,
   ): Promise<string> {
     // 1) Si numero FFF dispo : match strict en priorite.
@@ -216,7 +222,7 @@ export class FmiService {
       throw new BadRequestException(`Nom de club vide : "${nom}"`);
     }
     if (cache) {
-      const cached = cache.clubsByCleanedName.get(target);
+      const cached = cache.clubsByCleanedName.get(target) ?? (cache.clubs ? clubParAbrege(nom, cache.clubs) : undefined);
       if (cached) {
         // Met a jour le numero FFF du club s'il n'en a pas encore.
         if (numeroFff) {
@@ -230,7 +236,7 @@ export class FmiService {
       }
     } else {
       const clubs = await this.clubs.findAll();
-      const hit = clubs.find((c) => clean(c.nom) === target);
+      const hit = clubs.find((c) => clean(c.nom) === target) ?? clubs.find((c) => c.id === clubParAbrege(nom, clubs));
       if (hit) {
         if (numeroFff && !(hit as any).numeroFff) {
           await this.clubs.update(hit.id, { numeroFff } as any);
@@ -248,6 +254,7 @@ export class FmiService {
     } as any);
     if (cache) {
       cache.clubsByCleanedName.set(target, created.id);
+      cache.clubs?.push({ id: created.id, nom: created.nom });
       if (numeroFff) cache.clubsByFff.set(numeroFff, created.id);
     }
     return created.id;
@@ -263,7 +270,7 @@ export class FmiService {
       clubsByCleanedName.set(clean(c.nom), c.id);
       if ((c as any).numeroFff) clubsByFff.set((c as any).numeroFff, c.id);
     }
-    return { clubsByCleanedName, clubsByFff, clean };
+    return { clubsByCleanedName, clubsByFff, clean, clubs: clubs.map((c) => ({ id: c.id, nom: c.nom })) };
   }
 
   /** Transforme le JSON du parser en Match + compositions + evenements.
@@ -272,7 +279,7 @@ export class FmiService {
    *  (le match compte pour le classement meme sans compo). */
   async importParsed(
     parsed: any,
-    cache?: { clubsByCleanedName: Map<string, string>; clubsByFff: Map<string, string>; clean: (s: string) => string },
+    cache?: CacheClubs,
     rapport: { avertissements: string[] } = { avertissements: [] },
   ) {
     const erreurs: string[] = [];
