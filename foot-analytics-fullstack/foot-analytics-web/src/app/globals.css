@@ -57,6 +57,9 @@
 
   /* Issues de match */
   --win:           52 211 153;    /* #34D399 */
+  --terrain:        31 90 58;     /* #1F5A3A : terrain du direct */
+  --terrain-ligne: 127 184 150;   /* #7FB896 */
+  --terrain-trace: 242 245 251;   /* surface et but */
   --draw:         251 191 36;
   --loss:         248 113 113;
 
@@ -105,6 +108,9 @@
   --chart-3:         2 110 175;   /* #026EAF */
 
   --win:            3 105 73;     /* #036949 */
+  --terrain:       191 227 204;   /* #BFE3CC : terrain du direct */
+  --terrain-ligne:  47 107 74;    /* #2F6B4A */
+  --terrain-trace:  16 24 40;     /* surface et but */
   --draw:         145 85 0;
   --loss:         190 35 35;
 

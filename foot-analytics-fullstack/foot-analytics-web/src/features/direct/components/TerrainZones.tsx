@@ -12,7 +12,7 @@ export function TerrainZones({
 }: { tier: number | null; couloir: number | null; onChoisir: (tier: number | null, couloir: number | null) => void }) {
   return (
     <div>
-      <div className="relative overflow-hidden rounded-xl border-2 border-line-strong bg-win/10" style={{ height: 176 }}>
+      <div className="relative overflow-hidden rounded-xl border-2" style={{ height: 176, borderColor: "rgb(var(--terrain-ligne))", backgroundColor: "rgb(var(--terrain))" }}>
         <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${NB_COULOIRS}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${NB_TIERS}, minmax(0, 1fr))` }}>
           {Array.from({ length: NB_TIERS * NB_COULOIRS }, (_, i) => {
             const t = Math.floor(i / NB_COULOIRS), c = i % NB_COULOIRS;
@@ -20,15 +20,16 @@ export function TerrainZones({
             return (
               <button key={i} type="button" aria-label={nomZone(t, c)} aria-pressed={choisi}
                 onClick={() => (choisi ? onChoisir(null, null) : onChoisir(t, c))}
-                className={`border border-win/25 text-[11px] font-bold transition-colors ${choisi ? "bg-accentstrong text-white" : t === 0 ? "bg-accent/5 hover:bg-accent/20" : "hover:bg-accent/15"}`}>
+                style={{ borderColor: "rgb(var(--terrain-ligne))" }}
+                className={`border text-xs font-bold transition-colors ${choisi ? "bg-accentstrong text-white" : t === 0 ? "bg-accentstrong/30 hover:bg-accentstrong/50" : "hover:bg-accentstrong/25"}`}>
                 {choisi ? "Ici" : ""}
               </button>
             );
           })}
         </div>
         {/* Surface et but de l'equipe qui attaque, traces au-dessus de la grille */}
-        <div className="pointer-events-none absolute inset-x-[20%] top-0 h-[34%] border-2 border-t-0 border-ink/30" />
-        <div className="pointer-events-none absolute inset-x-[38%] top-0 h-2.5 border-2 border-t-0 border-ink/60" />
+        <div className="pointer-events-none absolute inset-x-[20%] top-0 h-[34%] border-[3px] border-t-0" style={{ borderColor: "rgb(var(--terrain-trace) / 0.85)" }} />
+        <div className="pointer-events-none absolute inset-x-[38%] top-0 h-2.5 border-[3px] border-t-0" style={{ borderColor: "rgb(var(--terrain-trace) / 0.95)" }} />
       </div>
       <div className="mt-1 flex justify-between px-1 text-[11px] text-faint" aria-hidden>
         <span>Gauche</span><span>Axe g.</span><span>Centre</span><span>Axe d.</span><span>Droit</span>
