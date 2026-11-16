@@ -11,14 +11,15 @@ import { ArrowLeft, Check, Minus, Plus } from "lucide-react";
 
 import { api, ApiError, messageApi } from "@/shared/lib/api";
 import { Spinner } from "@/shared/ui/Spinner";
+import { ResumeMatchVue } from "@/features/analyse-jeu/components/ResumeMatchVue";
 import { usePaletteDirect } from "@/features/direct/lib/palette";
 
 import type { BilanMatch, EtatApresMatch, JoueurApres } from "../lib/apres-types";
 import { libelleFaits, noteTexte, noterPlus, tonNote } from "../lib/affichage";
 import { useSauvegardeDifferee } from "./useSauvegardeDifferee";
 
-type Onglet = "notes" | "arbitre" | "blessures" | "bilan";
-const ONGLETS: [Onglet, string][] = [["notes", "Notes joueurs"], ["arbitre", "Arbitre"], ["blessures", "Blessures"], ["bilan", "Bilan"]];
+type Onglet = "notes" | "arbitre" | "blessures" | "bilan" | "resume";
+const ONGLETS: [Onglet, string][] = [["notes", "Notes joueurs"], ["arbitre", "Arbitre"], ["blessures", "Blessures"], ["bilan", "Bilan"], ["resume", "Résumé"]];
 const TON: Record<string, string> = { haut: "text-accent", moyen: "text-ink", bas: "text-amber", vide: "text-faint" };
 
 export default function ApresMatchPage({ matchId }: { matchId: string }) {
@@ -127,6 +128,7 @@ export default function ApresMatchPage({ matchId }: { matchId: string }) {
         {onglet === "arbitre" && <Arbitres etat={etat} onNoter={noterArbitre} />}
         {onglet === "blessures" && <Blessures etat={etat} />}
         {onglet === "bilan" && <Bilan bilan={bilan ?? etat.bilan} onChange={changerBilan} />}
+        {onglet === "resume" && <ResumeMatchVue matchId={matchId} />}
       </section>
 
       <p className="flex items-center gap-2 text-xs text-muted" role="status">

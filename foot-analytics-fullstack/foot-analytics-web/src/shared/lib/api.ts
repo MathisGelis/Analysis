@@ -28,6 +28,7 @@ import type { PageJournal } from "@/features/audit/lib/journal";
 import { reconstruire, type EtatReconstruction } from "@/features/fmi/lib/reconstruction";
 import type { RapportFff } from "@/features/calendrier/lib/calendrier-fff";
 import type { EtatApresMatch, BilanMatch, NoteJoueur } from "@/features/apres-match/lib/apres-types";
+import type { ResumeMatch } from "@/features/analyse-jeu/lib/jeu-types";
 import type { ActionChrono, EtatDirect, EvenementDirect, SaisieEvenement } from "@/features/direct/lib/direct-types";
 import type { CriteresApi, OptionsRecherche, ReponseRecherche } from "@/features/recherche-joueurs/lib/recherche-joueurs";
 
@@ -386,6 +387,7 @@ export const api = {
   },
   directSupprimer: (matchId: string, id: string) => req<void>(`/direct/matchs/${matchId}/evenements/${id}`, { method: "DELETE" }),
   directCloturer: (matchId: string) => req<EtatDirect>(`/direct/matchs/${matchId}/cloture`, { method: "POST" }),
+  resumeMatch: (matchId: string) => req<ResumeMatch>(`/analyse-jeu/matchs/${matchId}/resume`),
   apresMatch: (matchId: string) => req<EtatApresMatch>(`/apres-match/matchs/${matchId}`),
   apresMatchNoter: (matchId: string, joueurId: string, corps: { note?: number | null; commentaire?: string | null }) =>
     req<NoteJoueur>(`/apres-match/matchs/${matchId}/joueurs/${joueurId}`, { method: "PUT", body: JSON.stringify(corps) }),

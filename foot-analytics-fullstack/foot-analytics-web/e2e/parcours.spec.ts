@@ -1860,6 +1860,11 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await expect.poll(async () => (await (await appeler(`/apres-match/matchs/${match.id}`)).json()).bilan.positifs, { timeout: 8_000 }).toBe("Pressing haut");
   await expect(page.getByText("Tout est enregistré")).toBeVisible();
   for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur l'après-match (${theme})`).toEqual([]);
+  // Le résumé de fin de match : les chiffres du direct, comparés, accessibles.
+  await page.getByRole("tab", { name: "Résumé" }).click();
+  await expect(page.getByRole("heading", { name: "Le match en chiffres" })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Corners : \d pour nous, \d pour eux/ })).toBeVisible();
+  for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur le résumé (${theme})`).toEqual([]);
   await page.getByRole("button", { name: "Clôturer le match" }).click();
   await expect(page.getByText("Match clôturé")).toBeVisible();
   await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
