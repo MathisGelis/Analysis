@@ -26,7 +26,7 @@ import { EvenementDirect } from "./evenement-direct.entity";
 import { compteurs, scoreDirect } from "./stats-direct";
 import { RESULTATS_PAR_TYPE } from "./types";
 
-const etatDe = (d: Direct): EtatChrono => ({
+export const etatDe = (d: Direct): EtatChrono => ({
   statut: d.statut, periode: d.periode, accumuleMs: d.accumuleMs, demarreLe: d.demarreLe, dureePeriodeMin: d.dureePeriodeMin,
 });
 
@@ -78,7 +78,7 @@ export class DirectService {
   }
 
   /** L'effectif de mon equipe, les titulaires du plan de jeu (celui du match, sinon le plan courant) en tete. */
-  private async joueursDe(equipeId: string, matchId: string) {
+  async joueursDe(equipeId: string, matchId: string) {
     const [effectif, planMatch, planCourant] = await Promise.all([
       this.effectifs.effectif(equipeId),
       this.plans.findOne({ where: { equipeId, matchId } }),
