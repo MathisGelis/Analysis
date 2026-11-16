@@ -153,7 +153,7 @@ export default function AvantMatchPage({ matchId }: { matchId: string }) {
                 <button key={p.index} type="button" onClick={() => setPoste(p.index)} style={{ left: `${p.x}%`, top: `${p.y}%` }}
                   aria-label={`${p.libelle} : ${j ? nomCourt(j) : "vide"}`}
                   className="absolute flex w-16 -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5">
-                  <span className={`grid h-11 w-11 place-items-center rounded-full border-2 font-display text-sm font-bold ${j ? "border-accent bg-bg text-ink" : "border-dashed border-line-strong bg-bg/60 text-muted"}`}>{j ? (j.numero ?? j.nom.slice(0, 1)) : "+"}</span>
+                  <span className={`grid h-11 w-11 place-items-center rounded-full border-2 font-display text-sm font-bold ${j ? "border-accent bg-bg text-ink" : "border-dashed border-line-strong bg-bg/60 text-muted"}`}>{j ? (j.numero ?? "–") : "+"}</span>
                   <span className="max-w-full truncate rounded bg-bg/70 px-1 text-[10px] font-semibold text-ink">{j ? j.nom : p.libelle}</span>
                 </button>
               );
