@@ -28,7 +28,7 @@ import type { PageJournal } from "@/features/audit/lib/journal";
 import { reconstruire, type EtatReconstruction } from "@/features/fmi/lib/reconstruction";
 import type { RapportFff } from "@/features/calendrier/lib/calendrier-fff";
 import type { EtatApresMatch, BilanMatch, NoteJoueur } from "@/features/apres-match/lib/apres-types";
-import type { ResumeMatch } from "@/features/analyse-jeu/lib/jeu-types";
+import type { Lieu, ReponseAdversaire, ReponseCroisements, ReponseJeu, ResumeMatch } from "@/features/analyse-jeu/lib/jeu-types";
 import type { ActionChrono, EtatDirect, EvenementDirect, SaisieEvenement } from "@/features/direct/lib/direct-types";
 import type { CriteresApi, OptionsRecherche, ReponseRecherche } from "@/features/recherche-joueurs/lib/recherche-joueurs";
 
@@ -225,6 +225,14 @@ async function uploadApi<T>(path: string, fd: FormData, libelle: string): Promis
 
 /* ----------------------------- LECTURES ---------------------------------- */
 
+function paramsJeu(p: { equipeId?: string; saisonId?: string; lieu: string; derniers: number | null }): string {
+  const q = new URLSearchParams({ lieu: p.lieu });
+  if (p.equipeId) q.set("equipeId", p.equipeId);
+  if (p.saisonId) q.set("saisonId", p.saisonId);
+  if (p.derniers) q.set("derniers", String(p.derniers));
+  return q.toString();
+}
+
 export const api = {
   // Clubs
   clubs: () => req<Club[]>("/clubs", { fallback: DEMO_CLUBS }),
@@ -387,6 +395,12 @@ export const api = {
   },
   directSupprimer: (matchId: string, id: string) => req<void>(`/direct/matchs/${matchId}/evenements/${id}`, { method: "DELETE" }),
   directCloturer: (matchId: string) => req<EtatDirect>(`/direct/matchs/${matchId}/cloture`, { method: "POST" }),
+  jeuEquipe: (clubId: string, p: { equipeId?: string; saisonId?: string; lieu: Lieu; derniers: number | null }) =>
+    req<ReponseJeu>(`/analyse-jeu/club/${clubId}/jeu?${paramsJeu(p)}`),
+  croisementsJeu: (clubId: string, p: { equipeId?: string; saisonId?: string; lieu: Lieu; derniers: number | null }) =>
+    req<ReponseCroisements>(`/analyse-jeu/club/${clubId}/croisements?${paramsJeu(p)}`),
+  jeuAdversaire: (equipeId: string, adversaireId: string) =>
+    req<ReponseAdversaire>(`/analyse-jeu/adversaire?${new URLSearchParams({ equipeId, adversaireId })}`),
   resumeMatch: (matchId: string) => req<ResumeMatch>(`/analyse-jeu/matchs/${matchId}/resume`),
   apresMatch: (matchId: string) => req<EtatApresMatch>(`/apres-match/matchs/${matchId}`),
   apresMatchNoter: (matchId: string, joueurId: string, corps: { note?: number | null; commentaire?: string | null }) =>

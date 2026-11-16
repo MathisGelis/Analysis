@@ -10,7 +10,8 @@ import { useEffect, useState } from "react";
 import { api, messageApi } from "@/shared/lib/api";
 import { Spinner } from "@/shared/ui/Spinner";
 
-import { intensite, libelleScore, partDe, phraseTranches } from "../lib/affichage-jeu";
+import { libelleScore, partDe, phraseTranches } from "../lib/affichage-jeu";
+import { CarteZones } from "./CarteZones";
 import type { Constat, ResumeMatch } from "../lib/jeu-types";
 
 const BORD: Record<Constat["ton"], string> = { bon: "rgb(var(--accent-strong))", alerte: "rgb(var(--amber))", neutre: "rgb(var(--line-strong))" };
@@ -103,7 +104,7 @@ export function ResumeMatchVue({ matchId }: { matchId: string }) {
                 </div>
               ))}
             </div>
-            <p className="mt-2 text-xs text-muted">{r.butsSource === "fmi" ? "Minutes reprises de la feuille de match." : "Minutes saisies en direct."} Nous en {"vert"}, adversaire en bleu.</p>
+            <p className="mt-2 text-xs text-muted">{r.butsSource === "fmi" ? "Minutes reprises de la feuille de match." : "Minutes saisies en direct."} Nous à gauche de chaque paire, adversaire à droite.</p>
           </>
         )}
       </section>
@@ -115,22 +116,7 @@ export function ResumeMatchVue({ matchId }: { matchId: string }) {
             <p className="text-sm text-muted">Aucun tir n&apos;a été placé sur le terrain pendant la saisie.</p>
           ) : (
             <>
-              <div className="relative h-44 overflow-hidden rounded-xl border-2" style={{ borderColor: "rgb(var(--terrain-ligne))", backgroundColor: "rgb(var(--terrain))" }}
-                role="img" aria-label={`Carte des tirs de ton équipe : ${totalTirs} tirs placés, dont ${r.carte.buts.reduce((s, x) => s + x, 0)} buts.`}>
-                <div className="absolute inset-0 grid grid-cols-5 grid-rows-3" aria-hidden>
-                  {r.carte.tirs.map((n, i) => {
-                    const force = intensite(n, r.carte.tirs);
-                    return (
-                      <div key={i} className={`flex flex-col items-center justify-center border text-xs font-bold ${force > 0.5 ? "sur-accent" : "text-ink"}`}
-                        style={{ borderColor: "rgb(var(--terrain-ligne))", backgroundColor: n ? `rgb(var(--accent-strong) / ${0.15 + 0.75 * force})` : "transparent" }}>
-                        {n > 0 && <span>{n}</span>}
-                        {r.carte.buts[i] > 0 && <span className="text-[10px] font-semibold">⚽ {r.carte.buts[i]}</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="pointer-events-none absolute inset-x-[20%] top-0 h-[34%] border-[3px] border-t-0" style={{ borderColor: "rgb(var(--terrain-trace) / 0.85)" }} />
-              </div>
+              <CarteZones carte={r.carte} nom="Carte des tirs de ton équipe" />
               <p className="text-xs text-muted">Tirs de ton équipe (l&apos;attaque est en haut). Plus la case est foncée, plus il y a de tirs ; ⚽ = buts.</p>
             </>
           )}

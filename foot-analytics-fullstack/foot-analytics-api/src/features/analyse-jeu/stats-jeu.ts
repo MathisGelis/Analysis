@@ -71,6 +71,7 @@ export function resumerMatch(args: {
       { cle: "cadres", libelle: "Tirs cadrés", nous: n.tirsCadres, eux: e.tirsCadres },
       { cle: "corners", libelle: "Corners", nous: n.corners, eux: e.corners },
       { cle: "coups_francs", libelle: "Coups francs", nous: n.coupsFrancs, eux: e.coupsFrancs },
+      { cle: "penaltys", libelle: "Penaltys", nous: n.penaltys, eux: e.penaltys },
       { cle: "fautes", libelle: "Fautes", nous: n.fautes, eux: e.fautes },
       { cle: "hors_jeux", libelle: "Hors-jeux", nous: n.horsJeux, eux: e.horsJeux },
       { cle: "arrets", libelle: "Arrêts du gardien", nous: n.arrets, eux: e.arrets },

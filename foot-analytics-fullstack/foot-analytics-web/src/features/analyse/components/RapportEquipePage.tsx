@@ -35,6 +35,7 @@ import { ComparatifForme } from "./ComparatifForme";
 import { ProfilCard } from "./ProfilCard";
 import { LieuxCard } from "./LieuxCard";
 import { NiveauCard } from "./NiveauCard";
+import { JeuEquipeSection } from "@/features/analyse-jeu/components/JeuEquipeSection";
 import { MomentsButs } from "./MomentsButs";
 import { DisciplineCard } from "./DisciplineCard";
 import { RotationCard } from "./RotationCard";
@@ -258,6 +259,9 @@ export default async function RapportEquipe({
           )}
         </div>
       </section>
+
+      {/* Le jeu saisi en direct, rapproche des mesures du rapport : reserve au staff du club (donnees privees). */}
+      {maEquipe?.clubId === idClub && <JeuEquipeSection clubId={idClub} equipeId={equipe?.id} saisonId={saison?.id} />}
 
       {/* Faiblesses */}
       {rapport.faiblesses.length > 0 && (
