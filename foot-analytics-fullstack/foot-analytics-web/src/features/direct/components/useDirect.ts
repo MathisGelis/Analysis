@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { api, ApiError, messageApi } from "@/shared/lib/api";
+import { ApiError, messageApi } from "@/shared/lib/api";
 import { compteurs, score } from "../lib/calculs";
 import { formaterChrono, minuteDe } from "../lib/chrono";
 import type { ActionChrono, EtatDirect, EvenementDirect } from "../lib/direct-types";
@@ -15,12 +15,13 @@ import { evenementsAffiches, Operation, sansLaPremiere } from "../lib/file-envoi
 import { ecrireFile, lireFile, stockageLocal } from "../lib/file-persistante";
 import { nouvelId } from "../lib/identifiant";
 import { Saisie, versEvenement } from "../lib/saisie";
+import type { SourceDirect } from "../lib/source-direct";
 
 const DELAI_REESSAI_MS = 4_000;
 /** Entre deux lectures du serveur : c'est ainsi qu'on voit ce que saisissent les autres appareils. */
 const DELAI_SYNCHRO_MS = 5_000;
 
-export function useDirect(matchId: string) {
+export function useDirect(matchId: string, source: SourceDirect) {
   const [etat, setEtat] = useState<EtatDirect | null>(null);
   const [introuvable, setIntrouvable] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -41,12 +42,12 @@ export function useDirect(matchId: string) {
   }, []);
 
   const charger = useCallback(async () => {
-    try { appliquer(await api.direct(matchId)); setErreur(null); }
+    try { appliquer(await source.charger()); setErreur(null); }
     catch (e) {
       if (e instanceof ApiError && e.statut === 404) setIntrouvable(true);
       else setErreur(e instanceof ApiError ? messageApi(e) : "Impossible de joindre le serveur.");
     }
-  }, [appliquer, matchId]);
+  }, [appliquer, source]);
 
   useEffect(() => { void charger(); }, [charger]);
 
@@ -65,7 +66,7 @@ export function useDirect(matchId: string) {
     const lire = async () => {
       if (occupeRef.current || (typeof document !== "undefined" && document.visibilityState === "hidden")) return;
       try {
-        const e = await api.direct(matchId);
+        const e = await source.charger();
         if (occupeRef.current) return;                    // une saisie est partie pendant la lecture : cette lecture est deja perimee
         appliquer(e); setHorsLigne(false);
       } catch (e) { if (!(e instanceof ApiError)) setHorsLigne(true); }
@@ -75,7 +76,7 @@ export function useDirect(matchId: string) {
     document.addEventListener("visibilitychange", retour);
     window.addEventListener("online", retour);
     return () => { clearInterval(t); document.removeEventListener("visibilitychange", retour); window.removeEventListener("online", retour); };
-  }, [appliquer, matchId]);
+  }, [appliquer, source]);
 
   // Le chrono avance chaque seconde, sans appel reseau.
   useEffect(() => {
@@ -94,10 +95,10 @@ export function useDirect(matchId: string) {
     (async () => {
       try {
         if (op.genre === "ajout") {
-          const confirme = await api.directEnregistrer(matchId, op.evenement);
+          const confirme = await source.enregistrer(op.evenement);
           setEtat((s) => s && { ...s, evenements: [...s.evenements.filter((e) => e.id !== confirme.id), { ...confirme }] });
         } else {
-          await api.directSupprimer(matchId, op.id);
+          await source.supprimer(op.id);
           setEtat((s) => s && { ...s, evenements: s.evenements.filter((e) => e.id !== op.id) });
         }
         setHorsLigne(false);
@@ -118,7 +119,7 @@ export function useDirect(matchId: string) {
       battre((n) => n + 1);
     })();
     return () => { if (relancer) clearTimeout(relancer); };
-  }, [file, matchId, charger, essai]);
+  }, [file, source, charger, essai]);
 
   const evenements = useMemo(() => (etat ? evenementsAffiches(etat.evenements, file) : []), [etat, file]);
   const scoreAffiche = useMemo(() => score(evenements), [evenements]);
@@ -129,12 +130,12 @@ export function useDirect(matchId: string) {
 
   const chrono = useCallback(async (action: ActionChrono, minuteCible?: number) => {
     setOccupe(true);
-    try { appliquer(await api.directChrono(matchId, action, minuteCible)); setErreur(null); setHorsLigne(false); }
+    try { appliquer(await source.chrono(action, minuteCible)); setErreur(null); setHorsLigne(false); }
     catch (e) {
       if (e instanceof ApiError) setErreur(messageApi(e));
       else { setErreur("Pas de réseau : l'action sur le chrono n'a pas été prise en compte."); setHorsLigne(true); }
     } finally { setOccupe(false); }
-  }, [appliquer, matchId]);
+  }, [appliquer, source]);
 
   /** Enregistre une saisie (nouvelle, ou corrigee si `id` est donne). */
   const enregistrer = useCallback((saisie: Saisie, id: string = nouvelId()) => {
@@ -165,17 +166,17 @@ export function useDirect(matchId: string) {
 
   const cloturer = useCallback(async () => {
     setOccupe(true);
-    try { appliquer(await api.directCloturer(matchId)); setErreur(null); }
+    try { if (source.cloturer) appliquer(await source.cloturer()); setErreur(null); }
     catch (e) { setErreur(e instanceof ApiError ? messageApi(e) : "Pas de réseau."); }
     finally { setOccupe(false); }
-  }, [appliquer, matchId]);
+  }, [appliquer, source]);
 
   const rouvrir = useCallback(async () => {
     setOccupe(true);
-    try { appliquer(await api.directRouvrir(matchId)); setErreur(null); }
+    try { if (source.rouvrir) appliquer(await source.rouvrir()); setErreur(null); }
     catch (e) { setErreur(e instanceof ApiError ? messageApi(e) : "Pas de réseau."); }
     finally { setOccupe(false); }
-  }, [appliquer, matchId]);
+  }, [appliquer, source]);
 
   return {
     etat, introuvable, erreur, effacerErreur: () => setErreur(null), evenements, score: scoreAffiche, compteurs: compteursAffiches,

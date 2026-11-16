@@ -71,4 +71,13 @@ export interface EtatDirect {
   score: { dom: number; ext: number };
   compteurs: { dom: CompteursCote; ext: CompteursCote };
   joueurs: JoueurDirect[];
+  /** Present seulement quand le direct est lu par un saisisseur invite. */
+  invitation?: { libelle: string; peutChrono: boolean; expireLe: string };
 }
+
+/* ---- Invitations a saisir ---- */
+export interface InvitationVue {
+  id: string; libelle: string; peutChrono: boolean; expireLe: string; ouvertLe: string | null; revoqueLe: string | null;
+  derniereActiviteLe: string | null; creeLe: string; etat: "en_attente" | "ouverte" | "expiree" | "revoquee";
+}
+export interface InvitationCreee { invitation: InvitationVue; jeton: string }

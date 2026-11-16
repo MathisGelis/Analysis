@@ -6,7 +6,7 @@
 // s'adapte : une colonne sur telephone (la frise s'ouvre a part), deux colonnes (saisie | frise) sur grand ecran.
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, ListOrdered, Redo2, Undo2 } from "lucide-react";
 
 import { Modal } from "@/shared/ui/Modal";
@@ -16,6 +16,8 @@ import type { Cote, EvenementDirect } from "../lib/direct-types";
 import { Saisie, saisieDepuisEvenement, saisieInitiale } from "../lib/saisie";
 import { FeuilleSaisie } from "./FeuilleSaisie";
 import { usePaletteDirect } from "../lib/palette";
+import { sourceStaff, type SourceDirect } from "../lib/source-direct";
+import { InviterSaisisseur } from "./InviterSaisisseur";
 import { FriseDirect } from "./FriseDirect";
 import { GrilleActions } from "./GrilleActions";
 import { Tableau } from "./Tableau";
@@ -23,8 +25,11 @@ import { useDirect } from "./useDirect";
 
 interface Ouverte { saisie: Saisie; id: string | null }
 
-export default function DirectPage({ matchId }: { matchId: string }) {
-  const d = useDirect(matchId);
+export default function DirectPage({ matchId, source: sourceFournie }: { matchId: string; source?: SourceDirect }) {
+  // Staff par defaut ; un saisisseur invite fournit la source de sa session (pas de cloture, pas de liens vers le reste de l'application).
+  const source = useMemo(() => sourceFournie ?? sourceStaff(matchId), [sourceFournie, matchId]);
+  const invite = !!sourceFournie;
+  const d = useDirect(matchId, source);
   usePaletteDirect();
   const [coteSaisie, setCoteSaisie] = useState<Cote | null>(null);
   const [ouverte, setOuverte] = useState<Ouverte | null>(null);
@@ -44,7 +49,7 @@ export default function DirectPage({ matchId }: { matchId: string }) {
       <div className="panel mx-auto max-w-lg space-y-3 p-6 text-center" role="alert">
         <h1 className="font-display text-xl font-bold text-ink">Direct indisponible</h1>
         <p className="text-sm text-muted">{d.erreur}</p>
-        <div className="flex justify-center gap-2"><button type="button" onClick={() => void d.recharger()} className="btn btn-primary">Réessayer</button><Link href={`/matchs/${matchId}`} className="btn">Retour au match</Link></div>
+        <div className="flex justify-center gap-2"><button type="button" onClick={() => void d.recharger()} className="btn btn-primary">Réessayer</button>{!invite && <Link href={`/matchs/${matchId}`} className="btn">Retour au match</Link>}</div>
       </div>
     ) : (
       <div className="flex justify-center p-12" role="status" aria-label="Chargement du direct"><Spinner taille={22} /></div>
@@ -67,8 +72,13 @@ export default function DirectPage({ matchId }: { matchId: string }) {
   const colonneSaisie = (
     <div className="space-y-3">
       <Tableau nomNous={nomNous} nomEux={nomEux} scoreNous={d.score[nous]} scoreEux={d.score[eux]} chrono={etat.chrono}
-        affichage={d.chronoAffiche} minute={d.minute} occupe={d.occupe} cloture={cloture} onAction={(a, m) => void d.chrono(a, m)} />
+        affichage={d.chronoAffiche} minute={d.minute} occupe={d.occupe} cloture={cloture} onAction={(a, m) => void d.chrono(a, m)}
+        chronoPermis={!invite || !!etat.invitation?.peutChrono} />
 
+      {invite ? (
+        (etat.chrono.statut === "termine" || cloture) && <p className="panel-inset border-l-2 border-accent p-3 text-sm text-ink" role="status">{cloture ? "Direct clôturé par le staff : la saisie est verrouillée." : "Match terminé. Le staff clôturera le direct."}</p>
+      ) : (
+        <>
       {etat.chrono.statut === "termine" && !cloture && (
         <div className="panel-inset flex flex-wrap items-center justify-between gap-2 border-l-2 border-accent p-3" role="status">
           <span className="text-sm text-ink">Match terminé. Tu peux encore corriger la frise, puis clôturer.</span>
@@ -86,6 +96,8 @@ export default function DirectPage({ matchId }: { matchId: string }) {
             <button type="button" disabled={d.occupe} onClick={() => void d.rouvrir()} className="btn">Rouvrir</button>
           </div>
         </div>
+      )}
+        </>
       )}
 
       <div className="flex gap-1 rounded-2xl border border-line bg-surface p-1" role="group" aria-label="Équipe concernée">
@@ -121,7 +133,14 @@ export default function DirectPage({ matchId }: { matchId: string }) {
     <div className="mx-auto w-full max-w-5xl space-y-3 fade-up">
       <h1 className="sr-only">Direct : {etat.match.nomDom} contre {etat.match.nomExt}</h1>
       <div className="flex items-center justify-between gap-2">
-        <Link href={`/matchs/${matchId}`} className="btn !h-11" aria-label="Retour au match"><ArrowLeft size={16} aria-hidden /> <span className="max-sm:sr-only">Retour au match</span></Link>
+        {invite ? (
+          <p className="text-sm text-muted">Saisie invitée : <strong className="text-ink">{etat.invitation?.libelle}</strong></p>
+        ) : (
+          <>
+            <Link href={`/matchs/${matchId}`} className="btn !h-11" aria-label="Retour au match"><ArrowLeft size={16} aria-hidden /> <span className="max-sm:sr-only">Retour au match</span></Link>
+            <InviterSaisisseur matchId={matchId} disabled={cloture} />
+          </>
+        )}
       </div>
 
       {d.erreur && (

@@ -1909,6 +1909,73 @@ test("direct : un autre appareil saisit et on le voit, et ce qui n'a pas pu part
   expect((await (await appeler(`/direct/matchs/${match.id}`)).json()).evenements).toHaveLength(2);
 });
 
+test("invitation : un saisisseur sans compte saisit le direct d'un seul match, le lien ne sert qu'une fois, l'accès se coupe", async () => {
+  test.setTimeout(150_000);
+  const axe = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const appeler = (chemin: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
+    ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+  });
+  const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { clubId: string; equipeId: string; saison2526: string };
+  const adversaire = await (await appeler("/clubs", { method: "POST", body: JSON.stringify({ nom: "Club Invitation" }) })).json();
+  const match = await (await appeler("/matchs", { method: "POST", body: JSON.stringify({
+    clubDom: fixtures.clubId, clubExt: adversaire.id, equipeDomId: fixtures.equipeId, saisonId: fixtures.saison2526,
+    date: "2026-06-01", statut: "prevu", scoreDom: 0, scoreExt: 0,
+  }) })).json();
+  await appeler(`/direct/matchs/${match.id}/chrono`, { method: "POST", body: JSON.stringify({ action: "demarrer" }) });
+
+  // Le staff cree l'invitation depuis le direct : le lien n'apparait qu'une fois.
+  await page.goto(`/matchs/${match.id}/direct`);
+  await page.getByRole("button", { name: "Inviter un saisisseur" }).click();
+  await page.getByLabel("Nom de la personne").fill("Julie");
+  await page.getByRole("button", { name: "Créer le lien" }).click();
+  const lien = await page.getByLabel("Lien d'invitation").inputValue();
+  expect(lien).toMatch(/\/saisie\/[A-Za-z0-9_-]{43}$/);
+  await expect(page.getByText("Lien pas encore ouvert")).toBeVisible();
+  for (const theme of ["dark", "light"]) {
+    await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
+    await page.waitForTimeout(400);
+    await page.evaluate(axe);
+    const v = await page.evaluate(async () => (await (window as any).axe.run(document.querySelector("[role=dialog]"), { resultTypes: ["violations"] })).violations.map((x: any) => `${x.impact} ${x.id}`));
+    expect(v, `axe sur la fenetre d'invitation (${theme})`).toEqual([]);
+  }
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+
+  // L'invite : un appareil vierge, sans compte. Il ouvre le lien et saisit un corner.
+  const invite = await (await contexte.browser()!.newContext()).newPage();
+  await invite.goto(lien);
+  await expect(invite.getByText("Saisie invitée :")).toBeVisible({ timeout: 20_000 });
+  await expect(invite).toHaveURL(/\/saisie$/);                                   // le jeton a quitte la barre d'adresse
+  await expect(invite.getByRole("link", { name: /Retour au match/ })).toHaveCount(0);
+  await expect(invite.getByRole("button", { name: "Pause" })).toHaveCount(0);   // pas le droit de piloter le chrono
+  await invite.getByRole("group", { name: "Actions du match" }).getByRole("button", { name: "Corner", exact: true }).click();
+  await invite.locator("div.fixed.inset-0").getByRole("button", { name: "Enregistrer ainsi" }).click();
+  await expect(invite.getByText("1 événement · tout est envoyé")).toBeVisible();
+  await expect.poll(async () => (await (await appeler(`/direct/matchs/${match.id}`)).json()).evenements.length, { timeout: 10_000 }).toBe(1);
+  await expect(page.getByText("1 événement · tout est envoyé")).toBeVisible({ timeout: 15_000 });   // le staff le voit aussi
+
+  // Rouvrir le meme lien sur un autre appareil : refuse, c'etait un lien a usage unique.
+  const autre = await (await contexte.browser()!.newContext()).newPage();
+  await autre.goto(lien);
+  await expect(autre.getByRole("heading", { name: "Lien déjà utilisé" })).toBeVisible({ timeout: 20_000 });
+
+  // Rien d'autre de l'application n'est atteignable : pages renvoyees vers la connexion, relais refuse.
+  await invite.goto("/matchs");
+  await expect(invite).toHaveURL(/\/login/);
+  const refus = await invite.evaluate(async () => (await fetch("/api/backend/matchs")).status);
+  expect(refus).toBe(401);
+
+  // Le staff coupe l'acces : l'invite le sait et ne peut plus rien saisir.
+  await page.getByRole("button", { name: "Couper l'accès de Julie" }).click();
+  await expect(page.getByText("Accès coupé")).toBeVisible();
+  await invite.goto("/saisie");
+  await expect(invite.getByRole("heading", { name: /Accès terminé|Pas d'invitation/ })).toBeVisible({ timeout: 25_000 });
+  expect((await (await appeler(`/direct/matchs/${match.id}`)).json()).evenements).toHaveLength(1);
+});
+
 function pdfplumberDisponible(): boolean {
   try {
     execFileSync(process.env.PYTHON_BIN ?? "python3", ["-c", "import pdfplumber"], { stdio: "ignore" });

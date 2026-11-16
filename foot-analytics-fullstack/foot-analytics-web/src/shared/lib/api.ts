@@ -29,7 +29,7 @@ import { reconstruire, type EtatReconstruction } from "@/features/fmi/lib/recons
 import type { RapportFff } from "@/features/calendrier/lib/calendrier-fff";
 import type { EtatApresMatch, BilanMatch, NoteJoueur } from "@/features/apres-match/lib/apres-types";
 import type { Lieu, ReponseAdversaire, ReponseCroisements, ReponseJeu, ResumeMatch } from "@/features/analyse-jeu/lib/jeu-types";
-import type { ActionChrono, EtatDirect, EvenementDirect, SaisieEvenement } from "@/features/direct/lib/direct-types";
+import type { ActionChrono, EtatDirect, EvenementDirect, InvitationCreee, InvitationVue, SaisieEvenement } from "@/features/direct/lib/direct-types";
 import type { CriteresApi, OptionsRecherche, ReponseRecherche } from "@/features/recherche-joueurs/lib/recherche-joueurs";
 
 import type {
@@ -394,6 +394,10 @@ export const api = {
     return req<EvenementDirect>(`/direct/matchs/${matchId}/evenements/${id}`, { method: "PUT", body: JSON.stringify(corps) });
   },
   directSupprimer: (matchId: string, id: string) => req<void>(`/direct/matchs/${matchId}/evenements/${id}`, { method: "DELETE" }),
+  directInviter: (matchId: string, corps: { libelle: string; peutChrono: boolean; dureeHeures: number }) =>
+    req<InvitationCreee>(`/direct/matchs/${matchId}/invitations`, { method: "POST", body: JSON.stringify(corps) }),
+  directInvitations: (matchId: string) => req<InvitationVue[]>(`/direct/matchs/${matchId}/invitations`),
+  directRevoquer: (matchId: string, id: string) => req<InvitationVue>(`/direct/matchs/${matchId}/invitations/${id}`, { method: "DELETE" }),
   directCloturer: (matchId: string) => req<EtatDirect>(`/direct/matchs/${matchId}/cloture`, { method: "POST" }),
   jeuEquipe: (clubId: string, p: { equipeId?: string; saisonId?: string; lieu: Lieu; derniers: number | null }) =>
     req<ReponseJeu>(`/analyse-jeu/club/${clubId}/jeu?${paramsJeu(p)}`),

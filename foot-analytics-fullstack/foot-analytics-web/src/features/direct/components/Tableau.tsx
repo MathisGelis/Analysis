@@ -13,10 +13,12 @@ import { libellePeriode } from "../lib/chrono";
 import type { ActionChrono, ChronoDirect } from "../lib/direct-types";
 
 export function Tableau({
-  nomNous, nomEux, scoreNous, scoreEux, chrono, affichage, minute, occupe, cloture, onAction,
+  nomNous, nomEux, scoreNous, scoreEux, chrono, affichage, minute, occupe, cloture, onAction, chronoPermis = true,
 }: {
   nomNous: string; nomEux: string; scoreNous: number; scoreEux: number; chrono: ChronoDirect; affichage: string; minute: number;
   occupe: boolean; cloture: boolean; onAction: (a: ActionChrono, minute?: number) => void;
+  /** false : l'invite ne pilote pas le chrono (il le lit seulement). */
+  chronoPermis?: boolean;
 }) {
   const [recalage, setRecalage] = useState<number | null>(null);
   const { statut, periode } = chrono;
@@ -44,22 +46,23 @@ export function Tableau({
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
-        <button type="button" disabled={statut === "avant" || cloture} onClick={() => setRecalage(minute)}
+        <button type="button" disabled={statut === "avant" || cloture || !chronoPermis} onClick={() => setRecalage(minute)}
           className="rounded-lg text-left disabled:cursor-default" aria-label={`Chrono ${affichage}. Recaler la minute`}>
           <span className="block font-display text-3xl font-bold leading-none tabular-nums text-ink">{affichage}</span>
           <span className="mt-1 block text-xs text-muted">{libellePeriode(chrono)}</span>
         </button>
         <div className="flex flex-wrap justify-end gap-2">
-          {statut === "avant" && bouton("demarrer", "Coup d'envoi", true)}
-          {statut === "en_cours" && (
+          {!chronoPermis && statut === "avant" && <span className="text-sm text-muted">En attente du coup d&apos;envoi</span>}
+          {chronoPermis && statut === "avant" && bouton("demarrer", "Coup d'envoi", true)}
+          {chronoPermis && statut === "en_cours" && (
             <button type="button" disabled={occupe || cloture} onClick={() => onAction("pause")} className="btn !h-11"><Pause size={15} aria-hidden /> Pause</button>
           )}
-          {statut === "pause" && (
+          {chronoPermis && statut === "pause" && (
             <button type="button" disabled={occupe || cloture} onClick={() => onAction("reprendre")} className="btn btn-primary !h-11"><Play size={15} aria-hidden /> Reprendre</button>
           )}
-          {enJeu && periode === 1 && bouton("mi_temps", "Mi-temps")}
-          {statut === "mi_temps" && bouton("deuxieme_periode", "2e période", true)}
-          {enJeu && periode === 2 && bouton("fin", "Fin du match")}
+          {chronoPermis && enJeu && periode === 1 && bouton("mi_temps", "Mi-temps")}
+          {chronoPermis && statut === "mi_temps" && bouton("deuxieme_periode", "2e période", true)}
+          {chronoPermis && enJeu && periode === 2 && bouton("fin", "Fin du match")}
         </div>
       </div>
 
