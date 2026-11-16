@@ -27,6 +27,7 @@ import type { EntrainementDetail, EntrainementResume, EtatIa, ModeleListe, Plann
 import type { PageJournal } from "@/features/audit/lib/journal";
 import { reconstruire, type EtatReconstruction } from "@/features/fmi/lib/reconstruction";
 import type { RapportFff } from "@/features/calendrier/lib/calendrier-fff";
+import type { ActionChrono, EtatDirect, EvenementDirect, SaisieEvenement } from "@/features/direct/lib/direct-types";
 import type { CriteresApi, OptionsRecherche, ReponseRecherche } from "@/features/recherche-joueurs/lib/recherche-joueurs";
 
 import type {
@@ -373,6 +374,18 @@ export const api = {
     fd.append("file", file);
     return uploadApi<any>(`/fmi/import${recompute ? "" : "?recompute=false"}`, fd, "Import FMI");
   },
+
+  // Direct d'un match : l'ecran entier en une lecture, le chrono, les evenements (idempotents : l'identifiant est celui de l'appareil).
+  direct: (matchId: string) => req<EtatDirect>(`/direct/matchs/${matchId}`),
+  directChrono: (matchId: string, action: ActionChrono, minute?: number) =>
+    req<EtatDirect>(`/direct/matchs/${matchId}/chrono`, { method: "POST", body: JSON.stringify({ action, ...(minute === undefined ? {} : { minute }) }) }),
+  directEnregistrer: (matchId: string, e: SaisieEvenement) => {
+    const { id, ...corps } = e;
+    return req<EvenementDirect>(`/direct/matchs/${matchId}/evenements/${id}`, { method: "PUT", body: JSON.stringify(corps) });
+  },
+  directSupprimer: (matchId: string, id: string) => req<void>(`/direct/matchs/${matchId}/evenements/${id}`, { method: "DELETE" }),
+  directCloturer: (matchId: string) => req<EtatDirect>(`/direct/matchs/${matchId}/cloture`, { method: "POST" }),
+  directRouvrir: (matchId: string) => req<EtatDirect>(`/direct/matchs/${matchId}/reouverture`, { method: "POST" }),
 
   // Calendrier FFF d'une equipe : adresse du fichier .ics (myFFF), synchronisation, ou fichier depose a la main.
   definirCalendrierFff: (equipeId: string, url: string | null) =>

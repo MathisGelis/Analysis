@@ -1728,6 +1728,109 @@ test("calendrier FFF : un fichier .ics depose cree les matchs à venir, le rejou
   await expect(page.getByTestId("cal-fff-erreur")).toContainText("Adresse invalide");
 });
 
+test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adverse), la frise se corrige, le match se clôture et se rouvre", async () => {
+  test.setTimeout(150_000);
+  const axe = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const appeler = (chemin: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
+    ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+  });
+  const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { clubId: string; equipeId: string; saison2526: string };
+  const adversaire = await (await appeler("/clubs", { method: "POST", body: JSON.stringify({ nom: "Club Direct" }) })).json();
+  const match = await (await appeler("/matchs", { method: "POST", body: JSON.stringify({
+    clubDom: fixtures.clubId, clubExt: adversaire.id, equipeDomId: fixtures.equipeId, saisonId: fixtures.saison2526,
+    date: "2026-05-30", statut: "prevu", scoreDom: 0, scoreExt: 0,
+  }) })).json();
+  expect(match.id).toBeTruthy();
+
+  // Entree depuis la fiche du match.
+  await page.goto(`/matchs/${match.id}`);
+  await cliquerJusquaNavigation(page.getByTestId("ouvrir-direct"), /\/matchs\/[^/]+\/direct$/);
+  await expect(page.getByRole("region", { name: "Tableau de marque" })).toBeVisible();
+  const tableau = page.getByRole("region", { name: "Tableau de marque" });
+  await expect(tableau.getByLabel("Score : 0 à 0")).toBeVisible();
+  await expect(tableau).toContainText("Avant le coup d'envoi");
+
+  // Coup d'envoi : le chrono tourne.
+  await page.getByRole("button", { name: "Coup d'envoi" }).click();
+  await expect(tableau).toContainText("1re période");
+  await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+
+  // Un but de notre equipe : action, joueur, zone, resultat deja choisi.
+  const groupe = page.getByRole("group", { name: "Actions du match" });
+  await groupe.getByRole("button", { name: "But", exact: true }).click();
+  const feuille = page.locator("div.fixed.inset-0");
+  await expect(feuille.getByRole("heading", { name: "But · notre équipe" })).toBeVisible();
+  await feuille.getByRole("button", { name: "Joueur inconnu" }).click();
+  await feuille.getByRole("button", { name: "Suivant" }).click();
+  await feuille.getByRole("button", { name: "Offensif · centre" }).click();
+  await feuille.getByRole("button", { name: "Attaque placée" }).click();
+  await feuille.getByRole("button", { name: "Cadre haut droit" }).click();
+  await feuille.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await expect(tableau.getByLabel("Score : 1 à 0")).toBeVisible();
+
+  // Un tir adverse : pave numerique, resultat obligatoire.
+  await page.getByRole("group", { name: "Équipe concernée" }).getByRole("button", { name: "Adversaire" }).click();
+  await groupe.getByRole("button", { name: "Tir", exact: true }).click();
+  await feuille.getByRole("button", { name: "9", exact: true }).click();
+  await feuille.getByRole("button", { name: "Suivant" }).click();
+  await expect(feuille.getByRole("button", { name: "Enregistrer", exact: true })).toBeDisabled();
+  await feuille.getByRole("button", { name: "Non cadré" }).click();
+  await feuille.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await expect(page.getByText("2 événements · tout est envoyé")).toBeVisible();
+  await expect(tableau.getByLabel("Score : 1 à 0")).toBeVisible();
+
+  // Accessibilite de l'ecran, puis de la feuille de saisie seule (derriere elle, la page est assombrie : axe y lirait de faux contrastes).
+  const auditer = async (portee: string | null, theme: string) => {
+    await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
+    await page.waitForTimeout(600);
+    return page.evaluate(async (p) => {
+      const r = await (window as any).axe.run(p ? document.querySelector(p) : document, { resultTypes: ["violations"] });
+      return r.violations.map((v: any) => `${v.impact} ${v.id} x${v.nodes.length} : ${v.nodes[0].target.join(" ")}`);
+    }, portee);
+  };
+  await page.evaluate(axe);
+  for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur le direct (${theme})`).toEqual([]);
+  await groupe.getByRole("button", { name: "Corner", exact: true }).click();
+  for (const theme of ["dark", "light"]) expect(await auditer("[role=dialog]", theme), `axe sur la feuille de saisie (${theme})`).toEqual([]);
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+  await feuille.getByRole("button", { name: "Enregistrer ainsi" }).click();   // un corner sans detail s'enregistre en un appui
+  await expect(page.getByText("3 événements · tout est envoyé")).toBeVisible();
+
+  // La frise (grand ecran : a droite) : corriger le but en tir cadre arrete, le score retombe ; annuler, retablir.
+  const frise = page.getByRole("complementary", { name: "Frise du match" });
+  await frise.getByRole("button", { name: /minute : But\. Modifier/ }).click();
+  await expect(page.locator("div.fixed.inset-0").getByRole("heading", { name: /Modifier/ })).toBeVisible();
+  await page.locator("div.fixed.inset-0").getByRole("button", { name: "Résultat, zone et contexte" }).click();
+  await page.locator("div.fixed.inset-0").getByRole("button", { name: "Cadré, arrêté" }).click();
+  await page.locator("div.fixed.inset-0").getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await expect(tableau.getByLabel("Score : 0 à 0")).toBeVisible();
+  await page.getByRole("button", { name: "Annuler", exact: true }).click();
+  await expect(page.getByText("2 événements · tout est envoyé")).toBeVisible();
+  await page.getByRole("button", { name: "Rétablir" }).click();
+  await expect(page.getByText("3 événements · tout est envoyé")).toBeVisible();
+
+  // Le recalage du chrono et la fin du match, puis la cloture verrouille la saisie jusqu'a la reouverture.
+  await page.getByRole("button", { name: "Mi-temps" }).click();
+  await page.getByRole("button", { name: "2e période" }).click();
+  await page.getByRole("button", { name: "Fin du match" }).click();
+  await expect(tableau).toContainText("Match terminé");
+  await page.getByRole("button", { name: "Clôturer le match" }).click();
+  await expect(page.getByText("Direct clôturé : la saisie est verrouillée.")).toBeVisible();
+  await expect(groupe.getByRole("button", { name: "Tir", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Rouvrir" }).click();
+  await expect(groupe.getByRole("button", { name: "Tir", exact: true })).toBeEnabled();
+
+  // Ce qui a ete saisi est bien enregistre cote serveur : trois evenements, mon equipe a domicile.
+  const etat = await (await appeler(`/direct/matchs/${match.id}`)).json();
+  expect(etat.evenements).toHaveLength(3);
+  expect(etat.nousCote).toBe("dom");
+  expect(etat.chrono.statut).toBe("termine");
+});
+
 function pdfplumberDisponible(): boolean {
   try {
     execFileSync(process.env.PYTHON_BIN ?? "python3", ["-c", "import pdfplumber"], { stdio: "ignore" });

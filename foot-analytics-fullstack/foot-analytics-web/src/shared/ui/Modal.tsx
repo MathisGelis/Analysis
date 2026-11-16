@@ -13,12 +13,14 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 
 export function Modal({
-  open, onClose, children, maxWidth = "max-w-lg",
+  open, onClose, children, maxWidth = "max-w-lg", titre = "Fenêtre",
 }: {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
   maxWidth?: string;
+  /** Nom accessible de la fenetre (lu par les lecteurs d'ecran a son ouverture). */
+  titre?: string;
 }) {
   // Fermeture clavier (Esc) + lock du scroll body
   useEffect(() => {
@@ -47,6 +49,7 @@ export function Modal({
           viewport, avec un padding qui permet aussi le scroll en interne. */}
       <div className="min-h-full flex items-center justify-center p-2 sm:p-4">
         <div
+          role="dialog" aria-modal="true" aria-label={titre}
           className={`panel-pop pop-in w-full ${maxWidth} p-4 sm:p-6 my-auto`}
           onClick={(e) => e.stopPropagation()}
         >
