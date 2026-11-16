@@ -1689,7 +1689,7 @@ test("calendrier FFF : un fichier .ics depose cree les matchs à venir, le rejou
   })).json();
   const duCalendrier = async (): Promise<{ idFff: string; calendrierDisparu: boolean }[]> =>
     ((await (await fetch(`${API_URL}/matchs`, { headers: { Authorization: `Bearer ${token}` } })).json()) as any[]).filter((m) => m.idFff);
-  const fichier = (contenu: string) => ({ name: "6701_SEM_4.ics", mimeType: "text/calendar", buffer: Buffer.from(contenu) });
+  const fichier = (contenu: string) => ({ name: "1234_SEM_1.ics", mimeType: "text/calendar", buffer: Buffer.from(contenu) });
   const ouvrir = async () => {
     await page.goto("/calendrier");
     await page.waitForLoadState("networkidle");

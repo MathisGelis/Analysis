@@ -1,10 +1,10 @@
 // src/features/calendrier-fff/ics.ts
 //
-// Lecture du calendrier d'une equipe publie par la FFF (fichier .ics, ex. media.fff.fr/calendars/2026/eq/6701_SEM_4.ics) :
+// Lecture du calendrier d'une equipe publie par la FFF (fichier .ics, ex. media.fff.fr/calendars/2026/eq/1234_SEM_1.ics) :
 // un evenement par match de championnat, avec date, heure, lieu, journee et un identifiant stable. Fonctions PURES.
 //
 // Ce que le fichier dit :
-//   SUMMARY      "J4 - LATINO AFC - O. LYON SUD 2" : journee, puis le club qui RECOIT, puis celui qui se deplace ;
+//   SUMMARY      "J4 - AS EXEMPLE - FC MODELE 2" : journee, puis le club qui RECOIT, puis celui qui se deplace ;
 //   DESCRIPTION  la competition ("SENIORS D2") et le lien de la fiche match, qui contient les noms COMPLETS des clubs
 //                (les titres sont abreges ou tronques : "GRAND OUEST ASSOCIAT 4") ;
 //   UID          "55673077@fff.fr" : identifiant du match chez la FFF ;
@@ -36,11 +36,11 @@ export interface MatchCalendrier {
 }
 
 export interface CalendrierAnalyse {
-  /** Nom du calendrier (X-WR-CALNAME) : "OLYMPIQUE LYON SUD - SEM 4 - Saison 2026/2027". */
+  /** Nom du calendrier (X-WR-CALNAME) : "CLUB EXEMPLE - SEM 1 - Saison 2026/2027". */
   nom: string | null;
   /** Annee de debut de la saison du fichier (2026 pour "2026/2027"), null si absente. */
   saisonDebut: number | null;
-  /** Notre nom dans les titres, tel que le fichier l'ecrit ("O. LYON SUD 2"), si on a pu l'isoler. */
+  /** Notre nom dans les titres, tel que le fichier l'ecrit ("FC MODELE 2"), si on a pu l'isoler. */
   notreNom: string | null;
   matchs: MatchCalendrier[];
   /** Evenements ignores, avec la raison (titre illisible...). */

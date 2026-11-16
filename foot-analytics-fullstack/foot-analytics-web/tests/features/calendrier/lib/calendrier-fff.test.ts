@@ -39,8 +39,8 @@ describe("calendrier FFF : affichage du rapport", () => {
   });
 
   it("adresse plausible : calendrier d'équipe de la FFF, avec ou sans protocole", () => {
-    expect(adressePlausible("media.fff.fr/calendars/2026/eq/6701_SEM_4.ics")).toBe(true);
-    expect(adressePlausible(" webcal://media.fff.fr/calendars/2026/eq/6701_SEM_4.ics ")).toBe(true);
+    expect(adressePlausible("media.fff.fr/calendars/2026/eq/1234_SEM_1.ics")).toBe(true);
+    expect(adressePlausible(" webcal://media.fff.fr/calendars/2026/eq/1234_SEM_1.ics ")).toBe(true);
     expect(adressePlausible("https://example.com/agenda.ics")).toBe(false);
     expect(adressePlausible("")).toBe(false);
   });

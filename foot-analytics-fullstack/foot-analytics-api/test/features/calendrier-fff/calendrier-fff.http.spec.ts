@@ -8,7 +8,7 @@ import { AppTest, creerAppTest } from "@test/support/app-test";
 import { creerMonde, Monde } from "@test/support/monde";
 import { construireIcs, saisonFictive } from "@test/support/calendrier-fff";
 
-const ADRESSE = "https://media.fff.fr/calendars/2026/eq/6701_SEM_4.ics";
+const ADRESSE = "https://media.fff.fr/calendars/2026/eq/1234_SEM_1.ics";
 const ADRESSE_U20 = "https://media.fff.fr/calendars/2026/eq/6702_U20_1.ics";
 // Des matchs a venir quelle que soit la date du jour : on part de demain.
 const demain = () => new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
@@ -40,7 +40,7 @@ describe("calendrier FFF : routes", () => {
   const referent = () => t.compte({ login: `RFF${Math.random().toString(36).slice(2, 6)}`, role: "referent", clubId: m.ol.id });
   const url = (equipeId: string, action: string) => `/calendrier-fff/equipes/${equipeId}/${action}`;
 
-  async function deposer(jeton: string, equipeId: string, contenu: string, nom = "6701_SEM_4.ics") {
+  async function deposer(jeton: string, equipeId: string, contenu: string, nom = "1234_SEM_1.ics") {
     const fd = new FormData();
     fd.append("file", new Blob([contenu], { type: "text/calendar" }), nom);
     const res = await reel(`${(await t.app.getUrl()).replace("[::1]", "localhost")}/api${url(equipeId, "importer")}`, { method: "POST", headers: { Authorization: `Bearer ${jeton}` }, body: fd });
@@ -50,7 +50,7 @@ describe("calendrier FFF : routes", () => {
   it("enregistre l'adresse (normalisee), la refuse si ce n'est pas un calendrier d'equipe FFF, l'efface", async () => {
     const ref = await referent();
     const appeler = t.appel(ref);
-    const ok = await appeler("PUT", url(m.sen26.id, "adresse"), { url: "webcal://media.fff.fr/calendars/2026/eq/6701_SEM_4.ics" });
+    const ok = await appeler("PUT", url(m.sen26.id, "adresse"), { url: "webcal://media.fff.fr/calendars/2026/eq/1234_SEM_1.ics" });
     expect(ok).toMatchObject({ statut: 200, corps: { calendrierUrl: ADRESSE, calendrierSynchroLe: null } });
     expect((await t.ds.getRepository(Equipe).findOneByOrFail({ id: m.sen26.id })).calendrierUrl).toBe(ADRESSE);
     for (const mauvaise of ["https://evil.example/calendars/2026/eq/a.ics", "http://media.fff.fr/calendars/2026/eq/a.ics", "n'importe quoi"]) {

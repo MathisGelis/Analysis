@@ -5,7 +5,7 @@
 // puisse pas faire appeler n'importe quel serveur (SSRF) ; pas de redirection suivie, delai et taille bornes.
 
 export const HOTE_CALENDRIERS_FFF = "media.fff.fr";
-/** /calendars/2026/eq/6701_SEM_4.ics */
+/** /calendars/2026/eq/1234_SEM_1.ics */
 const CHEMIN = /^\/calendars\/\d{4}\/eq\/[A-Za-z0-9_-]{1,60}\.ics$/;
 
 /** Taille maximale d'un calendrier d'equipe (celui d'une saison pese une dizaine de ko). */

@@ -8,7 +8,7 @@
 import { useRef, useState } from "react";
 import { CalendarSync, Check, FileUp, RefreshCw, TriangleAlert, X } from "lucide-react";
 
-import { api, messageApi } from "@/shared/lib/api";
+import { api, ApiError, messageApi } from "@/shared/lib/api";
 import { Modal } from "@/shared/ui/Modal";
 import {
   adressePlausible, bilanFff, derniereSynchro, libelleLigne, notesFff, type RapportFff,
@@ -36,7 +36,12 @@ export function CalendrierFffPanneau({ equipe, onClose, onSynchronise }: Props) 
     try {
       return await travail();
     } catch (e) {
-      setErreur(messageApi(e, "Synchronisation impossible"));
+      // 404 « Cannot POST … » (ou corps vide) : la route n'existe pas sur l'API en ligne, ce n'est pas une équipe introuvable.
+      const routeAbsente = e instanceof ApiError && e.statut === 404
+        && (!e.corps || (typeof e.corps.message === "string" && e.corps.message.startsWith("Cannot ")));
+      setErreur(routeAbsente
+        ? "Le serveur ne connaît pas encore cette fonction : l'API en ligne n'est pas à jour (déploiement ou migration en cours ou en échec)."
+        : messageApi(e, "Synchronisation impossible"));
       return null;
     } finally {
       setOccupe(null);
@@ -94,7 +99,7 @@ export function CalendrierFffPanneau({ equipe, onClose, onSynchronise }: Props) 
           <label htmlFor="cal-fff-adresse" className="text-[10px] uppercase tracking-[0.18em] text-faint font-semibold">Adresse du calendrier de l'équipe</label>
           <input
             id="cal-fff-adresse" className="inp w-full font-mono text-xs" value={adresse} spellCheck={false} autoComplete="off"
-            placeholder="media.fff.fr/calendars/2026/eq/6701_SEM_4.ics" data-testid="cal-fff-adresse"
+            placeholder="media.fff.fr/calendars/AAAA/eq/….ics" data-testid="cal-fff-adresse"
             onChange={(e) => setAdresse(e.target.value)}
           />
           <p className="text-xs text-muted">
