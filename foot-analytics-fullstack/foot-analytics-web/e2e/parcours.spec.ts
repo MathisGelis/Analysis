@@ -1870,6 +1870,45 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
 });
 
+test("direct : un autre appareil saisit et on le voit, et ce qui n'a pas pu partir survit au rechargement", async () => {
+  test.setTimeout(120_000);
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const appeler = (chemin: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
+    ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+  });
+  const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { clubId: string; equipeId: string; saison2526: string };
+  const adversaire = await (await appeler("/clubs", { method: "POST", body: JSON.stringify({ nom: "Club Synchro" }) })).json();
+  const match = await (await appeler("/matchs", { method: "POST", body: JSON.stringify({
+    clubDom: fixtures.clubId, clubExt: adversaire.id, equipeDomId: fixtures.equipeId, saisonId: fixtures.saison2526,
+    date: "2026-05-31", statut: "prevu", scoreDom: 0, scoreExt: 0,
+  }) })).json();
+  await appeler(`/direct/matchs/${match.id}/chrono`, { method: "POST", body: JSON.stringify({ action: "demarrer" }) });
+
+  await page.goto(`/matchs/${match.id}/direct`);
+  await expect(page.getByText("0 événement · tout est envoyé")).toBeVisible();
+
+  // Un autre appareil saisit : l'ecran le reprend tout seul (lecture toutes les 5 s).
+  await appeler(`/direct/matchs/${match.id}/evenements/autre-appareil-0001`, { method: "PUT", body: JSON.stringify({ cote: "dom", type: "corner", periode: 1, minute: 7 }) });
+  await expect(page.getByText("1 événement · tout est envoyé")).toBeVisible({ timeout: 15_000 });
+
+  // Le reseau d'envoi tombe : l'evenement saisi reste en attente, et la file survit au rechargement de la page.
+  await page.route("**/direct/matchs/*/evenements/**", (route) => route.abort("failed"));
+  await page.getByRole("group", { name: "Actions du match" }).getByRole("button", { name: "Corner", exact: true }).click();
+  await page.locator("div.fixed.inset-0").getByRole("button", { name: "Enregistrer ainsi" }).click();
+  await expect(page.getByText(/1 événement en attente/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(/1 événement en attente/)).toBeVisible({ timeout: 15_000 });
+  expect((await (await appeler(`/direct/matchs/${match.id}`)).json()).evenements).toHaveLength(1);   // rien n'est parti
+
+  // Le reseau revient : la file repart d'elle-meme, sans doublon.
+  await page.unroute("**/direct/matchs/*/evenements/**");
+  await expect(page.getByText("2 événements · tout est envoyé")).toBeVisible({ timeout: 20_000 });
+  expect((await (await appeler(`/direct/matchs/${match.id}`)).json()).evenements).toHaveLength(2);
+});
+
 function pdfplumberDisponible(): boolean {
   try {
     execFileSync(process.env.PYTHON_BIN ?? "python3", ["-c", "import pdfplumber"], { stdio: "ignore" });

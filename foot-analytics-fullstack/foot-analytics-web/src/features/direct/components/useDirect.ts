@@ -12,16 +12,22 @@ import { compteurs, score } from "../lib/calculs";
 import { formaterChrono, minuteDe } from "../lib/chrono";
 import type { ActionChrono, EtatDirect, EvenementDirect } from "../lib/direct-types";
 import { evenementsAffiches, Operation, sansLaPremiere } from "../lib/file-envoi";
+import { ecrireFile, lireFile, stockageLocal } from "../lib/file-persistante";
 import { nouvelId } from "../lib/identifiant";
 import { Saisie, versEvenement } from "../lib/saisie";
 
 const DELAI_REESSAI_MS = 4_000;
+/** Entre deux lectures du serveur : c'est ainsi qu'on voit ce que saisissent les autres appareils. */
+const DELAI_SYNCHRO_MS = 5_000;
 
 export function useDirect(matchId: string) {
   const [etat, setEtat] = useState<EtatDirect | null>(null);
   const [introuvable, setIntrouvable] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [file, setFile] = useState<Operation[]>([]);
+  const fileRestauree = useRef(false);
+  /** Incremente a chaque nouvel essai d'envoi apres un echec : c'est ce qui relance l'effet de la file. */
+  const [essai, setEssai] = useState(0);
   const [horsLigne, setHorsLigne] = useState(false);
   const [occupe, setOccupe] = useState(false);
   const [annule, setAnnule] = useState<EvenementDirect | null>(null);
@@ -43,6 +49,33 @@ export function useDirect(matchId: string) {
   }, [appliquer, matchId]);
 
   useEffect(() => { void charger(); }, [charger]);
+
+  // La file survit au rechargement : on reprend ce qui n'avait pas ete confirme (apres le premier rendu, jamais pendant le rendu serveur).
+  useEffect(() => {
+    const restauree = lireFile(stockageLocal(), matchId);
+    fileRestauree.current = true;
+    if (restauree.length > 0) setFile((f) => [...restauree, ...f]);
+  }, [matchId]);
+  useEffect(() => { if (fileRestauree.current) ecrireFile(stockageLocal(), matchId, file); }, [file, matchId]);
+
+  // Plusieurs saisisseurs : on relit le match toutes les 5 s quand rien n'est en attente d'envoi, et des qu'on revient sur l'onglet.
+  const occupeRef = useRef(false);
+  useEffect(() => { occupeRef.current = occupe || file.length > 0; }, [occupe, file.length]);
+  useEffect(() => {
+    const lire = async () => {
+      if (occupeRef.current || (typeof document !== "undefined" && document.visibilityState === "hidden")) return;
+      try {
+        const e = await api.direct(matchId);
+        if (occupeRef.current) return;                    // une saisie est partie pendant la lecture : cette lecture est deja perimee
+        appliquer(e); setHorsLigne(false);
+      } catch (e) { if (!(e instanceof ApiError)) setHorsLigne(true); }
+    };
+    const t = setInterval(() => void lire(), DELAI_SYNCHRO_MS);
+    const retour = () => { if (document.visibilityState === "visible") void lire(); };
+    document.addEventListener("visibilitychange", retour);
+    window.addEventListener("online", retour);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", retour); window.removeEventListener("online", retour); };
+  }, [appliquer, matchId]);
 
   // Le chrono avance chaque seconde, sans appel reseau.
   useEffect(() => {
@@ -77,7 +110,7 @@ export function useDirect(matchId: string) {
           void charger();
         } else {
           setHorsLigne(true);
-          relancer = setTimeout(() => { envoiEnCours.current = false; battre((n) => n + 1); }, DELAI_REESSAI_MS);
+          relancer = setTimeout(() => { envoiEnCours.current = false; setEssai((n) => n + 1); }, DELAI_REESSAI_MS);
           return;
         }
       }
@@ -85,7 +118,7 @@ export function useDirect(matchId: string) {
       battre((n) => n + 1);
     })();
     return () => { if (relancer) clearTimeout(relancer); };
-  }, [file, matchId, charger]);
+  }, [file, matchId, charger, essai]);
 
   const evenements = useMemo(() => (etat ? evenementsAffiches(etat.evenements, file) : []), [etat, file]);
   const scoreAffiche = useMemo(() => score(evenements), [evenements]);
