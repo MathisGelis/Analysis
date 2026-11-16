@@ -7,6 +7,7 @@ import { AccesModule } from "@/features/acces/acces.module";
 import { AuthModule } from "@/features/auth/auth.module";
 import { Club } from "@/features/clubs/club.entity";
 import { Equipe } from "@/features/equipes/equipe.entity";
+import { Joueur } from "@/features/joueurs/joueur.entity";
 import { Match } from "@/features/matchs/match.entity";
 import { Saison } from "@/features/saisons/saison.entity";
 
@@ -15,7 +16,7 @@ import { CalendrierFffPlanificateur } from "./calendrier-fff.planificateur";
 import { CalendrierFffService } from "./calendrier-fff.service";
 
 @Module({
-  imports: [AccesModule, AuthModule, TypeOrmModule.forFeature([Equipe, Match, Club, Saison])],
+  imports: [AccesModule, AuthModule, TypeOrmModule.forFeature([Equipe, Match, Club, Saison, Joueur])],
   controllers: [CalendrierFffController],
   providers: [CalendrierFffService, CalendrierFffPlanificateur],
   exports: [CalendrierFffService],

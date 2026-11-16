@@ -67,16 +67,16 @@ describe("nomLisible", () => {
 });
 
 describe("normaliserAdresseCalendrier : seul le calendrier d'equipe de la FFF est accepte", () => {
-  const bonne = "https://media.fff.fr/calendars/2026/eq/6701_SEM_4.ics";
+  const bonne = "https://media.fff.fr/calendars/2026/eq/1234_SEM_1.ics";
   it("accepte l'adresse avec ou sans protocole, et celle d'abonnement", () => {
-    for (const e of [bonne, "media.fff.fr/calendars/2026/eq/6701_SEM_4.ics", "webcal://media.fff.fr/calendars/2026/eq/6701_SEM_4.ics",
-      "  HTTPS://MEDIA.FFF.FR/calendars/2026/eq/6701_SEM_4.ics?x=1#a  "]) {
+    for (const e of [bonne, "media.fff.fr/calendars/2026/eq/1234_SEM_1.ics", "webcal://media.fff.fr/calendars/2026/eq/1234_SEM_1.ics",
+      "  HTTPS://MEDIA.FFF.FR/calendars/2026/eq/1234_SEM_1.ics?x=1#a  "]) {
       expect(normaliserAdresseCalendrier(e)).toBe(bonne);
     }
   });
   it("refuse tout autre serveur, protocole, port, identifiants ou chemin (pas d'appel de serveur arbitraire)", () => {
-    for (const e of ["", null, undefined, "n'importe quoi", "http://media.fff.fr/calendars/2026/eq/6701_SEM_4.ics",
-      "https://evil.example/calendars/2026/eq/6701_SEM_4.ics", "https://media.fff.fr.evil.example/calendars/2026/eq/a.ics",
+    for (const e of ["", null, undefined, "n'importe quoi", "http://media.fff.fr/calendars/2026/eq/1234_SEM_1.ics",
+      "https://evil.example/calendars/2026/eq/1234_SEM_1.ics", "https://media.fff.fr.evil.example/calendars/2026/eq/a.ics",
       "https://media.fff.fr@evil.example/calendars/2026/eq/a.ics", "https://user:pw@media.fff.fr/calendars/2026/eq/a.ics",
       "https://media.fff.fr:8443/calendars/2026/eq/a.ics", "https://media.fff.fr/calendars/2026/eq/../../secret.ics",
       "https://media.fff.fr/calendars/2026/eq/a.txt", "https://media.fff.fr/autre/2026/eq/a.ics", "file:///etc/passwd",

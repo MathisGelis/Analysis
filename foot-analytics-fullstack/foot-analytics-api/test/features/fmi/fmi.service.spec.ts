@@ -83,6 +83,19 @@ describe("FmiService - import de lot", () => {
     expect(rebuildAll).toHaveBeenCalledTimes(1);
   });
 
+  it("un club deja cree sous son nom complet (calendrier FFF) est reconnu quand la feuille l'ecrit en sigle : pas de doublon, numero FFF complete", async () => {
+    const clubs = ds.getRepository(Club);
+    await clubs.save(clubs.create({ id: "club-meys", nom: "Football Club Meys Grezieu" }));
+    lot({ originalname: "a.pdf", parsed: fmi({ equipe_visiteuse: "FCMG 1" }) });
+
+    await svc.importMany(fichiers(1));
+
+    const match = await ds.getRepository(Match).findOneByOrFail({ numeroFmi: "53415223" });
+    expect(match.clubExt).toBe("club-meys");
+    expect(await clubs.count({ where: { nom: "FCMG" } })).toBe(0);
+    expect((await clubs.findOneByOrFail({ id: "club-meys" })).numeroFff).toBe("560530");
+  });
+
   it("minimisation et provenance : la localisation d'une blessure n'est pas conservee ; date et compte importateur notes, import trace", async () => {
     const journal = new JournalAuditService(ds.getRepository(JournalAudit));
     (svc as any).journal = journal;

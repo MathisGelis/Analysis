@@ -1,6 +1,6 @@
 import { CalendrierInjoignable, telechargerCalendrier } from "@/features/calendrier-fff/adresse-calendrier";
 
-const ADRESSE = "https://media.fff.fr/calendars/2026/eq/6701_SEM_4.ics";
+const ADRESSE = "https://media.fff.fr/calendars/2026/eq/1234_SEM_1.ics";
 
 describe("telechargerCalendrier", () => {
   afterEach(() => jest.restoreAllMocks());

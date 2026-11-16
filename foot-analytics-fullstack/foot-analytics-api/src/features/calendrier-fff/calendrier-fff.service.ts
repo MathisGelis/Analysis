@@ -16,7 +16,8 @@ import { Repository } from "typeorm";
 import { parseDateFlexible } from "@/common/dates";
 import { ActeurAudit, JournalAuditService } from "@/features/audit/journal-audit.service";
 import { Club } from "@/features/clubs/club.entity";
-import { cleNomClub, sansSuffixeEquipe } from "@/features/clubs/nom-club";
+import { Joueur } from "@/features/joueurs/joueur.entity";
+import { cleNomClub, clubParAbrege, sansSuffixeEquipe } from "@/features/clubs/nom-club";
 import { Equipe } from "@/features/equipes/equipe.entity";
 import { Match } from "@/features/matchs/match.entity";
 import { choisirProgramme, STATUTS_PROGRAMMES } from "@/features/matchs/programme";
@@ -72,6 +73,7 @@ export class CalendrierFffService {
     @InjectRepository(Match) private matchs: Repository<Match>,
     @InjectRepository(Club) private clubs: Repository<Club>,
     @InjectRepository(Saison) private saisons: Repository<Saison>,
+    @InjectRepository(Joueur) private joueurs: Repository<Joueur>,
     private journal: JournalAuditService,
   ) {}
 
@@ -151,13 +153,16 @@ export class CalendrierFffService {
       );
     }
 
+    const tousLesClubs = await this.clubs.find();
     const cleClubs = new Map<string, string>();
-    for (const c of await this.clubs.find()) cleClubs.set(cleNomClub(c.nom), c.id);
+    for (const c of tousLesClubs) cleClubs.set(cleNomClub(c.nom), c.id);
+    const listeClubs = tousLesClubs.map((c) => ({ id: c.id, nom: c.nom }));
+    const avecNumero = new Set(tousLesClubs.filter((c) => c.numeroFff).map((c) => c.id));
     const derniere = equipe.calendrierSynchroLe;
     const aujourdhui = aujourdhuiParis(maintenant);
 
     for (const ev of analyse.matchs) {
-      const adversaireId = await this.resoudreClub(ev, cleClubs);
+      const adversaireId = await this.resoudreClub(ev, cleClubs, listeClubs, avecNumero);
       const clubDom = ev.domicile ? equipe.clubId : adversaireId;
       const clubExt = ev.domicile ? adversaireId : equipe.clubId;
       const ligne: LigneRapport = { journee: ev.journee, date: ev.date, heure: ev.heure, adversaire: ev.adversaireComplet ?? ev.adversaire };
@@ -193,6 +198,18 @@ export class CalendrierFffService {
           if (existant.idFff !== ev.idFff) existant.idFff = ev.idFff;
           await this.matchs.save(existant);
           continue;
+        }
+        // Un match que le calendrier a deja cree, mais dont l'adversaire est un doublon (le club existait sous un sigle, ex. FCLCR) :
+        // il est reporte sur le bon club, et le doublon vide est supprime.
+        if (existant.idFff === ev.idFff) {
+          const ancien = ev.domicile ? existant.clubExt : existant.clubDom;
+          if (ancien !== adversaireId) {
+            if (ev.domicile) existant.clubExt = adversaireId; else existant.clubDom = adversaireId;
+            const nouveau = listeClubs.find((c) => c.id === adversaireId)?.nom ?? ev.adversaire;
+            rapport.avertissements.push(`L'adversaire de la journee ${ev.journee ?? "?"} est relie au club « ${nouveau} » deja connu (au lieu d'un doublon).`);
+            await this.matchs.save(existant);
+            await this.supprimerSiOrphelin(ancien, cleClubs, listeClubs);
+          }
         }
         const changements = this.changements(existant, ev, adopte, derniere);
         existant.idFff = ev.idFff;
@@ -272,14 +289,37 @@ export class CalendrierFffService {
    * Le club adverse : par son nom complet (celui des fiches, comme l'import des feuilles de match), puis par le nom abrege du
    * titre ; sinon il est cree, sous son nom complet quand on l'a.
    */
-  private async resoudreClub(ev: MatchCalendrier, cles: Map<string, string>): Promise<string> {
-    for (const nom of [ev.adversaireComplet, ev.adversaire]) {
-      const id = nom ? cles.get(cleNomClub(nom)) : undefined;
-      if (id) return id;
-    }
+  private async resoudreClub(
+    ev: MatchCalendrier, cles: Map<string, string>, liste: { id: string; nom: string }[], avecNumero: Set<string>,
+  ): Promise<string> {
+    const noms = [ev.adversaireComplet, ev.adversaire].filter((n): n is string => !!n);
+    const exact = noms.map((n) => cles.get(cleNomClub(n))).find((id) => !!id);
+    // Les feuilles de match abregent parfois le club en sigle (« FCLCR » pour « FC Lyon Croix Rousse »).
+    const abrege = noms.map((n) => clubParAbrege(n, liste)).find((id) => !!id);
+    // Un doublon cree par un calendrier (sans numero FFF) cede devant le club des feuilles de match, qui en a un.
+    if (exact && abrege && exact !== abrege && !avecNumero.has(exact) && avecNumero.has(abrege)) return abrege;
+    if (exact) return exact;
+    if (abrege) return abrege;
     const nom = ev.adversaireComplet ?? nomLisible(sansSuffixeEquipe(ev.adversaire).toLowerCase().split(/[^a-z0-9À-ſ]+/i).filter(Boolean));
     const cree = await this.clubs.save(this.clubs.create({ nom, abbr: nom.slice(0, 3).toUpperCase() }));
     cles.set(cleNomClub(cree.nom), cree.id);
+    liste.push({ id: cree.id, nom: cree.nom });
     return cree.id;
+  }
+
+  /** Supprime un club qui n'a plus ni match, ni equipe, ni joueur et n'a pas de numero FFF (un doublon laisse par le calendrier). */
+  private async supprimerSiOrphelin(clubId: string, cles: Map<string, string>, liste: { id: string; nom: string }[]) {
+    const club = await this.clubs.findOne({ where: { id: clubId } });
+    if (!club || club.numeroFff) return;
+    const [matchs, equipes, joueurs] = await Promise.all([
+      this.matchs.count({ where: [{ clubDom: clubId }, { clubExt: clubId }] }),
+      this.equipes.count({ where: { clubId } }),
+      this.joueurs.count({ where: { clubId } }),
+    ]);
+    if (matchs + equipes + joueurs > 0) return;
+    await this.clubs.delete(clubId);
+    for (const [k, v] of cles) if (v === clubId) cles.delete(k);
+    const i = liste.findIndex((c) => c.id === clubId);
+    if (i >= 0) liste.splice(i, 1);
   }
 }

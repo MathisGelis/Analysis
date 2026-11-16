@@ -140,4 +140,45 @@ describe("synchronisation du calendrier FFF", () => {
     expect(traces[0]).toMatchObject({ utilisateurId: "compte-1", cible: `equipe:${m.sen26.id}`, cibleClubId: m.ol.id });
     expect(traces[0].details).toEqual({ source: "fichier", total: 6, crees: 5, modifies: 0, disparus: 0, passes: 1 });
   });
+
+  describe("l'adversaire est le meme club que celui des feuilles de match, ecrit en sigle", () => {
+    const evtLcr = (): EvenementFff[] => [{
+      id: "55689001", journee: 2, domicile: true, adversaire: "FC LYON CROIX ROUSSE", adversaireSlug: "football-club-lyon-croix-rousse", date: "2026-11-21",
+    }, {
+      id: "55689002", journee: 3, domicile: false, adversaire: "AS DES COLLINES", adversaireSlug: "association-sportive-des-collines", date: "2026-11-28",
+    }];
+    const clubs = () => t.ds.getRepository(Club);
+
+    it("reconnait le club « FCLCR » deja cree par une feuille de match : pas de doublon", async () => {
+      await clubs().save(clubs().create({ id: "club-fclcr", nom: "FCLCR", numeroFff: "560123" }));
+      await sync(construireIcs(evtLcr()));
+      expect((await clubs().find()).map((c) => c.nom)).not.toContain("Fc Lyon Croix Rousse");
+      expect(await duCalendrier()).toMatchObject([{ idFff: "55689001", clubDom: m.ol.id, clubExt: "club-fclcr" }, { idFff: "55689002" }]);
+    });
+
+    it("repare un doublon deja cree par un calendrier : le match est relie au club des feuilles, le doublon vide est supprime", async () => {
+      await sync(construireIcs(evtLcr()));                         // « Fc Lyon Croix Rousse » est cree
+      const doublon = await clubs().findOneByOrFail({ nom: "Fc Lyon Croix Rousse" });
+      await clubs().save(clubs().create({ id: "club-fclcr", nom: "FCLCR", numeroFff: "560123" }));   // la FMI le connait sous son sigle
+
+      const r = await sync(construireIcs(evtLcr()), LENDEMAIN);
+      expect(r.avertissements.join(" ")).toContain("relie au club « FCLCR »");
+      expect(await duCalendrier()).toMatchObject([{ idFff: "55689001", clubExt: "club-fclcr" }, { idFff: "55689002" }]);
+      expect(await clubs().findOneBy({ id: doublon.id })).toBeNull();
+      // Rejoue : plus rien a reparer.
+      const r2 = await sync(construireIcs(evtLcr()), LENDEMAIN);
+      expect(r2.avertissements).toEqual([]);
+    });
+
+    it("garde un club qui a d'autres matchs ou des joueurs", async () => {
+      await sync(construireIcs(evtLcr()));
+      const doublon = await clubs().findOneByOrFail({ nom: "Fc Lyon Croix Rousse" });
+      await t.ds.getRepository(Match).save(t.ds.getRepository(Match).create({
+        clubDom: doublon.id, clubExt: m.ol.id, date: "2026-12-05", statut: "prevu", scoreDom: 0, scoreExt: 0, saisonId: m.s26.id,
+      }));
+      await clubs().save(clubs().create({ id: "club-fclcr", nom: "FCLCR", numeroFff: "560123" }));
+      await sync(construireIcs(evtLcr()), LENDEMAIN);
+      expect(await clubs().findOneBy({ id: doublon.id })).not.toBeNull();
+    });
+  });
 });
