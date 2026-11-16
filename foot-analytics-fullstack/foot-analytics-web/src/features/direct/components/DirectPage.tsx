@@ -6,7 +6,7 @@
 // s'adapte : une colonne sur telephone (la frise s'ouvre a part), deux colonnes (saisie | frise) sur grand ecran.
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ListOrdered, Redo2, Undo2 } from "lucide-react";
 
 import { Modal } from "@/shared/ui/Modal";
@@ -24,6 +24,10 @@ interface Ouverte { saisie: Saisie; id: string | null }
 
 export default function DirectPage({ matchId }: { matchId: string }) {
   const d = useDirect(matchId);
+  useEffect(() => {
+    document.documentElement.setAttribute("data-direct", "");
+    return () => document.documentElement.removeAttribute("data-direct");
+  }, []);
   const [coteSaisie, setCoteSaisie] = useState<Cote | null>(null);
   const [ouverte, setOuverte] = useState<Ouverte | null>(null);
   const [frise, setFrise] = useState(false);
@@ -83,7 +87,7 @@ export default function DirectPage({ matchId }: { matchId: string }) {
       <div className="flex gap-1 rounded-2xl border border-line bg-surface p-1" role="group" aria-label="Équipe concernée">
         {([[nous, "Notre équipe"], [eux, "Adversaire"]] as [Cote, string][]).map(([c, libelle]) => (
           <button key={c} type="button" aria-pressed={cote === c} onClick={() => setCoteSaisie(c)}
-            className={`h-11 flex-1 rounded-xl text-sm font-bold transition-colors ${cote === c ? (c === nous ? "bg-accentstrong text-white" : "bg-sky/20 text-ink ring-1 ring-sky") : "text-muted hover:text-ink"}`}>{libelle}</button>
+            className={`h-11 flex-1 rounded-xl text-sm font-bold transition-colors ${cote === c ? (c === nous ? "bg-accentstrong sur-accent" : "bg-sky/20 text-ink ring-1 ring-sky") : "text-muted hover:text-ink"}`}>{libelle}</button>
         ))}
       </div>
 

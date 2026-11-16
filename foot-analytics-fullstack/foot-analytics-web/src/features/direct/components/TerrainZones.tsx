@@ -21,7 +21,7 @@ export function TerrainZones({
               <button key={i} type="button" aria-label={nomZone(t, c)} aria-pressed={choisi}
                 onClick={() => (choisi ? onChoisir(null, null) : onChoisir(t, c))}
                 style={{ borderColor: "rgb(var(--terrain-ligne))" }}
-                className={`border text-xs font-bold transition-colors ${choisi ? "bg-accentstrong text-white" : t === 0 ? "bg-accentstrong/30 hover:bg-accentstrong/50" : "hover:bg-accentstrong/25"}`}>
+                className={`border text-xs font-bold transition-colors ${choisi ? "bg-accentstrong sur-accent" : t === 0 ? "bg-accentstrong/30 hover:bg-accentstrong/50" : "hover:bg-accentstrong/25"}`}>
                 {choisi ? "Ici" : ""}
               </button>
             );

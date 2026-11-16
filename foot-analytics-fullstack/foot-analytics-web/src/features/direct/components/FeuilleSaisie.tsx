@@ -6,7 +6,7 @@
 // sert a corriger un evenement deja saisi (on part alors du recapitulatif : chaque ligne ramene a son etape).
 
 import { useState } from "react";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, Minus, Plus, Trash2 } from "lucide-react";
 
 import { Modal } from "@/shared/ui/Modal";
 
@@ -41,28 +41,37 @@ export function FeuilleSaisie({
   const precedent = () => { setIndice(Math.max(0, indice - 1)); setVue(etapes[Math.max(0, indice - 1)]); };
   const aPasseur = !!def.roleJoueur2 && !etapes.includes("joueur2") && saisie.resultat === "but";
 
-  const titre = `${def.libelle} · ${nous ? "notre équipe" : "adversaire"}`;
+  const quiTire = joueurLibelle(saisie.joueurNumero, saisie.joueurNom);
+  const titre = `${def.libelle} · ${vue !== "joueur" && quiTire ? quiTire : nous ? "notre équipe" : "adversaire"}`;
+  const minuteTexte = `${libelleMinute(saisie.minute, saisie.periode, dureePeriodeMin)}'`;
+  const peutRevenir = (!correction && indice > 0 && vue !== "passeur") || vue === "passeur" || (correction && vue !== "recap");
+  const retour = () => { if (vue === "passeur") setVue("zone"); else if (correction) setVue("recap"); else precedent(); };
   const joueurPrincipal = { numero: saisie.joueurNumero, nom: saisie.joueurNom, id: saisie.joueurId };
   const joueurSecond = { numero: saisie.joueur2Numero, nom: saisie.joueur2Nom, id: saisie.joueur2Id };
 
   return (
     <Modal open onClose={onFermer} maxWidth="max-w-md" titre={correction ? `Modifier : ${def.libelle}` : titre}>
       <div className="space-y-4">
-        <header className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="font-display text-lg font-bold text-ink">{correction ? `Modifier : ${def.libelle.toLowerCase()}` : titre}</h2>
-            <div className="text-xs text-muted">{saisie.periode === 1 ? "1re" : "2e"} période</div>
+        <header className="flex items-center gap-3">
+          {peutRevenir && (
+            <button type="button" onClick={retour} aria-label={vue === "zone" ? "Retour au choix du joueur" : "Retour"} className="btn !h-11 !w-11 shrink-0 !p-0"><ChevronLeft size={20} aria-hidden /></button>
+          )}
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate font-display text-lg font-bold text-ink">{correction ? `Modifier : ${def.libelle.toLowerCase()}` : titre}</h2>
+            <div className="text-xs text-muted">{correction ? "" : `${minuteTexte} · `}{saisie.periode === 1 ? "1re" : "2e"} période</div>
           </div>
-          <div className="flex items-center gap-1" role="group" aria-label="Minute de l'événement">
-            <button type="button" aria-label="Une minute de moins" className="btn !h-11 !w-11 !p-0" onClick={() => maj({ minute: Math.max(0, saisie.minute - 1) })}><Minus size={16} aria-hidden /></button>
-            <span className="grid h-11 min-w-[4rem] place-items-center rounded-xl border border-line bg-bg px-2 font-display text-lg font-bold tabular-nums">{libelleMinute(saisie.minute, saisie.periode, dureePeriodeMin)}&apos;</span>
-            <button type="button" aria-label="Une minute de plus" className="btn !h-11 !w-11 !p-0" onClick={() => maj({ minute: Math.min(200, saisie.minute + 1) })}><Plus size={16} aria-hidden /></button>
-          </div>
+          {correction && (
+            <div className="flex items-center gap-1" role="group" aria-label="Minute de l'événement">
+              <button type="button" aria-label="Une minute de moins" className="btn !h-11 !w-11 !p-0" onClick={() => maj({ minute: Math.max(0, saisie.minute - 1) })}><Minus size={16} aria-hidden /></button>
+              <span className="grid h-11 min-w-[4rem] place-items-center rounded-xl border border-line bg-bg px-2 font-display text-lg font-bold tabular-nums">{minuteTexte}</span>
+              <button type="button" aria-label="Une minute de plus" className="btn !h-11 !w-11 !p-0" onClick={() => maj({ minute: Math.min(200, saisie.minute + 1) })}><Plus size={16} aria-hidden /></button>
+            </div>
+          )}
         </header>
 
         {!correction && etapes.length > 1 && (
-          <div role="img" aria-label={`Étape ${indice + 1} sur ${etapes.length}`} className="flex gap-1.5">
-            {etapes.map((e, i) => <div key={e} className={`h-1.5 flex-1 rounded-full ${i <= indice ? "bg-accent" : "bg-line"}`} />)}
+          <div role="img" aria-label={`Étape ${indice + 2} sur ${etapes.length + 1}`} className="flex gap-1.5">
+            {[null, ...etapes].map((e, i) => <div key={e ?? "action"} className={`h-1.5 flex-1 rounded-full ${i <= indice + 1 ? "bg-accentstrong" : "bg-line"}`} />)}
           </div>
         )}
 
@@ -97,7 +106,10 @@ export function FeuilleSaisie({
           <div className="space-y-4">
             {def.terrain && (
               <div>
-                <div className="mb-1.5 text-sm font-semibold text-ink">{def.type === "tir" || def.type === "coup_franc" ? "D'où part le tir ?" : "Où ?"}</div>
+                <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                  <span className="text-sm font-semibold text-ink">{def.type === "tir" || def.type === "coup_franc" ? "D'où part le tir ?" : "Où ?"}</span>
+                  {saisie.zoneTier !== null && saisie.zoneCouloir !== null && <span className="text-xs font-semibold text-accent">{nomZone(saisie.zoneTier, saisie.zoneCouloir).replace(" · ", " · ").toLowerCase().replace(/^./, (c) => c.toUpperCase())}</span>}
+                </div>
                 <TerrainZones tier={saisie.zoneTier} couloir={saisie.zoneCouloir} onChoisir={(t, c) => maj({ zoneTier: t, zoneCouloir: c })} />
               </div>
             )}
@@ -113,17 +125,22 @@ export function FeuilleSaisie({
                 </div>
               </div>
             )}
-            {(aPasseur || (def.roleJoueur2 && saisie.resultat === "but")) && !etapes.includes("joueur2") && (
-              <LigneRecap titre="Passeur" valeur={joueurLibelle(saisie.joueur2Numero, saisie.joueur2Nom) || "Aucun"} onClick={() => setVue("passeur")} />
-            )}
-            {def.terrain && aUnCadre(saisie.resultat) && (
-              <div className="flex items-center gap-4">
-                <div>
-                  <div className="mb-1 text-xs text-muted">Zone du cadre</div>
-                  <CadreBut valeur={saisie.zoneCadre} onChoisir={(i) => maj({ zoneCadre: i })} />
-                </div>
+            {def.terrain && aUnCadre(saisie.resultat) || ((aPasseur || (def.roleJoueur2 && saisie.resultat === "but")) && !etapes.includes("joueur2")) ? (
+              <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3">
+                {def.terrain && aUnCadre(saisie.resultat) && (
+                  <div className="shrink-0">
+                    <div className="mb-1 text-xs text-muted">Zone du cadre</div>
+                    <CadreBut valeur={saisie.zoneCadre} onChoisir={(i) => maj({ zoneCadre: i })} />
+                  </div>
+                )}
+                {(aPasseur || (def.roleJoueur2 && saisie.resultat === "but")) && !etapes.includes("joueur2") && (
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 text-xs text-muted">Passeur (facultatif)</div>
+                    <button type="button" onClick={() => setVue("passeur")} className="btn !h-11 w-full !justify-start truncate text-left">{joueurLibelle(saisie.joueur2Numero, saisie.joueur2Nom) || "Aucun"}</button>
+                  </div>
+                )}
               </div>
-            )}
+            ) : null}
             {def.contexte && (
               <div>
                 <div className="mb-1.5 flex items-baseline justify-between"><span className="text-sm font-semibold text-ink">Contexte du tir</span><span className="text-xs text-muted">facultatif</span></div>
@@ -132,11 +149,11 @@ export function FeuilleSaisie({
                     const actif = saisie.contextes.includes(c);
                     return (
                       <button key={c} type="button" aria-pressed={actif} onClick={() => maj({ contextes: actif ? saisie.contextes.filter((x) => x !== c) : [...saisie.contextes, c].slice(0, 6) })}
-                        className={`btn !h-9 !px-3 text-[13px] ${actif ? "!border-accent bg-accent/15 text-accent" : ""}`}>{c}</button>
+                        className={`btn !h-9 !rounded-full !px-3 text-[13px] ${actif ? "!border-accent bg-accent/15 text-accent" : ""}`}>{c}</button>
                     );
                   })}
                   {!plusDeContextes && !saisie.contextes.some((c) => CONTEXTES_AUTRES.includes(c)) && (
-                    <button type="button" onClick={() => setPlusDeContextes(true)} className="btn !h-9 !px-3 text-[13px] text-muted">Autre…</button>
+                    <button type="button" onClick={() => setPlusDeContextes(true)} className="btn !h-9 !rounded-full !px-3 text-[13px] text-muted">Autre…</button>
                   )}
                 </div>
               </div>
@@ -146,21 +163,22 @@ export function FeuilleSaisie({
 
         {manquant && <p role="status" className="text-xs text-amber">{manquant}</p>}
 
-        <footer className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
-          {correction && onSupprimer && (
-            <button type="button" onClick={onSupprimer} className="btn !border-danger/50 text-danger"><Trash2 size={15} aria-hidden /> Supprimer</button>
+        <footer className="space-y-2 border-t border-line pt-3">
+          {correction && onSupprimer && vue === "recap" && (
+            <button type="button" onClick={onSupprimer} className="btn w-full !border-danger/50 text-danger"><Trash2 size={15} aria-hidden /> Supprimer</button>
           )}
-          {!correction && indice > 0 && vue !== "passeur" && <button type="button" onClick={precedent} className="btn">Retour</button>}
-          {(vue === "passeur") && <button type="button" onClick={() => setVue("zone")} className="btn">Retour</button>}
-          {correction && vue !== "recap" && <button type="button" onClick={() => setVue("recap")} className="btn">Retour</button>}
-          <div className="ml-auto flex gap-2">
-            {!correction && !derniere && vue !== "passeur" && !manquant && <button type="button" onClick={onEnregistrer} className="btn">Enregistrer ainsi</button>}
-            {!correction && !derniere && vue !== "passeur" && <button type="button" onClick={suivant} className="btn btn-primary">Suivant</button>}
-            {(derniere || correction || vue === "passeur") && vue !== "passeur" && (
-              <button type="button" disabled={!!manquant} onClick={onEnregistrer} className="btn btn-primary disabled:opacity-50">Enregistrer</button>
-            )}
-            {vue === "passeur" && <button type="button" onClick={() => setVue("zone")} className="btn btn-primary">Valider</button>}
-          </div>
+          {vue === "passeur" ? (
+            <button type="button" onClick={() => setVue("zone")} className="btn btn-primary !h-12 w-full text-base">Valider</button>
+          ) : !correction && !derniere ? (
+            <div className="flex gap-2">
+              {!manquant && <button type="button" onClick={onEnregistrer} className="btn !h-12">Enregistrer ainsi</button>}
+              <button type="button" onClick={suivant} className="btn btn-primary !h-12 flex-1 text-base">Suivant</button>
+            </div>
+          ) : (
+            <button type="button" disabled={!!manquant} onClick={onEnregistrer} className="btn btn-primary !h-13 w-full text-base disabled:opacity-50">
+              {correction ? "Enregistrer" : `Enregistrer ${saisie.resultat === "but" ? "le but" : ""} · ${minuteTexte}`.replace("  ", " ")}
+            </button>
+          )}
         </footer>
       </div>
     </Modal>

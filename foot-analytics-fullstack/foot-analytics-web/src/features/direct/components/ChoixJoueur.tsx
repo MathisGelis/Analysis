@@ -39,7 +39,7 @@ export function ChoixJoueur({
                 <button key={j.id} type="button" aria-pressed={actif}
                   onClick={() => onChoisir({ numero: j.numero, nom: nomComplet(j), id: j.id })}
                   className={`flex min-h-[3.25rem] items-center gap-2.5 rounded-xl border px-3 text-left transition-colors ${actif ? "border-accent bg-accent/15" : "border-line bg-surface hover:bg-surface-2"}`}>
-                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg font-display text-sm font-bold ${actif ? "bg-accentstrong text-white" : "bg-surface-3 text-ink"}`}>{j.numero ?? "–"}</span>
+                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg font-display text-sm font-bold ${actif ? "bg-accentstrong sur-accent" : "bg-surface-3 text-ink"}`}>{j.numero ?? "–"}</span>
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold text-ink">{nomComplet(j)}</span>
                     {j.poste && <span className="block text-[11px] text-muted">{j.poste}</span>}

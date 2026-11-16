@@ -1769,7 +1769,7 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await feuille.getByRole("button", { name: "Offensif · centre" }).click();
   await feuille.getByRole("button", { name: "Attaque placée" }).click();
   await feuille.getByRole("button", { name: "Cadre haut droit" }).click();
-  await feuille.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await feuille.getByRole("button", { name: /^Enregistrer(?! ainsi)/ }).click();
   await expect(tableau.getByLabel("Score : 1 à 0")).toBeVisible();
 
   // Un tir adverse : pave numerique, resultat obligatoire.
@@ -1777,9 +1777,9 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await groupe.getByRole("button", { name: "Tir", exact: true }).click();
   await feuille.getByRole("button", { name: "9", exact: true }).click();
   await feuille.getByRole("button", { name: "Suivant" }).click();
-  await expect(feuille.getByRole("button", { name: "Enregistrer", exact: true })).toBeDisabled();
+  await expect(feuille.getByRole("button", { name: /^Enregistrer(?! ainsi)/ })).toBeDisabled();
   await feuille.getByRole("button", { name: "Non cadré" }).click();
-  await feuille.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await feuille.getByRole("button", { name: /^Enregistrer(?! ainsi)/ }).click();
   await expect(page.getByText("2 événements · tout est envoyé")).toBeVisible();
   await expect(tableau.getByLabel("Score : 1 à 0")).toBeVisible();
 
