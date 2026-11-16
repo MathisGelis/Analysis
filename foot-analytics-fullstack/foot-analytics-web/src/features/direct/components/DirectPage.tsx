@@ -6,7 +6,7 @@
 // s'adapte : une colonne sur telephone (la frise s'ouvre a part), deux colonnes (saisie | frise) sur grand ecran.
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, ListOrdered, Redo2, Undo2 } from "lucide-react";
 
 import { Modal } from "@/shared/ui/Modal";
@@ -15,6 +15,7 @@ import { Spinner } from "@/shared/ui/Spinner";
 import type { Cote, EvenementDirect } from "../lib/direct-types";
 import { Saisie, saisieDepuisEvenement, saisieInitiale } from "../lib/saisie";
 import { FeuilleSaisie } from "./FeuilleSaisie";
+import { usePaletteDirect } from "../lib/palette";
 import { FriseDirect } from "./FriseDirect";
 import { GrilleActions } from "./GrilleActions";
 import { Tableau } from "./Tableau";
@@ -24,10 +25,7 @@ interface Ouverte { saisie: Saisie; id: string | null }
 
 export default function DirectPage({ matchId }: { matchId: string }) {
   const d = useDirect(matchId);
-  useEffect(() => {
-    document.documentElement.setAttribute("data-direct", "");
-    return () => document.documentElement.removeAttribute("data-direct");
-  }, []);
+  usePaletteDirect();
   const [coteSaisie, setCoteSaisie] = useState<Cote | null>(null);
   const [ouverte, setOuverte] = useState<Ouverte | null>(null);
   const [frise, setFrise] = useState(false);
@@ -74,13 +72,19 @@ export default function DirectPage({ matchId }: { matchId: string }) {
       {etat.chrono.statut === "termine" && !cloture && (
         <div className="panel-inset flex flex-wrap items-center justify-between gap-2 border-l-2 border-accent p-3" role="status">
           <span className="text-sm text-ink">Match terminé. Tu peux encore corriger la frise, puis clôturer.</span>
-          <button type="button" disabled={d.occupe} onClick={() => void d.cloturer()} className="btn btn-primary">Clôturer le match</button>
+          <div className="flex gap-2">
+            <Link href={`/matchs/${matchId}/apres`} className="btn">Après-match</Link>
+            <button type="button" disabled={d.occupe} onClick={() => void d.cloturer()} className="btn btn-primary">Clôturer le match</button>
+          </div>
         </div>
       )}
       {cloture && (
         <div className="panel-inset flex flex-wrap items-center justify-between gap-2 border-l-2 border-amber p-3" role="status">
           <span className="text-sm text-ink">Direct clôturé : la saisie est verrouillée.</span>
-          <button type="button" disabled={d.occupe} onClick={() => void d.rouvrir()} className="btn">Rouvrir</button>
+          <div className="flex gap-2">
+            <Link href={`/matchs/${matchId}/apres`} className="btn btn-primary">Après-match</Link>
+            <button type="button" disabled={d.occupe} onClick={() => void d.rouvrir()} className="btn">Rouvrir</button>
+          </div>
         </div>
       )}
 

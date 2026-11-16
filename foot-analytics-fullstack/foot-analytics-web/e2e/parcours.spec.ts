@@ -1829,6 +1829,19 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   expect(etat.evenements).toHaveLength(3);
   expect(etat.nousCote).toBe("dom");
   expect(etat.chrono.statut).toBe("termine");
+
+  // L'apres-match, depuis la banniere de fin : le bilan s'enregistre tout seul, la page est accessible, puis on cloture le match.
+  await cliquerJusquaNavigation(page.getByRole("link", { name: "Après-match" }), /\/matchs\/[^/]+\/apres$/);
+  await expect(page.getByRole("heading", { name: "Après-match" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Notes joueurs" })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "Bilan" }).click();
+  await page.getByLabel("Ce qui a marché").fill("Pressing haut");
+  await expect.poll(async () => (await (await appeler(`/apres-match/matchs/${match.id}`)).json()).bilan.positifs, { timeout: 8_000 }).toBe("Pressing haut");
+  await expect(page.getByText("Tout est enregistré")).toBeVisible();
+  for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur l'après-match (${theme})`).toEqual([]);
+  await page.getByRole("button", { name: "Clôturer le match" }).click();
+  await expect(page.getByText("Match clôturé")).toBeVisible();
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
 });
 
 function pdfplumberDisponible(): boolean {

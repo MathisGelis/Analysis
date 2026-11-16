@@ -83,6 +83,7 @@ export class ApresMatchService {
     return {
       match: { id: m.id, clubDom: m.clubDom, clubExt: m.clubExt, scoreDom: m.scoreDom, scoreExt: m.scoreExt, statut: m.statut },
       nousCote: cote,
+      statutDirect: d?.statut ?? null,
       clotureLe: d?.clotureLe ?? null,
       joueurs: lignes,
       arbitres,

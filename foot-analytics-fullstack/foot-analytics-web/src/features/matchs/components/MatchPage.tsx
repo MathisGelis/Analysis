@@ -111,6 +111,11 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
               <Radio size={12}/> Direct
             </Link>
           )}
+          {peutNoter && match.droits?.modifier !== false && statut !== "reporte" && statut !== "annule" && (statut === "joue" || (!!match.date && match.date <= new Date().toISOString().slice(0, 10))) && (
+            <Link href={`/matchs/${match.id}/apres`} className="btn text-xs" data-testid="ouvrir-apres">
+              <ClipboardCheck size={12}/> Après-match
+            </Link>
+          )}
           {aPreparer && (
             <Link href={`/rapports/prematch/${adversaireId}?matchId=${match.id}`} className="btn btn-primary text-xs">
               <Target size={12}/> Rapport pré-match
