@@ -106,6 +106,11 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         </Link>
         <div className="flex items-center gap-2">
           {/* Le direct : saisir les evenements du match (en cours, ou apres coup), pour un match de mon equipe. */}
+          {peutNoter && match.droits?.modifier !== false && statut !== "reporte" && statut !== "annule" && statut !== "joue" && (
+            <Link href={`/matchs/${match.id}/avant`} className="btn text-xs" data-testid="ouvrir-avant">
+              <Users size={12}/> Avant-match
+            </Link>
+          )}
           {peutNoter && match.droits?.modifier !== false && statut !== "reporte" && statut !== "annule" && (
             <Link href={`/matchs/${match.id}/direct`} className="btn text-xs" data-testid="ouvrir-direct">
               <Radio size={12}/> Direct

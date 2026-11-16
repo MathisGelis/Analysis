@@ -1731,6 +1731,14 @@ test("calendrier FFF : un fichier .ics depose cree les matchs à venir, le rejou
 test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adverse), la frise se corrige, le match se clôture et se rouvre", async () => {
   test.setTimeout(150_000);
   const axe = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+  const auditer = async (portee: string | null, theme: string) => {
+    await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
+    await page.waitForTimeout(600);
+    return page.evaluate(async (p) => {
+      const r = await (window as any).axe.run(p ? document.querySelector(p) : document, { resultTypes: ["violations"] });
+      return r.violations.map((v: any) => `${v.impact} ${v.id} x${v.nodes.length} : ${v.nodes[0].target.join(" ")}`);
+    }, portee);
+  };
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
@@ -1745,6 +1753,27 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
     date: "2026-05-30", statut: "prevu", scoreDom: 0, scoreExt: 0,
   }) })).json();
   expect(match.id).toBeTruthy();
+
+  // L'avant-match : le onze se compose sur le terrain, s'enregistre comme plan du match, et la page est accessible.
+  await page.goto(`/matchs/${match.id}`);
+  await cliquerJusquaNavigation(page.getByTestId("ouvrir-avant"), /\/matchs\/[^/]+\/avant$/);
+  await expect(page.getByRole("heading", { name: "Avant-match" })).toBeVisible();
+  await expect(page.getByText("Brouillon")).toBeVisible();
+  // Le plan courant de l'equipe prerempli le onze ; on remplace le gardien par un joueur du groupe.
+  const gardien = page.getByRole("button", { name: /^GB : / });
+  const avant = await gardien.getAttribute("aria-label");
+  await gardien.click();
+  await page.getByRole("dialog").locator("button[aria-pressed=false]").first().click();
+  await expect(gardien).not.toHaveAttribute("aria-label", avant ?? "");
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await expect(page.getByText("Enregistrée")).toBeVisible();
+  await expect(page.getByText("Brouillon")).toHaveCount(0);
+  const planAvant = await (await appeler(`/tactiques?equipeId=${fixtures.equipeId}&matchId=${match.id}`)).json();
+  expect(planAvant.matchId).toBe(match.id);                                  // un plan propre au match, pas le plan courant
+  expect(planAvant.titulaires.filter(Boolean).length).toBeGreaterThanOrEqual(10);
+  await page.evaluate(axe);
+  for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur l'avant-match (${theme})`).toEqual([]);
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
 
   // Entree depuis la fiche du match.
   await page.goto(`/matchs/${match.id}`);
@@ -1784,14 +1813,6 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await expect(tableau.getByLabel("Score : 1 à 0")).toBeVisible();
 
   // Accessibilite de l'ecran, puis de la feuille de saisie seule (derriere elle, la page est assombrie : axe y lirait de faux contrastes).
-  const auditer = async (portee: string | null, theme: string) => {
-    await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
-    await page.waitForTimeout(600);
-    return page.evaluate(async (p) => {
-      const r = await (window as any).axe.run(p ? document.querySelector(p) : document, { resultTypes: ["violations"] });
-      return r.violations.map((v: any) => `${v.impact} ${v.id} x${v.nodes.length} : ${v.nodes[0].target.join(" ")}`);
-    }, portee);
-  };
   await page.evaluate(axe);
   for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur le direct (${theme})`).toEqual([]);
   await groupe.getByRole("button", { name: "Corner", exact: true }).click();

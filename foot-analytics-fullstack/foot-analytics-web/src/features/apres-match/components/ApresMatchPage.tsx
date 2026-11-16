@@ -104,6 +104,7 @@ export default function ApresMatchPage({ matchId }: { matchId: string }) {
       </div>
 
       <nav aria-label="Les trois temps du match" className="flex gap-1 rounded-2xl border border-line bg-surface p-1">
+        <Link href={`/matchs/${matchId}/avant`} className="grid h-10 flex-1 place-items-center rounded-xl text-[13px] font-semibold text-muted hover:text-ink">Avant</Link>
         <Link href={`/matchs/${matchId}/direct`} className="grid h-10 flex-1 place-items-center rounded-xl text-[13px] font-semibold text-muted hover:text-ink">Direct</Link>
         <span aria-current="page" className="grid h-10 flex-1 place-items-center rounded-xl bg-accentstrong text-[13px] font-bold sur-accent">Après</span>
       </nav>
