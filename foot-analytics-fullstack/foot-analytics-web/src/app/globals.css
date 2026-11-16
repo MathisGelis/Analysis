@@ -57,6 +57,9 @@
 
   /* Issues de match */
   --win:           52 211 153;    /* #34D399 */
+  --terrain:        31 90 58;     /* #1F5A3A : terrain du direct */
+  --terrain-ligne: 127 184 150;   /* #7FB896 */
+  --terrain-trace: 242 245 251;   /* surface et but */
   --draw:         251 191 36;
   --loss:         248 113 113;
 
@@ -105,6 +108,9 @@
   --chart-3:         2 110 175;   /* #026EAF */
 
   --win:            3 105 73;     /* #036949 */
+  --terrain:       191 227 204;   /* #BFE3CC : terrain du direct */
+  --terrain-ligne:  47 107 74;    /* #2F6B4A */
+  --terrain-trace:  16 24 40;     /* surface et but */
   --draw:         145 85 0;
   --loss:         190 35 35;
 
@@ -585,3 +591,33 @@ body::before {
   .panel, .panel-inset, .stat-tile, .no-coupure { break-inside: avoid; }
   .fade-up, .fade-up-stagger, .fade-up-stagger > * { animation: none !important; opacity: 1 !important; transform: none !important; }
 }
+
+
+/* ---- Direct : palette des maquettes (vert citron sur bleu nuit ; version claire en vert profond). ----
+   L'attribut data-direct est pose sur <html> par la page du direct (les feuilles passent par un portail). */
+html[data-direct][data-theme="dark"] {
+  --bg: 10 14 23;  --surface: 18 24 39;  --surface-2: 26 34 54;  --surface-3: 32 42 66;
+  --line: 42 53 80;  --line-strong: 58 74 107;
+  --ink: 242 245 251;  --muted: 163 174 199;  --faint: 163 174 199;
+  --accent: 182 242 74;  --accent-dim: 182 242 74;  --accent-strong: 182 242 74;  --accent-deep: 182 242 74;
+  --on-accent: 10 14 23;
+  --amber: 255 200 87;  --danger: 255 122 122;  --sky: 107 182 255;
+  --aurora-a: transparent;  --aurora-b: transparent;  --aurora-c: transparent;
+}
+html[data-direct][data-theme="light"] {
+  --bg: 243 245 250;  --surface: 255 255 255;  --surface-2: 238 241 248;  --surface-3: 230 234 244;
+  --line: 195 203 220;  --line-strong: 160 171 194;
+  --ink: 16 24 40;  --muted: 74 86 112;  --faint: 74 86 112;
+  --accent: 63 98 0;  --accent-dim: 63 98 0;  --accent-strong: 79 122 0;  --accent-deep: 79 122 0;
+  --on-accent: 255 255 255;
+  --aurora-a: transparent;  --aurora-b: transparent;  --aurora-c: transparent;
+}
+html[data-direct] .btn-accent, html[data-direct] .btn-primary,
+html[data-direct] .btn-accent:hover, html[data-direct] .btn-primary:hover {
+  color: rgb(var(--on-accent));
+  background-image: none;
+  background-color: rgb(var(--accent-strong));
+  box-shadow: none;
+}
+html[data-direct] .btn-accent:hover, html[data-direct] .btn-primary:hover { filter: brightness(1.08); }
+.sur-accent { color: rgb(var(--on-accent, 255 255 255)); }

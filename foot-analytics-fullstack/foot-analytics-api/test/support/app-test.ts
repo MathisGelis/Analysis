@@ -25,6 +25,9 @@ import { AuthService } from "@/features/auth/auth.service";
 import { JwtAuthGuard } from "@/features/auth/auth.guards";
 import { ClubsModule } from "@/features/clubs/clubs.module";
 import { CalendrierFffModule } from "@/features/calendrier-fff/calendrier-fff.module";
+import { AnalyseJeuModule } from "@/features/analyse-jeu/analyse-jeu.module";
+import { ApresMatchModule } from "@/features/apres-match/apres-match.module";
+import { DirectModule } from "@/features/direct/direct.module";
 import { EquipesModule } from "@/features/equipes/equipes.module";
 import { JoueursModule } from "@/features/joueurs/joueurs.module";
 import { MatchsModule } from "@/features/matchs/matchs.module";
@@ -60,6 +63,8 @@ export interface AppTest {
   compte(extra: DeepPartial<Utilisateur> & { login: string; role: string }): Promise<{ user: Utilisateur; jeton: string }>;
   /** Un client HTTP authentifie par ce jeton ; sans jeton, anonyme. */
   appel(compte?: { jeton: string }): Appeler;
+  /** Une requete avec les en-tetes de son choix (session d'invite, jeton absent ou faux...). */
+  requete(methode: string, chemin: string, corps?: unknown, entetes?: Record<string, string>): Promise<Reponse>;
   fermer(): Promise<void>;
 }
 
@@ -72,7 +77,7 @@ export async function creerAppTest(): Promise<AppTest> {
     imports: [
       ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
       TypeOrmModule.forRoot(options),
-      AccesModule, SeedModule, ClubsModule, EquipesModule, CalendrierFffModule, JoueursModule, MatchsModule, EntrainementsModule,
+      AccesModule, SeedModule, ClubsModule, EquipesModule, CalendrierFffModule, DirectModule, ApresMatchModule, AnalyseJeuModule, JoueursModule, MatchsModule, EntrainementsModule,
       BlessuresModule, ScoutingModule, ClassementModule, StatsModule, FmiModule, DerivationModule, ArbitresModule,
       AnalyseModule, CoachsModule, SaisonsModule, AuthModule, UtilisateursModule, TactiquesModule, IaModule, SanteModule,
       LimitesModule, AuditModule,
@@ -93,6 +98,15 @@ export async function creerAppTest(): Promise<AppTest> {
   const base = `${await app.getUrl()}/api`.replace("[::1]", "localhost");
   const ds = app.get(DataSource);
   const auth = app.get(AuthService);
+  const requete = async (methode: string, chemin: string, corps: unknown, entetes: Record<string, string>): Promise<Reponse> => {
+    const res = await fetch(`${base}${chemin}`, {
+      method: methode, headers: { "Content-Type": "application/json", ...entetes }, body: corps === undefined ? undefined : JSON.stringify(corps),
+    });
+    const texte = await res.text();
+    let json: any = null;
+    try { json = texte ? JSON.parse(texte) : null; } catch { json = texte; }
+    return { statut: res.status, corps: json };
+  };
 
   return {
     app, ds, f: fabriques(ds),
@@ -105,18 +119,9 @@ export async function creerAppTest(): Promise<AppTest> {
       return { user, jeton: auth.sign(user) };
     },
     appel(compte) {
-      return async (methode, chemin, corps) => {
-        const res = await fetch(`${base}${chemin}`, {
-          method: methode,
-          headers: { "Content-Type": "application/json", ...(compte ? { Authorization: `Bearer ${compte.jeton}` } : {}) },
-          body: corps === undefined ? undefined : JSON.stringify(corps),
-        });
-        const texte = await res.text();
-        let json: any = null;
-        try { json = texte ? JSON.parse(texte) : null; } catch { json = texte; }
-        return { statut: res.status, corps: json };
-      };
+      return (methode, chemin, corps) => requete(methode, chemin, corps, compte ? { Authorization: `Bearer ${compte.jeton}` } : {});
     },
+    requete: (methode, chemin, corps, entetes) => requete(methode, chemin, corps, entetes ?? {}),
     async fermer() {
       await app.close();
       await supprimer();

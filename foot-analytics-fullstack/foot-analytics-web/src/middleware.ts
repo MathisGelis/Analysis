@@ -36,7 +36,7 @@ import type { Club, Equipe, Saison } from "@/shared/lib/types";
 
 const PREFIXE_RELAIS = "/api/backend";
 /** Pages ouvertes sans session (la CSP s'y applique quand meme). */
-const PAGES_PUBLIQUES = ["/login", "/change-password", "/confidentialite", "/mentions-legales", "/cgu"];
+const PAGES_PUBLIQUES = ["/login", "/change-password", "/confidentialite", "/mentions-legales", "/cgu", "/saisie"];
 
 // Toutes les pages et le relais vers l'API. Pas les autres routes internes ni les fichiers statiques, dont ceux de
 // l'application installable (manifeste, service worker, page hors ligne, icones) : le navigateur les lit sans session.
@@ -79,8 +79,25 @@ function json(statut: number, message: string, code?: string) {
   return NextResponse.json({ statusCode: statut, message, ...(code ? { code } : {}) }, { status: statut });
 }
 
+/**
+ * Relais des routes /saisie (saisisseur invite, sans compte) : la session de l'invite voyage dans l'en-tete `Authorization: Invite ...`,
+ * transmise telle quelle ; AUCUN jeton de compte n'y est ajoute (un invite ne doit jamais agir avec les droits d'un compte), et les
+ * cookies du site sont retires. Seules les routes /saisie sont concernees : le reste du relais exige toujours une session.
+ */
+function relayerSaisie(req: NextRequest): NextResponse {
+  if (origineEtrangere(req)) return json(403, "Requête d'un autre site refusée.");
+  const headers = new Headers(req.headers);
+  const session = headers.get("authorization") ?? "";
+  if (/^Invite\s+\S+$/i.test(session)) headers.set("authorization", session); else headers.delete("authorization");
+  headers.delete("cookie");
+  entetesBff(headers, req.headers);
+  const cible = new URL(`${urlApi()}${req.nextUrl.pathname.slice(PREFIXE_RELAIS.length)}${req.nextUrl.search}`);
+  return NextResponse.rewrite(cible, { request: { headers } });
+}
+
 /** Relais vers l'API : jeton d'acces en en-tete, sans les cookies du site. */
 async function relayer(req: NextRequest): Promise<NextResponse> {
+  if (req.nextUrl.pathname === `${PREFIXE_RELAIS}/saisie` || req.nextUrl.pathname.startsWith(`${PREFIXE_RELAIS}/saisie/`)) return relayerSaisie(req);
   if (origineEtrangere(req)) return json(403, "Requête d'un autre site refusée.");
   const { jeton, nouveaux, perdue } = await jetonDeRequete(req);
   if (!jeton) {

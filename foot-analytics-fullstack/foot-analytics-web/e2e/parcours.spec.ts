@@ -1728,6 +1728,254 @@ test("calendrier FFF : un fichier .ics depose cree les matchs à venir, le rejou
   await expect(page.getByTestId("cal-fff-erreur")).toContainText("Adresse invalide");
 });
 
+test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adverse), la frise se corrige, le match se clôture et se rouvre", async () => {
+  test.setTimeout(150_000);
+  const axe = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+  const auditer = async (portee: string | null, theme: string) => {
+    await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
+    await page.waitForTimeout(600);
+    return page.evaluate(async (p) => {
+      const r = await (window as any).axe.run(p ? document.querySelector(p) : document, { resultTypes: ["violations"] });
+      return r.violations.map((v: any) => `${v.impact} ${v.id} x${v.nodes.length} : ${v.nodes[0].target.join(" ")}`);
+    }, portee);
+  };
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const appeler = (chemin: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
+    ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+  });
+  const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { clubId: string; equipeId: string; saison2526: string };
+  const adversaire = await (await appeler("/clubs", { method: "POST", body: JSON.stringify({ nom: "Club Direct" }) })).json();
+  const match = await (await appeler("/matchs", { method: "POST", body: JSON.stringify({
+    clubDom: fixtures.clubId, clubExt: adversaire.id, equipeDomId: fixtures.equipeId, saisonId: fixtures.saison2526,
+    date: "2026-05-30", statut: "prevu", scoreDom: 0, scoreExt: 0,
+  }) })).json();
+  expect(match.id).toBeTruthy();
+
+  // L'avant-match : le onze se compose sur le terrain, s'enregistre comme plan du match, et la page est accessible.
+  await page.goto(`/matchs/${match.id}`);
+  await cliquerJusquaNavigation(page.getByTestId("ouvrir-avant"), /\/matchs\/[^/]+\/avant$/);
+  await expect(page.getByRole("heading", { name: "Avant-match" })).toBeVisible();
+  await expect(page.getByText("Brouillon")).toBeVisible();
+  // Le plan courant de l'equipe prerempli le onze ; on remplace le gardien par un joueur du groupe.
+  const gardien = page.getByRole("button", { name: /^GB : / });
+  const avant = await gardien.getAttribute("aria-label");
+  await gardien.click();
+  await page.getByRole("dialog").locator("button[aria-pressed=false]").first().click();
+  await expect(gardien).not.toHaveAttribute("aria-label", avant ?? "");
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await expect(page.getByText("Enregistrée")).toBeVisible();
+  await expect(page.getByText("Brouillon")).toHaveCount(0);
+  const planAvant = await (await appeler(`/tactiques?equipeId=${fixtures.equipeId}&matchId=${match.id}`)).json();
+  expect(planAvant.matchId).toBe(match.id);                                  // un plan propre au match, pas le plan courant
+  expect(planAvant.titulaires.filter(Boolean).length).toBeGreaterThanOrEqual(10);
+  await page.evaluate(axe);
+  for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur l'avant-match (${theme})`).toEqual([]);
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+
+  // Entree depuis la fiche du match.
+  await page.goto(`/matchs/${match.id}`);
+  await cliquerJusquaNavigation(page.getByTestId("ouvrir-direct"), /\/matchs\/[^/]+\/direct$/);
+  await expect(page.getByRole("region", { name: "Tableau de marque" })).toBeVisible();
+  const tableau = page.getByRole("region", { name: "Tableau de marque" });
+  await expect(tableau.getByLabel("Score : 0 à 0")).toBeVisible();
+  await expect(tableau).toContainText("Avant le coup d'envoi");
+
+  // Coup d'envoi : le chrono tourne.
+  await page.getByRole("button", { name: "Coup d'envoi" }).click();
+  await expect(tableau).toContainText("1re période");
+  await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+
+  // Un but de notre equipe : action, joueur, zone, resultat deja choisi.
+  const groupe = page.getByRole("group", { name: "Actions du match" });
+  await groupe.getByRole("button", { name: "But", exact: true }).click();
+  const feuille = page.locator("div.fixed.inset-0");
+  await expect(feuille.getByRole("heading", { name: "But · notre équipe" })).toBeVisible();
+  await feuille.getByRole("button", { name: "Joueur inconnu" }).click();
+  await feuille.getByRole("button", { name: "Suivant" }).click();
+  await feuille.getByRole("button", { name: "Offensif · centre" }).click();
+  await feuille.getByRole("button", { name: "Attaque placée" }).click();
+  await feuille.getByRole("button", { name: "Cadre haut droit" }).click();
+  await feuille.getByRole("button", { name: /^Enregistrer(?! ainsi)/ }).click();
+  await expect(tableau.getByLabel("Score : 1 à 0")).toBeVisible();
+
+  // Un tir adverse : pave numerique, resultat obligatoire.
+  await page.getByRole("group", { name: "Équipe concernée" }).getByRole("button", { name: "Adversaire" }).click();
+  await groupe.getByRole("button", { name: "Tir", exact: true }).click();
+  await feuille.getByRole("button", { name: "9", exact: true }).click();
+  await feuille.getByRole("button", { name: "Suivant" }).click();
+  await expect(feuille.getByRole("button", { name: /^Enregistrer(?! ainsi)/ })).toBeDisabled();
+  await feuille.getByRole("button", { name: "Non cadré" }).click();
+  await feuille.getByRole("button", { name: /^Enregistrer(?! ainsi)/ }).click();
+  await expect(page.getByText("2 événements · tout est envoyé")).toBeVisible();
+  await expect(tableau.getByLabel("Score : 1 à 0")).toBeVisible();
+
+  // Accessibilite de l'ecran, puis de la feuille de saisie seule (derriere elle, la page est assombrie : axe y lirait de faux contrastes).
+  await page.evaluate(axe);
+  for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur le direct (${theme})`).toEqual([]);
+  await groupe.getByRole("button", { name: "Corner", exact: true }).click();
+  for (const theme of ["dark", "light"]) expect(await auditer("[role=dialog]", theme), `axe sur la feuille de saisie (${theme})`).toEqual([]);
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+  await feuille.getByRole("button", { name: "Enregistrer ainsi" }).click();   // un corner sans detail s'enregistre en un appui
+  await expect(page.getByText("3 événements · tout est envoyé")).toBeVisible();
+
+  // La frise (grand ecran : a droite) : corriger le but en tir cadre arrete, le score retombe ; annuler, retablir.
+  const frise = page.getByRole("complementary", { name: "Frise du match" });
+  await frise.getByRole("button", { name: /minute : But\. Modifier/ }).click();
+  await expect(page.locator("div.fixed.inset-0").getByRole("heading", { name: /Modifier/ })).toBeVisible();
+  await page.locator("div.fixed.inset-0").getByRole("button", { name: "Résultat, zone et contexte" }).click();
+  await page.locator("div.fixed.inset-0").getByRole("button", { name: "Cadré, arrêté" }).click();
+  await page.locator("div.fixed.inset-0").getByRole("button", { name: "Enregistrer", exact: true }).click();
+  await expect(tableau.getByLabel("Score : 0 à 0")).toBeVisible();
+  await page.getByRole("button", { name: "Annuler", exact: true }).click();
+  await expect(page.getByText("2 événements · tout est envoyé")).toBeVisible();
+  await page.getByRole("button", { name: "Rétablir" }).click();
+  await expect(page.getByText("3 événements · tout est envoyé")).toBeVisible();
+
+  // Le recalage du chrono et la fin du match, puis la cloture verrouille la saisie jusqu'a la reouverture.
+  await page.getByRole("button", { name: "Mi-temps" }).click();
+  await page.getByRole("button", { name: "2e période" }).click();
+  await page.getByRole("button", { name: "Fin du match" }).click();
+  await expect(tableau).toContainText("Match terminé");
+  await page.getByRole("button", { name: "Clôturer le match" }).click();
+  await expect(page.getByText("Direct clôturé : la saisie est verrouillée.")).toBeVisible();
+  await expect(groupe.getByRole("button", { name: "Tir", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Rouvrir" }).click();
+  await expect(groupe.getByRole("button", { name: "Tir", exact: true })).toBeEnabled();
+
+  // Ce qui a ete saisi est bien enregistre cote serveur : trois evenements, mon equipe a domicile.
+  const etat = await (await appeler(`/direct/matchs/${match.id}`)).json();
+  expect(etat.evenements).toHaveLength(3);
+  expect(etat.nousCote).toBe("dom");
+  expect(etat.chrono.statut).toBe("termine");
+
+  // L'apres-match, depuis la banniere de fin : le bilan s'enregistre tout seul, la page est accessible, puis on cloture le match.
+  await cliquerJusquaNavigation(page.getByRole("link", { name: "Après-match" }), /\/matchs\/[^/]+\/apres$/);
+  await expect(page.getByRole("heading", { name: "Après-match" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Notes joueurs" })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "Bilan" }).click();
+  await page.getByLabel("Ce qui a marché").fill("Pressing haut");
+  await expect.poll(async () => (await (await appeler(`/apres-match/matchs/${match.id}`)).json()).bilan.positifs, { timeout: 8_000 }).toBe("Pressing haut");
+  await expect(page.getByText("Tout est enregistré")).toBeVisible();
+  for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur l'après-match (${theme})`).toEqual([]);
+  // Le résumé de fin de match : les chiffres du direct, comparés, accessibles.
+  await page.getByRole("tab", { name: "Résumé" }).click();
+  await expect(page.getByRole("heading", { name: "Le match en chiffres" })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Corners : \d pour nous, \d pour eux/ })).toBeVisible();
+  for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur le résumé (${theme})`).toEqual([]);
+  await page.getByRole("button", { name: "Clôturer le match" }).click();
+  await expect(page.getByText("Match clôturé")).toBeVisible();
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+});
+
+test("direct : un autre appareil saisit et on le voit, et ce qui n'a pas pu partir survit au rechargement", async () => {
+  test.setTimeout(120_000);
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const appeler = (chemin: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
+    ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+  });
+  const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { clubId: string; equipeId: string; saison2526: string };
+  const adversaire = await (await appeler("/clubs", { method: "POST", body: JSON.stringify({ nom: "Club Synchro" }) })).json();
+  const match = await (await appeler("/matchs", { method: "POST", body: JSON.stringify({
+    clubDom: fixtures.clubId, clubExt: adversaire.id, equipeDomId: fixtures.equipeId, saisonId: fixtures.saison2526,
+    date: "2026-05-31", statut: "prevu", scoreDom: 0, scoreExt: 0,
+  }) })).json();
+  await appeler(`/direct/matchs/${match.id}/chrono`, { method: "POST", body: JSON.stringify({ action: "demarrer" }) });
+
+  await page.goto(`/matchs/${match.id}/direct`);
+  await expect(page.getByText("0 événement · tout est envoyé")).toBeVisible();
+
+  // Un autre appareil saisit : l'ecran le reprend tout seul (lecture toutes les 5 s).
+  await appeler(`/direct/matchs/${match.id}/evenements/autre-appareil-0001`, { method: "PUT", body: JSON.stringify({ cote: "dom", type: "corner", periode: 1, minute: 7 }) });
+  await expect(page.getByText("1 événement · tout est envoyé")).toBeVisible({ timeout: 15_000 });
+
+  // Le reseau d'envoi tombe : l'evenement saisi reste en attente, et la file survit au rechargement de la page.
+  await page.route("**/direct/matchs/*/evenements/**", (route) => route.abort("failed"));
+  await page.getByRole("group", { name: "Actions du match" }).getByRole("button", { name: "Corner", exact: true }).click();
+  await page.locator("div.fixed.inset-0").getByRole("button", { name: "Enregistrer ainsi" }).click();
+  await expect(page.getByText(/1 événement en attente/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(/1 événement en attente/)).toBeVisible({ timeout: 15_000 });
+  expect((await (await appeler(`/direct/matchs/${match.id}`)).json()).evenements).toHaveLength(1);   // rien n'est parti
+
+  // Le reseau revient : la file repart d'elle-meme, sans doublon.
+  await page.unroute("**/direct/matchs/*/evenements/**");
+  await expect(page.getByText("2 événements · tout est envoyé")).toBeVisible({ timeout: 20_000 });
+  expect((await (await appeler(`/direct/matchs/${match.id}`)).json()).evenements).toHaveLength(2);
+});
+
+test("invitation : un saisisseur sans compte saisit le direct d'un seul match, le lien ne sert qu'une fois, l'accès se coupe", async () => {
+  test.setTimeout(150_000);
+  const axe = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const appeler = (chemin: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
+    ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+  });
+  const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { clubId: string; equipeId: string; saison2526: string };
+  const adversaire = await (await appeler("/clubs", { method: "POST", body: JSON.stringify({ nom: "Club Invitation" }) })).json();
+  const match = await (await appeler("/matchs", { method: "POST", body: JSON.stringify({
+    clubDom: fixtures.clubId, clubExt: adversaire.id, equipeDomId: fixtures.equipeId, saisonId: fixtures.saison2526,
+    date: "2026-06-01", statut: "prevu", scoreDom: 0, scoreExt: 0,
+  }) })).json();
+  await appeler(`/direct/matchs/${match.id}/chrono`, { method: "POST", body: JSON.stringify({ action: "demarrer" }) });
+
+  // Le staff cree l'invitation depuis le direct : le lien n'apparait qu'une fois.
+  await page.goto(`/matchs/${match.id}/direct`);
+  await page.getByRole("button", { name: "Inviter un saisisseur" }).click();
+  await page.getByLabel("Nom de la personne").fill("Julie");
+  await page.getByRole("button", { name: "Créer le lien" }).click();
+  const lien = await page.getByLabel("Lien d'invitation").inputValue();
+  expect(lien).toMatch(/\/saisie\/[A-Za-z0-9_-]{43}$/);
+  await expect(page.getByText("Lien pas encore ouvert")).toBeVisible();
+  for (const theme of ["dark", "light"]) {
+    await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
+    await page.waitForTimeout(400);
+    await page.evaluate(axe);
+    const v = await page.evaluate(async () => (await (window as any).axe.run(document.querySelector("[role=dialog]"), { resultTypes: ["violations"] })).violations.map((x: any) => `${x.impact} ${x.id}`));
+    expect(v, `axe sur la fenetre d'invitation (${theme})`).toEqual([]);
+  }
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+
+  // L'invite : un appareil vierge, sans compte. Il ouvre le lien et saisit un corner.
+  const invite = await (await contexte.browser()!.newContext()).newPage();
+  await invite.goto(lien);
+  await expect(invite.getByText("Saisie invitée :")).toBeVisible({ timeout: 20_000 });
+  await expect(invite).toHaveURL(/\/saisie$/);                                   // le jeton a quitte la barre d'adresse
+  await expect(invite.getByRole("link", { name: /Retour au match/ })).toHaveCount(0);
+  await expect(invite.getByRole("button", { name: "Pause" })).toHaveCount(0);   // pas le droit de piloter le chrono
+  await invite.getByRole("group", { name: "Actions du match" }).getByRole("button", { name: "Corner", exact: true }).click();
+  await invite.locator("div.fixed.inset-0").getByRole("button", { name: "Enregistrer ainsi" }).click();
+  await expect(invite.getByText("1 événement · tout est envoyé")).toBeVisible();
+  await expect.poll(async () => (await (await appeler(`/direct/matchs/${match.id}`)).json()).evenements.length, { timeout: 10_000 }).toBe(1);
+  await expect(page.getByText("1 événement · tout est envoyé")).toBeVisible({ timeout: 15_000 });   // le staff le voit aussi
+
+  // Rouvrir le meme lien sur un autre appareil : refuse, c'etait un lien a usage unique.
+  const autre = await (await contexte.browser()!.newContext()).newPage();
+  await autre.goto(lien);
+  await expect(autre.getByRole("heading", { name: "Lien déjà utilisé" })).toBeVisible({ timeout: 20_000 });
+
+  // Rien d'autre de l'application n'est atteignable : pages renvoyees vers la connexion, relais refuse.
+  await invite.goto("/matchs");
+  await expect(invite).toHaveURL(/\/login/);
+  const refus = await invite.evaluate(async () => (await fetch("/api/backend/matchs")).status);
+  expect(refus).toBe(401);
+
+  // Le staff coupe l'acces : l'invite le sait et ne peut plus rien saisir.
+  await page.getByRole("button", { name: "Couper l'accès de Julie" }).click();
+  await expect(page.getByText("Accès coupé")).toBeVisible();
+  await invite.goto("/saisie");
+  await expect(invite.getByRole("heading", { name: /Accès terminé|Pas d'invitation/ })).toBeVisible({ timeout: 25_000 });
+  expect((await (await appeler(`/direct/matchs/${match.id}`)).json()).evenements).toHaveLength(1);
+});
+
 function pdfplumberDisponible(): boolean {
   try {
     execFileSync(process.env.PYTHON_BIN ?? "python3", ["-c", "import pdfplumber"], { stdio: "ignore" });

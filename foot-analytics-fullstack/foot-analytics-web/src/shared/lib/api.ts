@@ -27,6 +27,9 @@ import type { EntrainementDetail, EntrainementResume, EtatIa, ModeleListe, Plann
 import type { PageJournal } from "@/features/audit/lib/journal";
 import { reconstruire, type EtatReconstruction } from "@/features/fmi/lib/reconstruction";
 import type { RapportFff } from "@/features/calendrier/lib/calendrier-fff";
+import type { EtatApresMatch, BilanMatch, NoteJoueur } from "@/features/apres-match/lib/apres-types";
+import type { Lieu, ReponseAdversaire, ReponseCroisements, ReponseJeu, ResumeMatch } from "@/features/analyse-jeu/lib/jeu-types";
+import type { ActionChrono, EtatDirect, EvenementDirect, InvitationCreee, InvitationVue, SaisieEvenement } from "@/features/direct/lib/direct-types";
 import type { CriteresApi, OptionsRecherche, ReponseRecherche } from "@/features/recherche-joueurs/lib/recherche-joueurs";
 
 import type {
@@ -222,6 +225,14 @@ async function uploadApi<T>(path: string, fd: FormData, libelle: string): Promis
 
 /* ----------------------------- LECTURES ---------------------------------- */
 
+function paramsJeu(p: { equipeId?: string; saisonId?: string; lieu: string; derniers: number | null }): string {
+  const q = new URLSearchParams({ lieu: p.lieu });
+  if (p.equipeId) q.set("equipeId", p.equipeId);
+  if (p.saisonId) q.set("saisonId", p.saisonId);
+  if (p.derniers) q.set("derniers", String(p.derniers));
+  return q.toString();
+}
+
 export const api = {
   // Clubs
   clubs: () => req<Club[]>("/clubs", { fallback: DEMO_CLUBS }),
@@ -373,6 +384,34 @@ export const api = {
     fd.append("file", file);
     return uploadApi<any>(`/fmi/import${recompute ? "" : "?recompute=false"}`, fd, "Import FMI");
   },
+
+  // Direct d'un match : l'ecran entier en une lecture, le chrono, les evenements (idempotents : l'identifiant est celui de l'appareil).
+  direct: (matchId: string) => req<EtatDirect>(`/direct/matchs/${matchId}`),
+  directChrono: (matchId: string, action: ActionChrono, minute?: number) =>
+    req<EtatDirect>(`/direct/matchs/${matchId}/chrono`, { method: "POST", body: JSON.stringify({ action, ...(minute === undefined ? {} : { minute }) }) }),
+  directEnregistrer: (matchId: string, e: SaisieEvenement) => {
+    const { id, ...corps } = e;
+    return req<EvenementDirect>(`/direct/matchs/${matchId}/evenements/${id}`, { method: "PUT", body: JSON.stringify(corps) });
+  },
+  directSupprimer: (matchId: string, id: string) => req<void>(`/direct/matchs/${matchId}/evenements/${id}`, { method: "DELETE" }),
+  directInviter: (matchId: string, corps: { libelle: string; peutChrono: boolean; dureeHeures: number }) =>
+    req<InvitationCreee>(`/direct/matchs/${matchId}/invitations`, { method: "POST", body: JSON.stringify(corps) }),
+  directInvitations: (matchId: string) => req<InvitationVue[]>(`/direct/matchs/${matchId}/invitations`),
+  directRevoquer: (matchId: string, id: string) => req<InvitationVue>(`/direct/matchs/${matchId}/invitations/${id}`, { method: "DELETE" }),
+  directCloturer: (matchId: string) => req<EtatDirect>(`/direct/matchs/${matchId}/cloture`, { method: "POST" }),
+  jeuEquipe: (clubId: string, p: { equipeId?: string; saisonId?: string; lieu: Lieu; derniers: number | null }) =>
+    req<ReponseJeu>(`/analyse-jeu/club/${clubId}/jeu?${paramsJeu(p)}`),
+  croisementsJeu: (clubId: string, p: { equipeId?: string; saisonId?: string; lieu: Lieu; derniers: number | null }) =>
+    req<ReponseCroisements>(`/analyse-jeu/club/${clubId}/croisements?${paramsJeu(p)}`),
+  jeuAdversaire: (equipeId: string, adversaireId: string) =>
+    req<ReponseAdversaire>(`/analyse-jeu/adversaire?${new URLSearchParams({ equipeId, adversaireId })}`),
+  resumeMatch: (matchId: string) => req<ResumeMatch>(`/analyse-jeu/matchs/${matchId}/resume`),
+  apresMatch: (matchId: string) => req<EtatApresMatch>(`/apres-match/matchs/${matchId}`),
+  apresMatchNoter: (matchId: string, joueurId: string, corps: { note?: number | null; commentaire?: string | null }) =>
+    req<NoteJoueur>(`/apres-match/matchs/${matchId}/joueurs/${joueurId}`, { method: "PUT", body: JSON.stringify(corps) }),
+  apresMatchBilan: (matchId: string, corps: Partial<BilanMatch>) =>
+    req<BilanMatch>(`/apres-match/matchs/${matchId}/bilan`, { method: "PUT", body: JSON.stringify(corps) }),
+  directRouvrir: (matchId: string) => req<EtatDirect>(`/direct/matchs/${matchId}/reouverture`, { method: "POST" }),
 
   // Calendrier FFF d'une equipe : adresse du fichier .ics (myFFF), synchronisation, ou fichier depose a la main.
   definirCalendrierFff: (equipeId: string, url: string | null) =>

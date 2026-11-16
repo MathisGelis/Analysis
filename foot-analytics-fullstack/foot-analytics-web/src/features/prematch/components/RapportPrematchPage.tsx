@@ -26,6 +26,7 @@ import { PistesMatch } from "./PistesMatch";
 import { ComparatifEquipes } from "./ComparatifEquipes";
 import { JoueursAMenager } from "./JoueursAMenager";
 import { ProjectionResultat } from "./ProjectionResultat";
+import { JeuAdversaire } from "@/features/analyse-jeu/components/JeuAdversaire";
 import { SystemeProbable } from "./SystemeProbable";
 
 export default async function RapportPrematch({
@@ -170,6 +171,12 @@ export default async function RapportPrematch({
             </ul>
           </div>
         )}
+      </Section>
+
+      {/* Son jeu d'apres NOS matchs contre lui (saisis en direct) */}
+      <Section titre={`Son jeu contre nous`} icone={<Crosshair size={11} className="text-accent" />}
+        aide="tirs, zones et buts d'après les matchs que nous avons saisis en direct">
+        <JeuAdversaire equipeId={maEquipe.id} adversaireId={adversaireClubId} nom={adv.clubNom} />
       </Section>
 
       {/* Systeme de jeu probable : dispositifs renseignes et numeros de maillot */}
