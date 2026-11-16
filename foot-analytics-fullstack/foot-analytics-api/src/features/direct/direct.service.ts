@@ -26,6 +26,9 @@ import { EvenementDirect } from "./evenement-direct.entity";
 import { compteurs, scoreDirect } from "./stats-direct";
 import { RESULTATS_PAR_TYPE } from "./types";
 
+/** Qui agit quand ce n'est pas un compte : un saisisseur invite par lien (voir invitations.service.ts). */
+export interface Origine { auteurId: string; invite: string }
+
 export const etatDe = (d: Direct): EtatChrono => ({
   statut: d.statut, periode: d.periode, accumuleMs: d.accumuleMs, demarreLe: d.demarreLe, dureePeriodeMin: d.dureePeriodeMin,
 });
@@ -97,7 +100,7 @@ export class DirectService {
   }
 
   /** Une action sur le chrono : coup d'envoi, pause, mi-temps, reprise, fin, ou recalage sur une minute. */
-  async chrono(ctx: ContexteAcces, matchId: string, dto: ActionChronoDto, maintenant = Date.now()) {
+  async chrono(ctx: ContexteAcces, matchId: string, dto: ActionChronoDto, maintenant = Date.now(), origine?: Origine) {
     const m = await this.acces.matchGere(ctx, matchId);
     const d = await this.direct(matchId);
     this.exigerOuvert(d);
@@ -106,7 +109,7 @@ export class DirectService {
     catch (e) { if (e instanceof TransitionChronoInvalide) throw new ConflictException(e.message); throw e; }
     Object.assign(d, suivant);
     await this.directs.save(d);
-    await this.noter(ctx, m, "direct.chrono", { action: dto.action, statut: suivant.statut, periode: suivant.periode }, maintenant);
+    await this.noter(ctx, m, "direct.chrono", { action: dto.action, statut: suivant.statut, periode: suivant.periode }, maintenant, origine);
     return this.etat(ctx, matchId, maintenant);
   }
 
@@ -114,7 +117,7 @@ export class DirectService {
    * Creer ou remplacer l'evenement `id` (celui que l'appareil a fabrique). Rejouer la meme requete ne change rien ; un evenement
    * supprime qu'on renvoie est restaure. Un identifiant deja pris par un autre match est refuse.
    */
-  async enregistrer(ctx: ContexteAcces, matchId: string, id: string, dto: EvenementDirectDto, maintenant = Date.now()) {
+  async enregistrer(ctx: ContexteAcces, matchId: string, id: string, dto: EvenementDirectDto, maintenant = Date.now(), origine?: Origine) {
     const m = await this.acces.matchGere(ctx, matchId);
     this.exigerOuvert(await this.direct(matchId));
     this.valider(dto);
@@ -127,14 +130,14 @@ export class DirectService {
       zoneTier: dto.zoneTier ?? null, zoneCouloir: dto.zoneCouloir ?? null, zoneCadre: dto.zoneCadre ?? null,
       contextes: [...new Set((dto.contextes ?? []).map((c) => c.trim()).filter(Boolean))], supprimeLe: null,
     };
-    const e = await this.evenements.save(this.evenements.create({ ...(existant ?? { id, matchId, auteurId: ctx.compte.id }), ...champs }));
+    const e = await this.evenements.save(this.evenements.create({ ...(existant ?? { id, matchId, auteurId: origine?.auteurId ?? ctx.compte.id }), ...champs }));
     // Un ajout porte deja son auteur et sa date ; le journal garde ce qui change apres coup (et reste ainsi lisible).
-    if (existant) await this.noter(ctx, m, "direct.evenement_modifie", { evenement: id, type: dto.type }, maintenant);
+    if (existant) await this.noter(ctx, m, "direct.evenement_modifie", { evenement: id, type: dto.type }, maintenant, origine);
     return e;
   }
 
   /** Annuler un evenement : il ne compte plus, mais la trace reste (et il peut revenir en renvoyant la meme saisie). */
-  async supprimer(ctx: ContexteAcces, matchId: string, id: string, maintenant = Date.now()) {
+  async supprimer(ctx: ContexteAcces, matchId: string, id: string, maintenant = Date.now(), origine?: Origine) {
     const m = await this.acces.matchGere(ctx, matchId);
     this.exigerOuvert(await this.direct(matchId));
     const e = await this.evenements.findOne({ where: { id, matchId } });
@@ -142,7 +145,7 @@ export class DirectService {
     if (!e.supprimeLe) {
       e.supprimeLe = new Date(maintenant).toISOString();
       await this.evenements.save(e);
-      await this.noter(ctx, m, "direct.evenement_supprime", { evenement: id, type: e.type }, maintenant);
+      await this.noter(ctx, m, "direct.evenement_supprime", { evenement: id, type: e.type }, maintenant, origine);
     }
   }
 
@@ -186,7 +189,7 @@ export class DirectService {
     if ((dto.zoneTier == null) !== (dto.zoneCouloir == null)) throw new BadRequestException("La zone se donne en entier : tiers et couloir.");
   }
 
-  private noter(ctx: ContexteAcces, m: Match, action: string, details: Record<string, unknown>, maintenant: number) {
-    return this.journal.noter(action, { acteur: ctx.compte, cible: `match:${m.id}`, cibleClubId: ctx.gereClub(m.clubDom) ? m.clubDom : m.clubExt, details }, new Date(maintenant));
+  private noter(ctx: ContexteAcces, m: Match, action: string, details: Record<string, unknown>, maintenant: number, origine?: Origine) {
+    return this.journal.noter(action, { acteur: ctx.compte, cible: `match:${m.id}`, cibleClubId: ctx.gereClub(m.clubDom) ? m.clubDom : m.clubExt, details: origine ? { ...details, invite: origine.invite } : details }, new Date(maintenant));
   }
 }

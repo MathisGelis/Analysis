@@ -1,6 +1,6 @@
 // src/features/direct/direct.dto.ts
 
-import { ArrayMaxSize, IsArray, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from "class-validator";
+import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from "class-validator";
 
 import { ACTIONS_CHRONO, ActionChrono } from "./chrono";
 import { COULOIRS, TIERS, TYPES_EVENEMENT, ZONES_CADRE } from "./types";
@@ -30,6 +30,12 @@ export class EvenementDirectDto {
   @IsOptional() @IsInt() @Min(0) @Max(COULOIRS - 1) zoneCouloir?: number | null;
   @IsOptional() @IsInt() @Min(0) @Max(ZONES_CADRE - 1) zoneCadre?: number | null;
   @IsOptional() @IsArray() @ArrayMaxSize(6) @IsString({ each: true }) @MaxLength(40, { each: true }) contextes?: string[];
+}
+
+export class InvitationDto {
+  @IsString() @MaxLength(60) libelle: string;
+  @IsOptional() @IsBoolean() peutChrono?: boolean;
+  @IsOptional() @IsInt() @Min(1) @Max(48) dureeHeures?: number;
 }
 
 export { ID_CLIENT };
