@@ -109,6 +109,23 @@ export function prochainMatch<T extends { date?: string | null; statut?: string 
   return { prochain: futurs[0] ?? sansDate[0] ?? null, aRenseigner };
 }
 
+/**
+ * Les matchs de la liste : tous les matchs joues, et parmi ceux qui restent a jouer SEULEMENT le prochain de mon equipe (le plus
+ * proche a partir d'aujourd'hui), plus ceux de mon equipe dont la date est passee sans feuille (ils attendent leur import). Les autres
+ * matchs programmes, de mon equipe comme des autres equipes de la poule, ne s'affichent pas : le calendrier les montre.
+ */
+export function matchsDeLaListe<T extends MatchEquipe>(matchs: T[], equipeId: string | null | undefined, aujourdhui: Date = new Date()): T[] {
+  const joue = (m: T) => m.statut === "joue" || (m.scoreDom ?? 0) + (m.scoreExt ?? 0) > 0;
+  const gardes = new Set(matchs.filter(joue).map((m) => m.id));
+  if (equipeId) {
+    const miens = matchs.filter((m) => !joue(m) && (m.equipeDomId === equipeId || m.equipeExtId === equipeId));
+    const { prochain, aRenseigner } = prochainMatch(miens, aujourdhui);
+    if (prochain) gardes.add(prochain.id);
+    for (const m of aRenseigner) gardes.add(m.id);
+  }
+  return matchs.filter((m) => gardes.has(m.id));
+}
+
 const JOURS_LONGS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 const MOIS_LONGS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
 

@@ -1155,9 +1155,32 @@ test("calendrier : un match cree puis modifie reste unique, et un doublon est re
     body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
   })).json();
   const modale = page.locator("div.fixed.inset-0.overflow-y-auto");
-  const ouvrirAjout = async () => {
+  // Le mois montre la premiere fois est RETENU : le calendrier s'ouvre sur un mois qui depend de la date du jour et des matchs deja
+  // crees, et un mois different a chaque ouverture creerait deux matchs a des dates differentes (donc pas un doublon).
+  const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  const rang = (t: string) => { const [m, a] = t.trim().toLowerCase().split(/\s+/); return Number(a) * 12 + MOIS.indexOf(m); };
+  let moisCible: string | null = null;
+  const ouvrirMois = async () => {
     await page.goto("/calendrier");
-    await page.getByRole("button", { name: /^\p{Lu}\p{Ll}{2,3}\.$/u }).last().click();
+    const entete = page.getByText(/^\p{Lu}\p{Ll}+ \d{4}$/u).first();
+    const boutons = page.getByRole("button", { name: /^\p{Lu}\p{Ll}{2,3}\.$/u });
+    await expect(entete).toBeVisible();
+    if (moisCible === null) {
+      const avant = (await entete.innerText()).trim();
+      await boutons.last().click();
+      await expect(entete).not.toHaveText(avant);
+      moisCible = (await entete.innerText()).trim();
+      return;
+    }
+    for (let i = 0; i < 24; i++) {
+      const actuel = (await entete.innerText()).trim();
+      if (actuel === moisCible) return;
+      await (rang(actuel) < rang(moisCible) ? boutons.last() : boutons.first()).click();
+      await expect(entete).not.toHaveText(actuel);
+    }
+  };
+  const ouvrirAjout = async () => {
+    await ouvrirMois();
     await page.getByTitle("Ajouter un match").first().click();
     await expect(modale.getByRole("heading", { name: "Nouveau match" })).toBeVisible();
   };
@@ -1216,8 +1239,7 @@ test("calendrier : un match cree puis modifie reste unique, et un doublon est re
   await expect(modale).toBeHidden();
 
   // Une seule instance au calendrier, a la nouvelle date.
-  await page.goto("/calendrier");
-  await page.getByRole("button", { name: /^\p{Lu}\p{Ll}{2,3}\.$/u }).last().click();
+  await ouvrirMois();
   await expect(page.getByRole("link", { name: /Racing Doublon/ })).toHaveCount(1);
   const tous = await (await fetch(`${API_URL}/matchs`, { headers: { Authorization: `Bearer ${token}` } })).json();
   expect(tous.filter((m: any) => m.id === idMatch || (m.clubExt === match.clubExt && m.clubDom === match.clubDom))).toHaveLength(1);
@@ -1754,10 +1776,14 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   }) })).json();
   expect(match.id).toBeTruthy();
 
-  // L'avant-match : le onze se compose sur le terrain, s'enregistre comme plan du match, et la page est accessible.
+  // Le parcours : un seul bouton « Direct » sur la fiche du match, qui renvoie vers l'avant-match tant que le onze n'est pas fait.
   await page.goto(`/matchs/${match.id}`);
-  await cliquerJusquaNavigation(page.getByTestId("ouvrir-avant"), /\/matchs\/[^/]+\/avant$/);
+  await expect(page.getByTestId("ouvrir-direct")).toBeVisible();
+  await expect(page.getByTestId("ouvrir-avant")).toHaveCount(0);                     // plus de boutons Avant-match ni Après-match sur la fiche
+  await expect(page.getByTestId("ouvrir-apres")).toHaveCount(0);
+  await cliquerJusquaNavigation(page.getByTestId("ouvrir-direct"), /\/matchs\/[^/]+\/avant\?depuis=direct$/);
   await expect(page.getByRole("heading", { name: "Avant-match" })).toBeVisible();
+  await expect(page.getByText(/Avant de lancer le direct, compose ton onze/)).toBeVisible();
   await expect(page.getByText("Brouillon")).toBeVisible();
   // Le plan courant de l'equipe prerempli le onze ; on remplace le gardien par un joueur du groupe.
   const gardien = page.getByRole("button", { name: /^GB : / });
@@ -1765,17 +1791,35 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await gardien.click();
   await page.getByRole("dialog").locator("button[aria-pressed=false]").first().click();
   await expect(gardien).not.toHaveAttribute("aria-label", avant ?? "");
-  await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
-  await expect(page.getByText("Enregistrée")).toBeVisible();
-  await expect(page.getByText("Brouillon")).toHaveCount(0);
-  const planAvant = await (await appeler(`/tactiques?equipeId=${fixtures.equipeId}&matchId=${match.id}`)).json();
-  expect(planAvant.matchId).toBe(match.id);                                  // un plan propre au match, pas le plan courant
-  expect(planAvant.titulaires.filter(Boolean).length).toBeGreaterThanOrEqual(10);
+
+  // Les numeros du jour : chaque joueur retenu en a un, tous differents. Deux fois le meme est refuse, tant qu'il n'est pas corrige.
+  const numeros = page.getByRole("region", { name: "Numéros portés ce jour-là" }).locator("input");
+  const nb = await numeros.count();
+  expect(nb).toBeGreaterThanOrEqual(10);
+  for (let i = 0; i < nb; i++) await numeros.nth(i).fill(String(i + 1));
+  await numeros.nth(1).fill("1");                                                    // doublon volontaire avec le premier
+  await expect(page.getByRole("alert").filter({ hasText: "Le numéro 1 est donné à" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Valider et lancer le direct/ })).toBeDisabled();
+  await numeros.nth(1).fill("2");
+  await expect(page.getByRole("alert").filter({ hasText: "Le numéro" })).toHaveCount(0);
   await page.evaluate(axe);
   for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur l'avant-match (${theme})`).toEqual([]);
   await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
 
-  // Entree depuis la fiche du match.
+  // Valider enregistre le onze et ses numeros pour CE match, puis ouvre le direct.
+  await page.getByRole("button", { name: "Valider et lancer le direct" }).click();
+  await expect(page).toHaveURL(/\/matchs\/[^/]+\/direct$/, { timeout: 20_000 });
+  const planAvant = await (await appeler(`/tactiques?equipeId=${fixtures.equipeId}&matchId=${match.id}`)).json();
+  expect(planAvant.matchId).toBe(match.id);                                  // un plan propre au match, pas le plan courant
+  expect(planAvant.titulaires.filter(Boolean).length).toBeGreaterThanOrEqual(10);
+  expect(Object.values(planAvant.numeros as Record<string, number>).sort((x, y) => x - y)).toEqual(Array.from({ length: nb }, (_, i) => i + 1));
+  // Le direct ne propose plus que les joueurs retenus, avec leur numero du jour.
+  const etatAvant = await (await appeler(`/direct/matchs/${match.id}`)).json();
+  expect(etatAvant.avantMatch.pret).toBe(true);
+  expect(etatAvant.joueurs).toHaveLength(nb);
+  expect(etatAvant.joueurs.map((j: any) => j.numero).sort((x: number, y: number) => x - y)).toEqual(Array.from({ length: nb }, (_, i) => i + 1));
+
+  // Une fois l'avant-match fait, le bouton « Direct » de la fiche va droit au direct.
   await page.goto(`/matchs/${match.id}`);
   await cliquerJusquaNavigation(page.getByTestId("ouvrir-direct"), /\/matchs\/[^/]+\/direct$/);
   await expect(page.getByRole("region", { name: "Tableau de marque" })).toBeVisible();

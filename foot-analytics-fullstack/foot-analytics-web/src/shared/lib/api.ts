@@ -566,7 +566,7 @@ export const api = {
   /** Enregistre le plan. Refus 422 (code REGLE_MUTATIONS) si plus de 6 mutes dont 2 hors delai. */
   enregistrerTactique: (plan: {
     equipeId: string; matchId?: string | null; formation: string; titulaires: (string | null)[];
-    remplacants: string[]; capitaineId?: string | null; notes?: string | null;
+    remplacants: string[]; capitaineId?: string | null; notes?: string | null; numeros?: Record<string, number> | null;
   }) => req<TactiquePlan>("/tactiques", { method: "PUT", body: JSON.stringify(plan) }),
   supprimerTactique: (equipeId: string, matchId?: string | null) => {
     const qs = new URLSearchParams({ equipeId });

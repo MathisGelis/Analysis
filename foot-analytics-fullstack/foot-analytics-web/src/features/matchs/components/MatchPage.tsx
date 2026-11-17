@@ -105,20 +105,10 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
           <ArrowLeft size={12}/> Retour aux matchs
         </Link>
         <div className="flex items-center gap-2">
-          {/* Le direct : saisir les evenements du match (en cours, ou apres coup), pour un match de mon equipe. */}
-          {peutNoter && match.droits?.modifier !== false && statut !== "reporte" && statut !== "annule" && statut !== "joue" && (
-            <Link href={`/matchs/${match.id}/avant`} className="btn text-xs" data-testid="ouvrir-avant">
-              <Users size={12}/> Avant-match
-            </Link>
-          )}
+          {/* Un seul point d'entree : « Direct ». Il mene a l'avant-match tant que le onze n'est pas fait, puis au direct, puis a l'apres-match. */}
           {peutNoter && match.droits?.modifier !== false && statut !== "reporte" && statut !== "annule" && (
-            <Link href={`/matchs/${match.id}/direct`} className="btn text-xs" data-testid="ouvrir-direct">
+            <Link href={`/matchs/${match.id}/direct`} className="btn btn-primary text-xs" data-testid="ouvrir-direct">
               <Radio size={12}/> Direct
-            </Link>
-          )}
-          {peutNoter && match.droits?.modifier !== false && statut !== "reporte" && statut !== "annule" && (statut === "joue" || (!!match.date && match.date <= new Date().toISOString().slice(0, 10))) && (
-            <Link href={`/matchs/${match.id}/apres`} className="btn text-xs" data-testid="ouvrir-apres">
-              <ClipboardCheck size={12}/> Après-match
             </Link>
           )}
           {aPreparer && (

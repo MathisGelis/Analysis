@@ -1098,6 +1098,10 @@ export class DerivationService implements OnApplicationBootstrap {
 
     const toUpdate: Match[] = [];
     let totalAffectees = 0;
+    // Une journee deja connue (calendrier FFF, saisie a la main) fait foi : la deduction par les dates n'est qu'un repli pour les
+    // matchs qui n'en ont pas (feuilles de match importees). Elle ne doit jamais ecraser le reste : avec plus de « vagues » de dates
+    // que de journees estimees, elle rattachait toutes les dernieres a la meme journee.
+    const sansJournee = (m: Match) => { const j = (m.journee ?? "").trim(); return j === "" || j === "—"; };
 
     for (const ms of groupes.values()) {
       // Combien d'equipes distinctes ?
@@ -1146,7 +1150,7 @@ export class DerivationService implements OnApplicationBootstrap {
       if (vagues.length === journeesEstimees) {
         vagues.forEach((v, i) => {
           for (const m of v.matchs) {
-            if (m.journee !== String(i + 1)) {
+            if (sansJournee(m) && m.journee !== String(i + 1)) {
               m.journee = String(i + 1);
               toUpdate.push(m);
               totalAffectees++;
@@ -1191,7 +1195,7 @@ export class DerivationService implements OnApplicationBootstrap {
       for (const v of vagues) {
         const j = String(journeeDeVague.get(v) ?? 1);
         for (const m of v.matchs) {
-          if (m.journee !== j) {
+          if (sansJournee(m) && m.journee !== j) {
             m.journee = j;
             toUpdate.push(m);
             totalAffectees++;
