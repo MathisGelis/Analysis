@@ -20,9 +20,10 @@ ENV NODE_ENV=production \
     FMI_PARSER_PATH=parser/parse_fmi.py
 WORKDIR /app
 
+# LibreOffice (Impress) : le PDF du rapport est tire du PowerPoint, pour que les deux soient identiques.
 # Python + pdfplumber dans un venv (le parseur FMI est lance en sous-processus par l'API).
 RUN apt-get update \
- && apt-get install -y --no-install-recommends python3 python3-venv \
+ && apt-get install -y --no-install-recommends python3 python3-venv libreoffice-impress fonts-liberation fonts-dejavu-core \
  && rm -rf /var/lib/apt/lists/*
 COPY parser/requirements.txt parser/requirements.txt
 RUN python3 -m venv /opt/venv && /opt/venv/bin/pip install --no-cache-dir -r parser/requirements.txt

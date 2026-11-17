@@ -14,6 +14,7 @@ describe("Content-Security-Policy", () => {
     expect(csp).toContain("object-src 'none'");
     expect(csp).toContain("manifest-src 'self'");       // application installable : manifeste et service worker du site
     expect(csp).toContain("worker-src 'self'");
+    expect(csp).toContain("frame-src 'self' blob:");
     expect(csp).not.toMatch(/https?:\/\//);       // ni CDN, ni analytics, ni pixel
   });
 

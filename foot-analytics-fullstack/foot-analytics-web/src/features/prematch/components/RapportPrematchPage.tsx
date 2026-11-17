@@ -20,8 +20,7 @@ import { Pitch } from "@/shared/ui/Pitch";
 import { AideDecision } from "@/features/legal/components/AideDecision";
 
 import { joueursSurTerrain, libellesPostes } from "../lib/onze-terrain";
-import { BoutonImprimer } from "./BoutonImprimer";
-import { ExportPowerPoint } from "./ExportPowerPoint";
+import { ExportRapport } from "./ExportRapport";
 import { PistesMatch } from "./PistesMatch";
 import { ComparatifEquipes } from "./ComparatifEquipes";
 import { JoueursAMenager } from "./JoueursAMenager";
@@ -71,8 +70,7 @@ export default async function RapportPrematch({
         </Link>
         <OngletsDossier clubId={adversaireClubId} courant="prematch" prematchOuvert matchId={match?.id ?? null} />
         <div className="flex items-center gap-2">
-          <ExportPowerPoint equipeId={maEquipe.id} adversaireId={adversaireClubId} matchId={match?.id ?? null} pages={pagesExport} />
-          <BoutonImprimer />
+          <ExportRapport equipeId={maEquipe.id} adversaireId={adversaireClubId} matchId={match?.id ?? null} pages={pagesExport} />
         </div>
       </div>
 

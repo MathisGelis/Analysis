@@ -80,20 +80,24 @@ export class AnalyseController {
     @Query("adversaireId") adversaireId: string,
     @Query("matchId") matchId?: string,
     @Query("pages") pages?: string,
+    @Query("format") format?: string,
+    @Query("apercu") apercu?: string,
   ) {
     if (!equipeId || !adversaireId) throw new BadRequestException("equipeId et adversaireId sont requis");
+    if (format !== undefined && format !== "pptx" && format !== "pdf") throw new BadRequestException("format : pptx ou pdf");
+    const pdf = format === "pdf";
     const choisies = lirePages(pages);
     if ("erreur" in choisies) throw new BadRequestException(choisies.erreur);
     await this.acces.equipe(ctx, equipeId);
     if (matchId) await this.acces.match(ctx, matchId);
-    const { fichier, nom } = await this.prematchSvc.exporterPptx(equipeId, adversaireId, matchId || null, choisies);
-    await this.journal.noter("export.pptx", {
+    const { fichier, nom } = await this.prematchSvc.exporterPptx(equipeId, adversaireId, matchId || null, choisies, pdf ? "pdf" : "pptx");
+    if (!apercu) await this.journal.noter(pdf ? "export.pdf" : "export.pptx", {
       acteur: ctx.compte, cible: `club:${adversaireId}`, cibleClubId: adversaireId,
       details: { equipeId, matchId: matchId || null, pages: choisies.length },
     });
     return new StreamableFile(fichier, {
-      type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-      disposition: `attachment; filename="${nom}"`,
+      type: pdf ? "application/pdf" : "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      disposition: `${apercu ? "inline" : "attachment"}; filename="${nom}"`,
     });
   }
 }

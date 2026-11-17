@@ -26,6 +26,8 @@ export function politiqueCsp(nonce: string, dev = false): string {
     // Application installable : son manifeste et son service worker (public/sw.js), servis par le site lui-meme.
     "manifest-src 'self'",
     "worker-src 'self'",
+    // Apercu de l'export (PDF genere par l'API, affiche depuis un blob).
+    "frame-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

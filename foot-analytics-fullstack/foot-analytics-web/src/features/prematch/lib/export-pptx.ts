@@ -1,7 +1,7 @@
 // src/features/prematch/lib/export-pptx.ts
 //
 // Export du rapport d'avant-match en PowerPoint : les pages proposees par le serveur et le choix de l'utilisateur.
-// Fonctions pures ; l'appel et le telechargement sont dans ExportPowerPoint.tsx.
+// Fonctions pures ; l'appel et le telechargement sont dans ExportRapport.tsx.
 
 /** Une page du rapport (GET /analyse/prematch/pages). `groupe` : une page du modele du staff, ou une page d'analyse en plus. */
 export interface PageExport { id: string; titre: string; contenu: string; groupe?: "modele" | "analyse" }

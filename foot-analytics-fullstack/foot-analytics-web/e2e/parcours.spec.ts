@@ -506,8 +506,10 @@ test("rapport pré-match : un clic depuis /rapports, rapport lisible, imprimable
   // Aucun match programme : le rapport le dit au lieu d'inventer une rencontre.
   await expect(page.getByText(/Aucun match programmé/)).toBeVisible();
 
-  // Impression : la barre laterale, la barre du haut et le bouton disparaissent.
-  const bouton = page.getByRole("button", { name: "Imprimer / PDF" });
+  // Un seul bouton "Exporter" (plus de bouton PowerPoint ni d'impression separes) ; il disparait a l'impression avec les barres.
+  await expect(page.getByRole("button", { name: "Imprimer / PDF" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Exporter en PowerPoint" })).toHaveCount(0);
+  const bouton = page.getByRole("button", { name: "Exporter", exact: true });
   await expect(bouton).toBeVisible();
   await page.emulateMedia({ media: "print" });
   await expect(bouton).toBeHidden();
@@ -520,7 +522,7 @@ test("rapport pré-match : un clic depuis /rapports, rapport lisible, imprimable
   await expect(page.getByText(/introuvable|n'existe pas|404/i).first()).toBeVisible();
 });
 
-test("rapport pré-match : export PowerPoint, pages au choix (sans la page convocation), champs inconnus laisses vides", async () => {
+test("rapport pré-match : bouton Exporter, aperçu, PDF et PowerPoint identiques, pages au choix (sans la page convocation), champs inconnus laisses vides", async () => {
   test.skip(!pdfplumberDisponible(), "PYTHON_BIN avec pdfplumber requis : l'adversaire vient de la FMI importée");
 
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
@@ -531,8 +533,10 @@ test("rapport pré-match : export PowerPoint, pages au choix (sans la page convo
   const adversaire = clubs.find((c) => c.nom !== "OL Sud E2E")!;
 
   await page.goto(`/rapports/prematch/${adversaire.id}`);
-  await page.getByRole("button", { name: "Exporter en PowerPoint" }).click();
-  await expect(page.getByRole("heading", { level: 2, name: "Exporter en PowerPoint" })).toBeVisible();
+  await page.getByRole("button", { name: "Exporter", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "Exporter le rapport" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "PDF", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("iframe").and(page.getByTitle(/Aperçu de l.export/))).toBeVisible({ timeout: 60_000 });
 
   // Les quinze pages (sept du modele du staff + huit d'analyse), toutes cochees au depart.
   const cases = page.getByRole("checkbox");
@@ -542,19 +546,33 @@ test("rapport pré-match : export PowerPoint, pages au choix (sans la page convo
 
   // Le modele du staff seul : sept pages ; puis tout recoche.
   await page.getByRole("button", { name: "Modèle seulement" }).click();
-  await expect(page.getByRole("button", { name: /Télécharger \(7 pages sur 15\)/ })).toBeVisible();
+  await expect(page.getByText("Pages · 7 pages sur 15")).toBeVisible();
   await expect(page.getByRole("checkbox", { name: /Nous contre eux/ })).not.toBeChecked();
   await page.getByRole("button", { name: "Tout cocher" }).click();
 
   // Sans la page convocation ("Le match") : quatorze pages.
   await page.getByRole("checkbox", { name: /Le match/ }).uncheck();
-  await expect(page.getByRole("button", { name: /Télécharger \(14 pages sur 15\)/ })).toBeVisible();
+  await expect(page.getByText("Pages · 14 pages sur 15")).toBeVisible();
+
+  // Le PDF (format par defaut) : un vrai PDF, de quatorze pages, tire du meme PowerPoint.
+  const [pdf] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Télécharger le PDF" }).click(),
+  ]);
+  expect(pdf.suggestedFilename()).toMatch(/^avant-match-.+\.pdf$/);
+  const octets = readFileSync((await pdf.path()) as string);
+  expect(octets.subarray(0, 4).toString()).toBe("%PDF");
+  expect((octets.toString("latin1").match(/\/Type\s*\/Page[^s]/g) ?? []).length).toBe(14);
+
+  // Le PowerPoint : memes pages.
+  await expect(page.getByText(/avant-match-.+\.pdf/)).toBeVisible();
+  await page.getByRole("button", { name: "Exporter", exact: true }).click();
+  await page.getByRole("button", { name: "PowerPoint", exact: true }).click();
   const [telechargement] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: /Télécharger/ }).click(),
+    page.getByRole("button", { name: "Télécharger le PowerPoint" }).click(),
   ]);
   expect(telechargement.suggestedFilename()).toMatch(/^avant-match-.+\.pptx$/);
-  await expect(page.getByText(/Complétez les champs vides dans PowerPoint/)).toBeVisible();
 
   // Le fichier : une archive de quatorze diapositives, sans la page "Le match" (donc sans "Convocation"), avec l'adversaire.
   const [diapos, convocation, adv] = execFileSync(process.env.PYTHON_BIN ?? "python3", ["-c", [
@@ -567,13 +585,13 @@ test("rapport pré-match : export PowerPoint, pages au choix (sans la page convo
   expect([diapos, convocation, adv]).toEqual(["14", "False", "True"]);
 
   // La fenetre se ferme apres le telechargement ; rouverte, elle garde le choix (14 pages). Aucune page cochee : pas de telechargement.
-  await expect(page.getByRole("heading", { level: 2, name: "Exporter en PowerPoint" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Exporter en PowerPoint" }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "Exporter le rapport" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Exporter", exact: true }).click();
   await expect(page.getByRole("checkbox", { name: /Le match/ })).not.toBeChecked();
   await page.getByRole("button", { name: "Tout décocher" }).click();
-  await expect(page.getByRole("button", { name: /Télécharger/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /Télécharger le/ })).toBeDisabled();
   await page.getByRole("button", { name: "Annuler" }).click();
-  await expect(page.getByRole("heading", { level: 2, name: "Exporter en PowerPoint" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 2, name: "Exporter le rapport" })).toHaveCount(0);
 });
 
 test("rapports : un point d'entree unique, un dossier par club, anciennes pages scouting et prédictions redirigees", async () => {
