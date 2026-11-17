@@ -14,7 +14,6 @@ import { api, ApiError, messageApi } from "@/shared/lib/api";
 import { Modal } from "@/shared/ui/Modal";
 import { Spinner } from "@/shared/ui/Spinner";
 import type { EtatDirect, JoueurDirect } from "@/features/direct/lib/direct-types";
-import { usePaletteDirect } from "@/features/direct/lib/palette";
 import { FORMATION_DEFAUT, formationsProposees, MAX_REMPLACANTS, NB_TITULAIRES } from "@/features/tactique/lib/composition";
 
 import { lireSaisie, numeroEffectif, numerosAEnvoyer, numerosOk, verifierNumeros, type Choisis } from "../lib/numeros";
@@ -35,7 +34,6 @@ function quand(date: string | null, heure: string | null): string {
 
 export default function AvantMatchPage({ matchId, force = false }: { matchId: string; force?: boolean }) {
   const router = useRouter();
-  usePaletteDirect();
   const [etat, setEtat] = useState<EtatDirect | null>(null);
   const [introuvable, setIntrouvable] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
