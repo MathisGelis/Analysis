@@ -16,7 +16,6 @@ import { Spinner } from "@/shared/ui/Spinner";
 import type { Cote, EvenementDirect } from "../lib/direct-types";
 import { Saisie, saisieDepuisEvenement, saisieInitiale } from "../lib/saisie";
 import { FeuilleSaisie } from "./FeuilleSaisie";
-import { usePaletteDirect } from "../lib/palette";
 import { sourceStaff, type SourceDirect } from "../lib/source-direct";
 import { InviterSaisisseur } from "./InviterSaisisseur";
 import { FriseDirect } from "./FriseDirect";
@@ -31,7 +30,6 @@ export default function DirectPage({ matchId, source: sourceFournie }: { matchId
   const source = useMemo(() => sourceFournie ?? sourceStaff(matchId), [sourceFournie, matchId]);
   const invite = !!sourceFournie;
   const d = useDirect(matchId, source);
-  usePaletteDirect();
   const [coteSaisie, setCoteSaisie] = useState<Cote | null>(null);
   const [ouverte, setOuverte] = useState<Ouverte | null>(null);
   const [frise, setFrise] = useState(false);
