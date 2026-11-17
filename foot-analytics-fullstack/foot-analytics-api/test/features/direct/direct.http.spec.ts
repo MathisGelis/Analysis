@@ -161,4 +161,69 @@ describe("direct : routes", () => {
     const intrus = await t.compte({ login: "RINTRUS1", role: "referent", clubId: m.ol.id });
     expect((await t.appel(intrus)("GET", base(contre.id))).statut).toBe(403);
   });
+
+  describe("avant-match : seuls les joueurs retenus se saisissent, avec leur numero du jour", () => {
+    async function equipeAvecJoueurs() {
+      const mt = await matchNeuf();
+      const js: any[] = [];
+      for (let i = 0; i < 14; i++) js.push(await t.f.joueur({ nom: `RET${i}`, prenom: "Test", clubId: m.ol.id, equipesAttachees: [m.sen26.id], numeroFavori: i + 1 } as any));
+      return { mt, js };
+    }
+    const plan = (equipeId: string, matchId: string, titulaires: string[], remplacants: string[], numeros?: object) => ({ equipeId, matchId, formation: "4-4-2", titulaires, remplacants, ...(numeros ? { numeros } : {}) });
+
+    it("sans avant-match : tout l'effectif et avantMatch.pret = false", async () => {
+      const { mt, js } = await equipeAvecJoueurs();
+      const etat = (await t.appel(await ref())("GET", base(mt.id))).corps;
+      expect(etat.avantMatch).toEqual({ pret: false, titulaires: 0, banc: 0, possible: true });
+      expect(etat.joueurs.length).toBeGreaterThanOrEqual(js.length);
+    });
+
+    it("avec l'avant-match : seulement titulaires puis remplacants, dans l'ordre, avec le numero choisi", async () => {
+      const { mt, js } = await equipeAvecJoueurs();
+      const a = t.appel(await ref());
+      const onze = js.slice(0, 11).map((j) => j.id), banc = [js[11].id, js[12].id];
+      const r = await a("PUT", "/tactiques", plan(m.sen26.id, mt.id, onze, banc, { [js[0].id]: 16, [js[11].id]: 99 }));
+      expect(r.statut).toBe(200);
+      const etat = (await a("GET", base(mt.id))).corps;
+      expect(etat.avantMatch).toEqual({ pret: true, titulaires: 11, banc: 2, possible: true });
+      expect(etat.joueurs.map((j: any) => j.id)).toEqual([...onze, ...banc]);              // le 14e joueur de l'effectif n'apparait pas
+      expect(etat.joueurs.map((j: any) => j.role)).toEqual([...Array(11).fill("titulaire"), "remplacant", "remplacant"]);
+      const num = (id: string) => etat.joueurs.find((j: any) => j.id === id).numero;
+      expect(num(js[0].id)).toBe(16);                                                   // choisi pour ce match
+      expect(num(js[11].id)).toBe(99);
+      expect(num(js[1].id)).toBe(2);                                                    // sinon, son numero habituel
+    });
+
+    it("un match sans equipe de mon cote : l'avant-match est impossible, le direct ne renvoie pas vers lui", async () => {
+      const mt = await t.f.match({ clubDom: m.ol.id, clubExt: m.mions.id, equipeDomId: null, saisonId: m.s26.id, date: "2026-11-22", statut: "prevu", scoreDom: 0, scoreExt: 0 } as any);
+      const etat = (await t.appel(await ref())("GET", base(mt.id))).corps;
+      expect(etat.avantMatch).toMatchObject({ pret: false, possible: false });
+    });
+
+    it("moins de 7 titulaires : l'avant-match n'est pas considere comme fait", async () => {
+      const { mt, js } = await equipeAvecJoueurs();
+      const a = t.appel(await ref());
+      await a("PUT", "/tactiques", plan(m.sen26.id, mt.id, js.slice(0, 5).map((j) => j.id).concat(Array(6).fill("")), []));
+      expect((await a("GET", base(mt.id))).corps.avantMatch).toMatchObject({ pret: false, titulaires: 5 });
+    });
+
+    it("le plan courant de l'equipe ne compte pas comme l'avant-match de ce match", async () => {
+      const { mt, js } = await equipeAvecJoueurs();
+      const a = t.appel(await ref());
+      await a("PUT", "/tactiques", { equipeId: m.sen26.id, formation: "4-4-2", titulaires: js.slice(0, 11).map((j) => j.id), remplacants: [] });
+      const etat = (await a("GET", base(mt.id))).corps;
+      expect(etat.avantMatch.pret).toBe(false);
+      expect(etat.joueurs.length).toBeGreaterThan(11);
+    });
+
+    it("un invite par lien ne voit que les joueurs retenus", async () => {
+      const { mt, js } = await equipeAvecJoueurs();
+      const staff = t.appel(await ref());
+      await staff("PUT", "/tactiques", plan(m.sen26.id, mt.id, js.slice(0, 11).map((j) => j.id), []));
+      const c = await staff("POST", `/direct/matchs/${mt.id}/invitations`, { libelle: "Julie" });
+      const s = (await t.requete("POST", "/saisie/ouvrir", { jeton: c.corps.jeton })).corps.session;
+      const etat = (await t.requete("GET", "/saisie/etat", undefined, { Authorization: `Invite ${s}` })).corps;
+      expect(etat.joueurs).toHaveLength(11);
+    });
+  });
 });

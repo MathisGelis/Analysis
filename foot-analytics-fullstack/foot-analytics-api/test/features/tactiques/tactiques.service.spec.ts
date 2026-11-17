@@ -161,6 +161,47 @@ describe("TactiquesService", () => {
     });
   });
 
+  describe("numeros portes ce jour-la", () => {
+    it("enregistre le numero de chaque joueur retenu, relu avec le plan du match", async () => {
+      const c = await contexte();
+      const [a, b, banc] = [c.joueurs[0], c.joueurs[1], c.joueurs[12]];
+      await svc.enregistrer(dto(c, { matchId: c.match.id, numeros: { [a.id]: 1, [b.id]: 14, [banc.id]: 12 } }));
+      expect((await svc.lire(c.eq.id, c.match.id))?.numeros).toEqual({ [a.id]: 1, [b.id]: 14, [banc.id]: 12 });
+      expect(await svc.lire(c.eq.id)).toBeNull();                                // le plan courant de l'equipe n'est pas touche
+    });
+
+    it("deux joueurs ne portent jamais le meme numero", async () => {
+      const c = await contexte();
+      await expect(svc.enregistrer(dto(c, { numeros: { [c.joueurs[0].id]: 9, [c.joueurs[1].id]: 9 } }))).rejects.toThrow(/numero 9/);
+      expect(await ds.getRepository(Tactique).count()).toBe(0);
+    });
+
+    it.each([0, 100, 1.5, -3])("un numero hors de 1 a 99 est refuse (%s)", async (n) => {
+      const c = await contexte();
+      await expect(svc.enregistrer(dto(c, { numeros: { [c.joueurs[0].id]: n } }))).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("un numero pour un joueur qui n'est pas retenu est oublie ; plus aucun numero = null", async () => {
+      const c = await contexte();
+      const exclu = c.joueurs[17];
+      await svc.enregistrer(dto(c, { remplacants: c.joueurs.slice(11, 17).map((j) => j.id), numeros: { [c.joueurs[0].id]: 1, [exclu.id]: 18 } }));
+      expect((await svc.lire(c.eq.id))?.numeros).toEqual({ [c.joueurs[0].id]: 1 });
+      await svc.enregistrer(dto(c, { numeros: null }));
+      expect((await svc.lire(c.eq.id))?.numeros).toBeNull();
+    });
+
+    it("enregistrer sans parler des numeros (page Tactique) conserve ceux deja choisis pour les joueurs encore retenus", async () => {
+      const c = await contexte();
+      await svc.enregistrer(dto(c, { numeros: { [c.joueurs[0].id]: 1, [c.joueurs[5].id]: 6 } }));
+      await svc.enregistrer(dto(c, { formation: "4-3-3" }));
+      expect((await svc.lire(c.eq.id))?.numeros).toEqual({ [c.joueurs[0].id]: 1, [c.joueurs[5].id]: 6 });
+      // Le joueur 5 sort du onze : son numero est oublie, celui du gardien reste.
+      const sans5 = c.joueurs.filter((j) => j.id !== c.joueurs[5].id);
+      await svc.enregistrer(dto(c, { titulaires: sans5.slice(0, 11).map((j) => j.id), remplacants: [] }));
+      expect((await svc.lire(c.eq.id))?.numeros).toEqual({ [c.joueurs[0].id]: 1 });
+    });
+  });
+
   it("supprimer : retire le plan, idempotent", async () => {
     const c = await contexte();
     await svc.enregistrer(dto(c));

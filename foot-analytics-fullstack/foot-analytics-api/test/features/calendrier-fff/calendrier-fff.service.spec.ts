@@ -102,6 +102,35 @@ describe("synchronisation du calendrier FFF", () => {
     expect(await t.ds.getRepository(Match).count({ where: { clubDom: plaine.id, clubExt: m.ol.id } })).toBe(1);
   });
 
+  it("la journee vient toujours du calendrier : une journee fausse est reparee meme si la ligue n'a rien modifie, signalee, sans toucher au reste", async () => {
+    await sync(construireIcs(evenements()));
+    // L'application avait deduit J11 des dates pour deux matchs ; une retouche manuelle du lieu doit, elle, tenir.
+    const matchs = t.ds.getRepository(Match);
+    await matchs.update({ idFff: "55680004" }, { journee: "11", terrain: "Terrain annexe" });
+    await matchs.update({ idFff: "55680005" }, { journee: "11" });
+    const r = await sync(construireIcs(evenements()), LENDEMAIN);                     // la ligue n'a rien modifie depuis
+    expect(r.modifies).toHaveLength(2);
+    expect(r.modifies).toEqual(expect.arrayContaining([
+      expect.objectContaining({ journee: "4", avant: "journee 11", apres: "journee 4" }),
+      expect.objectContaining({ journee: "5", avant: "journee 11", apres: "journee 5" }),
+    ]));
+    expect(r.inchanges).toBe(3);
+    expect(await matchs.findOneByOrFail({ idFff: "55680004" })).toMatchObject({ journee: "4", terrain: "Terrain annexe" });
+    expect((await matchs.findOneByOrFail({ idFff: "55680005" })).journee).toBe("5");
+    // Rejouer ne change plus rien.
+    expect((await sync(construireIcs(evenements()), new Date("2026-11-15T12:00:00Z"))).modifies).toEqual([]);
+  });
+
+  it("la journee d'un match deja joue (feuille importee) est aussi reprise du calendrier", async () => {
+    const avecMions: EvenementFff[] = [
+      { id: "55679999", journee: 1, domicile: true, adversaire: "MIONS 2", adversaireSlug: "mions", date: "2026-10-04", heure: "15:00" },
+      ...evenements(),
+    ];
+    await t.ds.getRepository(Match).update({ id: m.m26.id }, { journee: "11" });
+    await sync(construireIcs(avecMions));
+    expect(await t.ds.getRepository(Match).findOneByOrFail({ id: m.m26.id })).toMatchObject({ journee: "1", statut: "joue", scoreDom: 2, scoreExt: 1 });
+  });
+
   it("un match qui a deja sa feuille ou son score n'est jamais modifie (meme jour, meme sens)", async () => {
     // Le monde a un match joue OL - Mions le 04/10/2026 (2-1) : le calendrier le contient, sous un autre titre.
     const avecMions: EvenementFff[] = [

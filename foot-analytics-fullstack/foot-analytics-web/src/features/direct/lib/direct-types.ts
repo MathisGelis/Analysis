@@ -73,6 +73,8 @@ export interface EtatDirect {
   joueurs: JoueurDirect[];
   /** Present seulement quand le direct est lu par un saisisseur invite. */
   invitation?: { libelle: string; peutChrono: boolean; expireLe: string };
+  /** L'avant-match de ce match est-il fait (onze enregistre pour ce match) ? Sinon le staff est renvoye vers l'avant-match. */
+  avantMatch?: { pret: boolean; titulaires: number; banc: number; possible: boolean };
 }
 
 /* ---- Invitations a saisir ---- */

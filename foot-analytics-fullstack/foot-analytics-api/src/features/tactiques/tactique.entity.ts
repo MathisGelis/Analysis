@@ -15,6 +15,8 @@ export class Tactique {
   // 11 cases dans l'ordre des postes du terrain (gardien d'abord) : id du joueur, "" = poste vide.
   @Column({ type: "simple-json" }) titulaires: string[];
   @Column({ type: "simple-json" }) remplacants: string[];
+  /** Le numero que chaque joueur retenu portera CE jour-la (id du joueur -> numero), quand le staff l'a choisi : il prime sur son numero habituel. */
+  @Column({ type: "simple-json", nullable: true }) numeros: Record<string, number> | null;
   @Column({ type: "varchar", nullable: true }) capitaineId: string | null;
   @Column({ type: "text", nullable: true }) notes: string | null;
   @CreateDateColumn() creeLe: Date;

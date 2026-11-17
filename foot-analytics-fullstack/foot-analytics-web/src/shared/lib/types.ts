@@ -148,6 +148,8 @@ export interface TactiquePlan {
   /** 11 cases dans l'ordre des postes du terrain : id du joueur, "" = poste vide. */
   titulaires: string[];
   remplacants: string[];
+  /** Numero porte par chaque joueur retenu pour ce match (id -> numero). */
+  numeros?: Record<string, number> | null;
   capitaineId: string | null;
   notes: string | null;
   modifieLe: string;

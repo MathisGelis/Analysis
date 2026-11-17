@@ -77,26 +77,51 @@ export class DirectService {
       score: scoreDirect(evs),
       compteurs: compteurs(evs),
       joueurs: equipeId ? await this.joueursDe(equipeId, matchId) : [],
+      /** L'avant-match de CE match est-il fait ? (le front renvoie vers l'avant-match tant que non). */
+      avantMatch: { ...DirectService.avantMatchPret(await this.planDuMatch(equipeId, matchId)), possible: !!equipeId },
     };
   }
 
-  /** L'effectif de mon equipe, les titulaires du plan de jeu (celui du match, sinon le plan courant) en tete. */
+  /** Le plan de jeu enregistre POUR CE MATCH (jamais le plan courant de l'equipe) : l'avant-match fait. */
+  private planDuMatch(equipeId: string | null, matchId: string) {
+    return equipeId ? this.plans.findOne({ where: { equipeId, matchId } }) : Promise.resolve(null);
+  }
+
+  /** L'avant-match est fait quand le onze du match est enregistre : au moins 7 titulaires (le foot a 8 compris). */
+  static avantMatchPret(plan: Tactique | null) {
+    const titulaires = (plan?.titulaires ?? []).filter(Boolean).length;
+    return { pret: !!plan && titulaires >= 7, titulaires, banc: plan?.remplacants?.length ?? 0 };
+  }
+
+  /**
+   * Les joueurs que l'on peut saisir : ceux retenus a l'avant-match (titulaires puis remplacants, dans l'ordre du plan), avec le numero
+   * choisi pour ce match, sinon leur numero habituel. Tant que l'avant-match n'est pas fait pour ce match, tout l'effectif (de quoi
+   * saisir un ancien match sans composition) ; les titulaires du plan courant passent alors en tete.
+   */
   async joueursDe(equipeId: string, matchId: string) {
     const [effectif, planMatch, planCourant] = await Promise.all([
       this.effectifs.effectif(equipeId),
       this.plans.findOne({ where: { equipeId, matchId } }),
       this.plans.findOne({ where: { equipeId, matchId: IsNull() } }),
     ]);
-    const plan = planMatch ?? planCourant;
-    const titulaires = new Set((plan?.titulaires ?? []).filter(Boolean));
-    const remplacants = new Set(plan?.remplacants ?? []);
-    return effectif
-      .filter((j) => !!j.id)
-      .map((j) => ({
-        id: j.id as string, nom: j.nom as string, prenom: (j.prenom ?? null) as string | null, poste: (j.poste ?? null) as string | null,
-        numero: (j.numeroFavori ?? null) as number | null,
-        role: titulaires.has(j.id) ? "titulaire" : remplacants.has(j.id) ? "remplacant" : "groupe",
-      }));
+    const vus = effectif.filter((j) => !!j.id);
+    const fiche = (j: any, role: "titulaire" | "remplacant" | "groupe", numero: number | null) => ({
+      id: j.id as string, nom: j.nom as string, prenom: (j.prenom ?? null) as string | null, poste: (j.poste ?? null) as string | null, numero, role,
+    });
+    if (planMatch) {
+      const titulaires = (planMatch.titulaires ?? []).filter(Boolean), remplacants = planMatch.remplacants ?? [];
+      const parId = new Map(vus.map((j) => [j.id as string, j]));
+      const numero = (j: any) => planMatch.numeros?.[j.id] ?? (j.numeroFavori ?? null);
+      return [
+        ...titulaires.map((id) => parId.get(id)).filter((j): j is any => !!j).map((j) => fiche(j, "titulaire", numero(j))),
+        ...remplacants.map((id) => parId.get(id)).filter((j): j is any => !!j).map((j) => fiche(j, "remplacant", numero(j))),
+      ];
+    }
+    const titulaires = new Set((planCourant?.titulaires ?? []).filter(Boolean));
+    const remplacants = new Set(planCourant?.remplacants ?? []);
+    const rang = { titulaire: 0, remplacant: 1, groupe: 2 } as const;
+    return vus.map((j) => fiche(j, titulaires.has(j.id) ? "titulaire" : remplacants.has(j.id) ? "remplacant" : "groupe", j.numeroFavori ?? null))
+      .sort((a, b) => rang[a.role] - rang[b.role]);
   }
 
   /** Une action sur le chrono : coup d'envoi, pause, mi-temps, reprise, fin, ou recalage sur une minute. */

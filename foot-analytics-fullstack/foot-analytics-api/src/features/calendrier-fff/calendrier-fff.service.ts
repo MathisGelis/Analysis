@@ -193,6 +193,10 @@ export class CalendrierFffService {
 
       if (existant) {
         if (existant.calendrierDisparu) { existant.calendrierDisparu = false; rapport.reapparus++; }
+        // La journee vient toujours du calendrier de la ligue : elle repare aussi celles que l'application avait deduites des dates.
+        const avantJournee = existant.journee ?? null;
+        const journeeChange = !!ev.journee && (existant.journee ?? "") !== ev.journee;
+        if (journeeChange) existant.journee = ev.journee as string;
         if (aSaFeuille(existant)) {
           rapport.dejaJoues++;
           if (existant.idFff !== ev.idFff) existant.idFff = ev.idFff;
@@ -213,10 +217,10 @@ export class CalendrierFffService {
         }
         const changements = this.changements(existant, ev, adopte, derniere);
         existant.idFff = ev.idFff;
-        if (changements.length) {
-          this.appliquer(existant, ev);
-          rapport.modifies.push({ ...ligne, avant: changements.map((c) => c.avant).join(" ; "), apres: changements.map((c) => c.apres).join(" ; ") });
-        } else rapport.inchanges++;
+        const aSignaler = journeeChange ? [...changements, { avant: `journee ${avantJournee ?? "?"}`, apres: `journee ${ev.journee}` }] : changements;
+        if (changements.length) this.appliquer(existant, ev);
+        if (aSignaler.length) rapport.modifies.push({ ...ligne, avant: aSignaler.map((c) => c.avant).join(" ; "), apres: aSignaler.map((c) => c.apres).join(" ; ") });
+        else rapport.inchanges++;
         await this.matchs.save(existant);
         continue;
       }
@@ -274,7 +278,7 @@ export class CalendrierFffService {
     const heureChange = !!ev.heure && (m.heure ?? "") !== ev.heure;
     if (dateChange || heureChange) res.push({ avant: quand(this.isoDe(m.date) || ev.date, m.heure ?? null), apres: quand(ev.date, ev.heure ?? m.heure ?? null) });
     if (ev.lieu && (m.terrain ?? "") !== ev.lieu) res.push({ avant: m.terrain ?? "lieu non renseigne", apres: ev.lieu });
-    if (ev.journee && (m.journee ?? "") !== ev.journee) res.push({ avant: `journee ${m.journee ?? "?"}`, apres: `journee ${ev.journee}` });
+    // La journee est traitee a part (voir synchroniser) : elle ne depend jamais de la date de derniere modification de la ligue.
     return res;
   }
 

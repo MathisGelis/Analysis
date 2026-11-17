@@ -6,6 +6,7 @@
 // designe. Le plan est celui de l'onglet Tactique (meme enregistrement, meme regle des mutes) : modifie ici, il l'est la-bas.
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check } from "lucide-react";
 
@@ -16,9 +17,13 @@ import type { EtatDirect, JoueurDirect } from "@/features/direct/lib/direct-type
 import { usePaletteDirect } from "@/features/direct/lib/palette";
 import { FORMATION_DEFAUT, formationsProposees, MAX_REMPLACANTS, NB_TITULAIRES } from "@/features/tactique/lib/composition";
 
+import { lireSaisie, numeroEffectif, numerosAEnvoyer, numerosOk, verifierNumeros, type Choisis } from "../lib/numeros";
 import { affecter, basculerBanc, nbTitulaires, onzeComplet, postesDeFormation } from "../lib/terrain-avant";
 
-interface Plan { formation: string; titulaires: string[]; remplacants: string[] }
+/** Sous ce nombre de titulaires, le onze n'est pas considere comme fait (le foot a 8 compris). */
+const MIN_TITULAIRES = 7;
+
+interface Plan { formation: string; titulaires: string[]; remplacants: string[]; numeros: Choisis }
 const nomCourt = (j: JoueurDirect) => [j.prenom, j.nom].filter(Boolean).join(" ");
 
 function quand(date: string | null, heure: string | null): string {
@@ -28,13 +33,14 @@ function quand(date: string | null, heure: string | null): string {
   return heure ? `${jour} · ${heure.replace(":", " h ").replace(/ h 00$/, " h").trim()}` : jour;
 }
 
-export default function AvantMatchPage({ matchId }: { matchId: string }) {
+export default function AvantMatchPage({ matchId, force = false }: { matchId: string; force?: boolean }) {
+  const router = useRouter();
   usePaletteDirect();
   const [etat, setEtat] = useState<EtatDirect | null>(null);
   const [introuvable, setIntrouvable] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [violations, setViolations] = useState<string[] | null>(null);
-  const [plan, setPlan] = useState<Plan>({ formation: FORMATION_DEFAUT, titulaires: onzeComplet([]), remplacants: [] });
+  const [plan, setPlan] = useState<Plan>({ formation: FORMATION_DEFAUT, titulaires: onzeComplet([]), remplacants: [], numeros: {} });
   const [enregistre, setEnregistre] = useState<string>("");
   const [planDuMatch, setPlanDuMatch] = useState(false);
   const [blesses, setBlesses] = useState<Set<string>>(new Set());
@@ -42,18 +48,24 @@ export default function AvantMatchPage({ matchId }: { matchId: string }) {
   const [poste, setPoste] = useState<number | null>(null);
   const [choixDispositif, setChoixDispositif] = useState(false);
   const [occupe, setOccupe] = useState(false);
+  /** Tout l'effectif de l'equipe : on choisit parmi eux (le direct, lui, ne proposera que les retenus). */
+  const [effectif, setEffectif] = useState<JoueurDirect[]>([]);
 
   const charger = useCallback(async () => {
     try {
       const e = await api.direct(matchId);
       const equipeId = e.nousCote === "dom" ? e.match.equipeDomId : e.match.equipeExtId;
-      const [duMatch, courant, bless, arbitres] = await Promise.all([
+      const [duMatch, courant, bless, arbitres, tous] = await Promise.all([
         equipeId ? api.tactique(equipeId, matchId) : null, equipeId ? api.tactique(equipeId) : null, api.blessures(), api.arbitresForMatch(matchId),
+        equipeId ? api.effectifEquipe(equipeId) : [],
       ]);
+      setEffectif((tous as any[]).filter((j) => !!j.id).map((j): JoueurDirect => ({
+        id: j.id, nom: j.nom, prenom: j.prenom ?? null, poste: j.poste ?? null, numero: j.numeroFavori ?? null, role: "groupe",
+      })));
       const source = duMatch ?? courant;
       const p: Plan = source
-        ? { formation: source.formation, titulaires: onzeComplet(source.titulaires), remplacants: source.remplacants ?? [] }
-        : { formation: FORMATION_DEFAUT, titulaires: onzeComplet([]), remplacants: [] };
+        ? { formation: source.formation, titulaires: onzeComplet(source.titulaires), remplacants: source.remplacants ?? [], numeros: duMatch?.numeros ?? {} }
+        : { formation: FORMATION_DEFAUT, titulaires: onzeComplet([]), remplacants: [], numeros: {} };
       setEtat(e); setPlan(p); setEnregistre(JSON.stringify(p)); setPlanDuMatch(!!duMatch);
       setBlesses(new Set((bless as any[]).filter((b) => b.statut && b.statut !== "Retabli").map((b) => b.joueurId)));
       const principal = (arbitres as any[]).find((a) => a.role === "principal") ?? (arbitres as any[])[0];
@@ -66,7 +78,8 @@ export default function AvantMatchPage({ matchId }: { matchId: string }) {
   }, [matchId]);
   useEffect(() => { void charger(); }, [charger]);
 
-  const joueurs = etat?.joueurs ?? [];
+  const joueurs = effectif;
+  const habituels = useMemo(() => Object.fromEntries(effectif.map((j) => [j.id, j.numero])), [effectif]);
   const parId = useMemo(() => new Map(joueurs.map((j) => [j.id, j])), [joueurs]);
   const postes = useMemo(() => postesDeFormation(plan.formation), [plan.formation]);
   const modifie = JSON.stringify(plan) !== enregistre;
@@ -94,8 +107,21 @@ export default function AvantMatchPage({ matchId }: { matchId: string }) {
 
   const equipeId = etat.nousCote === "dom" ? etat.match.equipeDomId : etat.match.equipeExtId;
   const groupe = joueurs.filter((j) => !plan.titulaires.includes(j.id));
-  const complet = nbTitulaires(plan.titulaires) === NB_TITULAIRES;
-  const statut = planDuMatch && !modifie ? (complet ? "Prête" : "Incomplète") : "Brouillon";
+  const retenus = [...plan.titulaires.filter(Boolean), ...plan.remplacants];
+  const pb = verifierNumeros(retenus, plan.numeros, habituels);
+  const num = (id: string) => numeroEffectif(id, plan.numeros, habituels);
+  const nbOnze = nbTitulaires(plan.titulaires);
+  const peutValider = nbOnze >= MIN_TITULAIRES && numerosOk(pb);
+  const statut = planDuMatch && !modifie ? (nbOnze >= MIN_TITULAIRES ? "Prête" : "Incomplète") : "Brouillon";
+  const nomDe = (id: string) => { const j = joueurs.find((x) => x.id === id); return j ? nomCourt(j) : id; };
+  const choisirNumero = (id: string, texte: string) => {
+    const n = lireSaisie(texte);
+    setPlan((s) => {
+      const numeros = { ...s.numeros };
+      if (n === undefined) delete numeros[id]; else numeros[id] = n;
+      return { ...s, numeros };
+    });
+  };
 
   const maj = (p: Partial<Plan>) => setPlan((s) => ({ ...s, ...p }));
   const choisir = (joueurId: string) => {
@@ -104,19 +130,27 @@ export default function AvantMatchPage({ matchId }: { matchId: string }) {
     setPoste(null);
   };
 
-  const enregistrer = async () => {
-    if (!equipeId) return;
+  /** Enregistre le onze du match ; renvoie vrai si c'est fait (pour enchainer vers le direct). */
+  const enregistrer = async (): Promise<boolean> => {
+    if (!equipeId || !peutValider) return false;
     setOccupe(true); setViolations(null); setErreur(null);
     try {
-      const saved = await api.enregistrerTactique({ equipeId, matchId, formation: plan.formation, titulaires: plan.titulaires, remplacants: plan.remplacants });
-      const p: Plan = { formation: saved.formation, titulaires: onzeComplet(saved.titulaires), remplacants: saved.remplacants ?? [] };
+      const saved = await api.enregistrerTactique({
+        equipeId, matchId, formation: plan.formation, titulaires: plan.titulaires, remplacants: plan.remplacants,
+        numeros: numerosAEnvoyer(retenus, plan.numeros, habituels),
+      });
+      const p: Plan = { formation: saved.formation, titulaires: onzeComplet(saved.titulaires), remplacants: saved.remplacants ?? [], numeros: saved.numeros ?? {} };
       setPlan(p); setEnregistre(JSON.stringify(p)); setPlanDuMatch(true);
+      return true;
     } catch (e) {
       const corps = e instanceof ApiError ? e.corps : null;
       if (corps?.code === "REGLE_MUTATIONS") setViolations(corps.violations ?? [corps.message]);
       else setErreur(messageApi(e, "Enregistrement impossible. Réessaie dans un instant."));
+      return false;
     } finally { setOccupe(false); }
   };
+  /** Valide le onze puis lance le direct : le parcours de la rencontre. */
+  const validerEtLancer = async () => { if (!modifie && planDuMatch) router.push(`/matchs/${matchId}/direct`); else if (await enregistrer()) router.push(`/matchs/${matchId}/direct`); };
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-3 fade-up">
@@ -134,6 +168,10 @@ export default function AvantMatchPage({ matchId }: { matchId: string }) {
         <Link href={`/matchs/${matchId}/direct`} className="grid h-10 flex-1 place-items-center rounded-xl text-[13px] font-semibold text-muted hover:text-ink">Direct</Link>
         <Link href={`/matchs/${matchId}/apres`} className="grid h-10 flex-1 place-items-center rounded-xl text-[13px] font-semibold text-muted hover:text-ink">Après</Link>
       </nav>
+
+      {force && !planDuMatch && (
+        <p role="status" className="panel-inset border-l-2 border-accent p-3 text-sm text-ink">Avant de lancer le direct, compose ton onze et choisis les numéros : seuls ces joueurs pourront être saisis pendant le match.</p>
+      )}
 
       {!equipeId ? (
         <p className="panel-inset p-4 text-sm text-muted">Ce match n&apos;est pas rattaché à une de tes équipes : choisis l&apos;équipe sur la fiche du match pour composer ton onze.</p>
@@ -153,7 +191,7 @@ export default function AvantMatchPage({ matchId }: { matchId: string }) {
                 <button key={p.index} type="button" onClick={() => setPoste(p.index)} style={{ left: `${p.x}%`, top: `${p.y}%` }}
                   aria-label={`${p.libelle} : ${j ? nomCourt(j) : "vide"}`}
                   className="absolute flex w-16 -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5">
-                  <span className={`grid h-11 w-11 place-items-center rounded-full border-2 font-display text-sm font-bold ${j ? "border-accent bg-bg text-ink" : "border-dashed border-line-strong bg-bg/60 text-muted"}`}>{j ? (j.numero ?? "–") : "+"}</span>
+                  <span className={`grid h-11 w-11 place-items-center rounded-full border-2 font-display text-sm font-bold ${j ? "border-accent bg-bg text-ink" : "border-dashed border-line-strong bg-bg/60 text-muted"}`}>{j ? (num(j.id) ?? "–") : "+"}</span>
                   <span className="max-w-full truncate rounded bg-bg/70 px-1 text-[10px] font-semibold text-ink">{j ? j.nom : p.libelle}</span>
                 </button>
               );
@@ -175,13 +213,47 @@ export default function AvantMatchPage({ matchId }: { matchId: string }) {
                   <li key={j.id}>
                     <button type="button" aria-pressed={banc} onClick={() => maj({ remplacants: basculerBanc(plan.titulaires, plan.remplacants, j.id) })}
                       className={`inline-flex h-[34px] items-center rounded-full border px-3 text-[13px] ${blesse ? "border-danger text-danger" : banc ? "border-accent bg-accent/15 text-accent" : "border-line bg-surface text-ink"}`}>
-                      {[j.numero, j.nom].filter((x) => x !== null && x !== "").join(" ")}{blesse ? " · blessé" : banc ? " · banc" : ""}
+                      {[num(j.id), j.nom].filter((x) => x !== null && x !== "").join(" ")}{blesse ? " · blessé" : banc ? " · banc" : ""}
                     </button>
                   </li>
                 );
               })}
               {groupe.length === 0 && <li className="text-sm text-muted">Tout le groupe est sur le terrain.</li>}
             </ul>
+          )}
+
+          {retenus.length > 0 && (
+            <section aria-label="Numéros portés ce jour-là" className="panel space-y-2 p-3">
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 className="text-sm font-semibold text-ink">Numéros portés ce jour-là</h2>
+                <span className="text-xs text-muted">{retenus.length} joueur{retenus.length > 1 ? "s" : ""} retenu{retenus.length > 1 ? "s" : ""}</span>
+              </div>
+              <ul className="grid gap-1.5 sm:grid-cols-2">
+                {retenus.map((id) => {
+                  const choisi = plan.numeros[id];
+                  const pasPrecise = choisi === undefined || choisi === null;
+                  const doublon = [...pb.doublons.values()].some((l) => l.includes(id));
+                  const probleme = doublon || pb.manquants.includes(id) || pb.invalides.includes(id);
+                  return (
+                    <li key={id} className={`flex items-center gap-2 rounded-xl border px-2.5 py-1.5 ${probleme ? "border-danger" : "border-line"} bg-surface`}>
+                      <span className="min-w-0 flex-1 truncate text-sm text-ink">{nomDe(id)}</span>
+                      <input type="text" inputMode="numeric" maxLength={2} aria-label={`Numéro de ${nomDe(id)}`} aria-invalid={probleme}
+                        value={pasPrecise ? "" : String(choisi)} placeholder={habituels[id] != null ? String(habituels[id]) : "–"}
+                        onChange={(e) => choisirNumero(id, e.target.value)}
+                        className={`h-11 w-16 rounded-xl border bg-bg text-center font-display text-lg font-bold tabular-nums text-ink placeholder:text-muted ${probleme ? "border-danger" : "border-line"}`} />
+                    </li>
+                  );
+                })}
+              </ul>
+              {(pb.doublons.size > 0 || pb.manquants.length > 0 || pb.invalides.length > 0) && (
+                <div role="alert" className="space-y-0.5 text-xs text-danger">
+                  {[...pb.doublons].map(([n, ids]) => <p key={n}>Le numéro {n} est donné à {ids.map(nomDe).join(" et ")} : change l&apos;un des deux.</p>)}
+                  {pb.manquants.length > 0 && <p>Pas de numéro pour {pb.manquants.map(nomDe).join(", ")} : tape celui qu&apos;il portera.</p>}
+                  {pb.invalides.length > 0 && <p>Un numéro va de 1 à 99 : vérifie {pb.invalides.map(nomDe).join(", ")}.</p>}
+                </div>
+              )}
+              <p className="text-[11px] text-faint">Le numéro gris est son numéro habituel (feuilles de match) ; tape un chiffre pour le remplacer ce jour-là.</p>
+            </section>
           )}
 
           {violations && (
@@ -198,11 +270,18 @@ export default function AvantMatchPage({ matchId }: { matchId: string }) {
             La composition est la même que dans l&apos;onglet <Link href="/tactique" className="underline">Tactique</Link> : la règle des joueurs mutés est vérifiée à l&apos;enregistrement.
           </p>
 
+          {!peutValider && (
+            <p className="text-xs text-muted" role="status">
+              {nbOnze < MIN_TITULAIRES ? `Place au moins ${MIN_TITULAIRES} titulaires sur le terrain (${nbOnze} pour l'instant).` : "Corrige les numéros ci-dessus pour valider."}
+            </p>
+          )}
           <div className="flex gap-2 pt-1">
-            <button type="button" className={`btn !h-12 flex-1 ${modifie ? "btn-primary" : ""}`} disabled={occupe || !modifie} onClick={() => void enregistrer()}>
+            <button type="button" className="btn !h-12 flex-1" disabled={occupe || !modifie || !peutValider} onClick={() => void enregistrer()}>
               {!modifie && planDuMatch ? <><Check size={16} aria-hidden /> Enregistrée</> : "Enregistrer"}
             </button>
-            <Link href={`/matchs/${matchId}/direct`} className={`btn !h-12 flex-1 ${modifie ? "" : "btn-primary"}`}>Coup d&apos;envoi</Link>
+            <button type="button" className="btn btn-primary !h-12 flex-[2]" disabled={occupe || !peutValider} onClick={() => void validerEtLancer()}>
+              {!modifie && planDuMatch ? "Lancer le direct" : "Valider et lancer le direct"}
+            </button>
           </div>
         </>
       )}
@@ -216,7 +295,7 @@ export default function AvantMatchPage({ matchId }: { matchId: string }) {
                 <li key={j.id}>
                   <button type="button" onClick={() => choisir(j.id)} aria-pressed={plan.titulaires[poste] === j.id}
                     className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left ${plan.titulaires[poste] === j.id ? "border-accent bg-accent/10" : "border-line bg-surface"}`}>
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-surface-2 font-display text-sm font-bold text-ink">{j.numero ?? "–"}</span>
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-surface-2 font-display text-sm font-bold text-ink">{num(j.id) ?? "–"}</span>
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{nomCourt(j)}</span>
                     <span className="text-xs text-muted">{j.poste ?? ""}{blesses.has(j.id) ? " · blessé" : ""}</span>
                   </button>

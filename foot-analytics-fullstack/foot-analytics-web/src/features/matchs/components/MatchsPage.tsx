@@ -16,6 +16,7 @@ import { api } from "@/shared/lib/api";
 import { getOwnSaisonIdServer } from "@/features/equipes/lib/own-equipe";
 import { resolveEquipePropre } from "@/features/equipes/lib/resolve-equipe-propre";
 
+import { matchsDeLaListe } from "../lib/matchs-equipe";
 import { MatchsTable } from "./MatchsTable";
 
 export default async function MatchsPage() {
@@ -49,6 +50,9 @@ export default async function MatchsPage() {
     matchsFiltres = matchs.filter((m: any) => (m.saisonId ?? null) === OWN_SAISON_ID);
     equipesFiltres = equipes.filter((e: any) => (e.saisonId ?? null) === OWN_SAISON_ID);
   }
+
+  // La liste ne montre que les matchs joues et le prochain match a jouer de mon equipe (le reste du calendrier est dans Calendrier).
+  matchsFiltres = matchsDeLaListe(matchsFiltres, equipePropre?.id ?? null);
 
   const headerLibelle = equipePropre
     ? `${equipePropre.competitionLibelle ?? equipePropre.nom}${equipePropre.poule ? ` · Poule ${equipePropre.poule}` : ""}`

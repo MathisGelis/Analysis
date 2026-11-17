@@ -6,7 +6,8 @@
 // s'adapte : une colonne sur telephone (la frise s'ouvre a part), deux colonnes (saisie | frise) sur grand ecran.
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ListOrdered, Redo2, Undo2 } from "lucide-react";
 
 import { Modal } from "@/shared/ui/Modal";
@@ -34,6 +35,13 @@ export default function DirectPage({ matchId, source: sourceFournie }: { matchId
   const [coteSaisie, setCoteSaisie] = useState<Cote | null>(null);
   const [ouverte, setOuverte] = useState<Ouverte | null>(null);
   const [frise, setFrise] = useState(false);
+
+  // Le parcours : le direct ne s'ouvre pas tant que l'avant-match de ce match n'est pas fait (onze et numeros enregistres), sauf s'il
+  // est deja commence. Un saisisseur invite n'est jamais renvoye : c'est le staff qui a prepare le match.
+  const router = useRouter();
+  const aForcer = !invite && !!d.etat?.avantMatch?.possible && !d.etat.avantMatch.pret && d.etat.chrono.statut === "avant" && d.evenements.length === 0;
+  useEffect(() => { if (aForcer) router.replace(`/matchs/${matchId}/avant?depuis=direct`); }, [aForcer, router, matchId]);
+  if (aForcer) return <div className="flex justify-center p-12" role="status" aria-label="Préparation du match"><Spinner taille={22} /></div>;
 
   if (d.introuvable) {
     return (
@@ -142,6 +150,12 @@ export default function DirectPage({ matchId, source: sourceFournie }: { matchId
           </>
         )}
       </div>
+
+      {!invite && etat.avantMatch?.possible && !etat.avantMatch.pret && (
+        <p role="status" className="panel-inset border-l-2 border-amber p-3 text-sm text-ink">
+          L&apos;avant-match de ce match n&apos;est pas fait : tout l&apos;effectif est proposé. <Link href={`/matchs/${matchId}/avant`} className="underline">Compose ton onze et les numéros</Link> pour ne voir que les joueurs retenus.
+        </p>
+      )}
 
       {d.erreur && (
         <div role="alert" className="panel-inset flex items-start justify-between gap-3 border-l-2 border-danger p-3 text-sm text-ink">

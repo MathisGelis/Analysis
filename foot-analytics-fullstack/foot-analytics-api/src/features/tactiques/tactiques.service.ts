@@ -99,8 +99,10 @@ export class TactiquesService {
     }
 
     const existant = await this.lire(dto.equipeId, dto.matchId);
+    const numeros = this.numerosValides(dto.numeros === undefined ? existant?.numeros : dto.numeros, choisis);
     const plan = existant ?? this.repo.create({ equipeId: dto.equipeId, matchId: dto.matchId || null });
     Object.assign(plan, {
+      numeros,
       formation: dto.formation.trim(),
       titulaires,
       remplacants: dto.remplacants,
@@ -108,6 +110,24 @@ export class TactiquesService {
       notes: dto.notes?.trim() || null,
     });
     return this.repo.save(plan);
+  }
+
+  /**
+   * Les numeros portes ce jour-la : seulement pour des joueurs retenus (titulaires ou remplacants), entre 1 et 99, jamais deux fois le
+   * meme. Un numero deja choisi pour un joueur qui n'est plus retenu est simplement oublie. Vide : aucun numero choisi (null).
+   */
+  private numerosValides(brut: Record<string, number> | null | undefined, retenus: string[]): Record<string, number> | null {
+    if (!brut || typeof brut !== "object") return null;
+    const sortie: Record<string, number> = {};
+    const pris = new Map<number, string>();
+    for (const [id, n] of Object.entries(brut)) {
+      if (!retenus.includes(id)) continue;
+      if (typeof n !== "number" || !Number.isInteger(n) || n < 1 || n > 99) throw new BadRequestException("Un numero de maillot est un entier de 1 a 99.");
+      if (pris.has(n)) throw new BadRequestException(`Le numero ${n} est donne a deux joueurs : chaque joueur porte un numero different.`);
+      pris.set(n, id);
+      sortie[id] = n;
+    }
+    return Object.keys(sortie).length ? sortie : null;
   }
 
   /**
