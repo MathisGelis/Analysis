@@ -12,7 +12,6 @@ import { ArrowLeft, Check, Minus, Plus } from "lucide-react";
 import { api, ApiError, messageApi } from "@/shared/lib/api";
 import { Spinner } from "@/shared/ui/Spinner";
 import { ResumeMatchVue } from "@/features/analyse-jeu/components/ResumeMatchVue";
-import { usePaletteDirect } from "@/features/direct/lib/palette";
 
 import type { BilanMatch, EtatApresMatch, JoueurApres } from "../lib/apres-types";
 import { libelleFaits, noteTexte, noterPlus, tonNote } from "../lib/affichage";
@@ -23,7 +22,6 @@ const ONGLETS: [Onglet, string][] = [["notes", "Notes joueurs"], ["arbitre", "Ar
 const TON: Record<string, string> = { haut: "text-accent", moyen: "text-ink", bas: "text-amber", vide: "text-faint" };
 
 export default function ApresMatchPage({ matchId }: { matchId: string }) {
-  usePaletteDirect();
   const [etat, setEtat] = useState<EtatApresMatch | null>(null);
   const [introuvable, setIntrouvable] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
