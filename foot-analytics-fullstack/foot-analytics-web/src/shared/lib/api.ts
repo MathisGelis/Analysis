@@ -493,8 +493,9 @@ export const api = {
   pagesPrematch: () => req<PageExport[]>("/analyse/prematch/pages", { fallback: [] }),
 
   /** Rapport pre-match en PowerPoint (`.pptx`), limite aux pages `pages` : le fichier et le nom que propose le serveur. */
-  exporterPrematch: async (equipeId: string, adversaireId: string, matchId: string | null, pages: string[]) => {
-    const qs = new URLSearchParams({ equipeId, adversaireId, pages: pages.join(",") });
+  exporterPrematch: async (equipeId: string, adversaireId: string, matchId: string | null, pages: string[], format: "pptx" | "pdf" = "pptx", apercu = false) => {
+    const qs = new URLSearchParams({ equipeId, adversaireId, pages: pages.join(","), format });
+    if (apercu) qs.set("apercu", "1");
     if (matchId) qs.set("matchId", matchId);
     const chemin = `/analyse/prematch/export?${qs}`;
     const res = await fetchApi(chemin);

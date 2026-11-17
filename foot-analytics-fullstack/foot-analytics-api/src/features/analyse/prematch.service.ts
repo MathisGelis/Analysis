@@ -23,6 +23,7 @@ import { PredictionSysteme } from "@/features/matchs/systeme";
 import { estMatchJoue } from "@/features/matchs/match-joue";
 import { avecAvisDuModele } from "@/features/ia/ia-live";
 
+import { pdfDepuisPptx } from "./pdf-depuis-pptx";
 import { Insight, MatchTendance } from "./tendances";
 import {
   BilanLieu, bilanParLieu, faceAFace, MatchRecent, Piste, pistesPrematch, profilEquipe, ProfilEquipe, Rencontre,
@@ -268,13 +269,14 @@ export class PrematchService {
 
   /** Le rapport pre-match au format de la presentation du staff (PowerPoint), limite aux `pages` demandees. */
   async exporterPptx(
-    equipeId: string, adversaireClubId: string, matchId: string | null, pages: readonly PageRapport[],
+    equipeId: string, adversaireClubId: string, matchId: string | null, pages: readonly PageRapport[], format: "pptx" | "pdf" = "pptx",
   ): Promise<{ fichier: Uint8Array; nom: string }> {
     const rapport = await this.rapport(equipeId, adversaireClubId, matchId);
-    const fichier = genererRapportPptx(lireModele(), contenuRapport(rapport), pages);
+    const pptx = genererRapportPptx(lireModele(), contenuRapport(rapport), pages);
+    const fichier = format === "pdf" ? await pdfDepuisPptx(pptx) : pptx;
     const adversaire = rapport.adversaire.clubNom.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const date = (rapport.match?.date ?? "").replace(/[^0-9A-Za-z]+/g, "-").replace(/^-|-$/g, "");
-    return { fichier, nom: `avant-match-${adversaire || "adversaire"}${date ? `-${date}` : ""}.pptx` };
+    return { fichier, nom: `avant-match-${adversaire || "adversaire"}${date ? `-${date}` : ""}.${format}` };
   }
 
   /** Match designe, ou a defaut le prochain match programme entre les deux clubs pour mon equipe. */
