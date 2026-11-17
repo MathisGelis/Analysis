@@ -233,28 +233,24 @@ function onze(ids: Ids, c: ContenuRapport["onze"]): { libelle: string; titre: st
         : "Les numéros de maillot de cette équipe ne suivent pas la convention des postes (numéros de saison) : pas de lecture par poste."),
     };
   }
-  const colonnes = [480000, 2050000, 2300000, 1350000, 2049600];
+  const colonnes = [700000, 2700000, 3200000, 1629600];
   const entete: LigneTableau = {
     hauteur: 280000,
-    cellules: ["N°", "Poste", "Joueur probable", "Titularisations", "Autres joueurs à ce numéro"].map((t, i) =>
+    cellules: ["N°", "Poste", "Joueur probable", "Titularisations"].map((t, i) =>
       cell(t, { gras: true, couleur: COULEUR.vertFonce, fond: COULEUR.carte, align: i === 0 ? "ctr" : "l" })),
   };
   const lignes: LigneTableau[] = c.lignes.map((l) => ({
     hauteur: 268000,
     cellules: [
       cell(String(l.numero), { gras: true, align: "ctr", couleur: COULEUR.vert }),
-      { paragraphes: [{ segments: [{ t: l.code, gras: true }, { t: `  ${l.libelle}`, couleur: COULEUR.gris, taille: 9 }] }] },
+      cell(l.code, { gras: true }),
       l.joueur
-        ? { paragraphes: [{ segments: [{ t: l.joueur, gras: l.origine === "numero", italique: l.origine === "ligne", couleur: l.origine === "ligne" ? COULEUR.gris : COULEUR.encre }, ...(l.origine === "ligne" ? [{ t: "  (à défaut)", taille: 8, couleur: COULEUR.gris }] : [])] }] }
+        ? { paragraphes: [{ segments: [{ t: l.joueur, gras: l.origine === "numero", italique: l.origine === "ligne", couleur: l.origine === "ligne" ? COULEUR.gris : COULEUR.encre }] }] }
         : cell("—", { couleur: COULEUR.gris }),
       cell(l.titularisations || "—", { couleur: l.titularisations ? COULEUR.encre : COULEUR.gris }),
-      cell(l.autres || "—", { couleur: l.autres ? COULEUR.encre : COULEUR.gris, taille: 9 }),
     ],
   }));
-  let corps = tableau(ids(), "Onze probable par poste", { x: PAGE.gauche, y: PAGE.haut }, colonnes, [entete, ...lignes], { filets: "horizontal" });
-  corps += texte(ids(), "Note onze", { x: PAGE.gauche, y: PAGE.haut + 280000 + 11 * 268000 + 60000, cx: PAGE.largeur, cy: 300000 }, [
-    para(`Un joueur par numéro de maillot, d'après les ${c.feuilles} dernières feuilles (les plus récentes pèsent plus). « À défaut » : un titulaire de la même ligne, pas encore placé à son numéro.`, { taille: 8, couleur: COULEUR.gris, italique: true }),
-  ], { ancre: "t" });
+  const corps = tableau(ids(), "Onze probable par poste", { x: PAGE.gauche, y: PAGE.haut }, colonnes, [entete, ...lignes], { filets: "horizontal" });
   return { libelle: "COMPOSITION", titre: "Onze probable par poste", corps };
 }
 
@@ -272,17 +268,13 @@ function polyvalence(ids: Ids, c: ContenuRapport["polyvalence"]): { libelle: str
     cellules: ["Joueur", "Titularisations", "Numéros portés (fois)", "Postes"].map((t, i) =>
       cell(t, { gras: true, couleur: COULEUR.vertFonce, fond: COULEUR.carte, align: i === 1 ? "ctr" : "l" })),
   };
-  // Dix joueurs au plus : les lignes se resserrent pour laisser la place de la note sous le tableau.
-  const hl = Math.min(300000, Math.floor((PAGE.bas - PAGE.haut - 280000 - 640000) / c.joueurs.length));
+  // Dix joueurs au plus : les lignes se resserrent pour tenir sur la page.
+  const hl = Math.min(340000, Math.floor((PAGE.bas - PAGE.haut - 280000) / c.joueurs.length));
   const lignes: LigneTableau[] = c.joueurs.map((j) => ({
     hauteur: hl,
     cellules: [cell(j.nom, { gras: true }), cell(String(j.titularisations), { align: "ctr" }), cell(j.numeros), cell(j.postes, { couleur: COULEUR.vert, gras: true, taille: 9 })],
   }));
-  let corps = tableau(ids(), "Joueurs qui changent de numero", { x: PAGE.gauche, y: PAGE.haut }, colonnes, [entete, ...lignes], { filets: "horizontal" });
-  corps += texte(ids(), "Note polyvalence", { x: PAGE.gauche, y: PAGE.haut + 280000 + c.joueurs.length * hl + 100000, cx: PAGE.largeur, cy: 520000 }, [
-    para("Un joueur qui change de numéro change de poste : c'est ce qui permet de lire le système (un 2 qui devient 4 dit une défense à 4, un 9 qui devient 10 deux attaquants…).", { taille: 9, couleur: COULEUR.encre }),
-    para(`${c.autres > 0 ? `${c.autres} autre${c.autres > 1 ? "s" : ""} joueur${c.autres > 1 ? "s ont" : " a"} gardé le même numéro. ` : ""}Les changements isolés (remplacement d'urgence) pèsent moitié moins que ceux qui se répètent.`, { taille: 8, couleur: COULEUR.gris, italique: true, avant: 3 }),
-  ], { ancre: "t" });
+  const corps = tableau(ids(), "Joueurs qui changent de numero", { x: PAGE.gauche, y: PAGE.haut }, colonnes, [entete, ...lignes], { filets: "horizontal" });
   return { libelle: "POSTES", titre, corps };
 }
 
@@ -295,38 +287,31 @@ function joueurs(ids: Ids, c: ContenuRapport["joueurs"]): { libelle: string; tit
   let corps = "";
   // Bandeau de chiffres, comme les cartes de "Leur saison".
   const w = 1965960, ecart = 121920;
-  const kpi: [string, string, string][] = [
-    [c.kpi.danger, "Danger / 100", "menace offensive"], [c.kpi.stabilite, "Stabilité du onze / 100", c.kpi.stabiliteNote],
-    [c.kpi.fatigue, "Fatigue / 100", c.kpi.fatigueNote], [c.kpi.changements, "Changements / match", "moyenne"],
+  const kpi: [string, string][] = [
+    [c.kpi.danger, "Danger / 100"], [c.kpi.stabilite, "Stabilité du onze / 100"],
+    [c.kpi.fatigue, "Fatigue / 100"], [c.kpi.changements, "Changements / match"],
   ];
-  kpi.forEach(([valeur, nom, note], i) => {
+  kpi.forEach(([valeur, nom], i) => {
     const x = PAGE.gauche + i * (w + ecart);
-    corps += carte(ids(), `Chiffre ${nom}`, { x, y: PAGE.haut, cx: w, cy: 820000 }, COULEUR.carte);
-    corps += texte(ids(), `Valeur ${nom}`, { x, y: PAGE.haut + 40000, cx: w, cy: 450000 }, [para(valeur, { taille: 26, gras: true, couleur: COULEUR.vertFonce, align: "ctr" })], { ancre: "ctr" });
-    corps += texte(ids(), `Libelle ${nom}`, { x, y: PAGE.haut + 490000, cx: w, cy: 150000 }, [para(nom, { taille: 9, couleur: COULEUR.gris, align: "ctr" })], { ancre: "ctr" });
-    corps += texte(ids(), `Note ${nom}`, { x, y: PAGE.haut + 640000, cx: w, cy: 150000 }, [para(note, { taille: 8, couleur: COULEUR.gris, italique: true, align: "ctr" })], { ancre: "ctr" });
+    corps += carte(ids(), `Chiffre ${nom}`, { x, y: PAGE.haut, cx: w, cy: 700000 }, COULEUR.carte);
+    corps += texte(ids(), `Valeur ${nom}`, { x, y: PAGE.haut + 50000, cx: w, cy: 400000 }, [para(valeur, { taille: 26, gras: true, couleur: COULEUR.vertFonce, align: "ctr" })], { ancre: "ctr" });
+    corps += texte(ids(), `Libelle ${nom}`, { x, y: PAGE.haut + 460000, cx: w, cy: 170000 }, [para(nom, { taille: 9, couleur: COULEUR.gris, align: "ctr" })], { ancre: "ctr" });
   });
 
   // Joueurs cles (impact sur les points) et sanctions.
-  const yS = PAGE.haut + 820000 + 140000;
-  const wl = 4572000;
+  const yS = PAGE.haut + 700000 + 260000;
+  const wl = 4400000;
   corps += titreSection(ids(), "Joueurs clés (points par match avec eux, en plus)", PAGE.gauche, yS, wl);
   if (c.cles.length === 0) {
     corps += texte(ids(), "Aucun joueur cle", { x: PAGE.gauche, y: yS + 260000, cx: wl, cy: 400000 }, [para("Pas assez de matchs pour isoler des joueurs clés.", { taille: 10, couleur: COULEUR.gris })], { ancre: "t" });
   } else {
-    const entete: LigneTableau = { hauteur: 260000, cellules: ["Joueur", "Poste", "Titu. / présent", "Impact"].map((t, i) => cell(t, { gras: true, couleur: COULEUR.vertFonce, fond: COULEUR.carte, taille: 9, align: i > 0 ? "ctr" : "l" })) };
-    const lignes: LigneTableau[] = c.cles.slice(0, 5).map((j) => ({
-      hauteur: 280000,
-      cellules: [cell(abreger(j.nom, 24), { gras: true, taille: 9 }), cell(j.poste, { align: "ctr", taille: 9 }), cell(j.titularisations, { align: "ctr", taille: 9 }), cell(j.impact, { align: "ctr", gras: true, couleur: COULEUR.vert, taille: 9 })],
+    const entete: LigneTableau = { hauteur: 300000, cellules: ["Joueur", "Poste", "Titu. / présent", "Impact"].map((t, i) => cell(t, { gras: true, couleur: COULEUR.vertFonce, fond: COULEUR.carte, taille: 10, align: i > 0 ? "ctr" : "l" })) };
+    const lignes: LigneTableau[] = c.cles.slice(0, 4).map((j) => ({
+      hauteur: 330000,
+      cellules: [cell(abreger(j.nom, 24), { gras: true, taille: 10 }), cell(j.poste, { align: "ctr", taille: 10 }), cell(j.titularisations, { align: "ctr", taille: 10 }), cell(j.impact, { align: "ctr", gras: true, couleur: COULEUR.vert, taille: 10 })],
     }));
-    corps += tableau(ids(), "Joueurs cles", { x: PAGE.gauche, y: yS + 260000 }, [1800000, 650000, 1000000, 1122000], [entete, ...lignes], { filets: "horizontal", taille: 9 });
+    corps += tableau(ids(), "Joueurs cles", { x: PAGE.gauche, y: yS + 300000 }, [1750000, 600000, 1050000, 1000000], [entete, ...lignes], { filets: "horizontal", taille: 10 });
   }
-  const ySanc = yS + 260000 + (c.cles.length ? 260000 + Math.min(5, c.cles.length) * 280000 : 300000) + 100000;
-  corps += titreSection(ids(), "Les plus sanctionnés", PAGE.gauche, ySanc, wl);
-  corps += texte(ids(), "Sanctionnes", { x: PAGE.gauche, y: ySanc + 240000, cx: wl, cy: 330000 }, [
-    para(c.avertis.length ? c.avertis.slice(0, 5).map((j) => `${abreger(j.nom, 22)} (${j.jaunes} J${j.rouges ? `, ${j.rouges} R` : ""})`).join("  ·  ") : "Aucun carton enregistré.", { taille: 9 }),
-  ], { ancre: "t" });
-
   // Buteurs et discipline.
   const xr = PAGE.gauche + wl + 182880, wr = PAGE.droite - xr;
   corps += titreSection(ids(), "Meilleurs buteurs", xr, yS, wr);
@@ -334,18 +319,20 @@ function joueurs(ids: Ids, c: ContenuRapport["joueurs"]): { libelle: string; tit
   if (c.buteurs.length === 0) {
     corps += texte(ids(), "Aucun buteur", { x: xr, y: yS + 260000, cx: wr, cy: 300000 }, [para("Aucun but enregistré.", { taille: 10, couleur: COULEUR.gris })], { ancre: "t" });
   }
-  c.buteurs.slice(0, 5).forEach((b, i) => {
-    const y = yS + 270000 + i * 270000;
+  c.buteurs.slice(0, 4).forEach((b, i) => {
+    const y = yS + 340000 + i * 330000;
     corps += texte(ids(), `Buteur ${i + 1}`, { x: xr, y, cx: 1500000, cy: 220000 }, [para(abreger(b.nom, 20), { taille: 9, gras: i === 0 })], { ancre: "ctr" });
     corps += carte(ids(), `Barre buteur ${i + 1}`, { x: xr + 1550000, y: y + 55000, cx: Math.max(54864, ((wr - 1550000 - 420000) * b.buts) / maxButs), cy: 110000 }, i === 0 ? COULEUR.jaune : COULEUR.vert);
     corps += texte(ids(), `Buts ${i + 1}`, { x: xr + wr - 380000, y, cx: 380000, cy: 220000 }, [para(String(b.buts), { taille: 11, gras: true, couleur: COULEUR.vertFonce, align: "r" })], { ancre: "ctr" });
   });
-  const yDisc = yS + 270000 + Math.max(1, Math.min(5, c.buteurs.length)) * 270000 + 100000;
-  const hDisc = Math.min(900000, Math.max(500000, PAGE.bas - yDisc));
+  const yDisc = yS + 340000 + Math.max(1, Math.min(4, c.buteurs.length)) * 330000 + 120000;
+  const hDisc = Math.max(560000, PAGE.bas - yDisc);
   corps += carte(ids(), "Carte discipline", { x: xr, y: yDisc, cx: wr, cy: hDisc }, COULEUR.carte);
-  corps += texte(ids(), "Discipline", { x: xr + 137160, y: yDisc + 45720, cx: wr - 274320, cy: hDisc - 91440 }, [
+  corps += texte(ids(), "Discipline", { x: xr + 137160, y: yDisc + 60000, cx: wr - 274320, cy: hDisc - 120000 }, [
     para("DISCIPLINE", { taille: 8, gras: true, couleur: COULEUR.vert }),
-    para(c.discipline || "Pas de donnée.", { taille: 9, avant: 2 }),
+    para(c.discipline || "Pas de donnée.", { taille: 10, avant: 2 }),
+    para("LES PLUS SANCTIONNÉS", { taille: 8, gras: true, couleur: COULEUR.vert, avant: 8 }),
+    para(c.avertis.length ? c.avertis.slice(0, 3).map((j) => `${abreger(j.nom, 22)} (${j.jaunes} J${j.rouges ? `, ${j.rouges} R` : ""})`).join("  ·  ") : "Aucun carton enregistré.", { taille: 10, avant: 2 }),
   ], { ancre: "t" });
   return { libelle, titre, corps };
 }

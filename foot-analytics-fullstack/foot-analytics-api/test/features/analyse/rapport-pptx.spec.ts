@@ -311,7 +311,7 @@ describe("rapport d'avant-match PowerPoint", () => {
       expect(t(fichiers[4])).toEqual(expect.arrayContaining(["Forme &amp; dynamique", "LEURS 5 DERNIERS MATCHS", "J6  Tiers AS", "2 - 1 · Ext", "CE QUE DISENT LES MATCHS"]));
       expect(t(fichiers[6])).toEqual(expect.arrayContaining(["Pistes pour le match"]));
       expect(t(fichiers[8])).toEqual(expect.arrayContaining(["Pourquoi ce système ?", "4-4-2", "Confiance 80 %  ·  fiabilité moyenne", "défense à 4 · 2 attaquants"]));
-      expect(t(fichiers[9])).toEqual(expect.arrayContaining(["Onze probable par poste", "Marc ROUX", "6 au n°1", "Tom LEBLANC (3)"]));
+      expect(t(fichiers[9])).toEqual(expect.arrayContaining(["Onze probable par poste", "Marc ROUX", "6 au n°1"]));
       expect(t(fichiers[10])).toEqual(expect.arrayContaining(["Changements de numéro", "Punatitu MAREB", "10 (3) · 9 (3)", "MO / BU"]));
       expect(t(fichiers[11])).toEqual(expect.arrayContaining(["Joueurs clés &amp; discipline", "Punatitu MAREB", "9"]));
       expect(t(fichiers[12])).toEqual(expect.arrayContaining(["Face-à-face &amp; arbitre", "1-0-1", "Paul MARTIN", "12 matchs", "50 jaunes · 2 rouges"]));
@@ -387,7 +387,7 @@ describe("rapport d'avant-match PowerPoint", () => {
       const p = ouvrirPaquet(fichier);
       const tout = (ordre(p) as string[]).flatMap((f) => textes(lire(p, `ppt/slides/${f}`)));
       expect(tout.filter((t) => t === longue)).toHaveLength(16);       // 6 constats + 10 pistes, en entier
-      expect(tout).toEqual(expect.arrayContaining(["46 %", "2 – 1", "Léo DE LA FONTAINE 4", "Joueur Polyvalent 10", "Buteur 5", "Jeu dangereux"]));
+      expect(tout).toEqual(expect.arrayContaining(["46 %", "2 – 1", "Léo DE LA FONTAINE 3", "Joueur Polyvalent 10", "Buteur 4", "Jeu dangereux"]));
       expect(tout.join(" ")).not.toMatch(/undefined|NaN|\[object|\.\.\./);
     });
 
