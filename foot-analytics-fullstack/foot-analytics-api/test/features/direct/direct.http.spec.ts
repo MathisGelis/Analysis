@@ -211,6 +211,18 @@ describe("direct : routes", () => {
       expect(etat.joueurs.length).toBeGreaterThanOrEqual(js.length);
     });
 
+    it("un administrateur rattache a un club : son cote est celui de son club, et l'equipe du plan fait foi", async () => {
+      const { mt, js } = await equipeAvecJoueurs();
+      const admin = await t.compte({ login: `AD${Math.random().toString(36).slice(2, 7)}`, role: "admin", clubId: m.mions.id } as any);
+      const a = t.appel(admin);
+      expect((await a("GET", base(mt.id))).corps.nousCote).toBe("ext");                 // pas « dom » par defaut : on est Mions
+      const onze = js.slice(0, 11).map((j) => j.id);
+      expect((await a("PUT", "/tactiques", { equipeId: m.sen26.id, matchId: mt.id, formation: "4-4-2", titulaires: onze, remplacants: [] })).statut).toBe(200);
+      const etat = (await t.appel(await ref())("GET", base(mt.id))).corps;
+      expect(etat.equipeNousId).toBe(m.sen26.id);
+      expect(etat.joueurs.map((j: any) => j.id)).toEqual(onze);
+    });
+
     it("moins de 7 titulaires : l'avant-match n'est pas considere comme fait", async () => {
       const { mt, js } = await equipeAvecJoueurs();
       const a = t.appel(await ref());

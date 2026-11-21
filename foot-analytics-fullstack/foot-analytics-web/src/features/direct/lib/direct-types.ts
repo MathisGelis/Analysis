@@ -62,7 +62,7 @@ export interface CompteursCote {
 
 export interface EtatDirect {
   match: {
-    id: string; clubDom: string; clubExt: string; nomDom: string; nomExt: string; equipeDomId: string | null; equipeExtId: string | null;
+    id: string; clubDom: string; clubExt: string; nomDom: string; nomExt: string; equipeDomId: string | null; equipeExtId: string | null; saisonId?: string | null;
     date: string | null; heure: string | null; journee: string | null; competition: string | null; numeroFmi: string | null; statut: string;
   };
   nousCote: Cote;
