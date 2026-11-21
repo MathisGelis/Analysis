@@ -12,6 +12,7 @@ import { ContexteAcces } from "@/features/acces/contexte-acces";
 import { AccesService } from "@/features/acces/acces.service";
 import { JournalAuditService } from "@/features/audit/journal-audit.service";
 import { Club } from "@/features/clubs/club.entity";
+import { Equipe } from "@/features/equipes/equipe.entity";
 import { Joueur } from "@/features/joueurs/joueur.entity";
 import { JoueursService } from "@/features/joueurs/joueurs.service";
 import { Match } from "@/features/matchs/match.entity";
@@ -47,6 +48,7 @@ export class DirectService {
     @InjectRepository(Club) private clubs: Repository<Club>,
     @InjectRepository(Tactique) private plans: Repository<Tactique>,
     @InjectRepository(Joueur) private joueurs: Repository<Joueur>,
+    @InjectRepository(Equipe) private equipes: Repository<Equipe>,
     private effectifs: JoueursService,
     private acces: AccesService,
     private journal: JournalAuditService,
@@ -62,7 +64,7 @@ export class DirectService {
     const d = await this.direct(matchId);
     const evs = await this.evenements.find({ where: { matchId, supprimeLe: IsNull() }, order: { creeLe: "ASC" } });
     const nousCote = monCote(ctx, m);
-    const equipeId = nousCote === "dom" ? m.equipeDomId : m.equipeExtId;
+    const equipeId = await this.equipeDeNous(ctx, m, nousCote);
     const [dom, ext] = await Promise.all([this.clubs.findOne({ where: { id: m.clubDom } }), this.clubs.findOne({ where: { id: m.clubExt } })]);
     const etat = etatDe(d);
     return {
@@ -72,6 +74,8 @@ export class DirectService {
         journee: m.journee ?? null, competition: m.competition ?? null, numeroFmi: m.numeroFmi ?? null, statut: m.statut,
       },
       nousCote,
+      /** L'equipe dont on saisit le match (celle du match, sinon, a defaut, celle de mon club qui a un effectif). */
+      equipeNousId: equipeId,
       chrono: { ...etat, minute: minuteDe(etat, maintenant), clotureLe: d.clotureLe, serveurMs: maintenant },
       evenements: evs.map((e) => ({ ...e, minuteAffichee: libelleMinute(e.minute, e.periode, d.dureePeriodeMin) })),
       score: scoreDirect(evs),
@@ -80,6 +84,23 @@ export class DirectService {
       /** L'avant-match de CE match est-il fait ? (le front renvoie vers l'avant-match tant que non). */
       avantMatch: { ...DirectService.avantMatchPret(await this.planDuMatch(equipeId, matchId)), possible: !!equipeId },
     };
+  }
+
+  /**
+   * L'equipe dont on saisit le match. Celle du match quand elle a des joueurs ; sinon (match cree sans equipe, ou rattache a une equipe
+   * d'une autre saison, sans effectif) une equipe de mon club, de meme categorie, qui en a un : l'avant-match ne dit plus "effectif vide"
+   * quand la page Effectif montre des joueurs.
+   */
+  private async equipeDeNous(ctx: ContexteAcces, m: Match, cote: "dom" | "ext"): Promise<string | null> {
+    const directe = (cote === "dom" ? m.equipeDomId : m.equipeExtId) ?? null;
+    if (directe && (await this.effectifs.effectif(directe).catch(() => [])).some((j) => !!j.id)) return directe;
+    const clubId = cote === "dom" ? m.clubDom : m.clubExt;
+    const reference = directe ? await this.equipes.findOne({ where: { id: directe } }) : null;
+    const candidates = (await this.equipes.find({ where: { clubId } }))
+      .filter((e) => e.id !== directe && ctx.gereEquipe(e) && (!reference?.categorie || e.categorie === reference.categorie))
+      .sort((a, b) => Number(b.saisonId === m.saisonId) - Number(a.saisonId === m.saisonId));
+    for (const e of candidates) if ((await this.effectifs.effectif(e.id).catch(() => [])).some((j) => !!j.id)) return e.id;
+    return directe;
   }
 
   /** Le plan de jeu enregistre POUR CE MATCH (jamais le plan courant de l'equipe) : l'avant-match fait. */

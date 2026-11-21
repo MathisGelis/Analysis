@@ -5,6 +5,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { AccesModule } from "@/features/acces/acces.module";
 import { Club } from "@/features/clubs/club.entity";
+import { Equipe } from "@/features/equipes/equipe.entity";
 import { Joueur } from "@/features/joueurs/joueur.entity";
 import { JoueursModule } from "@/features/joueurs/joueurs.module";
 import { Tactique } from "@/features/tactiques/tactique.entity";
@@ -21,7 +22,7 @@ import { InvitationsService } from "./invitations.service";
 import { SaisieController } from "./saisie.controller";
 
 @Module({
-  imports: [AccesModule, JoueursModule, TypeOrmModule.forFeature([Direct, EvenementDirect, Club, Tactique, Joueur, InvitationDirect, Utilisateur])],
+  imports: [AccesModule, JoueursModule, TypeOrmModule.forFeature([Direct, EvenementDirect, Club, Tactique, Joueur, Equipe, InvitationDirect, Utilisateur])],
   controllers: [DirectController, SaisieController],
   providers: [DirectService, InvitationsService, InvitationGuard],
   exports: [DirectService],
