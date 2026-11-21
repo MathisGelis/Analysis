@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check } from "lucide-react";
 
 import { api, ApiError, messageApi } from "@/shared/lib/api";
+import { useOwnEquipe } from "@/features/equipes/lib/own-equipe-context";
 import { Modal } from "@/shared/ui/Modal";
 import { Spinner } from "@/shared/ui/Spinner";
 import type { EtatDirect, JoueurDirect } from "@/features/direct/lib/direct-types";
@@ -49,10 +50,18 @@ export default function AvantMatchPage({ matchId, force = false }: { matchId: st
   /** Tout l'effectif de l'equipe : on choisit parmi eux (le direct, lui, ne proposera que les retenus). */
   const [effectif, setEffectif] = useState<JoueurDirect[]>([]);
 
+  const { equipeId: equipeChoisie } = useOwnEquipe();
+  const [equipeEnCours, setEquipeEnCours] = useState<string | null>(null);
   const charger = useCallback(async () => {
     try {
       const e = await api.direct(matchId);
-      const equipeId = e.equipeNousId;
+      // Notre equipe : celle choisie dans la barre laterale (la page Effectif) quand elle est de l'un des deux clubs du match et de sa saison.
+      let equipeId = e.equipeNousId;
+      if (equipeChoisie && equipeChoisie !== equipeId) {
+        const choisie = ((await api.equipes()) as any[]).find((x) => x.id === equipeChoisie);
+        if (choisie && (choisie.clubId === e.match.clubDom || choisie.clubId === e.match.clubExt) && (!e.match.saisonId || choisie.saisonId === e.match.saisonId)) equipeId = equipeChoisie;
+      }
+      setEquipeEnCours(equipeId);
       const [duMatch, courant, bless, arbitres, tous] = await Promise.all([
         equipeId ? api.tactique(equipeId, matchId) : null, equipeId ? api.tactique(equipeId) : null, api.blessures(), api.arbitresForMatch(matchId),
         equipeId ? api.effectifEquipe(equipeId) : [],
@@ -73,7 +82,7 @@ export default function AvantMatchPage({ matchId, force = false }: { matchId: st
       if (e instanceof ApiError && (e.statut === 403 || e.statut === 404)) setIntrouvable(true);
       else setErreur(messageApi(e, "Impossible de charger l'avant-match."));
     }
-  }, [matchId]);
+  }, [matchId, equipeChoisie]);
   useEffect(() => { void charger(); }, [charger]);
 
   const joueurs = effectif;
@@ -103,7 +112,7 @@ export default function AvantMatchPage({ matchId, force = false }: { matchId: st
     );
   }
 
-  const equipeId = etat.equipeNousId;
+  const equipeId = equipeEnCours;
   const groupe = joueurs.filter((j) => !plan.titulaires.includes(j.id));
   const retenus = [...plan.titulaires.filter(Boolean), ...plan.remplacants];
   const pb = verifierNumeros(retenus, plan.numeros, habituels);

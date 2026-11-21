@@ -35,7 +35,11 @@ export const etatDe = (d: Direct): EtatChrono => ({
 });
 
 /** De quel cote est MON equipe ? Mon club seul des deux, sinon le cote qui a une equipe ; l'administrateur voit les deux : domicile. */
-export function monCote(ctx: Pick<ContexteAcces, "gereClub">, m: Pick<Match, "clubDom" | "clubExt">): "dom" | "ext" {
+export function monCote(ctx: Pick<ContexteAcces, "gereClub"> & { compte?: { clubId: string | null } }, m: Pick<Match, "clubDom" | "clubExt">): "dom" | "ext" {
+  // Le club du compte d'abord : un administrateur gere les deux clubs, il ne doit pas tomber sur l'adversaire.
+  const mien = ctx.compte?.clubId;
+  if (mien && mien !== m.clubDom && mien === m.clubExt) return "ext";
+  if (mien && mien === m.clubDom && mien !== m.clubExt) return "dom";
   const dom = ctx.gereClub(m.clubDom), ext = ctx.gereClub(m.clubExt);
   return ext && !dom ? "ext" : "dom";
 }
@@ -63,8 +67,10 @@ export class DirectService {
     const m = await this.acces.matchGere(ctx, matchId);
     const d = await this.direct(matchId);
     const evs = await this.evenements.find({ where: { matchId, supprimeLe: IsNull() }, order: { creeLe: "ASC" } });
-    const nousCote = monCote(ctx, m);
-    const equipeId = await this.equipeDeNous(ctx, m, nousCote);
+    // L'avant-match enregistre pour ce match fait foi : c'est l'equipe (et le cote) qu'il a choisis.
+    const choisie = await this.equipeDuPlan(ctx, m);
+    const nousCote = choisie?.cote ?? monCote(ctx, m);
+    const equipeId = choisie?.equipeId ?? (await this.equipeDeNous(ctx, m, nousCote));
     const [dom, ext] = await Promise.all([this.clubs.findOne({ where: { id: m.clubDom } }), this.clubs.findOne({ where: { id: m.clubExt } })]);
     const etat = etatDe(d);
     return {
@@ -72,6 +78,7 @@ export class DirectService {
         id: m.id, clubDom: m.clubDom, clubExt: m.clubExt, nomDom: dom?.nom ?? "Domicile", nomExt: ext?.nom ?? "Exterieur",
         equipeDomId: m.equipeDomId ?? null, equipeExtId: m.equipeExtId ?? null, date: m.date ?? null, heure: m.heure ?? null,
         journee: m.journee ?? null, competition: m.competition ?? null, numeroFmi: m.numeroFmi ?? null, statut: m.statut,
+        saisonId: m.saisonId ?? null,
       },
       nousCote,
       /** L'equipe dont on saisit le match (celle du match, sinon, a defaut, celle de mon club qui a un effectif). */
@@ -84,6 +91,15 @@ export class DirectService {
       /** L'avant-match de CE match est-il fait ? (le front renvoie vers l'avant-match tant que non). */
       avantMatch: { ...DirectService.avantMatchPret(await this.planDuMatch(equipeId, matchId)), possible: !!equipeId },
     };
+  }
+
+  /** L'equipe du plan de jeu enregistre pour ce match, si c'est une equipe que je gere et de l'un des deux clubs du match. */
+  private async equipeDuPlan(ctx: ContexteAcces, m: Match): Promise<{ equipeId: string; cote: "dom" | "ext" } | null> {
+    const trouvees = (await Promise.all((await this.plans.find({ where: { matchId: m.id } })).map((p) => this.equipes.findOne({ where: { id: p.equipeId } }))))
+      .filter((e): e is Equipe => !!e && ctx.gereEquipe(e) && (e.clubId === m.clubDom || e.clubId === m.clubExt))
+      .sort((a, b) => Number(b.clubId === ctx.compte.clubId) - Number(a.clubId === ctx.compte.clubId));    // mon club d'abord
+    const e = trouvees[0];
+    return e ? { equipeId: e.id, cote: e.clubId === m.clubDom ? "dom" : "ext" } : null;
   }
 
   /**
