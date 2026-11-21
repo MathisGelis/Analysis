@@ -52,7 +52,7 @@ export default function AvantMatchPage({ matchId, force = false }: { matchId: st
   const charger = useCallback(async () => {
     try {
       const e = await api.direct(matchId);
-      const equipeId = e.nousCote === "dom" ? e.match.equipeDomId : e.match.equipeExtId;
+      const equipeId = e.equipeNousId;
       const [duMatch, courant, bless, arbitres, tous] = await Promise.all([
         equipeId ? api.tactique(equipeId, matchId) : null, equipeId ? api.tactique(equipeId) : null, api.blessures(), api.arbitresForMatch(matchId),
         equipeId ? api.effectifEquipe(equipeId) : [],
@@ -103,7 +103,7 @@ export default function AvantMatchPage({ matchId, force = false }: { matchId: st
     );
   }
 
-  const equipeId = etat.nousCote === "dom" ? etat.match.equipeDomId : etat.match.equipeExtId;
+  const equipeId = etat.equipeNousId;
   const groupe = joueurs.filter((j) => !plan.titulaires.includes(j.id));
   const retenus = [...plan.titulaires.filter(Boolean), ...plan.remplacants];
   const pb = verifierNumeros(retenus, plan.numeros, habituels);

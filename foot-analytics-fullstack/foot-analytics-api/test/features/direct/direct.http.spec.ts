@@ -194,10 +194,21 @@ describe("direct : routes", () => {
       expect(num(js[1].id)).toBe(2);                                                    // sinon, son numero habituel
     });
 
-    it("un match sans equipe de mon cote : l'avant-match est impossible, le direct ne renvoie pas vers lui", async () => {
+    it("un match sans equipe de mon cote : on prend l'equipe de mon club qui a un effectif, plus de « effectif vide »", async () => {
+      const { js } = await equipeAvecJoueurs();
       const mt = await t.f.match({ clubDom: m.ol.id, clubExt: m.mions.id, equipeDomId: null, saisonId: m.s26.id, date: "2026-11-22", statut: "prevu", scoreDom: 0, scoreExt: 0 } as any);
       const etat = (await t.appel(await ref())("GET", base(mt.id))).corps;
-      expect(etat.avantMatch).toMatchObject({ pret: false, possible: false });
+      expect(etat.avantMatch).toMatchObject({ pret: false, possible: true });
+      expect(etat.equipeNousId).toBe(m.sen26.id);
+      expect(etat.joueurs.length).toBeGreaterThanOrEqual(js.length);
+    });
+
+    it("un match rattache a une equipe sans joueur (autre saison) : l'effectif de l'equipe de mon club de meme categorie est propose", async () => {
+      const { js } = await equipeAvecJoueurs();
+      const mt = await t.f.match({ clubDom: m.ol.id, clubExt: m.mions.id, equipeDomId: m.sen25.id, saisonId: m.s26.id, date: "2026-11-22", statut: "prevu", scoreDom: 0, scoreExt: 0 } as any);
+      const etat = (await t.appel(await ref())("GET", base(mt.id))).corps;
+      expect(etat.equipeNousId).toBe(m.sen26.id);
+      expect(etat.joueurs.length).toBeGreaterThanOrEqual(js.length);
     });
 
     it("moins de 7 titulaires : l'avant-match n'est pas considere comme fait", async () => {

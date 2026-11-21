@@ -66,6 +66,8 @@ export interface EtatDirect {
     date: string | null; heure: string | null; journee: string | null; competition: string | null; numeroFmi: string | null; statut: string;
   };
   nousCote: Cote;
+  /** L equipe dont on saisit le match : celle du match, sinon une equipe de mon club qui a un effectif. */
+  equipeNousId: string | null;
   chrono: ChronoDirect;
   evenements: EvenementDirect[];
   score: { dom: number; ext: number };
