@@ -67,10 +67,7 @@ export class DirectService {
     const m = await this.acces.matchGere(ctx, matchId);
     const d = await this.direct(matchId);
     const evs = await this.evenements.find({ where: { matchId, supprimeLe: IsNull() }, order: { creeLe: "ASC" } });
-    // L'avant-match enregistre pour ce match fait foi : c'est l'equipe (et le cote) qu'il a choisis.
-    const choisie = await this.equipeDuPlan(ctx, m);
-    const nousCote = choisie?.cote ?? monCote(ctx, m);
-    const equipeId = choisie?.equipeId ?? (await this.equipeDeNous(ctx, m, nousCote));
+    const { cote: nousCote, equipeId } = await this.nous(ctx, m);
     const [dom, ext] = await Promise.all([this.clubs.findOne({ where: { id: m.clubDom } }), this.clubs.findOne({ where: { id: m.clubExt } })]);
     const etat = etatDe(d);
     return {
@@ -91,6 +88,16 @@ export class DirectService {
       /** L'avant-match de CE match est-il fait ? (le front renvoie vers l'avant-match tant que non). */
       avantMatch: { ...DirectService.avantMatchPret(await this.planDuMatch(equipeId, matchId)), possible: !!equipeId },
     };
+  }
+
+  /**
+   * Notre cote et notre equipe pour ce match : la meme reponse partout (direct, apres-match, resume). L'avant-match enregistre pour ce match
+   * fait foi (equipe et cote choisis) ; sinon le club du compte, puis l'equipe de ce club qui a un effectif.
+   */
+  async nous(ctx: ContexteAcces, m: Match): Promise<{ cote: "dom" | "ext"; equipeId: string | null }> {
+    const choisie = await this.equipeDuPlan(ctx, m);
+    const cote = choisie?.cote ?? monCote(ctx, m);
+    return { cote, equipeId: choisie?.equipeId ?? (await this.equipeDeNous(ctx, m, cote)) };
   }
 
   /** L'equipe du plan de jeu enregistre pour ce match, si c'est une equipe que je gere et de l'un des deux clubs du match. */
@@ -193,9 +200,46 @@ export class DirectService {
       contextes: [...new Set((dto.contextes ?? []).map((c) => c.trim()).filter(Boolean))], supprimeLe: null,
     };
     const e = await this.evenements.save(this.evenements.create({ ...(existant ?? { id, matchId, auteurId: origine?.auteurId ?? ctx.compte.id }), ...champs }));
+    const carton = (x?: EvenementDirect | null) => x?.type === "carton_jaune" || x?.type === "carton_rouge";
+    if (carton(e) || carton(existant)) await this.synchroniserCartons(matchId, carton(existant) ? existant! : null, e);
     // Un ajout porte deja son auteur et sa date ; le journal garde ce qui change apres coup (et reste ainsi lisible).
     if (existant) await this.noter(ctx, m, "direct.evenement_modifie", { evenement: id, type: dto.type }, maintenant, origine);
     return e;
+  }
+
+  /**
+   * Deux cartons jaunes au meme joueur font un rouge : le second jaune entraine tout de suite un carton rouge (« -2j » derriere
+   * l'identifiant du jaune), aux memes minute, periode et joueur. Annuler ou deplacer un jaune retire ou recale ce rouge. Un joueur
+   * deja expulse a la main n'est pas expulse deux fois.
+   */
+  private async synchroniserCartons(matchId: string, avant: EvenementDirect | null, apres: EvenementDirect | null) {
+    const meme = (a: EvenementDirect, b: EvenementDirect) =>
+      a.cote === b.cote && ((!!a.joueurId && a.joueurId === b.joueurId) || (!a.joueurId && !b.joueurId && a.joueurNumero != null && a.joueurNumero === b.joueurNumero));
+    const concernes = [avant, apres].filter((x): x is EvenementDirect => !!x && (!!x.joueurId || x.joueurNumero != null));
+    const tous = await this.evenements.find({ where: { matchId }, order: { minute: "ASC", creeLe: "ASC" } });
+    for (const ref of concernes) {
+      const joueur = tous.filter((x) => meme(x, ref));
+      const jaunes = joueur.filter((x) => x.type === "carton_jaune" && !x.supprimeLe).sort((a, b) => a.minute - b.minute || a.creeLe.getTime() - b.creeLe.getTime());
+      const rougesAuto = joueur.filter((x) => x.type === "carton_rouge" && x.id.endsWith("-2j"));
+      const expulseALaMain = joueur.some((x) => x.type === "carton_rouge" && !x.supprimeLe && !x.id.endsWith("-2j"));
+      const second = jaunes.length >= 2 && !expulseALaMain ? jaunes[1] : null;
+      for (const r of rougesAuto) {
+        if (second && r.id === `${second.id}-2j`) {
+          Object.assign(r, { cote: second.cote, periode: second.periode, minute: second.minute, joueurId: second.joueurId, joueurNom: second.joueurNom, joueurNumero: second.joueurNumero, supprimeLe: null });
+          await this.evenements.save(r);
+        } else if (!r.supprimeLe) {
+          r.supprimeLe = new Date().toISOString();
+          await this.evenements.save(r);
+        }
+      }
+      if (second && !rougesAuto.some((r) => r.id === `${second.id}-2j`)) {
+        await this.evenements.save(this.evenements.create({
+          id: `${second.id}-2j`, matchId, cote: second.cote, type: "carton_rouge", resultat: null, periode: second.periode, minute: second.minute,
+          joueurNumero: second.joueurNumero, joueurNom: second.joueurNom, joueurId: second.joueurId,
+          joueur2Numero: null, joueur2Nom: null, joueur2Id: null, zoneTier: null, zoneCouloir: null, zoneCadre: null, contextes: [], auteurId: second.auteurId, supprimeLe: null,
+        }));
+      }
+    }
   }
 
   /** Annuler un evenement : il ne compte plus, mais la trace reste (et il peut revenir en renvoyant la meme saisie). */
@@ -207,6 +251,7 @@ export class DirectService {
     if (!e.supprimeLe) {
       e.supprimeLe = new Date(maintenant).toISOString();
       await this.evenements.save(e);
+      if ((e.type === "carton_jaune" || e.type === "carton_rouge") && !e.id.endsWith("-2j")) await this.synchroniserCartons(matchId, e, null);   // le rouge automatique s'annule a la main
       await this.noter(ctx, m, "direct.evenement_supprime", { evenement: id, type: e.type }, maintenant, origine);
     }
   }

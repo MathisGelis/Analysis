@@ -5,6 +5,7 @@ import { Composition } from "@/features/matchs/composition.entity";
 import { Equipe } from "@/features/equipes/equipe.entity";
 import { EvenementMatch } from "@/features/matchs/evenement-match.entity";
 import { Joueur } from "@/features/joueurs/joueur.entity";
+import { Direct } from "@/features/direct/direct.entity";
 import { Match } from "@/features/matchs/match.entity";
 import { Tactique } from "@/features/tactiques/tactique.entity";
 import { creerBaseTest, fabriques } from "@test/support/test-db";
@@ -24,7 +25,7 @@ describe("TactiquesService", () => {
   beforeEach(async () => {
     ds = await creerBaseTest();
     f = fabriques(ds);
-    svc = new TactiquesService(ds.getRepository(Tactique), ds.getRepository(Equipe), ds.getRepository(Joueur), ds.getRepository(Match), ds.getRepository(Composition), ds.getRepository(EvenementMatch));
+    svc = new TactiquesService(ds.getRepository(Tactique), ds.getRepository(Equipe), ds.getRepository(Joueur), ds.getRepository(Match), ds.getRepository(Direct), ds.getRepository(Composition), ds.getRepository(EvenementMatch));
   });
   afterEach(() => ds.destroy());
 
@@ -59,6 +60,28 @@ describe("TactiquesService", () => {
     const relu = await svc.lire(c.eq.id);
     expect(relu?.titulaires).toEqual(c.joueurs.slice(0, 11).map((j) => j.id));
     expect(relu?.remplacants).toHaveLength(7);
+  });
+
+  it("l'avant-match d'un match se modifie tant qu'il n'a pas commence (avant puis apres validation), puis il est figé", async () => {
+    const c = await contexte();
+    const plan = await svc.enregistrer(dto(c, { matchId: c.match.id }));
+    expect(plan.formation).toBe("4-4-2");
+    expect((await svc.enregistrer(dto(c, { matchId: c.match.id, formation: "3-5-2" }))).formation).toBe("3-5-2");   // modifie une fois valide
+    const directs = ds.getRepository(Direct);
+    await directs.save(directs.create({ matchId: c.match.id, statut: "avant" } as any));
+    expect((await svc.enregistrer(dto(c, { matchId: c.match.id, formation: "4-3-3" }))).formation).toBe("4-3-3");   // direct ouvert, pas lance
+    await directs.update({ matchId: c.match.id }, { statut: "en_cours" } as any);
+    await expect(svc.enregistrer(dto(c, { matchId: c.match.id, formation: "4-4-2" }))).rejects.toThrow(/a commencé/);
+    expect((await svc.lire(c.eq.id, c.match.id))?.formation).toBe("4-3-3");
+  });
+
+  it("un match sans equipe de mon cote se prepare avec l'equipe de mon club ; pas avec celle d'un autre club", async () => {
+    const c = await contexte();
+    const sans = await f.match({ clubDom: c.eq.clubId, clubExt: c.advEq.clubId, equipeDomId: null, saisonId: c.eq.saisonId, statut: "a_venir" } as any);
+    expect((await svc.enregistrer(dto(c, { matchId: sans.id }))).matchId).toBe(sans.id);
+    const tiers = await f.club("Tiers");
+    const eqTiers = await f.equipe({ clubId: tiers.id, nom: "Tiers", categorie: "Seniors", saisonId: c.eq.saisonId });
+    await expect(svc.enregistrer(dto(c, { equipeId: eqTiers.id, matchId: sans.id }))).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("un seul plan par equipe : enregistrer a nouveau met a jour, sans doublon", async () => {

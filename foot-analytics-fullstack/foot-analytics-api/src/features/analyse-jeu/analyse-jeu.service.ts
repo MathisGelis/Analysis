@@ -10,7 +10,7 @@ import { parseDateFlexible } from "@/common/dates";
 import { AccesService } from "@/features/acces/acces.service";
 import { ContexteAcces } from "@/features/acces/contexte-acces";
 import { AnalyseService } from "@/features/analyse/analyse.service";
-import { monCote } from "@/features/direct/direct.service";
+import { DirectService } from "@/features/direct/direct.service";
 import { EvenementDirect } from "@/features/direct/evenement-direct.entity";
 import { Entrainement } from "@/features/entrainements/entrainement.entity";
 import { Joueur } from "@/features/joueurs/joueur.entity";
@@ -37,6 +37,7 @@ export class AnalyseJeuService {
     @InjectRepository(Joueur) private joueurs: Repository<Joueur>,
     private analyse: AnalyseService,
     private acces: AccesService,
+    private directSvc: DirectService,
   ) {}
 
   /** Les matchs joues d'un club (saison, equipe), avec les evenements du direct et de la feuille de match, tels que `cote` (le club) les vit. */
@@ -135,7 +136,7 @@ export class AnalyseJeuService {
     const m = await this.acces.matchGere(ctx, matchId);
     const [evs, fmi] = await Promise.all([this.direct.find({ where: { matchId } }), this.fmi.find({ where: { matchId } })]);
     return resumerMatch({
-      nousCote: monCote(ctx, m),
+      nousCote: (await this.directSvc.nous(ctx, m)).cote,
       evenements: evs.filter((e) => !e.supprimeLe),
       fmi: fmi.map((e) => ({ type: e.type, sousType: e.sousType, minute: e.minute, equipe: e.equipe })),
       scoreDom: m.scoreDom ?? 0, scoreExt: m.scoreExt ?? 0, scoreOfficiel: m.statut === "joue",

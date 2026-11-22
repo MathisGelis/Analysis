@@ -71,6 +71,34 @@ describe("direct : routes", () => {
     expect((await chrono("n_importe_quoi")).statut).toBe(400);
   });
 
+  it("deux jaunes au meme joueur : le second fait un rouge tout de suite ; annuler un jaune le retire, un rouge a la main n'est pas double", async () => {
+    const mt = await matchNeuf();
+    const a = t.appel(await ref());
+    const put = (n: number, corps: object) => a("PUT", `${base(mt.id)}/evenements/${id(n)}`, corps);
+    const carton = (type: string, minute: number, extra: object = {}) => ({ cote: "dom", type, periode: 1, minute, joueurNumero: 7, joueurNom: "Martin", ...extra });
+    const rouges = async () => (await a("GET", base(mt.id))).corps.evenements.filter((e: any) => e.type === "carton_rouge");
+    await put(1, carton("carton_jaune", 20));
+    expect(await rouges()).toHaveLength(0);                                              // un seul jaune : pas de rouge
+    await put(2, carton("carton_jaune", 55, { joueurNumero: 9, joueurNom: "Autre" }));
+    expect(await rouges()).toHaveLength(0);                                              // un autre joueur : pas de rouge
+    await put(3, carton("carton_jaune", 70));
+    const [rouge] = await rouges();
+    expect(rouge).toMatchObject({ id: `${id(3)}-2j`, cote: "dom", minute: 70, joueurNumero: 7 });   // le second jaune du 7 : rouge, meme minute
+    expect((await a("GET", base(mt.id))).corps.compteurs.dom).toMatchObject({ jaunes: 3, rouges: 1 });
+    await put(3, carton("carton_jaune", 72));                                            // le jaune bouge : le rouge le suit, sans doublon
+    expect((await rouges()).map((e: any) => e.minute)).toEqual([72]);
+    await a("DELETE", `${base(mt.id)}/evenements/${id(3)}`);                            // annule le second jaune : plus de rouge
+    expect(await rouges()).toHaveLength(0);
+    await put(3, carton("carton_jaune", 70));                                            // restaure : le rouge revient
+    expect(await rouges()).toHaveLength(1);
+    await a("DELETE", `${base(mt.id)}/evenements/${id(1)}`);                            // annule le premier jaune : le second n'est plus un second
+    expect(await rouges()).toHaveLength(0);
+    await put(1, carton("carton_jaune", 20));
+    await put(4, carton("carton_rouge", 75));                                            // expulse a la main : pas de second rouge
+    expect(await rouges()).toHaveLength(1);
+    expect((await rouges())[0].id).toBe(id(4));
+  });
+
   it("evenements : idempotents (meme identifiant = meme evenement), le score suit, annuler puis restaurer", async () => {
     const mt = await matchNeuf();
     const a = t.appel(await ref());

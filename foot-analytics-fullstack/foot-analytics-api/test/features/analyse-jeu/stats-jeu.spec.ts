@@ -119,3 +119,21 @@ describe("resumerMatch : sans le direct (feuille de match seule)", () => {
     expect(vide.score).toEqual({ nous: 2, eux: 0 });
   });
 });
+
+describe("resumerMatch : score et cartons", () => {
+  it("match pas encore officiel : le score est celui du direct, du bon cote", () => {
+    const evs = [tir("ext", "but", 10), tir("ext", "but", 30), tir("dom", "but", 50)];
+    expect(resumerMatch({ ...base, nousCote: "ext", evenements: evs, scoreDom: 0, scoreExt: 0 }).score).toEqual({ nous: 2, eux: 1 });
+    expect(resumerMatch({ ...base, nousCote: "dom", evenements: evs, scoreDom: 0, scoreExt: 0 }).score).toEqual({ nous: 1, eux: 2 });
+  });
+  it("match officiel : la feuille fait foi", () => {
+    const evs = [tir("ext", "but", 10)];
+    expect(resumerMatch({ ...base, nousCote: "ext", evenements: evs, scoreDom: 2, scoreExt: 1, scoreOfficiel: true }).score).toEqual({ nous: 1, eux: 2 });
+  });
+  it("direct sans carton saisi : les cartons de la feuille de match, du bon cote", () => {
+    const fmi = [{ type: "carton", sousType: "jaune", minute: 20, equipe: "ext" as const }, { type: "carton", sousType: "rouge", minute: 80, equipe: "dom" as const }];
+    const r = resumerMatch({ ...base, nousCote: "ext", evenements: [tir("ext", "cadre", 10)], fmi, scoreDom: 0, scoreExt: 0 });
+    expect(r.stats.find((x) => x.cle === "jaunes")).toMatchObject({ nous: 1, eux: 0 });
+    expect(r.stats.find((x) => x.cle === "rouges")).toMatchObject({ nous: 0, eux: 1 });
+  });
+});

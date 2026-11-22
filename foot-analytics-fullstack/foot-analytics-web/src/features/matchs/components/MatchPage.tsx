@@ -111,6 +111,11 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
               <Radio size={12}/> Direct
             </Link>
           )}
+          {aPreparer && match.droits?.modifier !== false && (
+            <Link href={`/matchs/${match.id}/avant`} className="btn text-xs" data-testid="ouvrir-avant-match">
+              Avant-match
+            </Link>
+          )}
           {aPreparer && (
             <Link href={`/rapports/prematch/${adversaireId}?matchId=${match.id}`} className="btn btn-primary text-xs">
               <Target size={12}/> Rapport pré-match
