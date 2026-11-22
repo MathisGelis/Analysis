@@ -1845,6 +1845,16 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await expect(tableau.getByLabel("Score : 0 à 0")).toBeVisible();
   await expect(tableau).toContainText("Avant le coup d'envoi");
 
+  // Tant que le match n'a pas commence, l'avant-match reste modifiable (depuis le direct, comme depuis la fiche du match).
+  await page.getByTestId("modifier-avant-match").click();
+  await expect(page).toHaveURL(/\/matchs\/[^/]+\/avant$/);
+  await expect(page.getByText("Le match a commencé : l'avant-match n'est plus modifiable.")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Lancer le direct" })).toBeEnabled();
+  await page.goto(`/matchs/${match.id}`);
+  await expect(page.getByTestId("ouvrir-avant-match")).toBeVisible();
+  await cliquerJusquaNavigation(page.getByTestId("ouvrir-direct"), /\/matchs\/[^/]+\/direct$/);
+  await expect(page.getByRole("region", { name: "Tableau de marque" })).toBeVisible();
+
   // Coup d'envoi : le chrono tourne.
   await page.getByRole("button", { name: "Coup d'envoi" }).click();
   await expect(tableau).toContainText("1re période");

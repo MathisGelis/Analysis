@@ -55,14 +55,18 @@ export function resumerMatch(args: {
   const { nousCote, evenements, fmi } = args;
   const eux: Cote = nousCote === "dom" ? "ext" : "dom";
   const detail = evenements.length > 0;
-  const score = { nous: nousCote === "dom" ? args.scoreDom : args.scoreExt, eux: nousCote === "dom" ? args.scoreExt : args.scoreDom };
   const c = compteurs(evenements);
   const n: CompteursCote = c[nousCote], e: CompteursCote = c[eux];
+  // Le score : celui de la feuille de match quand le match est officiel ; sinon (match tout juste fini, pas encore valide) celui du direct.
+  const score = args.scoreOfficiel || !detail
+    ? { nous: nousCote === "dom" ? args.scoreDom : args.scoreExt, eux: nousCote === "dom" ? args.scoreExt : args.scoreDom }
+    : { nous: n.buts, eux: e.buts };
 
   // Cartons : le direct s'il existe, sinon la feuille de match.
   const cartonsFmi = (cote: Cote, couleur: string) => fmi.filter((x) => x.type === "carton" && x.equipe === cote && (x.sousType ?? "jaune") === couleur).length;
-  const jaunes = detail ? { nous: n.jaunes, eux: e.jaunes } : { nous: cartonsFmi(nousCote, "jaune"), eux: cartonsFmi(eux, "jaune") };
-  const rouges = detail ? { nous: n.rouges, eux: e.rouges } : { nous: cartonsFmi(nousCote, "rouge"), eux: cartonsFmi(eux, "rouge") };
+  const cartonsDirect = n.jaunes + n.rouges + e.jaunes + e.rouges > 0;       // un direct sans carton saisi : la feuille de match fait foi
+  const jaunes = cartonsDirect ? { nous: n.jaunes, eux: e.jaunes } : { nous: cartonsFmi(nousCote, "jaune"), eux: cartonsFmi(eux, "jaune") };
+  const rouges = cartonsDirect ? { nous: n.rouges, eux: e.rouges } : { nous: cartonsFmi(nousCote, "rouge"), eux: cartonsFmi(eux, "rouge") };
 
   const stats: LigneStat[] = [];
   if (detail) {

@@ -6,7 +6,7 @@
 // La REGLE DES MUTES est imposee ici, pas seulement dans l'interface : au plus 6 joueurs mutes sur la
 // liste (titulaires + remplacants), dont au plus 2 hors delai. Un plan qui la viole est refuse (422).
 
-import { BadRequestException, Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, IsNull, Not, Repository } from "typeorm";
 
@@ -14,6 +14,7 @@ import { Composition } from "@/features/matchs/composition.entity";
 import { Equipe } from "@/features/equipes/equipe.entity";
 import { EvenementMatch } from "@/features/matchs/evenement-match.entity";
 import { Joueur } from "@/features/joueurs/joueur.entity";
+import { Direct } from "@/features/direct/direct.entity";
 import { Match } from "@/features/matchs/match.entity";
 import { estMatchJoue } from "@/features/matchs/match-joue";
 import { designeLeJoueur, minutesJouees } from "@/features/matchs/minutes";
@@ -38,6 +39,7 @@ export class TactiquesService {
     @InjectRepository(Equipe) private equipes: Repository<Equipe>,
     @InjectRepository(Joueur) private joueurs: Repository<Joueur>,
     @InjectRepository(Match) private matchs: Repository<Match>,
+    @InjectRepository(Direct) private directs: Repository<Direct>,
     @InjectRepository(Composition) private compos: Repository<Composition>,
     @InjectRepository(EvenementMatch) private evenements: Repository<EvenementMatch>,
   ) {}
@@ -59,9 +61,13 @@ export class TactiquesService {
     if (dto.matchId) {
       const match = await this.matchs.findOne({ where: { id: dto.matchId } });
       if (!match) throw new NotFoundException(`Match ${dto.matchId} introuvable`);
-      if (match.equipeDomId !== dto.equipeId && match.equipeExtId !== dto.equipeId) {
-        throw new BadRequestException("Ce match n'est pas un match de cette equipe.");
-      }
+      // Une equipe de l'un des deux clubs du match : un match cree sans equipe (calendrier), ou rattache a une equipe sans effectif, se
+      // prepare avec l'equipe de mon club qui a des joueurs.
+      const estSienne = equipe.clubId === match.clubDom || equipe.clubId === match.clubExt;
+      if (!estSienne) throw new BadRequestException("Ce match n'est pas un match de cette equipe.");
+      // L'avant-match se modifie tant que le match n'a pas commence ; le direct lance, le onze est fige.
+      const direct = await this.directs.findOne({ where: { matchId: dto.matchId } });
+      if (direct && direct.statut !== "avant") throw new ConflictException("Le match a commencé : l'avant-match n'est plus modifiable.");
     }
     if (!formationValide(dto.formation)) {
       throw new BadRequestException(`Dispositif invalide : "${dto.formation}" (attendu par exemple 4-2-3-1, dix joueurs de champ).`);

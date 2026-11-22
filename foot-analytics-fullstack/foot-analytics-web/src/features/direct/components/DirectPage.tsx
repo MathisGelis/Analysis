@@ -155,6 +155,13 @@ export default function DirectPage({ matchId, source: sourceFournie }: { matchId
         </p>
       )}
 
+      {!invite && etat.avantMatch?.possible && etat.avantMatch.pret && etat.chrono.statut === "avant" && (
+        <p className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+          <span>Onze et numéros prêts ({etat.avantMatch.titulaires} titulaires, {etat.avantMatch.banc} remplaçants).</span>
+          <Link href={`/matchs/${matchId}/avant`} className="underline" data-testid="modifier-avant-match">Modifier l&apos;avant-match</Link>
+        </p>
+      )}
+
       {d.erreur && (
         <div role="alert" className="panel-inset flex items-start justify-between gap-3 border-l-2 border-danger p-3 text-sm text-ink">
           <span>{d.erreur}</span>

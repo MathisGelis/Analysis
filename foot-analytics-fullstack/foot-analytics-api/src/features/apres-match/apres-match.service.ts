@@ -14,7 +14,7 @@ import { Arbitre } from "@/features/arbitres/arbitre.entity";
 import { JournalAuditService } from "@/features/audit/journal-audit.service";
 import { minuteDe } from "@/features/direct/chrono";
 import { Direct } from "@/features/direct/direct.entity";
-import { DirectService, etatDe, monCote } from "@/features/direct/direct.service";
+import { DirectService, etatDe } from "@/features/direct/direct.service";
 import { EvenementDirect } from "@/features/direct/evenement-direct.entity";
 import { Match } from "@/features/matchs/match.entity";
 
@@ -42,10 +42,10 @@ export class ApresMatchService {
   /** Mon match, mon cote, mon club : l'apres-match n'existe que pour un match de mon equipe qui a eu lieu. */
   private async contexte(ctx: ContexteAcces, matchId: string) {
     const m = await this.acces.matchGere(ctx, matchId);
-    const cote = monCote(ctx, m);
+    const { cote, equipeId } = await this.direct.nous(ctx, m);
     const d = await this.directs.findOne({ where: { matchId } });
     if (m.statut !== "joue" && (!d || d.statut === "avant")) throw new ConflictException("Le match n'a pas encore eu lieu : l'apres-match s'ouvre apres le coup d'envoi.");
-    return { m, cote, d, equipeId: (cote === "dom" ? m.equipeDomId : m.equipeExtId) ?? null, clubId: cote === "dom" ? m.clubDom : m.clubExt };
+    return { m, cote, d, equipeId, clubId: cote === "dom" ? m.clubDom : m.clubExt };
   }
 
   async etat(ctx: ContexteAcces, matchId: string, maintenant = Date.now()) {

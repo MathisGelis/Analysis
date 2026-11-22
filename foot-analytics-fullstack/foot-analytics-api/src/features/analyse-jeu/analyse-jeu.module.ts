@@ -5,6 +5,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { AccesModule } from "@/features/acces/acces.module";
 import { AnalyseModule } from "@/features/analyse/analyse.module";
+import { DirectModule } from "@/features/direct/direct.module";
 import { EvenementDirect } from "@/features/direct/evenement-direct.entity";
 import { Entrainement } from "@/features/entrainements/entrainement.entity";
 import { Joueur } from "@/features/joueurs/joueur.entity";
@@ -16,7 +17,7 @@ import { AnalyseJeuController } from "./analyse-jeu.controller";
 import { AnalyseJeuService } from "./analyse-jeu.service";
 
 @Module({
-  imports: [AccesModule, AnalyseModule, TypeOrmModule.forFeature([EvenementDirect, EvenementMatch, Match, Composition, Entrainement, Joueur])],
+  imports: [AccesModule, AnalyseModule, DirectModule, TypeOrmModule.forFeature([EvenementDirect, EvenementMatch, Match, Composition, Entrainement, Joueur])],
   controllers: [AnalyseJeuController],
   providers: [AnalyseJeuService],
   exports: [AnalyseJeuService],

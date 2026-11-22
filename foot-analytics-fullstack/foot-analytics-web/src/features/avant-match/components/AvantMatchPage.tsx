@@ -118,7 +118,9 @@ export default function AvantMatchPage({ matchId, force = false }: { matchId: st
   const pb = verifierNumeros(retenus, plan.numeros, habituels);
   const num = (id: string) => numeroEffectif(id, plan.numeros, habituels);
   const nbOnze = nbTitulaires(plan.titulaires);
-  const peutValider = nbOnze >= MIN_TITULAIRES && numerosOk(pb);
+  /** Le match a commence : l'avant-match ne se modifie plus (le direct garde les joueurs retenus). */
+  const verrouille = etat.chrono.statut !== "avant" || etat.evenements.length > 0;
+  const peutValider = nbOnze >= MIN_TITULAIRES && numerosOk(pb) && !verrouille;
   const statut = planDuMatch && !modifie ? (nbOnze >= MIN_TITULAIRES ? "Prête" : "Incomplète") : "Brouillon";
   const nomDe = (id: string) => { const j = joueurs.find((x) => x.id === id); return j ? nomCourt(j) : id; };
   const choisirNumero = (id: string, texte: string) => {
@@ -175,6 +177,13 @@ export default function AvantMatchPage({ matchId, force = false }: { matchId: st
         <Link href={`/matchs/${matchId}/direct`} className="grid h-10 flex-1 place-items-center rounded-xl text-[13px] font-semibold text-muted hover:text-ink">Direct</Link>
         <Link href={`/matchs/${matchId}/apres`} className="grid h-10 flex-1 place-items-center rounded-xl text-[13px] font-semibold text-muted hover:text-ink">Après</Link>
       </nav>
+
+      {verrouille && (
+        <p role="status" className="panel-inset flex flex-wrap items-center justify-between gap-2 border-l-2 border-amber p-3 text-sm text-ink">
+          <span>Le match a commencé : l&apos;avant-match n&apos;est plus modifiable.</span>
+          <Link href={`/matchs/${matchId}/direct`} className="underline">Retour au direct</Link>
+        </p>
+      )}
 
       {force && !planDuMatch && (
         <p role="status" className="panel-inset border-l-2 border-accent p-3 text-sm text-ink">Avant de lancer le direct, compose ton onze et choisis les numéros : seuls ces joueurs pourront être saisis pendant le match.</p>
