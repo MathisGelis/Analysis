@@ -17,6 +17,7 @@ import { resolveEquipePropre } from "@/features/equipes/lib/resolve-equipe-propr
 import { memeChampionnat } from "@/features/equipes/lib/empreinte-equipe";
 import { equipeConsultee } from "@/features/equipes/lib/equipe-consultee";
 import { ligneDuClub } from "@/features/classement/lib/classement";
+import { estMatchJoue } from "@/features/matchs/lib/match-joue";
 import { parseDateMatch } from "@/features/matchs/lib/matchs-equipe";
 
 import { ClubTabs } from "./ClubTabs";
@@ -103,6 +104,7 @@ export async function ClubPageContent({
 
   // Resultats normalises (du point de vue du club consulte).
   const resultats = matchs
+    .filter(estMatchJoue)        // un match a venir (0-0) n'est pas un resultat
     .map((m) => {
       const dom = m.clubDom === club.id;
       const advId = dom ? m.clubExt : m.clubDom;

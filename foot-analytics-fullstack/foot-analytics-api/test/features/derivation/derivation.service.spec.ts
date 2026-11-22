@@ -80,6 +80,19 @@ describe("DerivationService - cartons et arbitres", () => {
     expect(a.motifsTop).toBe("Désapprobation en paroles ou en actes (2) · Commet un acte de brutalité (1) · +2 autres");
   });
 
+  it("un arbitre designe sur un match a venir (0-0) n'a pas encore officie : ni match, ni carton, ni note", async () => {
+    const arb = await ds.getRepository(Arbitre).save({ nom: "LEROY", prenom: "Paul" });
+    await matchArbitre(arb, [{ motif: "Comportement antisportif" }]);                          // un vrai match joue
+    const aVenir = await matchArbitre(arb, []);
+    await ds.getRepository(Match).update(aVenir.id, { statut: "a_venir", scoreDom: 0, scoreExt: 0 });
+
+    await svc.recomputeArbitres();
+
+    const a = await ds.getRepository(Arbitre).findOneByOrFail({ id: arb.id });
+    expect(a.matchsOfficies).toBe(1);
+    expect(a.matchsPrincipal).toBe(1);
+  });
+
   it("un arbitre sur deux championnats : chaque participation retombe sur ses propres cartons", async () => {
     const arb = await ds.getRepository(Arbitre).save({ nom: "MARTIN", prenom: "Luc" });
     const s1 = await saisonCourante();

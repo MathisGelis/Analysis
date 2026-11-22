@@ -18,6 +18,7 @@ import {
   decompteMotifs, liensDeSaison, parsePortee, participationsDeSaison, totauxDepuis,
 } from "@/features/arbitres/lib/arbitre-portee";
 
+import { estMatchJoue } from "@/features/matchs/lib/match-joue";
 import { MotifsCartons } from "./MotifsCartons";
 
 const ROLE_LIBELLE: Record<string, string> = {
@@ -244,7 +245,7 @@ export default async function ArbitreDetail({
                     </td>
                     <td>
                       <Link href={`/matchs/${m.id}`} className="font-mono font-semibold tabular-nums hover:text-accent">
-                        {m.scoreDom}–{m.scoreExt}
+                        {estMatchJoue(m) ? `${m.scoreDom}–${m.scoreExt}` : "À venir"}
                       </Link>
                     </td>
                     <td><span className="badge">{ROLE_LIBELLE[p.role] ?? p.role}</span></td>

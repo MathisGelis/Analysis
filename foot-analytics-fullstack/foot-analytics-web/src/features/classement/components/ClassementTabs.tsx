@@ -15,6 +15,7 @@ import { ClubBadge } from "@/features/clubs/components/ClubBadge";
 import { FormeStrip } from "@/shared/ui/Charts";
 import { FatigueBar } from "@/features/joueurs/components/FatigueBar";
 import type { Club, LigneClassement, Issue } from "@/shared/lib/types";
+import { estMatchJoue } from "@/features/matchs/lib/match-joue";
 import type { JoueurClassement, MatchClassement } from "@/features/classement/lib/allegement";
 
 type Tab = "table" | "teams" | "players";
@@ -187,7 +188,7 @@ function TeamStats({ matchs, clubs, ownClubId }:
       return byClub.get(id)!;
     };
     for (const m of matchs) {
-      if (["prevu", "a_venir", "annule", "reporte"].includes((m.statut ?? "joue").toLowerCase())) continue;     // meme regle que le classement
+      if (!estMatchJoue(m)) continue;     // meme regle que le classement
       const dom = ensure(m.clubDom);
       const ext = ensure(m.clubExt);
       dom.joues++; ext.joues++;

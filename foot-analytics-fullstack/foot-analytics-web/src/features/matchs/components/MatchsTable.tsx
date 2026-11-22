@@ -13,6 +13,7 @@ import { ClubBadge } from "@/features/clubs/components/ClubBadge";
 import { Select } from "@/shared/ui/Select";
 import type { Match, Club } from "@/shared/lib/types";
 
+import { estMatchJoue } from "../lib/match-joue";
 import { DeleteMatchButton } from "./DeleteMatchButton";
 
 interface Props {
@@ -205,7 +206,7 @@ export function MatchsTable({ matchs, clubs, saisons = [], equipes = [] }: Props
                     </Link>
                   </td>
                   <td className="text-center font-mono font-bold tabular-nums">
-                    {m.scoreDom}–{m.scoreExt}
+                    {estMatchJoue(m) ? <>{m.scoreDom}–{m.scoreExt}</> : <span className="text-xs font-sans font-semibold text-muted">À venir</span>}
                   </td>
                   <td>
                     <Link href={`/club/${m.clubExt}`} className="flex items-center gap-2 hover:text-accent">

@@ -38,6 +38,7 @@ import { Tactique } from "@/features/tactiques/tactique.entity";
 import { noteIndicative } from "@/features/joueurs/indicateurs";
 import { champsFatigue, Effort, RPE_MATCH } from "@/features/joueurs/fatigue";
 import { anneeDebutPourDate, nomSaison } from "@/common/saison-date";
+import { estMatchJoue } from "@/features/matchs/match-joue";
 import { doublonsProgrammes } from "@/features/matchs/programme";
 import { posteFiche } from "@/features/matchs/numeros-postes";
 
@@ -195,6 +196,7 @@ export class DerivationService implements OnApplicationBootstrap {
       licence ? `lic:${licence}` : nameKey(nom, prenom, clubId);
 
     for (const m of matchs) {
+      if (!estMatchJoue(m)) continue;          // un match a venir (0-0) ne compte dans aucun cumul
       const comps = m.compositions ?? [];
       const evts = m.evenements ?? [];
       const matchDate = parseDateAny(m.date);
@@ -707,7 +709,7 @@ export class DerivationService implements OnApplicationBootstrap {
     const matchsById = new Map(matchs.map((m) => [m.id, m]));
     for (const am of arbMatchs) {
       const m = matchsById.get(am.matchId);
-      if (!m) continue;
+      if (!m || !estMatchJoue(m)) continue;     // un arbitre designe sur un match a venir n'a pas encore officie
       const g = ensureG(am.arbitreId);
       g.matchsOfficies++;
 
@@ -893,7 +895,7 @@ export class DerivationService implements OnApplicationBootstrap {
 
     for (const sm of staffMatchs) {
       const m = matchById.get(sm.matchId);
-      if (!m) continue;
+      if (!m || !estMatchJoue(m)) continue;
       const fonctions = (sm.fonctions ?? "").split("/").map((s) => s.trim().toUpperCase());
       // DR = delegue de rencontre, on l'ignore pour les cumuls coach.
       const fctValides = fonctions.filter((f) => f && f !== "DR");

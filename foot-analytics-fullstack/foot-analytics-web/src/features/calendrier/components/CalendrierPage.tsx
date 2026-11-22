@@ -36,6 +36,7 @@ import { SaisonGuard, useLectureSeule } from "@/features/saisons/components/Sais
 import { dateVersIso, moisInitial } from "@/features/calendrier/lib/calendrier";
 import { useAjouterClub } from "@/features/clubs/lib/clubs-context";
 
+import { estMatchJoue } from "@/features/matchs/lib/match-joue";
 import { AdversairePicker } from "./AdversairePicker";
 import { CalendrierFffPanneau } from "./CalendrierFffPanneau";
 
@@ -335,7 +336,7 @@ function CalendrierContent() {
                     const dom = m.equipeDomId === equipeId;
                     const advId = dom ? m.clubExt : m.clubDom;
                     const adv = clubs.find((c) => c.id === advId);
-                    const isJoue = m.statut === "joue" || (m.scoreDom + m.scoreExt) > 0;
+                    const isJoue = estMatchJoue(m);
                     return (
                       <Link href={`/matchs/${m.id}`} key={m.id}
                         className="block px-1.5 py-1 rounded-sm text-[10px] leading-tight

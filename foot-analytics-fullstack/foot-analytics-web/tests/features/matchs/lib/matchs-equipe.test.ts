@@ -42,6 +42,18 @@ describe("resultatsDeLEquipe", () => {
     expect(aVenir.map((x) => x.id)).toEqual(["proche", "loin"]);
   });
 
+  it("un match prévu ne compte jamais comme un résultat, même avec un score affiché ; reporté et annulé non plus", () => {
+    const r = resultatsDeLEquipe([
+      m("prevu", { statut: "prevu", scoreDom: 0, scoreExt: 0 }),
+      m("prevu-score", { statut: "prevu", scoreDom: 2, scoreExt: 1 }),
+      m("reporte", { statut: "reporte", scoreDom: 0, scoreExt: 0 }),
+      m("annule", { statut: "annule", scoreDom: 0, scoreExt: 0 }),
+      m("joue", { scoreDom: 1, scoreExt: 1 }),
+    ], "eA");
+    expect(r.joues.map((x) => x.matchId)).toEqual(["joue"]);
+    expect(bilanDesResultats(r.joues)).toMatchObject({ joues: 1, n: 1 });
+  });
+
   it("un 0-0 non marque joué est à venir, un 0-0 joué est un nul", () => {
     const r = resultatsDeLEquipe([
       m("futur", { scoreDom: 0, scoreExt: 0, statut: "a_venir" }),

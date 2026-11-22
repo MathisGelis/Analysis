@@ -7,6 +7,8 @@
 
 import type { Issue, Match } from "@/shared/lib/types";
 
+import { estMatchJoue } from "./match-joue";
+
 export interface ResultatMatch {
   matchId: string;
   journee: string;
@@ -47,7 +49,7 @@ type MatchEquipe = Pick<
 /**
  * Separe les matchs de l'equipe en resultats (joues, du plus ancien au plus
  * recent) et matchs a venir (du plus proche au plus lointain). Un match est
- * "a venir" quand il n'est pas marque joue ET que le score est 0-0.
+ * "a venir" quand son statut n'est pas celui d'un match joue (prevu, a venir, reporte, annule) : son 0-0 n'est pas un nul.
  */
 export function resultatsDeLEquipe(
   matchs: MatchEquipe[],
@@ -59,7 +61,7 @@ export function resultatsDeLEquipe(
     const dom = m.equipeDomId === equipeId;
     if (!dom && m.equipeExtId !== equipeId) continue;
 
-    if (m.statut !== "joue" && (m.scoreDom ?? 0) + (m.scoreExt ?? 0) === 0) {
+    if (!estMatchJoue(m)) {       // a venir, reporte ou annule : jamais un resultat, quel que soit le score affiche (0-0 par defaut)
       aVenir.push(m);
       continue;
     }
@@ -115,7 +117,7 @@ export function prochainMatch<T extends { date?: string | null; statut?: string 
  * matchs programmes, de mon equipe comme des autres equipes de la poule, ne s'affichent pas : le calendrier les montre.
  */
 export function matchsDeLaListe<T extends MatchEquipe>(matchs: T[], equipeId: string | null | undefined, aujourdhui: Date = new Date()): T[] {
-  const joue = (m: T) => m.statut === "joue" || (m.scoreDom ?? 0) + (m.scoreExt ?? 0) > 0;
+  const joue = (m: T) => estMatchJoue(m);
   const gardes = new Set(matchs.filter(joue).map((m) => m.id));
   if (equipeId) {
     const miens = matchs.filter((m) => !joue(m) && (m.equipeDomId === equipeId || m.equipeExtId === equipeId));
