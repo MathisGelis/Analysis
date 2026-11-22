@@ -1,5 +1,6 @@
 // src/features/joueurs/joueurs.service.ts
 
+import { estMatchJoue } from "@/features/matchs/match-joue";
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
@@ -806,7 +807,7 @@ export class JoueursService {
     const lignes: any[] = [];
     for (const c of composJoueur) {
       const m = matchById.get(c.matchId);
-      if (!m) continue;
+      if (!m || !estMatchJoue(m)) continue;      // un match a venir n'entre dans aucune ligne de la fiche
       const evtsDuMatch = evtsByMatch.get(m.id) ?? [];
       const minutes = minutesJouees(c, evtsDuMatch);
       if (!c.titulaire && minutes === 0) continue; // reste sur le banc
