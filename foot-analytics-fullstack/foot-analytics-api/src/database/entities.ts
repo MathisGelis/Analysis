@@ -20,6 +20,7 @@ import { EvenementDirect } from "@/features/direct/evenement-direct.entity";
 import { Composition } from "@/features/matchs/composition.entity";
 import { Entrainement } from "@/features/entrainements/entrainement.entity";
 import { ObservationAdversaire } from "@/features/apres-match/observation-adversaire.entity";
+import { EvenementEquipe, PlanningEquipe } from "@/features/planning-equipe/planning-equipe.entity";
 import { Equipe } from "@/features/equipes/equipe.entity";
 import { EvenementMatch } from "@/features/matchs/evenement-match.entity";
 import { IaEntrainement } from "@/features/ia/ia-entrainement.entity";
@@ -45,6 +46,7 @@ export const ALL_ENTITIES = [
   Arbitre, ArbitreMatch, Coach, StaffMatch, Saison, Utilisateur,
   StatJoueurEquipe, Tactique, IaEntrainement, IaModele, IaReglage, Session,
   JournalAudit, Direct, EvenementDirect, NoteJoueurMatch, BilanMatch, ObservationAdversaire, InvitationDirect,
+  PlanningEquipe, EvenementEquipe,
 ];
 
 /** A etendre dans chaque DataSource : les entites et le generateur d'identifiants vont ensemble. */

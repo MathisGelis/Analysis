@@ -1167,6 +1167,40 @@ test("calendrier : la modale reprend l'heure prevue, une séance se rouvre d'un 
   for (const id of ids) await fetch(`${API_URL}/entrainements/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
 });
 
+test("calendrier : jours d'entraînement prévus et événements « autre » gardés par le serveur (plus dans le navigateur), l'ancien stockage est repris", async () => {
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  // L'equipe de la barre laterale (cookie), celle dont la page lit le planning.
+  const equipeId = (await page.context().cookies()).find((c) => c.name === "ownEquipeId")?.value
+    ?? (JSON.parse(readFileSync(FIXTURES, "utf8")) as { equipeId: string }).equipeId;
+  const fixtures = { equipeId };
+  const duServeur = async () => (await fetch(`${API_URL}/planning-equipe/${fixtures.equipeId}`, { headers: { Authorization: `Bearer ${token}` } })).json();
+
+  // Un navigateur qui garde encore l'ancien stockage local : repris une fois par le serveur, puis efface.
+  await page.goto("/calendrier");
+  await page.waitForLoadState("networkidle");
+  await page.evaluate(({ id }) => {
+    localStorage.setItem(`fa.planning.${id}`, JSON.stringify({ jours: [4, 0], heure: "18:15" }));
+    localStorage.setItem(`fa.autres.${id}`, JSON.stringify([{ id: "autre-1700000000000-e2e001", date: "2026-12-05", titre: "Réunion staff e2e" }]));
+  }, { id: fixtures.equipeId });
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect.poll(async () => (await duServeur()).planning).toEqual({ jours: [0, 4], heure: "18:15" });
+  expect((await duServeur()).autres.map((e: any) => e.titre)).toEqual(["Réunion staff e2e"]);
+  expect(await page.evaluate((id) => [localStorage.getItem(`fa.planning.${id}`), localStorage.getItem(`fa.autres.${id}`)], fixtures.equipeId)).toEqual([null, null]);
+
+  // Un autre appareil (contexte neuf, sans stockage local) voit le meme planning.
+  const autre = await page.context().browser()!.newContext({ storageState: await page.context().storageState() });
+  const p2 = await autre.newPage();
+  await p2.goto(`http://localhost:${WEB_PORT}/calendrier`);
+  await p2.waitForLoadState("networkidle");
+  expect(await p2.evaluate(() => localStorage.length)).toBe(0);
+  await autre.close();
+  await fetch(`${API_URL}/planning-equipe/${fixtures.equipeId}/autres/autre-1700000000000-e2e001`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+});
+
 test("calendrier : un match cree puis modifie reste unique, et un doublon est refuse avec son motif", async () => {
   const { token } = await (await fetch(`${API_URL}/auth/login`, {
     method: "POST", headers: { "Content-Type": "application/json" },
