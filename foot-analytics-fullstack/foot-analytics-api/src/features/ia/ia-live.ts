@@ -18,7 +18,7 @@ import {
 
 /** Un match joue d'une equipe, tel que le rapport d'equipe le connait. */
 export interface MatchDeLEquipe {
-  m: { id: string; date?: string | null; journee?: string | null; saisonId?: string | null; formationDom?: string | null; formationExt?: string | null };
+  m: { id: string; date?: string | null; journee?: string | null; saisonId?: string | null; formationDom?: string | null; formationExt?: string | null; dispositifsSaisis?: boolean | null };
   dom: boolean;
   titulaires: { nom: string; prenom?: string | null; licence?: string | null; numero: number; titulaire: boolean; minutes?: number | null }[];
   bancs: { nom: string; prenom?: string | null; licence?: string | null; numero: number; titulaire: boolean; minutes?: number | null }[];

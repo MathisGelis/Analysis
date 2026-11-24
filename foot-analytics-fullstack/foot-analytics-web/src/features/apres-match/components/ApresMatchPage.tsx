@@ -6,6 +6,7 @@
 // en direct, bilan de l'entraineur. Tout s'enregistre au fil de l'eau ; « Clôturer le match » verrouille le direct.
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Check, Minus, Plus } from "lucide-react";
 
@@ -30,6 +31,7 @@ export default function ApresMatchPage({ matchId }: { matchId: string }) {
   const [bilan, setBilan] = useState<BilanMatch | null>(null);
   const [occupe, setOccupe] = useState(false);
   const sauvegarde = useSauvegardeDifferee();
+  const router = useRouter();
 
   const charger = useCallback(async () => {
     try {
@@ -85,11 +87,17 @@ export default function ApresMatchPage({ matchId }: { matchId: string }) {
   const peutCloturer = etat.statutDirect === "termine" && !etat.clotureLe;
   const score = etat.match.scoreDom !== null && etat.match.scoreExt !== null ? `${etat.match.scoreDom} - ${etat.match.scoreExt}` : null;
 
+  /** Enregistre ce qui est en attente, puis ramene a la fiche du match (qui montre alors les dispositifs, le score et l'apres-match a jour). */
+  const retourAuMatch = async () => {
+    setOccupe(true);
+    try { await sauvegarde.vider(); router.push(`/matchs/${matchId}`); router.refresh(); }
+    catch (e) { setErreur(messageApi(e, "Enregistrement impossible.")); setOccupe(false); }
+  };
+  /** Cloture le match (apres avoir tout enregistre), puis ramene a sa fiche. */
   const cloturer = async () => {
     setOccupe(true);
-    try { await sauvegarde.vider(); await api.directCloturer(matchId); await charger(); }
-    catch (e) { setErreur(messageApi(e, "Clôture impossible.")); }
-    finally { setOccupe(false); }
+    try { await sauvegarde.vider(); await api.directCloturer(matchId); router.push(`/matchs/${matchId}`); router.refresh(); }
+    catch (e) { setErreur(messageApi(e, "Clôture impossible.")); setOccupe(false); }
   };
 
   return (
@@ -139,7 +147,8 @@ export default function ApresMatchPage({ matchId }: { matchId: string }) {
       <div className="flex gap-2 pt-1">
         <button type="button" className="btn !h-12 flex-1" disabled={occupe} onClick={() => void sauvegarde.vider()}>Enregistrer</button>
         {etat.clotureLe ? (
-          <span className="btn !h-12 flex-1 cursor-default justify-center opacity-80" role="status"><Check size={16} aria-hidden /> Match clôturé</span>
+          <button type="button" className="btn !h-12 flex-1" disabled={occupe} onClick={() => void retourAuMatch()}
+            title="Enregistre puis retourne à la fiche du match"><Check size={16} aria-hidden /> Match clôturé</button>
         ) : (
           <button type="button" className="btn btn-primary !h-12 flex-1" disabled={!peutCloturer || occupe} onClick={() => void cloturer()}
             title={peutCloturer ? undefined : "Siffle la fin du match dans le direct pour pouvoir le clôturer."}>Clôturer le match</button>

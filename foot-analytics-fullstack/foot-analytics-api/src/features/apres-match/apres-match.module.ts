@@ -9,6 +9,7 @@ import { Arbitre } from "@/features/arbitres/arbitre.entity";
 import { Direct } from "@/features/direct/direct.entity";
 import { DirectModule } from "@/features/direct/direct.module";
 import { EvenementDirect } from "@/features/direct/evenement-direct.entity";
+import { Match } from "@/features/matchs/match.entity";
 
 import { ApresMatchController } from "./apres-match.controller";
 import { ApresMatchService } from "./apres-match.service";
@@ -17,7 +18,7 @@ import { NoteJoueurMatch } from "./note-joueur-match.entity";
 import { ObservationAdversaire } from "./observation-adversaire.entity";
 
 @Module({
-  imports: [AccesModule, DirectModule, TypeOrmModule.forFeature([NoteJoueurMatch, BilanMatch, ObservationAdversaire, Direct, EvenementDirect, ArbitreMatch, Arbitre])],
+  imports: [AccesModule, DirectModule, TypeOrmModule.forFeature([NoteJoueurMatch, BilanMatch, ObservationAdversaire, Match, Direct, EvenementDirect, ArbitreMatch, Arbitre])],
   controllers: [ApresMatchController],
   providers: [ApresMatchService],
 })
