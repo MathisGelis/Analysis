@@ -18,7 +18,7 @@ import { ContenuAnalyse, contenuAnalyse } from "./rapport-pptx-analyse";
 /** Toutes les pages, dans l'ordre de la presentation. */
 export const PAGES_RAPPORT = [
   "couverture", "match", "saison", "comparatif", "forme", "forces", "pistes", "dispositif", "systeme", "onze", "polyvalence", "joueurs",
-  "face", "ambiance", "cles",
+  "face", "observations", "ambiance", "cles",
 ] as const;
 export type PageRapport = (typeof PAGES_RAPPORT)[number];
 
@@ -45,6 +45,7 @@ export const DESCRIPTION_PAGES: Readonly<Record<PageRapport, { titre: string; co
   polyvalence: { titre: "Changements de numero", contenu: "Joueurs qui changent de numero (donc de poste) et numeros portes", groupe: "analyse" },
   joueurs: { titre: "Joueurs cles & discipline", contenu: "Danger, stabilite, fatigue, joueurs cles, buteurs et cartons", groupe: "analyse" },
   face: { titre: "Face-a-face & arbitre", contenu: "Toutes les rencontres passees et le profil de l'arbitre", groupe: "analyse" },
+  observations: { titre: "Ce qu'on a observe", contenu: "Nos observations de cet adversaire apres nos matchs contre lui : dispositif, points forts, pressing, coups de pied arretes...", groupe: "analyse" },
   ambiance: { titre: "Ambiance & infos", contenu: "Public, dernieres confrontations, arbitrage, infos pratiques", groupe: "modele" },
   cles: { titre: "Nos 3 cles du match", contenu: "Trois consignes et le message du coach", groupe: "modele" },
 };

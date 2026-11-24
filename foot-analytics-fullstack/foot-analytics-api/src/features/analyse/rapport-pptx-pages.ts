@@ -14,7 +14,7 @@ import { squeletteDiapositive } from "./pptx-xml";
 /** Icones (blanches) du modele reutilisees dans le rond d'en-tete : fichier de `ppt/media/`. */
 const ICONE: Record<PageAnalyse, string> = {
   comparatif: "image2.png", forme: "image6.png", pistes: "image5.png", systeme: "image7.png",
-  onze: "image7.png", polyvalence: "image7.png", joueurs: "image5.png", face: "image1.png",
+  onze: "image7.png", polyvalence: "image7.png", joueurs: "image5.png", face: "image1.png", observations: "image5.png",
 };
 
 export interface PageConstruite { xml: string; images: string[] }
@@ -388,6 +388,26 @@ function face(ids: Ids, c: ContenuRapport["face"]): { libelle: string; titre: st
   return { libelle: "AVANT LE COUP D'ENVOI", titre: "Face-à-face & arbitre", corps };
 }
 
+/** Ce qu'on a observe de l'adversaire apres nos matchs contre lui : une ligne par section, sur deux colonnes (sept lignes chacune). */
+function observations(ids: Ids, c: ContenuRapport["observations"]): { libelle: string; titre: string; corps: string } {
+  const libelle = c.matchs > 0 ? `NOS OBSERVATIONS  ·  ${c.matchs} MATCH${c.matchs > 1 ? "S" : ""} CONTRE EUX` : "NOS OBSERVATIONS";
+  const titre = "Ce qu'on a observé";
+  if (c.lignes.length === 0) {
+    return { libelle, titre, corps: vide(ids, "Aucune observation de cet adversaire : elles se saisissent dans l'après-match d'un match qu'on a joué contre lui, et reviennent ici au match suivant.") };
+  }
+  let corps = "";
+  const wc = 4000000, ecart = PAGE.largeur - 2 * wc, h = 480000;
+  c.lignes.slice(0, 14).forEach((l, i) => {
+    const col = i < 7 ? 0 : 1, y = PAGE.haut + (i % 7) * h;
+    const x = PAGE.gauche + col * (wc + ecart);
+    corps += texte(ids(), `Observation ${i + 1}`, { x, y, cx: wc, cy: h - 40000 }, [
+      para(l.titre, { taille: 10, gras: true, couleur: COULEUR.vertFonce }),
+      para(l.texte, { taille: 9, avant: 1 }),
+    ], { ancre: "t" });
+  });
+  return { libelle, titre, corps };
+}
+
 const PAGES: Record<PageAnalyse, (ids: Ids, c: ContenuRapport) => { libelle: string; titre: string; corps: string }> = {
   comparatif: (ids, c) => comparatif(ids, c.comparatif),
   forme: (ids, c) => forme(ids, c.forme),
@@ -397,6 +417,7 @@ const PAGES: Record<PageAnalyse, (ids: Ids, c: ContenuRapport) => { libelle: str
   polyvalence: (ids, c) => polyvalence(ids, c.polyvalence),
   joueurs: (ids, c) => joueurs(ids, c.joueurs),
   face: (ids, c) => face(ids, c.face),
+  observations: (ids, c) => observations(ids, c.observations),
 };
 
 /** Le XML complet d'une page d'analyse (`modele` : une diapositive du modele, dont on reprend l'enveloppe) et ses images. */

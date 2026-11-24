@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { strFromU8 } from "fflate";
 import { DataSource } from "typeorm";
 
+import { synthetiser } from "@/features/apres-match/observations-adversaire";
+import { ObservationAdversaire } from "@/features/apres-match/observation-adversaire.entity";
 import { Arbitre } from "@/features/arbitres/arbitre.entity";
 import { Club } from "@/features/clubs/club.entity";
 
@@ -27,7 +29,7 @@ import { ajusterPuces, contenuRapport, couper, DESCRIPTION_PAGES, estPageModele,
 describe("lirePages", () => {
   it("absent : toutes les pages, dans l'ordre du modele", () => {
     expect(lirePages(undefined)).toEqual([...PAGES_RAPPORT]);
-    expect(PAGES_RAPPORT).toHaveLength(15);
+    expect(PAGES_RAPPORT).toHaveLength(16);
     expect(PAGES_RAPPORT.filter((p) => estPageModele(p))).toEqual(["couverture", "match", "saison", "forces", "dispositif", "ambiance", "cles"]);
     for (const p of PAGES_RAPPORT) expect(DESCRIPTION_PAGES[p].titre).toBeTruthy();
   });
@@ -67,7 +69,7 @@ describe("rapport d'avant-match PowerPoint", () => {
     );
     svc = new PrematchService(
       analyse, ds.getRepository(Match), ds.getRepository(Equipe), ds.getRepository(Club),
-      ds.getRepository(LigneClassement), ds.getRepository(Saison), ds.getRepository(Arbitre),
+      ds.getRepository(LigneClassement), ds.getRepository(Saison), ds.getRepository(Arbitre), ds.getRepository(ObservationAdversaire),
     );
     f = fabriques(ds);
   });
@@ -267,13 +269,13 @@ describe("rapport d'avant-match PowerPoint", () => {
       rapport = await svc.rapport(c.eMoi.id, c.adv.id);
     });
 
-    it("quinze pages, remplies : texte du rapport, plus aucun [champ] du modele, onze place selon le dispositif", () => {
+    it("seize pages, remplies : texte du rapport, plus aucun [champ] du modele, onze place selon le dispositif", () => {
       const fichier = genererRapportPptx(lireModele(), contenuRapport(rapport), PAGES_RAPPORT);
       exporter("rapport-complet.pptx", fichier);
       const p = ouvrirPaquet(fichier);
 
       const diapos = [...p.keys()].filter((k) => /^ppt\/slides\/slide\d+\.xml$/.test(k));
-      expect(diapos).toHaveLength(15);
+      expect(diapos).toHaveLength(16);
       const toutes = diapos.map((k) => strFromU8(p.get(k)!));
       const tous = toutes.flatMap(textes);
       expect(tous.filter((t) => /\[[^\]]*\]/.test(t))).toEqual([]);          // plus aucun champ-exemple du modele
@@ -296,14 +298,14 @@ describe("rapport d'avant-match PowerPoint", () => {
       const fichier = genererRapportPptx(lireModele(), contenuRapport(rapport), PAGES_RAPPORT);
       const p = ouvrirPaquet(fichier);
       const fichiers = ordre(p) as string[];
-      expect(fichiers).toHaveLength(15);
+      expect(fichiers).toHaveLength(16);
 
       // Les pages du modele gardent leur fichier ; les huit nouvelles s'inserent a leur place.
       expect(fichiers.slice(0, 3)).toEqual(["slide1.xml", "slide2.xml", "slide3.xml"]);
       expect(fichiers[5]).toBe("slide4.xml");      // forces & faiblesses, apres comparatif et forme
       expect(fichiers[7]).toBe("slide5.xml");      // dispositif, apres les pistes
       expect(fichiers.slice(-2)).toEqual(["slide6.xml", "slide7.xml"]);
-      expect(fichiers.filter((f) => !/^slide[1-7]\.xml$/.test(f))).toHaveLength(8);
+      expect(fichiers.filter((f) => !/^slide[1-7]\.xml$/.test(f))).toHaveLength(9);
 
       const xml = (f: string) => lire(p, `ppt/slides/${f}`);
       const t = (f: string) => textes(xml(f));
@@ -479,6 +481,27 @@ describe("rapport d'avant-match PowerPoint", () => {
       const { fichier, nom } = await svc.exporterPptx(rapport.monEquipe.equipeId, rapport.adversaire.clubId, null, ["couverture", "cles"]);
       expect(nom).toBe("avant-match-Adverse-FC-2099-03-14.pptx");
       expect([...ouvrirPaquet(fichier).keys()].filter((k) => /^ppt\/slides\/slide\d+\.xml$/.test(k)).sort()).toEqual(["ppt/slides/slide1.xml", "ppt/slides/slide7.xml"]);
+    });
+
+    it("page « Ce qu'on a observé » : une ligne par section avec ses valeurs les plus frequentes ; sans observation, elle le dit", () => {
+      const contenu = contenuRapport({
+        ...rapport,
+        observations: synthetiser([
+          { matchId: "m1", date: "2026-09-10", valeurs: { pressing: { declenchement: ["Touche", "Passe en retrait"], efficacite: 4 }, gardien: { un_contre_un: "Faible" }, meilleurs_joueurs: { joueurs: [{ numero: 10, commentaire: "Gaucher" }] } } },
+          { matchId: "m2", date: "2026-11-01", valeurs: { pressing: { declenchement: ["Touche"] } } },
+        ]),
+      });
+      expect(contenu.observations.matchs).toBe(2);
+      expect(contenu.observations.lignes.find((l) => l.titre === "Pressing")!.texte).toBe("Touche (2/2), Passe en retrait (1/2) · efficacité 4,0/5");
+      expect(contenu.observations.lignes.find((l) => l.titre === "Meilleurs joueurs")!.texte).toBe("n°10 (Gaucher)");
+      const p = ouvrirPaquet(genererRapportPptx(lireModele(), contenu, ["observations"]));
+      const tout = [...p.keys()].filter((k) => /^ppt\/slides\/slide\d+\.xml$/.test(k)).flatMap((k) => textes(lire(p, k)));
+      expect(tout).toEqual(expect.arrayContaining(["Ce qu'on a observé", "NOS OBSERVATIONS  ·  2 MATCHS CONTRE EUX", "Pressing", "Gardien"]));
+      expect(tout.join(" ")).not.toMatch(/undefined|NaN|\[object/);
+
+      const aucune = ouvrirPaquet(genererRapportPptx(lireModele(), contenuRapport({ ...rapport, observations: synthetiser([]) }), ["observations"]));
+      const texteVide = [...aucune.keys()].filter((k) => /^ppt\/slides\/slide\d+\.xml$/.test(k)).flatMap((k) => textes(lire(aucune, k)));
+      expect(texteVide.join(" ")).toContain("Aucune observation de cet adversaire");
     });
   });
 });

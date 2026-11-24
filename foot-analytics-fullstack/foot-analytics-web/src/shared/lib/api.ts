@@ -28,6 +28,7 @@ import type { PageJournal } from "@/features/audit/lib/journal";
 import { reconstruire, type EtatReconstruction } from "@/features/fmi/lib/reconstruction";
 import type { RapportFff } from "@/features/calendrier/lib/calendrier-fff";
 import type { EtatApresMatch, BilanMatch, NoteJoueur } from "@/features/apres-match/lib/apres-types";
+import type { EtatObservations, ValeursSection } from "@/features/apres-match/lib/observations";
 import type { Lieu, ReponseAdversaire, ReponseCroisements, ReponseJeu, ResumeMatch } from "@/features/analyse-jeu/lib/jeu-types";
 import type { ActionChrono, EtatDirect, EvenementDirect, InvitationCreee, InvitationVue, SaisieEvenement } from "@/features/direct/lib/direct-types";
 import type { CriteresApi, OptionsRecherche, ReponseRecherche } from "@/features/recherche-joueurs/lib/recherche-joueurs";
@@ -421,6 +422,9 @@ export const api = {
   apresMatch: (matchId: string) => req<EtatApresMatch>(`/apres-match/matchs/${matchId}`),
   apresMatchNoter: (matchId: string, joueurId: string, corps: { note?: number | null; commentaire?: string | null }) =>
     req<NoteJoueur>(`/apres-match/matchs/${matchId}/joueurs/${joueurId}`, { method: "PUT", body: JSON.stringify(corps) }),
+  apresMatchAdversaire: (matchId: string) => req<EtatObservations>(`/apres-match/matchs/${matchId}/adversaire`),
+  apresMatchObserver: (matchId: string, section: string, valeurs: ValeursSection) =>
+    req<{ section: string; valeurs: ValeursSection; avancement: { sections: number; total: number } }>(`/apres-match/matchs/${matchId}/adversaire/${section}`, { method: "PUT", body: JSON.stringify(valeurs) }),
   apresMatchBilan: (matchId: string, corps: Partial<BilanMatch>) =>
     req<BilanMatch>(`/apres-match/matchs/${matchId}/bilan`, { method: "PUT", body: JSON.stringify(corps) }),
   directRouvrir: (matchId: string) => req<EtatDirect>(`/direct/matchs/${matchId}/reouverture`, { method: "POST" }),

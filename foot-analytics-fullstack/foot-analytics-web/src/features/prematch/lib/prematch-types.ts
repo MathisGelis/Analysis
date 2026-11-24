@@ -49,8 +49,25 @@ interface RencontreFace {
   domicile: boolean; bp: number; bc: number; issue: Issue;
 }
 
+/** Ce que mon staff a observe de l'adversaire apres nos matchs contre lui, reuni par section (voir l'apres-match). */
+export interface SyntheseObservations {
+  matchs: number;
+  derniere: string | null;
+  sections: {
+    id: string; titre: string;
+    champs: {
+      id: string; libelle: string; type: "choix" | "multi" | "note" | "texte" | "joueurs";
+      valeurs?: { valeur: string; matchs: number }[];
+      moyenne?: number;
+      textes?: { texte: string; date: string | null }[];
+      joueurs?: { numero: number; matchs: number; commentaire?: string }[];
+    }[];
+  }[];
+}
+
 export interface RapportPrematch {
   genereLe: string;
+  observations: SyntheseObservations;
   monEquipe: ProfilPrematch & { equipeId: string; equipeNom: string; clubNom: string };
   adversaire: ProfilPrematch & {
     equipeId: string | null; clubNom: string;

@@ -1,5 +1,6 @@
 import { DataSource } from "typeorm";
 
+import { ObservationAdversaire } from "@/features/apres-match/observation-adversaire.entity";
 import { Arbitre } from "@/features/arbitres/arbitre.entity";
 import { Club } from "@/features/clubs/club.entity";
 
@@ -41,7 +42,7 @@ describe("PrematchService.rapport", () => {
     );
     svc = new PrematchService(
       analyse, ds.getRepository(Match), ds.getRepository(Equipe), ds.getRepository(Club),
-      ds.getRepository(LigneClassement), ds.getRepository(Saison), ds.getRepository(Arbitre),
+      ds.getRepository(LigneClassement), ds.getRepository(Saison), ds.getRepository(Arbitre), ds.getRepository(ObservationAdversaire),
     );
     f = fabriques(ds);
   });
@@ -167,6 +168,27 @@ describe("PrematchService.rapport", () => {
     await c.jouer(c.moi, c.adv, u20Moi, u20Adv, "11/09/2025", 5, 0);
     const r = await svc.rapport(c.eMoi.id, c.adv.id);
     expect(r.faceAFace.bilan.joues).toBe(1);
+  });
+
+  it("observations : celles de MON club sur cet adversaire, tous matchs confondus ; jamais celles d'un autre club", async () => {
+    const c = await contexte();
+    const m1 = await c.jouer(c.moi, c.adv, c.eMoi, c.eAdv, "10/09/2025", 1, 0);
+    const m2 = await c.jouer(c.adv, c.moi, c.eAdv, c.eMoi, "05/11/2025", 2, 2);
+    const autre = await c.jouer(c.tiers, c.adv, c.eTiers, c.eAdv, "20/10/2025", 0, 1);
+    const repo = ds.getRepository(ObservationAdversaire);
+    await repo.save([
+      repo.create({ id: `${m1.id}:${c.moi.id}`, matchId: m1.id, clubId: c.moi.id, adversaireId: c.adv.id, valeurs: { pressing: { declenchement: ["Touche"], efficacite: 2 } }, auteurId: null }),
+      repo.create({ id: `${m2.id}:${c.moi.id}`, matchId: m2.id, clubId: c.moi.id, adversaireId: c.adv.id, valeurs: { pressing: { declenchement: ["Touche", "Passe en retrait"], efficacite: 4 } }, auteurId: null }),
+      repo.create({ id: `${autre.id}:${c.tiers.id}`, matchId: autre.id, clubId: c.tiers.id, adversaireId: c.adv.id, valeurs: { gardien: { un_contre_un: "Faible" } }, auteurId: null }),
+    ]);
+    const r = await svc.rapport(c.eMoi.id, c.adv.id);
+    expect(r.observations.matchs).toBe(2);
+    expect(r.observations.sections.map((x) => x.id)).toEqual(["pressing"]);               // pas la section du club tiers
+    expect(r.observations.sections[0].champs.find((x) => x.id === "declenchement")!.valeurs).toEqual([{ valeur: "Touche", matchs: 2 }, { valeur: "Passe en retrait", matchs: 1 }]);
+    expect(r.observations.sections[0].champs.find((x) => x.id === "efficacite")!.moyenne).toBe(3);
+    const vide = await svc.rapport(c.eTiers.id, c.adv.id);
+    expect(vide.observations.matchs).toBe(1);                                               // le tiers voit les siennes seulement
+    expect(vide.observations.sections.map((x) => x.id)).toEqual(["gardien"]);
   });
 
   it("match designe entre d'autres clubs : refuse", async () => {

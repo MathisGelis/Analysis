@@ -19,6 +19,13 @@ export class ApresMatchController {
     return this.svc.noterJoueur(ctx, matchId, joueurId, dto);
   }
 
+  @Get("adversaire") adversaire(@Acces() ctx: ContexteAcces, @Param("matchId") matchId: string) { return this.svc.observationsAdversaire(ctx, matchId); }
+
+  @Put("adversaire/:section")
+  observer(@Acces() ctx: ContexteAcces, @Param("matchId") matchId: string, @Param("section") section: string, @Body() corps: unknown) {
+    return this.svc.enregistrerObservations(ctx, matchId, section, corps);
+  }
+
   @Put("bilan")
   bilan(@Acces() ctx: ContexteAcces, @Param("matchId") matchId: string, @Body() dto: BilanDto) { return this.svc.enregistrerBilan(ctx, matchId, dto); }
 }

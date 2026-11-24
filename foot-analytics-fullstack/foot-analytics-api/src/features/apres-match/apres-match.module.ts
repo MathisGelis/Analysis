@@ -14,9 +14,10 @@ import { ApresMatchController } from "./apres-match.controller";
 import { ApresMatchService } from "./apres-match.service";
 import { BilanMatch } from "./bilan-match.entity";
 import { NoteJoueurMatch } from "./note-joueur-match.entity";
+import { ObservationAdversaire } from "./observation-adversaire.entity";
 
 @Module({
-  imports: [AccesModule, DirectModule, TypeOrmModule.forFeature([NoteJoueurMatch, BilanMatch, Direct, EvenementDirect, ArbitreMatch, Arbitre])],
+  imports: [AccesModule, DirectModule, TypeOrmModule.forFeature([NoteJoueurMatch, BilanMatch, ObservationAdversaire, Direct, EvenementDirect, ArbitreMatch, Arbitre])],
   controllers: [ApresMatchController],
   providers: [ApresMatchService],
 })
