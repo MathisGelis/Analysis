@@ -6,9 +6,8 @@
 //  - Jour actuel mis en evidence (border accent)
 //  - Matchs reels (api.matchs) de l'equipe propre
 //  - Entrainements reels (api.entrainements) de l'equipe propre
-//  - Evenements "Autre" (reunions, deplacements, etc.) stockes en
-//    localStorage par equipe (pas de backend pour ce type)
-//  - Jours d'entrainement prevus recurrents (localStorage par equipe)
+//  - Evenements "Autre" (reunions, deplacements, etc.) gardes par le serveur, par equipe
+//  - Jours d'entrainement prevus recurrents (gardes par le serveur, par equipe : les memes sur tous les appareils)
 //
 // CREATION : 3 boutons distincts au survol (+E entrainement, +M match,
 // +A autre). Chacun ouvre sa propre modale dediee.
@@ -37,6 +36,7 @@ import { dateVersIso, moisInitial } from "@/features/calendrier/lib/calendrier";
 import { useAjouterClub } from "@/features/clubs/lib/clubs-context";
 
 import { estMatchJoue } from "@/features/matchs/lib/match-joue";
+import { cleAutres, clePlanning, lireAutresLocaux, lirePlanningLocal } from "../lib/ancien-stockage";
 import { AdversairePicker } from "./AdversairePicker";
 import { CalendrierFffPanneau } from "./CalendrierFffPanneau";
 
@@ -57,6 +57,10 @@ interface AutreEv {
   id: string; date: string; heure?: string;
   titre: string; description?: string;
 }
+
+/** L'ancien stockage du navigateur : lecture et effacement sans jamais lever (stockage indisponible, navigation privee). */
+function localStorageSur(cle: string): string | null { try { return localStorage.getItem(cle); } catch { return null; } }
+function retirerLocal(cle: string) { try { localStorage.removeItem(cle); } catch { /* indisponible */ } }
 
 function isoDate(d: Date): string {
   const y = d.getFullYear();
@@ -96,13 +100,36 @@ function CalendrierContent() {
   const [seanceEdit, setSeanceEdit] = useState<any | null>(null);
   const [fffOpen, setFffOpen] = useState(false);
 
-  // Charge la cle planning + autres depuis localStorage (par equipe).
+  // Le planning et les evenements « autre » de l'equipe viennent du serveur. Ce qu'un navigateur gardait de l'ancien stockage local est
+  // repris une seule fois (envoye si le serveur n'a rien), puis efface.
+  const [erreurPlanning, setErreurPlanning] = useState<string | null>(null);
   useEffect(() => {
-    if (typeof window === "undefined" || !equipeId) return;
-    const rawP = localStorage.getItem(`fa.planning.${equipeId}`);
-    if (rawP) { try { setPlanning(JSON.parse(rawP)); } catch {} }
-    const rawA = localStorage.getItem(`fa.autres.${equipeId}`);
-    if (rawA) { try { setAutres(JSON.parse(rawA)); } catch {} }
+    if (!equipeId) return;
+    let actif = true;
+    (async () => {
+      try {
+        const serveur = await api.planningEquipe(equipeId);
+        let planningFinal = serveur.planning;
+        let autresFinal = serveur.autres;
+        const localP = lirePlanningLocal(localStorageSur(clePlanning(equipeId)));
+        const localA = lireAutresLocaux(localStorageSur(cleAutres(equipeId)));
+        if (!planningFinal && localP) planningFinal = await api.enregistrerPlanning(equipeId, localP);
+        const connus = new Set(autresFinal.map((a) => a.id));
+        for (const e of localA) {
+          if (connus.has(e.id)) continue;
+          await api.enregistrerAutre(equipeId, e);
+          autresFinal = [...autresFinal, e];
+        }
+        retirerLocal(clePlanning(equipeId)); retirerLocal(cleAutres(equipeId));
+        if (!actif) return;
+        if (planningFinal) setPlanning(planningFinal);
+        setAutres(autresFinal);
+        setErreurPlanning(null);
+      } catch (e) {
+        if (actif) setErreurPlanning(messageApi(e, "Impossible de charger le planning de l'équipe."));
+      }
+    })();
+    return () => { actif = false; };
   }, [equipeId]);
 
   // Charge les donnees au montage et a chaque changement d'equipe.
@@ -195,22 +222,27 @@ function CalendrierContent() {
     return map;
   }, [autres]);
 
-  // Sauve / supprime un evenement "Autre" en localStorage.
-  const persistAutres = (list: AutreEv[]) => {
-    setAutres(list);
-    if (typeof window !== "undefined" && equipeId) {
-      localStorage.setItem(`fa.autres.${equipeId}`, JSON.stringify(list));
-    }
+  // Ajoute / supprime un evenement "Autre" : affiche tout de suite, enregistre sur le serveur, annule l'affichage si le serveur refuse.
+  const ajouterAutre = async (ev: AutreEv) => {
+    if (!equipeId) return;
+    setAutres((l) => [...l, ev]);
+    try { await api.enregistrerAutre(equipeId, ev); setErreurPlanning(null); }
+    catch (e) { setAutres((l) => l.filter((a) => a.id !== ev.id)); setErreurPlanning(messageApi(e, "Enregistrement impossible.")); }
   };
-  const removeAutre = (id: string) => {
-    persistAutres(autres.filter((a) => a.id !== id));
+  const removeAutre = async (id: string) => {
+    if (!equipeId) return;
+    const avant = autres;
+    setAutres((l) => l.filter((a) => a.id !== id));
+    try { await api.supprimerAutre(equipeId, id); setErreurPlanning(null); }
+    catch (e) { setAutres(avant); setErreurPlanning(messageApi(e, "Suppression impossible.")); }
   };
 
-  const savePlanning = (p: { jours: number[]; heure: string }) => {
+  const savePlanning = async (p: { jours: number[]; heure: string }) => {
+    if (!equipeId) return;
+    const avant = planning;
     setPlanning(p);
-    if (typeof window !== "undefined" && equipeId) {
-      localStorage.setItem(`fa.planning.${equipeId}`, JSON.stringify(p));
-    }
+    try { setPlanning(await api.enregistrerPlanning(equipeId, p)); setErreurPlanning(null); }
+    catch (e) { setPlanning(avant); setErreurPlanning(messageApi(e, "Enregistrement impossible.")); }
   };
 
   if (!equipeId) {
@@ -254,6 +286,10 @@ function CalendrierContent() {
           </button>
         </div>
       </header>
+
+      {erreurPlanning && (
+        <p role="alert" className="panel-inset border-l-2 border-danger p-3 text-sm text-ink">{erreurPlanning}</p>
+      )}
 
       {/* Legende */}
       <div className="flex gap-5 text-[11px] text-muted flex-wrap">
@@ -462,7 +498,7 @@ function CalendrierContent() {
         <AutreEventModal
           date={addOpen.date}
           onClose={() => setAddOpen(null)}
-          onSaved={(ev) => { persistAutres([...autres, ev]); setAddOpen(null); }}
+          onSaved={(ev) => { void ajouterAutre(ev); setAddOpen(null); }}
         />
       )}
     </div>
@@ -491,7 +527,7 @@ function PlanningModal({
         icon={<CalIcon size={18} className="text-accent"/>}
         iconBg="bg-accent/15"
         title="Jours d'entraînement prévus"
-        subtitle="Apparaissent en placeholder sur le calendrier, tant qu'aucune séance réelle n'est créée. Stocké localement (par équipe)."
+        subtitle="Apparaissent en placeholder sur le calendrier, tant qu'aucune séance réelle n'est créée. Enregistrés pour l'équipe : les mêmes sur tous les appareils."
         onClose={onClose}
       />
 
@@ -739,8 +775,8 @@ function AutreEventModal({
 
       <div className="space-y-5">
         <p className="text-xs text-muted leading-relaxed">
-          Réunion, déplacement, formation, événement administratif... Stocké
-          localement par équipe sur ce navigateur.
+          Réunion, déplacement, formation, événement administratif... Enregistré
+          pour l&apos;équipe : visible sur tous les appareils.
         </p>
 
         <Section label="Titre">

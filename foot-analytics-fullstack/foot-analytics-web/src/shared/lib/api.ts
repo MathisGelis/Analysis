@@ -318,6 +318,18 @@ export const api = {
       fallback: [],
     }),
 
+  // Planning de l'equipe (jours d'entrainement recurrents, evenements « autre ») : garde par le serveur, le meme sur tous les appareils.
+  planningEquipe: (equipeId: string) =>
+    req<{ planning: { jours: number[]; heure: string } | null; autres: { id: string; date: string; heure?: string; titre: string; description?: string }[] }>(`/planning-equipe/${equipeId}`),
+  enregistrerPlanning: (equipeId: string, p: { jours: number[]; heure: string }) =>
+    req<{ jours: number[]; heure: string }>(`/planning-equipe/${equipeId}/planning`, { method: "PUT", body: JSON.stringify(p) }),
+  enregistrerAutre: (equipeId: string, e: { id: string; date: string; heure?: string; titre: string; description?: string }) => {
+    const { id, ...corps } = e;
+    return req<unknown>(`/planning-equipe/${equipeId}/autres/${id}`, { method: "PUT", body: JSON.stringify(corps) });
+  },
+  supprimerAutre: (equipeId: string, id: string) =>
+    req<void>(`/planning-equipe/${equipeId}/autres/${id}`, { method: "DELETE" }),
+
   // Blessures
   blessures: (joueurId?: string) =>
     req<any[]>(`/blessures${joueurId ? `?joueurId=${joueurId}` : ""}`, {
