@@ -43,6 +43,20 @@ type JoueurTrouve = Joueur & { derniereSaison?: DerniereSaison | null; derniereE
 // Clubs et arbitres, gardes entre deux recherches (une seule charge par session de page).
 let cache: { clubs: Club[]; arbitres: any[]; equipes: Equipe[] } | null = null;
 const LIMITE_PAR_GROUPE = 5;
+/** Pause de frappe avant d'interroger le serveur : la recherche du serveur est rapide, inutile d'attendre davantage. */
+const PAUSE_FRAPPE_MS = 60;
+/** Reponses gardees par terme (revenir en arriere dans la saisie est instantane) ; courte duree pour ne pas montrer une fiche perimee. */
+const DUREE_CACHE_MS = 20_000;
+const MAX_CACHE = 60;
+const reponses = new Map<string, { au: number; valeur: unknown }>();
+const gardee = <T,>(cle: string): T | null => {
+  const r = reponses.get(cle);
+  return r && Date.now() - r.au < DUREE_CACHE_MS ? (r.valeur as T) : null;
+};
+const garder = (cle: string, valeur: unknown) => {
+  if (reponses.size >= MAX_CACHE) reponses.delete(reponses.keys().next().value as string);
+  reponses.set(cle, { au: Date.now(), valeur });
+};
 const ORDRE: Groupe[] = ["Joueurs", "Entraîneurs", "Clubs", "Arbitres"];
 
 export function RechercheGlobale() {
@@ -93,10 +107,16 @@ export function RechercheGlobale() {
   useEffect(() => {
     if (terme.length < 2) { setJoueurs([]); setCoachs([]); return; }
     const n = ++requete.current;
+    const cle = terme.toLowerCase();
+    // Un terme deja demande tout recemment : reponse immediate, sans aller-retour.
+    const joueursGardes = gardee<JoueurTrouve[]>(`j:${cle}`), coachsGardes = gardee<any[]>(`c:${cle}`);
+    if (joueursGardes && coachsGardes) { setJoueurs(joueursGardes); setCoachs(coachsGardes); return; }
     const minuteur = setTimeout(() => {
-      api.searchJoueurs(terme).then((r) => { if (n === requete.current) setJoueurs(r as JoueurTrouve[]); }).catch(() => {});
-      api.coachs(terme).then((r) => { if (n === requete.current) setCoachs(r); }).catch(() => {});
-    }, 150);
+      if (joueursGardes) setJoueurs(joueursGardes);
+      else api.searchJoueurs(terme).then((r) => { garder(`j:${cle}`, r); if (n === requete.current) setJoueurs(r as JoueurTrouve[]); }).catch(() => {});
+      if (coachsGardes) setCoachs(coachsGardes);
+      else api.coachs(terme).then((r) => { garder(`c:${cle}`, r); if (n === requete.current) setCoachs(r); }).catch(() => {});
+    }, PAUSE_FRAPPE_MS);
     return () => clearTimeout(minuteur);
   }, [terme]);
 
