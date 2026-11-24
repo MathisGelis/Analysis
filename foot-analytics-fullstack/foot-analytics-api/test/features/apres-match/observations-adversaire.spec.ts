@@ -110,6 +110,36 @@ describe("observations de l'adversaire : routes", () => {
     expect((await t.appel()("GET", base(mt.id))).statut).toBe(401);
   });
 
+  it("le dispositif observe de l'adversaire apparait sur la fiche du match, sans écraser un dispositif saisi à la main", async () => {
+    const mt = await matchJoue();                                                                  // nous = OL, a domicile : l'adversaire est le visiteur
+    const a = t.appel(await ref());
+    const fiche = async () => (await a("GET", `/matchs/${mt.id}`)).corps;
+    const nous0 = (await fiche()).formationDom;
+    await a("PUT", `${base(mt.id)}/dispositif`, { en_possession: "4-3-3", sans_ballon: "5-3-2" });
+    expect(await fiche()).toMatchObject({ formationExt: "4-3-3", formationDom: nous0 });             // avec le ballon d'abord ; jamais notre cote
+    await a("PUT", `${base(mt.id)}/dispositif`, { en_possession: "3-5-2" });                       // corrige : suit
+    expect((await fiche()).formationExt).toBe("3-5-2");
+    await a("PUT", `${base(mt.id)}/dispositif`, { sans_ballon: "5-4-1" });                         // sans le ballon seulement : sert a defaut
+    expect((await fiche()).formationExt).toBe("5-4-1");
+    await a("PUT", `${base(mt.id)}/dispositif`, { en_possession: "Autre" });                        // « Autre » n'est pas un dispositif
+    expect((await fiche()).formationExt).toBeNull();                                                // l'observation retire ce qu'elle avait reporte
+    await a("PUT", `${base(mt.id)}/dispositif`, { en_possession: "4-4-2" });
+    expect((await fiche()).formationExt).toBe("4-4-2");
+    await a("PATCH", `/matchs/${mt.id}/dispositifs`, { formationExt: "4-1-4-1" });                  // saisi a la main : l'observation n'y touche plus
+    await a("PUT", `${base(mt.id)}/dispositif`, { en_possession: "4-3-3" });
+    expect((await fiche()).formationExt).toBe("4-1-4-1");
+    await a("PUT", `${base(mt.id)}/dispositif`, {});
+    expect((await fiche()).formationExt).toBe("4-1-4-1");
+  });
+
+  it("vu du visiteur, l'adversaire est le recevant", async () => {
+    const mt = await matchJoue();
+    const visiteur = await t.compte({ login: `ROV${Math.random().toString(36).slice(2, 5)}`, role: "referent", clubId: m.mions.id });
+    const ext0 = (await t.appel(visiteur)("GET", `/matchs/${mt.id}`)).corps.formationExt;
+    await t.appel(visiteur)("PUT", `${base(mt.id)}/dispositif`, { en_possession: "4-2-3-1" });
+    expect((await t.appel(visiteur)("GET", `/matchs/${mt.id}`)).corps).toMatchObject({ formationDom: "4-2-3-1", formationExt: ext0 });
+  });
+
   it("le club adverse ne voit pas mes observations : elles restent privees a mon club", async () => {
     const mt = await matchJoue();
     await t.appel(await ref())("PUT", `${base(mt.id)}/points_forts`, { atouts: ["Vitesse"] });

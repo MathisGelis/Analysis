@@ -29,7 +29,7 @@ function dispositifsSaisis(dto: { formationDom?: string; formationExt?: string }
 }
 
 /** Les "4-4-2 / 4-2-3-1" ecrits en dur par l'ancien import ne sont pas des dispositifs : rendus vides (voir features/matchs/systeme.ts). */
-function sansFormationInventee<T extends { formationDom?: string | null; formationExt?: string | null }>(m: T): T {
+function sansFormationInventee<T extends { formationDom?: string | null; formationExt?: string | null; dispositifsSaisis?: boolean | null }>(m: T): T {
   if (estFormationInventee(m)) { m.formationDom = null; m.formationExt = null; }
   return m;
 }
@@ -99,7 +99,8 @@ export class MatchsService {
         return this.update(identique.id, dto);
       }
     }
-    const match = await this.repo.save(this.repo.create({ ...rest, ...dispositifsSaisis(dto) } as any) as unknown as Match);
+    const saisis = dispositifsSaisis(dto);
+    const match = await this.repo.save(this.repo.create({ ...rest, ...saisis, ...(Object.keys(saisis).length ? { dispositifsSaisis: true } : {}) } as any) as unknown as Match);
     if (compositions?.length) {
       await this.compos.save(
         compositions.map((c) => ({ ...c, matchId: match.id })) as any,
@@ -116,7 +117,8 @@ export class MatchsService {
   async update(id: string, dto: UpdateMatchDto) {
     const m = await this.findOne(id);
     const { compositions, evenements, ...rest } = dto;
-    Object.assign(m, rest, dispositifsSaisis(dto));
+    const saisis = dispositifsSaisis(dto);
+    Object.assign(m, rest, saisis, Object.keys(saisis).length ? { dispositifsSaisis: true } : {});
     await this.repo.save(m);
     if (compositions) {
       await this.compos.delete({ matchId: id });

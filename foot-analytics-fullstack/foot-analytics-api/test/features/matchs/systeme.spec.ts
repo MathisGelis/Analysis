@@ -28,6 +28,13 @@ describe("couple invente par l'ancien import", () => {
     expect(estFormationInventee({ formationDom: "4-2-3-1", formationExt: "4-4-2" })).toBe(false);
   });
 
+  it("le même couple saisi par le staff (drapeau) est une observation : gardé, jamais effacé", () => {
+    const saisi = { formationDom: "4-4-2", formationExt: "4-2-3-1", dispositifsSaisis: true };
+    expect(estFormationInventee(saisi)).toBe(false);
+    expect(systemesRenseignes(saisi)).toEqual({ dom: "4-4-2", ext: "4-2-3-1" });
+    expect(estFormationInventee({ ...saisi, dispositifsSaisis: false })).toBe(true);        // un import ancien, jamais saisi : toujours ecarte
+  });
+
   it("valeur illisible : ecartee", () => {
     expect(systemesRenseignes({ formationDom: "?", formationExt: "4-3-3" })).toEqual({ dom: null, ext: "4-3-3" });
   });

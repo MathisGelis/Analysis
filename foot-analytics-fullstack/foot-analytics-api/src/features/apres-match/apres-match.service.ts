@@ -22,7 +22,8 @@ import { BilanDto, NoteJoueurDto } from "./apres-match.dto";
 import { BilanMatch } from "./bilan-match.entity";
 import { NoteJoueurMatch } from "./note-joueur-match.entity";
 import { ObservationAdversaire } from "./observation-adversaire.entity";
-import { CATALOGUE, Observations, sectionsRemplies, validerSection } from "./observations-adversaire";
+import { formationValide, systemesRenseignes } from "@/features/matchs/systeme";
+import { CATALOGUE, Observations, sectionsRemplies, validerSection, ValeursSection } from "./observations-adversaire";
 import { fichesDuMatch } from "./temps-de-jeu";
 
 const ROLES_ARBITRE: Record<string, string> = { principal: "Arbitre", assistant1: "Assistant 1", assistant2: "Assistant 2", "4e": "4e arbitre" };
@@ -34,6 +35,7 @@ export class ApresMatchService {
     @InjectRepository(BilanMatch) private bilans: Repository<BilanMatch>,
     @InjectRepository(ObservationAdversaire) private observations: Repository<ObservationAdversaire>,
     @InjectRepository(Direct) private directs: Repository<Direct>,
+    @InjectRepository(Match) private matchsRepo: Repository<Match>,
     @InjectRepository(EvenementDirect) private evenements: Repository<EvenementDirect>,
     @InjectRepository(ArbitreMatch) private arbitresMatch: Repository<ArbitreMatch>,
     @InjectRepository(Arbitre) private arbitres: Repository<Arbitre>,
@@ -100,6 +102,25 @@ export class ApresMatchService {
     };
   }
 
+  /**
+   * Le dispositif observe de l'adversaire (celui qu'il avait avec le ballon, a defaut sans) apparait sur la fiche du match, du cote de
+   * l'adversaire. On ne remplace jamais un dispositif saisi a la main : seulement un dispositif encore vide, ou celui que cette observation
+   * avait elle-meme reporte (elle le corrige ou l'efface avec lui). « Autre » n'est pas un dispositif : rien n'est reporte.
+   */
+  private async reporterDispositifAdverse(m: Match, cote: "dom" | "ext", avant: ValeursSection | undefined, apres: ValeursSection) {
+    const lire = (v: ValeursSection | undefined) => {
+      const f = (v?.en_possession ?? v?.sans_ballon) as string | undefined;
+      return f && formationValide(f) ? f : null;
+    };
+    const ancien = lire(avant), nouveau = lire(apres);
+    const champ = cote === "dom" ? "formationExt" : "formationDom";            // l'adversaire
+    const renseignes = systemesRenseignes(m);                                     // l'ancien couple en dur n'est pas un dispositif saisi
+    const actuel = renseignes[cote === "dom" ? "ext" : "dom"];
+    if (nouveau === actuel || (actuel !== null && actuel !== ancien)) return;   // deja a jour, ou saisi a la main : on n'y touche pas
+    // Les deux cotes sont ecrits tels qu'ils sont RENSEIGNES : le drapeau « saisi » ne doit pas faire reapparaitre l'ancien couple en dur.
+    await this.matchsRepo.update(m.id, { formationDom: renseignes.dom, formationExt: renseignes.ext, [champ]: nouveau, dispositifsSaisis: true } as any);
+  }
+
   /** Les observations de l'adversaire pour CE match : le catalogue des choix, ce qui est deja saisi, l'avancement. */
   async observationsAdversaire(ctx: ContexteAcces, matchId: string) {
     const { m, clubId, cote } = await this.contexte(ctx, matchId);
@@ -124,6 +145,7 @@ export class ApresMatchService {
     await this.observations.save(this.observations.create({
       ...(existante ?? { id, matchId, clubId, adversaireId: cote === "dom" ? m.clubExt : m.clubDom }), valeurs, auteurId: ctx.compte.id,
     }));
+    if (sectionId === "dispositif") await this.reporterDispositifAdverse(m, cote, existante?.valeurs?.dispositif as ValeursSection | undefined, section);
     await this.journal.noter("apres_match.observations", { acteur: ctx.compte, cible: `match:${m.id}`, cibleClubId: clubId, details: { section: sectionId } });
     return { section: sectionId, valeurs: section, avancement: { sections: sectionsRemplies(valeurs), total: CATALOGUE.length } };
   }

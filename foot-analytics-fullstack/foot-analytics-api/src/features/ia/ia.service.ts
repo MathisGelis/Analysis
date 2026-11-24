@@ -191,7 +191,7 @@ export class IaService implements OnModuleInit {
     const matchs = await this.matchs.find({
       select: {
         id: true, date: true, journee: true, saisonId: true, competition: true, clubDom: true, clubExt: true,
-        equipeDomId: true, equipeExtId: true, formationDom: true, formationExt: true, statut: true,
+        equipeDomId: true, equipeExtId: true, formationDom: true, formationExt: true, dispositifsSaisis: true, statut: true,
       },
     });
     const joues = matchs.filter(estMatchJoue);

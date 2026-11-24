@@ -75,7 +75,7 @@ export interface EntreesDonnees {
   matchs: {
     id: string; date?: string | null; journee?: string | null; saisonId?: string | null; competition?: string | null;
     clubDom: string; clubExt: string; equipeDomId?: string | null; equipeExtId?: string | null;
-    formationDom?: string | null; formationExt?: string | null; statut?: string | null;
+    formationDom?: string | null; formationExt?: string | null; dispositifsSaisis?: boolean | null; statut?: string | null;
   }[];
   equipes: { id: string; clubId: string; categorie?: string | null; division?: string | null; nom: string; saisonId?: string | null }[];
   clubs: { id: string; nom: string }[];

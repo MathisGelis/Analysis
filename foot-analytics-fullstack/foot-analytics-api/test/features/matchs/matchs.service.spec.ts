@@ -34,6 +34,19 @@ describe("MatchsService : dispositifs", () => {
     expect(r).toMatchObject({ formationDom: "4-3-3", formationExt: "3-5-2" });
   });
 
+  it("deux dispositifs courants saisis l'un apres l'autre (4-4-2 puis 4-2-3-1) restent tous les deux, meme si c'est le couple de l'ancien import", async () => {
+    const m = await unMatch({ numeroFmi: "FMI-1" } as any);                  // une feuille importee
+    await svc.update(m.id, { formationDom: "4-4-2" } as any);
+    await svc.update(m.id, { formationExt: "4-2-3-1" } as any);
+    expect(await svc.findOne(m.id)).toMatchObject({ formationDom: "4-4-2", formationExt: "4-2-3-1", dispositifsSaisis: true });
+    expect((await svc.findAll()).find((x) => x.id === m.id)).toMatchObject({ formationDom: "4-4-2", formationExt: "4-2-3-1" });
+  });
+
+  it("une feuille importee par l'ancien import (couple en dur, jamais saisi) reste lue comme vide", async () => {
+    const m = await unMatch({ numeroFmi: "FMI-2", formationDom: "4-4-2", formationExt: "4-2-3-1" } as any);
+    expect(await svc.findOne(m.id)).toMatchObject({ formationDom: null, formationExt: null });
+  });
+
   it("PATCH partiel : le DTO de mise a jour n'exige ni clubDom ni clubExt (saisie d'un seul dispositif)", async () => {
     const { ValidationPipe } = await import("@nestjs/common");
     const pipe = new ValidationPipe({ whitelist: true, transform: true });

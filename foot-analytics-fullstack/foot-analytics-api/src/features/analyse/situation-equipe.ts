@@ -13,7 +13,7 @@ export interface MatchSituation {
   clubDom: string; clubExt: string;
   equipeDomId?: string | null; equipeExtId?: string | null;
   scoreDom: number; scoreExt: number;
-  formationDom?: string | null; formationExt?: string | null;
+  formationDom?: string | null; formationExt?: string | null; dispositifsSaisis?: boolean | null;
 }
 
 /** Qui on regarde : une equipe precise, sinon le club (toutes ses equipes). */

@@ -1304,7 +1304,7 @@ export class DerivationService implements OnApplicationBootstrap {
     // L'ancien import ecrivait "4-4-2" (recevant) et "4-2-3-1" (visiteur) sur CHAQUE feuille : la FMI ne contient
     // aucun dispositif. Seules les feuilles importees portant exactement ce couple sont concernees.
     const concernes = await this.matchs.find({
-      where: { formationDom: FORMATION_INVENTEE.dom, formationExt: FORMATION_INVENTEE.ext, numeroFmi: Not(IsNull()) },
+      where: { formationDom: FORMATION_INVENTEE.dom, formationExt: FORMATION_INVENTEE.ext, numeroFmi: Not(IsNull()), dispositifsSaisis: false },
     });
     const total = await this.matchs.count({ where: { numeroFmi: Not(IsNull()) } });
     if (appliquer && concernes.length > 0) {

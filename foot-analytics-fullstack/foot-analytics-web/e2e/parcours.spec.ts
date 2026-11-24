@@ -1972,17 +1972,19 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await page.getByRole("button", { name: "Pressing" }).click();
   await page.getByRole("group", { name: "Pressing : Déclenchement" }).getByRole("button", { name: "Touche", exact: true }).click();
   await page.getByRole("group", { name: "Pressing : Efficacité" }).getByRole("button", { name: "4 sur 5" }).click();
+  await page.getByRole("button", { name: "Dispositif" }).click();
+  await page.getByRole("group", { name: "Dispositif : Avec le ballon" }).getByRole("button", { name: "4-3-3", exact: true }).click();
   await page.getByRole("button", { name: "Meilleurs joueurs" }).click();
   await page.getByRole("button", { name: "Ajouter un joueur" }).click();
   await page.getByLabel("Numéro du joueur 1").fill("10");
   await page.getByLabel("Commentaire sur le joueur 1").fill("Gaucher");
   await expect.poll(async () => (await (await appeler(`/apres-match/matchs/${match.id}/adversaire`)).json()).valeurs, { timeout: 8_000 })
-    .toEqual({ pressing: { declenchement: ["Touche"], efficacite: 4 }, meilleurs_joueurs: { joueurs: [{ numero: 10, commentaire: "Gaucher" }] } });
-  await expect(page.getByText("2 sur 14 sujets renseignés.")).toBeVisible();
+    .toEqual({ dispositif: { en_possession: "4-3-3" }, pressing: { declenchement: ["Touche"], efficacite: 4 }, meilleurs_joueurs: { joueurs: [{ numero: 10, commentaire: "Gaucher" }] } });
+  await expect(page.getByText("3 sur 14 sujets renseignés.")).toBeVisible();
   // Rechargee, la saisie est la : elle ne depend pas de l'appareil.
   await page.reload();
   await page.getByRole("tab", { name: "Adversaire" }).click();
-  await expect(page.getByText("2 sur 14 sujets renseignés.")).toBeVisible();
+  await expect(page.getByText("3 sur 14 sujets renseignés.")).toBeVisible();
   await page.getByRole("button", { name: "Pressing" }).click();
   await expect(page.getByRole("group", { name: "Pressing : Déclenchement" }).getByRole("button", { name: "Touche", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.evaluate(axe);        // le rechargement a vide la page : axe est a reinjecter
@@ -1993,8 +1995,15 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await expect(page.getByRole("heading", { name: "Le match en chiffres" })).toBeVisible();
   await expect(page.getByRole("img", { name: /Corners : \d pour nous, \d pour eux/ })).toBeVisible();
   for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur le résumé (${theme})`).toEqual([]);
+  // Clôturer enregistre tout puis ramène à la fiche du match, où le dispositif observé de l'adversaire est renseigné.
   await page.getByRole("button", { name: "Clôturer le match" }).click();
-  await expect(page.getByText("Match clôturé")).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/matchs/${match.id}$`), { timeout: 15_000 });
+  expect((await (await appeler(`/matchs/${match.id}`)).json()).formationExt).toBe("4-3-3");
+  await expect(page.getByText("4-3-3").first()).toBeVisible();
+  // Une fois clôturé, « Match clôturé » enregistre et ramène aussi à la fiche du match.
+  await page.goto(`/matchs/${match.id}/apres`);
+  await page.getByRole("button", { name: "Match clôturé" }).click();
+  await expect(page).toHaveURL(new RegExp(`/matchs/${match.id}$`), { timeout: 15_000 });
   await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
 });
 

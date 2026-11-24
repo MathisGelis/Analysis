@@ -28,10 +28,11 @@ export function normaliserFormation(valeur: string | null | undefined): string |
   return v === "" ? null : v;
 }
 
-interface AvecFormations { formationDom?: string | null; formationExt?: string | null }
+interface AvecFormations { formationDom?: string | null; formationExt?: string | null; dispositifsSaisis?: boolean | null }
 
 /** Ce couple est celui que l'ancien import ecrivait sur chaque feuille : jamais une observation. */
 export function estFormationInventee(m: AvecFormations): boolean {
+  if (m.dispositifsSaisis) return false;                       // saisi par le staff : une observation, meme si c'est ce couple
   return m.formationDom === FORMATION_INVENTEE.dom && m.formationExt === FORMATION_INVENTEE.ext;
 }
 

@@ -32,6 +32,12 @@ export class Match {
   @Column({ nullable: true }) arbitre: string;
   @Column({ nullable: true }) formationDom: string;
   @Column({ nullable: true }) formationExt: string;
+  /**
+   * Un membre du staff a renseigne (ou efface) les dispositifs de ce match. Un dispositif saisi n'est JAMAIS le couple « 4-4-2 / 4-2-3-1 »
+   * que l'ancien import ecrivait en dur sur chaque feuille : sans ce drapeau, deux dispositifs courants saisis ensemble (4-4-2 contre
+   * 4-2-3-1) etaient pris pour cette donnee inventee et effaces tous les deux.
+   */
+  @Column({ name: "dispositifs_saisis", type: "boolean", default: false }) dispositifsSaisis: boolean;
   @Column({ default: "joue" }) statut: string;
   // Provenance de la feuille de match importee : quand, et par quel compte (identifiant). Le numero de la rencontre
   // est numeroFmi. Le PDF lui-meme n'est jamais conserve (fichier temporaire supprime apres lecture).
