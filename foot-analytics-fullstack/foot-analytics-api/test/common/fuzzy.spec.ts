@@ -1,4 +1,4 @@
-import { levenshtein, normaliser, scoreRecherche } from "@/common/fuzzy";
+import { levenshtein, levenshteinBorne, motsNormalises, normaliser, scoreMots, scoreRecherche } from "@/common/fuzzy";
 
 describe("normaliser", () => {
   it("retire accents, casse et ponctuation", () => {
@@ -58,5 +58,25 @@ describe("scoreRecherche", () => {
   it("une requete d'une ou deux lettres ne fait que du prefixe (pas de faute tolerable)", () => {
     expect(scoreRecherche("ka", libelles("KABIFUP", "Lumipi"))).toBe(1);
     expect(scoreRecherche("ku", libelles("KABIFUP", "Lumipi"))).toBe(0);
+  });
+});
+
+describe("levenshteinBorne", () => {
+  it("donne la distance exacte jusqu'à la borne, borne + 1 au-delà", () => {
+    const mots = ["martin", "martinez", "mertin", "marten", "dupont", "dupond", "x", "", "bertrand", "bertran", "robert", "rober"];
+    for (const a of mots) for (const b of mots) {
+      const exacte = levenshtein(a, b);
+      for (const max of [1, 2, 3]) expect(levenshteinBorne(a, b, max)).toBe(exacte <= max ? exacte : max + 1);
+    }
+  });
+});
+
+describe("scoreMots : le même score que scoreRecherche, sans renormaliser", () => {
+  it("sur des noms variés (accents, fautes, ordre, mots multiples)", () => {
+    const candidats = ["Martin Léo", "Léo MARTIN", "Dupont-Durand Jean", "Marten Luc", "Bertrand Jean-Pierre", "El Amrani Yanis", "O'Neil Sean", "Müller Théo", "", "X"];
+    const requetes = ["mar", "martin", "marti lé", "dupond", "jean pierre", "amrani", "oneil", "muller", "theo mul", "zzz", "e", "bertrand"];
+    for (const c of candidats) for (const q of requetes) {
+      expect(scoreMots(motsNormalises(q), motsNormalises(c))).toBeCloseTo(scoreRecherche(q, [c, c.split(" ").reverse().join(" ")]), 10);
+    }
   });
 });

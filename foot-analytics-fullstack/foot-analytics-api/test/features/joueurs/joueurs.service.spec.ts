@@ -568,6 +568,17 @@ describe("JoueursService", () => {
     });
     const noms = (r: { nom: string }[]) => r.map((j) => j.nom);
 
+    it("l'index de recherche suit les creations, modifications et suppressions du service, sans attendre sa relecture periodique", async () => {
+      expect(noms(await svc.search("tarlouze"))).toEqual([]);                      // l'index est construit ici
+      const cree = await svc.create({ nom: "TARLOUZE", prenom: "Jo" } as any);
+      expect(noms(await svc.search("tarlouze"))).toEqual(["TARLOUZE"]);
+      await svc.update(cree.id, { nom: "BARDOUF" } as any);
+      expect(noms(await svc.search("tarlouze"))).toEqual([]);
+      expect(noms(await svc.search("bardouf"))).toEqual(["BARDOUF"]);
+      await svc.remove(cree.id);
+      expect(noms(await svc.search("bardouf"))).toEqual([]);
+    });
+
     it("moins de 2 caracteres : aucun resultat", async () => {
       expect(await svc.search("d")).toEqual([]);
       expect(await svc.search("  ")).toEqual([]);

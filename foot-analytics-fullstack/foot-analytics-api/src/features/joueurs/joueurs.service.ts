@@ -11,11 +11,12 @@ import { EvenementMatch } from "@/features/matchs/evenement-match.entity";
 import { Match } from "@/features/matchs/match.entity";
 import { Saison } from "@/features/saisons/saison.entity";
 import { equipeDuCote, isEquipeSurCote } from "@/features/matchs/matching-cote";
-import { normaliser, scoreRecherche } from "@/common/fuzzy";
+import { normaliser } from "@/common/fuzzy";
 import { minutesJouees } from "@/features/matchs/minutes";
 import { cumuler, statsDuMatch, STATS_MATCH_VIDES, StatsMatch } from "@/features/matchs/stats-match";
 import { parseDateFlexible, trierChronologiquement } from "@/common/dates";
 
+import { chercherParLicence, chercherParNom, IndexJoueurs } from "./index-recherche";
 import { Joueur } from "./joueur.entity";
 import { StatJoueurEquipe } from "./stat-joueur-equipe.entity";
 import { CreateJoueurDto, RechercheAvanceeDto, StatEquipeDto, UpdateJoueurDto } from "./joueurs.dto";
@@ -44,6 +45,8 @@ export type JoueurRecherche = Omit<Joueur, "rafraichirFatigue"> & {
 @Injectable()
 export class JoueursService {
   private readonly log = new Logger(JoueursService.name);
+  /** Les noms de tous les joueurs, deja normalises, pour la barre de recherche (voir index-recherche.ts). */
+  private readonly indexNoms = new IndexJoueurs();
 
   constructor(
     @InjectRepository(Joueur) private repo: Repository<Joueur>,
@@ -473,19 +476,14 @@ export class JoueursService {
     const parLicence = /^\d{3,}$/.test(needle);
     if (parLicence && "licencesDuClub" in options && options.licencesDuClub !== undefined && !options.licencesDuClub) return [];
 
-    const tous = await this.repo.find(parLicence && options.licencesDuClub ? { where: { clubId: options.licencesDuClub } } : {});
-    const trouves = tous
-      .map((j) => ({
-        j,
-        score: parLicence
-          ? ((j.licence ?? "").startsWith(needle) ? 1 : 0)
-          : scoreRecherche(needle, [`${j.nom} ${j.prenom ?? ""}`, `${j.prenom ?? ""} ${j.nom}`]),
-      }))
-      .filter((x) => x.score >= SEUIL_RECHERCHE)
-      .sort((a, b) => b.score - a.score || (a.j.nom ?? "").localeCompare(b.j.nom ?? ""))
-      .slice(0, limit)
-      .map((x) => x.j);
-    return this.avecParcours(trouves);
+    // L'index des noms (calcule une fois, pas a chaque frappe) donne les identifiants des meilleurs ; seules ces fiches sont lues.
+    const index = await this.indexNoms.obtenir(() => this.repo.find({ select: ["id", "nom", "prenom", "licence", "clubId"] }));
+    const ids = parLicence
+      ? chercherParLicence(index, needle, options.licencesDuClub, limit)
+      : chercherParNom(index, needle, SEUIL_RECHERCHE, limit);
+    if (ids.length === 0) return [];
+    const fiches = new Map((await this.repo.find({ where: { id: In(ids) } })).map((j) => [j.id, j]));
+    return this.avecParcours(ids.map((id) => fiches.get(id)).filter((j): j is Joueur => !!j));
   }
 
   /**
@@ -722,7 +720,9 @@ export class JoueursService {
       blessuresAnt: 0,
     };
     const j = this.repo.create(payload);
-    return await this.repo.save(j);
+    const cree = await this.repo.save(j);
+    this.indexNoms.invalider();
+    return cree;
   }
 
   async findOne(id: string) {
@@ -1024,9 +1024,11 @@ export class JoueursService {
     return result;
   }
 
-  create(dto: CreateJoueurDto) {
+  async create(dto: CreateJoueurDto) {
     const j = this.repo.create(dto);
-    return this.repo.save(j);
+    const cree = await this.repo.save(j);
+    this.indexNoms.invalider();
+    return cree;
   }
 
   async update(id: string, dto: UpdateJoueurDto) {
@@ -1035,12 +1037,15 @@ export class JoueursService {
     const statutModifie = dto.statutMutation !== undefined && dto.statutMutation !== j.statutMutation;
     Object.assign(j, dto);
     if (statutModifie) j.statutMutationSaisi = true;
-    return this.repo.save(j);
+    const modifie = await this.repo.save(j);
+    this.indexNoms.invalider();
+    return modifie;
   }
 
   async remove(id: string) {
     const j = await this.findOne(id);
     await this.repo.remove(j);
+    this.indexNoms.invalider();
     return { ok: true, id };
   }
 }
