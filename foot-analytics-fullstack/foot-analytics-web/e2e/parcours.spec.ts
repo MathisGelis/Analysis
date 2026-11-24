@@ -1951,6 +1951,7 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await expect(page.getByText("2 sur 14 sujets renseignés.")).toBeVisible();
   await page.getByRole("button", { name: "Pressing" }).click();
   await expect(page.getByRole("group", { name: "Pressing : Déclenchement" }).getByRole("button", { name: "Touche", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.evaluate(axe);        // le rechargement a vide la page : axe est a reinjecter
   for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur l'adversaire (${theme})`).toEqual([]);
   for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur l'après-match (${theme})`).toEqual([]);
   // Le résumé de fin de match : les chiffres du direct, comparés, accessibles.
