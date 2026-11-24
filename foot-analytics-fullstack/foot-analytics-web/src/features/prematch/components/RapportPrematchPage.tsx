@@ -21,6 +21,7 @@ import { AideDecision } from "@/features/legal/components/AideDecision";
 
 import { joueursSurTerrain, libellesPostes } from "../lib/onze-terrain";
 import { ExportRapport } from "./ExportRapport";
+import { ObservationsContreEux } from "./ObservationsContreEux";
 import { PistesMatch } from "./PistesMatch";
 import { ComparatifEquipes } from "./ComparatifEquipes";
 import { JoueursAMenager } from "./JoueursAMenager";
@@ -175,6 +176,12 @@ export default async function RapportPrematch({
       <Section titre={`Son jeu contre nous`} icone={<Crosshair size={11} className="text-accent" />}
         aide="tirs, zones et buts d'après les matchs que nous avons saisis en direct">
         <JeuAdversaire equipeId={maEquipe.id} adversaireId={adversaireClubId} nom={adv.clubNom} />
+      </Section>
+
+      {/* Ce que NOTRE staff a observe de lui apres nos matchs contre lui (apres-match) */}
+      <Section titre="Ce qu'on a observé" icone={<Crosshair size={11} className="text-accent" />}
+        aide="nos observations après les matchs joués contre lui : dispositif, points forts, pressing, coups de pied arrêtés…">
+        <ObservationsContreEux synthese={r.observations ?? { matchs: 0, derniere: null, sections: [] }} nom={adv.clubNom} />
       </Section>
 
       {/* Systeme de jeu probable : dispositifs renseignes et numeros de maillot */}

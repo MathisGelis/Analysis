@@ -538,23 +538,23 @@ test("rapport pré-match : bouton Exporter, aperçu, PDF et PowerPoint identique
   await expect(page.getByRole("button", { name: "PDF", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("iframe").and(page.getByTitle(/Aperçu de l.export/))).toBeVisible({ timeout: 60_000 });
 
-  // Les quinze pages (sept du modele du staff + huit d'analyse), toutes cochees au depart.
+  // Les seize pages (sept du modele du staff + neuf d'analyse), toutes cochees au depart.
   const cases = page.getByRole("checkbox");
-  await expect(cases).toHaveCount(15);
-  for (let i = 0; i < 15; i++) await expect(cases.nth(i)).toBeChecked();
-  await expect(page.locator("label").getByText("Analyse", { exact: true })).toHaveCount(8);
+  await expect(cases).toHaveCount(16);
+  for (let i = 0; i < 16; i++) await expect(cases.nth(i)).toBeChecked();
+  await expect(page.locator("label").getByText("Analyse", { exact: true })).toHaveCount(9);
 
   // Le modele du staff seul : sept pages ; puis tout recoche.
   await page.getByRole("button", { name: "Modèle seulement" }).click();
-  await expect(page.getByText("Pages · 7 pages sur 15")).toBeVisible();
+  await expect(page.getByText("Pages · 7 pages sur 16")).toBeVisible();
   await expect(page.getByRole("checkbox", { name: /Nous contre eux/ })).not.toBeChecked();
   await page.getByRole("button", { name: "Tout cocher" }).click();
 
-  // Sans la page convocation ("Le match") : quatorze pages.
+  // Sans la page convocation ("Le match") : quinze pages.
   await page.getByRole("checkbox", { name: /Le match/ }).uncheck();
-  await expect(page.getByText("Pages · 14 pages sur 15")).toBeVisible();
+  await expect(page.getByText("Pages · 15 pages sur 16")).toBeVisible();
 
-  // Le PDF (format par defaut) : un vrai PDF, de quatorze pages, tire du meme PowerPoint.
+  // Le PDF (format par defaut) : un vrai PDF, de quinze pages, tire du meme PowerPoint.
   const [pdf] = await Promise.all([
     page.waitForEvent("download"),
     page.getByRole("button", { name: "Télécharger le PDF" }).click(),
@@ -562,7 +562,7 @@ test("rapport pré-match : bouton Exporter, aperçu, PDF et PowerPoint identique
   expect(pdf.suggestedFilename()).toMatch(/^avant-match-.+\.pdf$/);
   const octets = readFileSync((await pdf.path()) as string);
   expect(octets.subarray(0, 4).toString()).toBe("%PDF");
-  expect((octets.toString("latin1").match(/\/Type\s*\/Page[^s]/g) ?? []).length).toBe(14);
+  expect((octets.toString("latin1").match(/\/Type\s*\/Page[^s]/g) ?? []).length).toBe(15);
 
   // Le PowerPoint : memes pages.
   await expect(page.getByText(/avant-match-.+\.pdf/)).toBeVisible();
@@ -574,7 +574,7 @@ test("rapport pré-match : bouton Exporter, aperçu, PDF et PowerPoint identique
   ]);
   expect(telechargement.suggestedFilename()).toMatch(/^avant-match-.+\.pptx$/);
 
-  // Le fichier : une archive de quatorze diapositives, sans la page "Le match" (donc sans "Convocation"), avec l'adversaire.
+  // Le fichier : une archive de quinze diapositives, sans la page "Le match" (donc sans "Convocation"), avec l'adversaire.
   const [diapos, convocation, adv] = execFileSync(process.env.PYTHON_BIN ?? "python3", ["-c", [
     "import sys, re, zipfile",
     "z = zipfile.ZipFile(sys.argv[1])",
@@ -582,9 +582,9 @@ test("rapport pré-match : bouton Exporter, aperçu, PDF et PowerPoint identique
     "t = ' '.join(z.read(x).decode('utf8') for x in n)",
     "print(len(n)); print('Convocation' in t); print(sys.argv[2].upper() in t.upper())",
   ].join("\n"), (await telechargement.path()) as string, adversaire.nom]).toString().trim().split("\n");
-  expect([diapos, convocation, adv]).toEqual(["14", "False", "True"]);
+  expect([diapos, convocation, adv]).toEqual(["15", "False", "True"]);
 
-  // La fenetre se ferme apres le telechargement ; rouverte, elle garde le choix (14 pages). Aucune page cochee : pas de telechargement.
+  // La fenetre se ferme apres le telechargement ; rouverte, elle garde le choix (15 pages). Aucune page cochee : pas de telechargement.
   await expect(page.getByRole("heading", { level: 2, name: "Exporter le rapport" })).toHaveCount(0);
   await page.getByRole("button", { name: "Exporter", exact: true }).click();
   await expect(page.getByRole("checkbox", { name: /Le match/ })).not.toBeChecked();
@@ -1931,6 +1931,27 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await page.getByLabel("Ce qui a marché").fill("Pressing haut");
   await expect.poll(async () => (await (await appeler(`/apres-match/matchs/${match.id}`)).json()).bilan.positifs, { timeout: 8_000 }).toBe("Pressing haut");
   await expect(page.getByText("Tout est enregistré")).toBeVisible();
+
+  // L'adversaire : de petits selecteurs par sujet, enregistres tout seuls par section.
+  await page.getByRole("tab", { name: "Adversaire" }).click();
+  await expect(page.getByText("0 sur 14 sujets renseignés.")).toBeVisible();
+  await page.getByRole("button", { name: "Pressing" }).click();
+  await page.getByRole("group", { name: "Pressing : Déclenchement" }).getByRole("button", { name: "Touche", exact: true }).click();
+  await page.getByRole("group", { name: "Pressing : Efficacité" }).getByRole("button", { name: "4 sur 5" }).click();
+  await page.getByRole("button", { name: "Meilleurs joueurs" }).click();
+  await page.getByRole("button", { name: "Ajouter un joueur" }).click();
+  await page.getByLabel("Numéro du joueur 1").fill("10");
+  await page.getByLabel("Commentaire sur le joueur 1").fill("Gaucher");
+  await expect.poll(async () => (await (await appeler(`/apres-match/matchs/${match.id}/adversaire`)).json()).valeurs, { timeout: 8_000 })
+    .toEqual({ pressing: { declenchement: ["Touche"], efficacite: 4 }, meilleurs_joueurs: { joueurs: [{ numero: 10, commentaire: "Gaucher" }] } });
+  await expect(page.getByText("2 sur 14 sujets renseignés.")).toBeVisible();
+  // Rechargee, la saisie est la : elle ne depend pas de l'appareil.
+  await page.reload();
+  await page.getByRole("tab", { name: "Adversaire" }).click();
+  await expect(page.getByText("2 sur 14 sujets renseignés.")).toBeVisible();
+  await page.getByRole("button", { name: "Pressing" }).click();
+  await expect(page.getByRole("group", { name: "Pressing : Déclenchement" }).getByRole("button", { name: "Touche", exact: true })).toHaveAttribute("aria-pressed", "true");
+  for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur l'adversaire (${theme})`).toEqual([]);
   for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur l'après-match (${theme})`).toEqual([]);
   // Le résumé de fin de match : les chiffres du direct, comparés, accessibles.
   await page.getByRole("tab", { name: "Résumé" }).click();

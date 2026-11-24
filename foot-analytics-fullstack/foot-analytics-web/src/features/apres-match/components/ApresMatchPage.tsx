@@ -15,10 +15,11 @@ import { ResumeMatchVue } from "@/features/analyse-jeu/components/ResumeMatchVue
 
 import type { BilanMatch, EtatApresMatch, JoueurApres } from "../lib/apres-types";
 import { libelleFaits, noteTexte, noterPlus, tonNote } from "../lib/affichage";
+import { ObservationsAdversaire } from "./ObservationsAdversaire";
 import { useSauvegardeDifferee } from "./useSauvegardeDifferee";
 
-type Onglet = "notes" | "arbitre" | "blessures" | "bilan" | "resume";
-const ONGLETS: [Onglet, string][] = [["notes", "Notes joueurs"], ["arbitre", "Arbitre"], ["blessures", "Blessures"], ["bilan", "Bilan"], ["resume", "Résumé"]];
+type Onglet = "notes" | "arbitre" | "blessures" | "adversaire" | "bilan" | "resume";
+const ONGLETS: [Onglet, string][] = [["notes", "Notes joueurs"], ["arbitre", "Arbitre"], ["blessures", "Blessures"], ["adversaire", "Adversaire"], ["bilan", "Bilan"], ["resume", "Résumé"]];
 const TON: Record<string, string> = { haut: "text-accent", moyen: "text-ink", bas: "text-amber", vide: "text-faint" };
 
 export default function ApresMatchPage({ matchId }: { matchId: string }) {
@@ -125,6 +126,7 @@ export default function ApresMatchPage({ matchId }: { matchId: string }) {
         {onglet === "notes" && <Notes etat={etat} onNoter={noter} />}
         {onglet === "arbitre" && <Arbitres etat={etat} onNoter={noterArbitre} />}
         {onglet === "blessures" && <Blessures etat={etat} />}
+        {onglet === "adversaire" && <ObservationsAdversaire matchId={matchId} sauvegarde={sauvegarde} onErreur={setErreur} />}
         {onglet === "bilan" && <Bilan bilan={bilan ?? etat.bilan} onChange={changerBilan} />}
         {onglet === "resume" && <ResumeMatchVue matchId={matchId} />}
       </section>
