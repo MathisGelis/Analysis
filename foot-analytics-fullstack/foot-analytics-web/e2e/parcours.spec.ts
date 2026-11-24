@@ -1172,7 +1172,10 @@ test("calendrier : jours d'entraînement prévus et événements « autre » gar
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
   })).json();
-  const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { equipeId: string };
+  // L'equipe de la barre laterale (cookie), celle dont la page lit le planning.
+  const equipeId = (await page.context().cookies()).find((c) => c.name === "ownEquipeId")?.value
+    ?? (JSON.parse(readFileSync(FIXTURES, "utf8")) as { equipeId: string }).equipeId;
+  const fixtures = { equipeId };
   const duServeur = async () => (await fetch(`${API_URL}/planning-equipe/${fixtures.equipeId}`, { headers: { Authorization: `Bearer ${token}` } })).json();
 
   // Un navigateur qui garde encore l'ancien stockage local : repris une fois par le serveur, puis efface.
