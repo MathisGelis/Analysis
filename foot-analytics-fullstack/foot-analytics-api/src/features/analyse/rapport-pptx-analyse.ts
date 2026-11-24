@@ -33,7 +33,11 @@ interface ResumeForme {
 
 interface MatchAffiche { issue: Issue; libelle: string; score: string }
 
+/** Une ligne par section observee : son titre et ce qu'on y a note, en une phrase courte. */
+export interface LigneObservation { titre: string; texte: string }
+
 export interface ContenuAnalyse {
+  observations: { matchs: number; lignes: LigneObservation[] };
   comparatif: {
     nous: string; eux: string;
     lignes: LigneComparatif[];
@@ -127,6 +131,27 @@ const libelleMatch = (m: { journee: string | null; date: string | null; adversai
   return `${j}  ${m.adversaire}`.trim();
 };
 
+/** Ce qu'on a observe, en une ligne par section (valeurs les plus frequentes d'abord ; on retire des valeurs plutot que de couper un mot). */
+export function lignesObservations(o: RapportPrematch["observations"], maxCaracteres = 150): LigneObservation[] {
+  return o.sections.map((s) => {
+    const morceaux: string[] = [];
+    for (const c of s.champs) {
+      if (c.valeurs) {
+        morceaux.push(c.valeurs.slice(0, 4).map((v) => (o.matchs > 1 ? `${v.valeur} (${v.matchs}/${o.matchs})` : v.valeur)).join(", "));
+      } else if (c.moyenne !== undefined) morceaux.push(`${c.libelle.toLowerCase()} ${dec(c.moyenne, 1)}/5`);
+      else if (c.textes?.[0]) morceaux.push(c.textes[0].texte);
+      else if (c.joueurs) morceaux.push(c.joueurs.map((j) => `n°${j.numero}${j.commentaire ? ` (${j.commentaire})` : ""}`).join(", "));
+    }
+    let texte = "";
+    for (const m of morceaux.filter(Boolean)) {
+      const suite = texte ? `${texte} · ${m}` : m;
+      if (texte && suite.length > maxCaracteres) break;
+      texte = suite;
+    }
+    return { titre: s.titre, texte };
+  }).filter((l) => l.texte);
+}
+
 export function contenuAnalyse(r: RapportPrematch): ContenuAnalyse {
   const moi = r.monEquipe, adv = r.adversaire, a = r.analyse, num = r.numeros, probable = r.systemeAdverse.probable;
 
@@ -213,6 +238,7 @@ export function contenuAnalyse(r: RapportPrematch): ContenuAnalyse {
         : "",
       entraineur: a?.entraineur ?? "",
     },
+    observations: { matchs: r.observations.matchs, lignes: lignesObservations(r.observations) },
     face: {
       bilan: r.faceAFace.bilan.joues > 0 ? `${r.faceAFace.bilan.v}-${r.faceAFace.bilan.n}-${r.faceAFace.bilan.d}` : "",
       joues: r.faceAFace.bilan.joues,

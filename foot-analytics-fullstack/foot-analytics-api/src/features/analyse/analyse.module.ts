@@ -15,6 +15,7 @@ import { LigneClassement } from "@/features/classement/ligne-classement.entity";
 import { Match } from "@/features/matchs/match.entity";
 import { Saison } from "@/features/saisons/saison.entity";
 import { StaffMatch } from "@/features/coachs/staff-match.entity";
+import { ObservationAdversaire } from "@/features/apres-match/observation-adversaire.entity";
 import { AccesModule } from "@/features/acces/acces.module";
 import { IaModule } from "@/features/ia/ia.module";
 
@@ -29,7 +30,7 @@ import { AnalyseController } from "./analyse.controller";
     IaModule,
     TypeOrmModule.forFeature([
       Club, Match, Joueur, Composition, EvenementMatch, Entrainement,
-      Coach, StaffMatch, Equipe, LigneClassement, Saison, Arbitre,
+      Coach, StaffMatch, Equipe, LigneClassement, Saison, Arbitre, ObservationAdversaire,
     ]),
   ],
   controllers: [AnalyseController],

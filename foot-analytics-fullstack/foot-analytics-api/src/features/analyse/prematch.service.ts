@@ -23,6 +23,8 @@ import { PredictionSysteme } from "@/features/matchs/systeme";
 import { estMatchJoue } from "@/features/matchs/match-joue";
 import { avecAvisDuModele } from "@/features/ia/ia-live";
 
+import { ObservationAdversaire } from "@/features/apres-match/observation-adversaire.entity";
+import { Observations, SyntheseObservations, synthetiser } from "@/features/apres-match/observations-adversaire";
 import { pdfDepuisPptx } from "./pdf-depuis-pptx";
 import { Insight, MatchTendance } from "./tendances";
 import {
@@ -114,6 +116,8 @@ export interface RapportPrematch {
   /** Projection de resultat (modele de Poisson sur les moyennes de buts) ; null si l'echantillon est trop petit. */
   projection: Projection | null;
   pistes: Piste[];
+  /** Ce que MON staff a observe de cet adversaire apres nos matchs contre lui (apres-match), reuni par section. */
+  observations: SyntheseObservations;
 }
 
 @Injectable()
@@ -126,6 +130,7 @@ export class PrematchService {
     @InjectRepository(LigneClassement) private classement: Repository<LigneClassement>,
     @InjectRepository(Saison) private saisons: Repository<Saison>,
     @InjectRepository(Arbitre) private arbitres: Repository<Arbitre>,
+    @InjectRepository(ObservationAdversaire) private observationsRepo: Repository<ObservationAdversaire>,
   ) {}
 
   async rapport(equipeId: string, adversaireClubId: string, matchId?: string | null): Promise<RapportPrematch> {
@@ -247,7 +252,17 @@ export class PrematchService {
         terrain: match.terrain ?? null, domicile: !!domicile, arbitre: match.arbitre?.trim() || null,
       } : null,
       faceAFace: face, analyse, arbitre, systemeAdverse, numeros, projection, pistes,
+      observations: await this.observationsContre(monClub.id, advClub.id),
     };
+  }
+
+  /** Les observations de mon club sur cet adversaire, tous matchs confondus, reunies par section. */
+  private async observationsContre(monClubId: string, adversaireId: string): Promise<SyntheseObservations> {
+    const lignes = await this.observationsRepo.find({ where: { clubId: monClubId, adversaireId } });
+    if (lignes.length === 0) return synthetiser([]);
+    const matchs = await this.matchs.find({ where: { id: In(lignes.map((l) => l.matchId)) } });
+    const dates = new Map(matchs.map((m) => [m.id, m.date ?? null]));
+    return synthetiser(lignes.map((l) => ({ matchId: l.matchId, date: dates.get(l.matchId) ?? null, valeurs: l.valeurs as Observations })));
   }
 
   /** Bilan de saison, bilan par lieu et derniers matchs d'une equipe, d'apres sa ligne de classement et ses matchs joues. */

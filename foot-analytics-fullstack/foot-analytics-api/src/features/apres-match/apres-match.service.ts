@@ -21,6 +21,8 @@ import { Match } from "@/features/matchs/match.entity";
 import { BilanDto, NoteJoueurDto } from "./apres-match.dto";
 import { BilanMatch } from "./bilan-match.entity";
 import { NoteJoueurMatch } from "./note-joueur-match.entity";
+import { ObservationAdversaire } from "./observation-adversaire.entity";
+import { CATALOGUE, Observations, sectionsRemplies, validerSection } from "./observations-adversaire";
 import { fichesDuMatch } from "./temps-de-jeu";
 
 const ROLES_ARBITRE: Record<string, string> = { principal: "Arbitre", assistant1: "Assistant 1", assistant2: "Assistant 2", "4e": "4e arbitre" };
@@ -30,6 +32,7 @@ export class ApresMatchService {
   constructor(
     @InjectRepository(NoteJoueurMatch) private notes: Repository<NoteJoueurMatch>,
     @InjectRepository(BilanMatch) private bilans: Repository<BilanMatch>,
+    @InjectRepository(ObservationAdversaire) private observations: Repository<ObservationAdversaire>,
     @InjectRepository(Direct) private directs: Repository<Direct>,
     @InjectRepository(EvenementDirect) private evenements: Repository<EvenementDirect>,
     @InjectRepository(ArbitreMatch) private arbitresMatch: Repository<ArbitreMatch>,
@@ -95,6 +98,34 @@ export class ApresMatchService {
         bilan: !!(bilan?.positifs || bilan?.aTravailler || bilan?.bilan),
       },
     };
+  }
+
+  /** Les observations de l'adversaire pour CE match : le catalogue des choix, ce qui est deja saisi, l'avancement. */
+  async observationsAdversaire(ctx: ContexteAcces, matchId: string) {
+    const { m, clubId, cote } = await this.contexte(ctx, matchId);
+    const o = await this.observations.findOne({ where: { id: `${matchId}:${clubId}` } });
+    const valeurs = (o?.valeurs ?? {}) as Observations;
+    return {
+      adversaireId: cote === "dom" ? m.clubExt : m.clubDom,
+      catalogue: CATALOGUE, valeurs,
+      avancement: { sections: sectionsRemplies(valeurs), total: CATALOGUE.length },
+      modifieLe: o?.modifieLe ?? null,
+    };
+  }
+
+  /** Enregistre UNE section (les autres ne bougent pas) ; une section vide est effacee. Valide contre le catalogue. */
+  async enregistrerObservations(ctx: ContexteAcces, matchId: string, sectionId: string, brut: unknown) {
+    const { m, cote, clubId } = await this.contexte(ctx, matchId);
+    const section = validerSection(sectionId, brut);
+    const id = `${matchId}:${clubId}`;
+    const existante = await this.observations.findOne({ where: { id } });
+    const valeurs = { ...(existante?.valeurs ?? {}) } as Observations;
+    if (Object.keys(section).length > 0) valeurs[sectionId] = section; else delete valeurs[sectionId];
+    await this.observations.save(this.observations.create({
+      ...(existante ?? { id, matchId, clubId, adversaireId: cote === "dom" ? m.clubExt : m.clubDom }), valeurs, auteurId: ctx.compte.id,
+    }));
+    await this.journal.noter("apres_match.observations", { acteur: ctx.compte, cible: `match:${m.id}`, cibleClubId: clubId, details: { section: sectionId } });
+    return { section: sectionId, valeurs: section, avancement: { sections: sectionsRemplies(valeurs), total: CATALOGUE.length } };
   }
 
   /** La note (et le commentaire) d'un joueur de mon equipe ; une note vide l'efface. */
