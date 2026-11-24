@@ -97,7 +97,7 @@ function Champ({ champ, section, valeurs, onChange }: {
           {champ.options!.map((o) => (
             <button key={o} type="button" aria-pressed={choisie(o)}
               onClick={() => onChange(champ.type === "multi" ? basculer(valeurs, champ.id, o, champ.options!) : choisir(valeurs, champ.id, o))}
-              className={`min-h-9 rounded-full border px-3 text-[13px] transition-colors ${choisie(o) ? "border-accent bg-accent/15 font-bold text-accent" : "border-line bg-surface text-ink hover:bg-line/40"}`}>{o}</button>
+              className={`min-h-9 rounded-full border px-3 text-[13px] transition-colors ${choisie(o) ? "border-accent bg-accent/15 font-bold text-ink" : "border-line bg-surface text-ink hover:bg-line/40"}`}>{o}</button>
           ))}
         </div>
       </div>
@@ -110,7 +110,7 @@ function Champ({ champ, section, valeurs, onChange }: {
         <div className="flex gap-1.5">
           {[1, 2, 3, 4, 5].map((n) => (
             <button key={n} type="button" aria-pressed={valeurs[champ.id] === n} aria-label={`${n} sur 5`} onClick={() => onChange(noter(valeurs, champ.id, n))}
-              className={`h-9 w-9 rounded-full border text-sm font-bold tabular-nums transition-colors ${valeurs[champ.id] === n ? "border-accent bg-accent/15 text-accent" : "border-line bg-surface text-ink hover:bg-line/40"}`}>{n}</button>
+              className={`h-9 w-9 rounded-full border text-sm font-bold tabular-nums transition-colors ${valeurs[champ.id] === n ? "border-accent bg-accent/15 font-bold text-ink" : "border-line bg-surface text-ink hover:bg-line/40"}`}>{n}</button>
           ))}
           <span className="self-center pl-1 text-xs text-muted">1 faible · 5 très bon</span>
         </div>
