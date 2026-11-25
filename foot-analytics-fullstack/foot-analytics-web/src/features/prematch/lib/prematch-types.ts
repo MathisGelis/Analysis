@@ -119,12 +119,15 @@ export interface RapportPrematch {
   };
   /** Lecture des numeros de maillot de l'adversaire (postes, polyvalence, indices) ; null sans match analyse. */
   numeros: AnalyseNumeros | null;
-  /** Projection de resultat (modele de Poisson) ; null si l'echantillon est trop petit. */
+  /** Projection de resultat (modele de Poisson, ou score appris par l'IA) ; null si l'echantillon est trop petit. */
   projection: {
     pV: number; pN: number; pD: number;
     buts: { moi: number; adv: number };
     scoreProbable: { moi: number; adv: number; proba: number };
     matchs: number;
+    /** "ia" : score appris par l'IA ; absent ou "poisson" : modele de Poisson sur les moyennes. */
+    source?: "poisson" | "ia";
+    modele?: string;
   } | null;
   pistes: Piste[];
 }

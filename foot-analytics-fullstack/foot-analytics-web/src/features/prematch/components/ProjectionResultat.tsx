@@ -1,6 +1,6 @@
 // src/features/prematch/components/ProjectionResultat.tsx
 //
-// Projection du resultat d'un match (modele de Poisson sur les moyennes de buts) : probabilites de victoire, nul et defaite,
+// Projection du resultat d'un match (modele de Poisson, ou score appris par l'IA) : probabilites de victoire, nul et defaite,
 // score le plus probable. Se tait (et dit pourquoi) quand l'echantillon est trop petit. Fonction du rapport pre-match.
 
 import { Sparkles } from "lucide-react";
@@ -8,6 +8,13 @@ import { Sparkles } from "lucide-react";
 import { decimal } from "@/features/analyse/lib/tendances-format";
 
 import type { RapportPrematch } from "../lib/prematch-types";
+
+/** La methode de la projection, en clair (la meme phrase que le PDF et le PowerPoint). */
+export function libelleMethodeProjection(p: { source?: "poisson" | "ia"; modele?: string }): string {
+  return p.source === "ia"
+    ? `Score prédit par l'IA${p.modele ? ` (${p.modele})` : ""}, appris sur les résultats passés`
+    : "Modèle de Poisson sur les moyennes de buts";
+}
 
 export function ProjectionResultat({ r }: { r: RapportPrematch }) {
   const p = r.projection;
@@ -32,7 +39,7 @@ export function ProjectionResultat({ r }: { r: RapportPrematch }) {
           <span className="ml-2 text-xs font-normal text-faint">{p.scoreProbable.proba} % de chances</span>
         </div>
         <p className="mt-1 text-[12px] text-muted">
-          Buts attendus : {decimal(p.buts.moi)} pour nous, {decimal(p.buts.adv)} pour eux. Modèle de Poisson sur les moyennes de buts
+          Buts attendus : {decimal(p.buts.moi)} pour nous, {decimal(p.buts.adv)} pour eux. {libelleMethodeProjection(p)}
           (sur au moins {p.matchs} matchs de chaque équipe){r.match ? `, ${r.match.domicile ? "à domicile" : "à l'extérieur"} compris` : ""}.
         </p>
       </div>

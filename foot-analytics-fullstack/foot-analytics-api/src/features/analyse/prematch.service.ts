@@ -8,7 +8,7 @@
 //   GET /api/analyse/prematch?equipeId=&adversaireId=[&matchId=]
 //   equipeId : MON equipe (donc la saison et le championnat) ; adversaireId : le CLUB adverse.
 
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
@@ -35,7 +35,9 @@ import { contenuRapport, PageRapport } from "./rapport-pptx-contenu";
 import { genererRapportPptx, lireModele } from "./rapport-pptx";
 import { fusionnerSystemes, SystemeProbable } from "./systeme-probable";
 import { systemeDe } from "./situation-equipe";
-import { Projection, projectionResultat } from "./projection";
+import { attendusDuModele, MatchPasse } from "@/features/ia/ia-score";
+import { IaService } from "@/features/ia/ia.service";
+import { Projection, projectionDepuisAttendus, projectionResultat } from "./projection";
 import { AnalyseService } from "./analyse.service";
 
 const norm = (s?: string | null) => (s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
@@ -113,11 +115,22 @@ export interface RapportPrematch {
   };
   /** Lecture des numeros de maillot de l'adversaire (postes, polyvalence, indices) ; null s'aucun de ses matchs n'a ete analyse. */
   numeros: AnalyseNumeros | null;
-  /** Projection de resultat (modele de Poisson sur les moyennes de buts) ; null si l'echantillon est trop petit. */
+  /** Projection de resultat (modele de Poisson sur les moyennes de buts, ou score appris par l'IA) ; null si l'echantillon est trop petit. */
   projection: Projection | null;
   pistes: Piste[];
   /** Ce que MON staff a observe de cet adversaire apres nos matchs contre lui (apres-match), reuni par section. */
   observations: SyntheseObservations;
+}
+
+/** Les matchs joues d'une equipe, vus de son cote, le plus recent d'abord (le format du modele de score). */
+function matchsPasses(matchs: readonly Match[], equipeId: string | null): MatchPasse[] {
+  if (!equipeId) return [];
+  return trierChronologiquement(matchs.filter((m) => m.equipeDomId === equipeId || m.equipeExtId === equipeId)
+    .map((m) => ({ m, date: m.date ?? null, journee: m.journee ?? null }))).map((x) => x.m).reverse()
+    .map((m) => {
+      const domicile = m.equipeDomId === equipeId;
+      return { buts: domicile ? m.scoreDom : m.scoreExt, butsContre: domicile ? m.scoreExt : m.scoreDom, domicile };
+    });
 }
 
 @Injectable()
@@ -131,6 +144,8 @@ export class PrematchService {
     @InjectRepository(Saison) private saisons: Repository<Saison>,
     @InjectRepository(Arbitre) private arbitres: Repository<Arbitre>,
     @InjectRepository(ObservationAdversaire) private observationsRepo: Repository<ObservationAdversaire>,
+    // Le modele de l'IA actif (absent : le modele de Poisson seul, comme avant).
+    @Optional() private readonly ia?: IaService,
   ) {}
 
   async rapport(equipeId: string, adversaireClubId: string, matchId?: string | null): Promise<RapportPrematch> {
@@ -219,9 +234,18 @@ export class PrematchService {
     // Le dispositif retenu par le modele de l'IA actif, quand il en a un (sinon le moteur a regles : dispositifs saisis + numeros).
     const probable = avecAvisDuModele(fusionnerSystemes(situation.prediction, numeros), rap.systemeModele, rap.systemeModele?.nom ?? "");
     const systemeAdverse = { ...situation, probable };
-    const projection = projectionResultat({
+    const entreesProjection = {
       moi: { matchs: moi.matchs, bpm: moi.bpm, bcm: moi.bcm }, adv: { matchs: adv.matchs, bpm: adv.bpm, bcm: adv.bcm }, domicileMoi: domicile,
-    });
+    };
+    let projection = projectionResultat(entreesProjection);
+    // Le score appris par l'IA remplace le modele de Poisson quand il l'a battu pendant l'entrainement (memes matchs, sans fuite).
+    const modeleIa = projection && this.ia ? await this.ia.modeleActif() : null;
+    if (projection && modeleIa?.poids.scoreRetenu && modeleIa.poids.score) {
+      const attendus = attendusDuModele(
+        modeleIa.poids.score, matchsPasses(matchsMoi, monEquipe.id), matchsPasses(matchsAdv, advEquipe?.id ?? null), domicile,
+      );
+      if (attendus) projection = { ...projectionDepuisAttendus(attendus.moi, attendus.adv, projection.matchs, "ia"), modele: modeleIa.nom };
+    }
 
     const pistes = pistesPrematch({
       moi, adv,

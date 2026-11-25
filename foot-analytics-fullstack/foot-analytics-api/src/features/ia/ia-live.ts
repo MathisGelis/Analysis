@@ -57,6 +57,7 @@ export function feuillesDeLEquipe(matchs: readonly MatchDeLEquipe[]): FeuilleEqu
       journee: i.m.journee ?? null, saisonId: i.m.saisonId ?? null, domicile: i.dom, lignes,
       // Le dispositif SAISI par le staff pour cette equipe sur ce match (jamais une valeur par defaut), comme a l'entrainement.
       formation: i.dom ? dispositifs.dom : dispositifs.ext, categorie: "?",
+      buts: null, butsContre: null, adversaireEquipe: "",
     });
   }
   return feuilles;

@@ -18,6 +18,10 @@ export interface Projection {
   scoreProbable: { moi: number; adv: number; proba: number };
   /** Matchs joues de l'equipe qui en a le moins : la taille de l'echantillon. */
   matchs: number;
+  /** D'ou viennent les buts attendus : le modele de Poisson sur les moyennes (defaut) ou le modele appris par l'IA. */
+  source?: "poisson" | "ia";
+  /** Nom du modele de l'IA quand `source` vaut "ia". */
+  modele?: string;
 }
 
 /** Avantage du terrain : les buts attendus de l'equipe qui recoit sont majores, ceux du visiteur minores. */
@@ -40,17 +44,21 @@ function arrondirA100(valeurs: number[]): number[] {
   return res;
 }
 
-export function projectionResultat(
-  e: { moi: EquipeProjection; adv: EquipeProjection; domicileMoi: boolean | null }, matchsMin = 5,
-): Projection | null {
-  const matchs = Math.min(e.moi.matchs, e.adv.matchs);
-  if (matchs < matchsMin) return null;
-
+/** Les buts attendus du modele de Poisson sur les moyennes : ce que chaque equipe marque croise avec ce que l'autre encaisse. */
+export function attendusPoisson(
+  e: { moi: Pick<EquipeProjection, "bpm" | "bcm">; adv: Pick<EquipeProjection, "bpm" | "bcm">; domicileMoi: boolean | null },
+): { moi: number; adv: number } {
   const facteur = e.domicileMoi === null ? 0 : e.domicileMoi ? AVANTAGE_DOMICILE : -AVANTAGE_DOMICILE;
-  const lMoi = Math.max(0.05, ((e.moi.bpm + e.adv.bcm) / 2) * (1 + facteur));
-  const lAdv = Math.max(0.05, ((e.adv.bpm + e.moi.bcm) / 2) * (1 - facteur));
-  const pMoi = poisson(lMoi);
-  const pAdv = poisson(lAdv);
+  return {
+    moi: Math.max(0.05, ((e.moi.bpm + e.adv.bcm) / 2) * (1 + facteur)),
+    adv: Math.max(0.05, ((e.adv.bpm + e.moi.bcm) / 2) * (1 - facteur)),
+  };
+}
+
+/** Victoire / nul / defaite et score le plus probable, pour des buts attendus donnes (deux lois de Poisson independantes). */
+export function projectionDepuisAttendus(lMoi: number, lAdv: number, matchs: number, source: "poisson" | "ia" = "poisson"): Projection {
+  const pMoi = poisson(Math.max(0.05, lMoi));
+  const pAdv = poisson(Math.max(0.05, lAdv));
 
   let v = 0, n = 0, d = 0;
   let meilleur = { moi: 0, adv: 0, p: -1 };
@@ -65,8 +73,35 @@ export function projectionResultat(
   const [pV, pN, pD] = arrondirA100([v, n, d]);
   return {
     pV, pN, pD,
-    buts: { moi: +lMoi.toFixed(1), adv: +lAdv.toFixed(1) },
+    buts: { moi: +Math.max(0.05, lMoi).toFixed(1), adv: +Math.max(0.05, lAdv).toFixed(1) },
     scoreProbable: { moi: meilleur.moi, adv: meilleur.adv, proba: Math.round((meilleur.p / total) * 100) },
     matchs,
+    source,
   };
+}
+
+/** Probabilites (0 a 1) de victoire, nul et defaite de la premiere equipe, sans arrondi : pour mesurer la qualite d'une prediction. */
+export function issueDepuisAttendus(lMoi: number, lAdv: number): { v: number; n: number; d: number } {
+  const pMoi = poisson(Math.max(0.05, lMoi));
+  const pAdv = poisson(Math.max(0.05, lAdv));
+  let v = 0, n = 0, d = 0;
+  for (let i = 0; i <= BUTS_MAX; i++) for (let j = 0; j <= BUTS_MAX; j++) { const p = pMoi[i] * pAdv[j]; if (i > j) v += p; else if (i === j) n += p; else d += p; }
+  const t = v + n + d;
+  return { v: v / t, n: n / t, d: d / t };
+}
+
+/** La methode de la projection, en clair (rapport a l'ecran, PDF et PowerPoint disent la meme chose). */
+export function libelleMethodeProjection(p: Pick<Projection, "source" | "modele">): string {
+  return p.source === "ia"
+    ? `Score prédit par l'IA${p.modele ? ` (${p.modele})` : ""}, appris sur les résultats passés`
+    : "Modèle de Poisson sur les moyennes de buts";
+}
+
+export function projectionResultat(
+  e: { moi: EquipeProjection; adv: EquipeProjection; domicileMoi: boolean | null }, matchsMin = 5,
+): Projection | null {
+  const matchs = Math.min(e.moi.matchs, e.adv.matchs);
+  if (matchs < matchsMin) return null;
+  const { moi, adv } = attendusPoisson(e);
+  return projectionDepuisAttendus(moi, adv, matchs);
 }
