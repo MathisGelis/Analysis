@@ -81,6 +81,7 @@ export function ResultatIa({ detail }: { detail: EntrainementDetail }) {
   const lignesT = lignesDePoids(detail.catalogue.titularisation, r.poids.titularisation, detail.poidsInitiaux.titularisation);
   const lignesN = lignesDePoids(detail.catalogue.numeros, r.poids.numeros, detail.poidsInitiaux.numeros);
   const lignesS = lignesDePoids(detail.catalogue.systeme, r.poids.systeme, detail.poidsInitiaux.systeme);
+  const lignesScore = lignesDePoids(detail.catalogue.score ?? [], r.poids.score ?? null, detail.poidsInitiaux.score ?? null);
   const meilleur = (cle: "onze" | "postes", source: typeof g): Methode | null => {
     const candidats = METHODES.filter((m) => source[m][cle] !== null);
     return candidats.length ? candidats.reduce((a, b) => ((source[b][cle] ?? 0) > (source[a][cle] ?? 0) ? b : a)) : null;
@@ -215,6 +216,36 @@ export function ResultatIa({ detail }: { detail: EntrainementDetail }) {
           </div>
         ) : (
           <p className="text-sm text-muted">Aucun dispositif saisi par le staff sur les matchs de la base : le modèle de dispositif n'a rien pu apprendre. Saisissez les dispositifs sur les fiches de match pour l'entraîner.</p>
+        )}
+      </Bloc>
+
+      <Bloc titre="Score des matchs" testid="score-ia"
+        aide="Les buts attendus de chaque équipe, appris sur les résultats passés, comparés au modèle de Poisson sur les moyennes de buts (celui du rapport pré-match) sur exactement les mêmes matchs.">
+        {r.score ? (
+          <div className="overflow-x-auto">
+            <table className="table-fm">
+              <thead><tr><th>Méthode</th><th className="text-right">Perte (plus bas = mieux)</th><th className="text-right">Bon vainqueur ou nul</th><th className="text-right">Écart moyen (buts)</th></tr></thead>
+              <tbody>
+                {([["modele", "Score appris par l'IA"], ["poisson", "Modèle de Poisson (moyennes)"]] as const).map(([k, label]) => (
+                  <tr key={k}>
+                    <td className={k === "modele" ? "font-semibold text-ink" : "text-muted"}>{label}</td>
+                    <td className="text-right font-mono">{nombre(r.score![k].perte, 3)}</td>
+                    <td className="text-right font-mono">{pct(r.score![k].issue)}</td>
+                    <td className="text-right font-mono">{nombre(r.score![k].ecart, 2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2 text-xs text-faint">Sur {r.score.n} matchs dont les deux équipes avaient assez d'historique.</p>
+            <p className="mt-1 text-xs" data-testid="score-retenu">
+              {r.score.retenu
+                ? <span className="text-win">Retenu : a fait au moins aussi bien que le modèle de Poisson, il donne le score du rapport pré-match et le classement prédit quand ce modèle est actif.</span>
+                : <span className="text-amber">Non retenu : pas assez de matchs comparés, ou moins bon que le modèle de Poisson. Le rapport pré-match garde le modèle de Poisson.</span>}
+            </p>
+            {lignesScore.length > 0 && <div className="mt-6"><PoidsAppris titre="Quels buts ?" lignes={lignesScore} /></div>}
+          </div>
+        ) : (
+          <p className="text-sm text-muted">Pas assez de matchs avec un score connu pour apprendre : le rapport pré-match garde le modèle de Poisson.</p>
         )}
       </Bloc>
 
