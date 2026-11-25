@@ -33,6 +33,7 @@ import { Declencheur, IaEntrainement, OptionsLancement, StatutEntrainement } fro
 import { IaModele } from "./ia-modele.entity";
 import { estDu, FUSEAU, HEURE_AUTO, JOUR_AUTO, planificateurActif, prochainPassage, ReglagePlanning } from "./ia-planning";
 import { IaReglage } from "./ia-reglage.entity";
+import { CARACTERISTIQUES_SCORE } from "./ia-score";
 import { CARACTERISTIQUES_NUMERO, CARACTERISTIQUES_SYSTEME, CARACTERISTIQUES_TITULAIRE, HYPER_PAR_DEFAUT, PoidsIa, poidsInitiaux } from "./ia-modele";
 
 const TAILLE_LOT = 500;
@@ -280,7 +281,7 @@ export class IaService implements OnModuleInit {
       ...this.vers(e, modele), resultat: e.resultat,
       /** Les poids de depart (l'heuristique a regles), pour montrer ce que l'entrainement a change. */
       poidsInitiaux: poidsInitiaux(e.resultat?.hyper ?? HYPER_PAR_DEFAUT),
-      catalogue: { titularisation: CARACTERISTIQUES_TITULAIRE, numeros: CARACTERISTIQUES_NUMERO, systeme: CARACTERISTIQUES_SYSTEME },
+      catalogue: { titularisation: CARACTERISTIQUES_TITULAIRE, numeros: CARACTERISTIQUES_NUMERO, systeme: CARACTERISTIQUES_SYSTEME, score: CARACTERISTIQUES_SCORE },
     };
   }
 
