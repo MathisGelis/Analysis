@@ -12,7 +12,12 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
 import { parseDateFlexible } from "@/common/dates";
+import { empreinteLicence } from "@/features/analyse/compo-numeros";
+import { normaliser } from "@/common/fuzzy";
+import { Blessure } from "@/features/blessures/blessure.entity";
 import { Club } from "@/features/clubs/club.entity";
+import { Joueur } from "@/features/joueurs/joueur.entity";
+import { EvenementMatch } from "@/features/matchs/evenement-match.entity";
 import { Composition } from "@/features/matchs/composition.entity";
 import { Equipe } from "@/features/equipes/equipe.entity";
 import { Match } from "@/features/matchs/match.entity";
@@ -146,7 +151,7 @@ export class IaService implements OnModuleInit {
       const apres = actif ? await this.derniereSemaineDuModele(actif) : null;
       const reference: OptionsEntrainement["reference"] = actif && apres !== null ? { id: actif.id, nom: actif.nom, poids: actif.poids, apres } : undefined;
       const resultat = await entrainer(jeu, {
-        grille: options.optimiser ? GRILLE_COMPLETE : [HYPER_PAR_DEFAUT],
+        grille: options.optimiser ? GRILLE_COMPLETE : [HYPER_PAR_DEFAUT], affiner: options.optimiser,
         progression, cooperer, annule: () => this.annulations.has(id), reference,
       });
       await chaine;
@@ -210,7 +215,31 @@ export class IaService implements OnModuleInit {
       compos.push(...lignes);
       await cooperer();
     }
-    return construireJeuDonnees({ matchs: joues, equipes, clubs, compos, saisonIds: saisonIds ?? undefined });
+    // Les cartons (expulsions, avertissements) de chaque feuille, et les blessures saisies par les clubs.
+    const evenements: NonNullable<EntreesDonnees["evenements"]> = [];
+    const manager = this.matchs.manager;
+    for (let i = 0; i < joues.length; i += TAILLE_LOT) {
+      const lot = joues.slice(i, i + TAILLE_LOT).map((m) => m.id);
+      evenements.push(...await manager.getRepository(EvenementMatch).find({
+        where: { matchId: In(lot), type: "carton" },
+        select: { matchId: true, type: true, sousType: true, equipe: true, joueur: true },
+      }));
+      await cooperer();
+    }
+    const blessures = await this.blessuresDeFeuille();
+    return construireJeuDonnees({ matchs: joues, equipes, clubs, compos, evenements, blessures, saisonIds: saisonIds ?? undefined });
+  }
+
+  /** Les blessures saisies, rattachees a la cle de feuille du joueur (licence, sinon nom) : la meme identite que les feuilles de match. */
+  private async blessuresDeFeuille(): Promise<NonNullable<EntreesDonnees["blessures"]>> {
+    const manager = this.matchs.manager;
+    const blessures = await manager.getRepository(Blessure).find({ select: { joueurId: true, dateDebut: true, retourEstime: true, statut: true } });
+    if (blessures.length === 0) return [];
+    const fiches = await manager.getRepository(Joueur).find({
+      where: { id: In([...new Set(blessures.map((b) => b.joueurId))]) }, select: { id: true, licence: true, nom: true, prenom: true },
+    });
+    const cle = new Map(fiches.map((j) => [j.id, j.licence ? `lic:${empreinteLicence(j.licence)}` : `nom:${normaliser(`${j.nom} ${j.prenom ?? ""}`)}`]));
+    return blessures.flatMap((b) => (cle.has(b.joueurId) ? [{ joueur: cle.get(b.joueurId)!, dateDebut: b.dateDebut, retourEstime: b.retourEstime, statut: b.statut }] : []));
   }
 
   /* ------------------------------------------- lecture ------------------------------------------- */

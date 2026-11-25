@@ -35,7 +35,7 @@ import { estMatchJoue } from "@/features/matchs/match-joue";
 import { parseDateFlexible, trierChronologiquement } from "@/common/dates";
 import { chargerDetailsMatchs } from "@/features/matchs/details-matchs";
 import { IaService } from "@/features/ia/ia.service";
-import { compoProbableDuModele, systemeDuModele } from "@/features/ia/ia-live";
+import { compoProbableDuModele, disponibiliteDesJoueurs, systemeDuModele } from "@/features/ia/ia-live";
 import { posteDuNumero } from "@/features/matchs/numeros-postes";
 
 import { analyserNumeros, lignesDeFeuille } from "./compo-numeros";
@@ -391,7 +391,9 @@ export class AnalyseService {
     const numerosCompo = suspendusNoms.size ? analyserNumeros(infosCompo.flatMap((i) => lignesDeFeuille(i.m, i.titulaires))) : numeros;
     // Un modele de l'IA actif (features/ia) prime : probabilite de titularisation par joueur, apprise sur toutes les feuilles.
     const modeleIa = this.ia ? await this.ia.modeleActif() : null;
-    const parModele = modeleIa ? compoProbableDuModele(modeleIa.poids, infosCompo, saisonId) : null;
+    // Les blessures du club n'entrent que dans son propre rapport (donnee privee), et seulement sur la saison en cours.
+    const disponibilite = options.donneesPrivees && saison?.actif ? disponibiliteDesJoueurs(joueurs) : undefined;
+    const parModele = modeleIa ? compoProbableDuModele(modeleIa.poids, infosCompo, saisonId, disponibilite) : null;
     // Et, si ce modele a appris les dispositifs (et fait au moins aussi bien que le moteur), le dispositif probable.
     const systemeParModele = modeleIa ? systemeDuModele(modeleIa.poids, infos) : null;
     let compoProbable: PosteScore[];

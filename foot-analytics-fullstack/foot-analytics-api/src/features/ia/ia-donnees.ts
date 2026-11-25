@@ -12,6 +12,9 @@ import { parseDateFlexible } from "@/common/dates";
 import { normaliser } from "@/common/fuzzy";
 import { lignesDeFeuille } from "@/features/analyse/compo-numeros";
 import { estMatchJoue } from "@/features/matchs/match-joue";
+import { plageBlessure } from "@/features/blessures/periode-blessure";
+import { designeLeJoueur } from "@/features/matchs/minutes";
+import { estSanctionRouge } from "@/features/matchs/suspensions";
 import { systemesRenseignes } from "@/features/matchs/systeme";
 
 const JOUR = 86_400_000;
@@ -24,7 +27,14 @@ export interface LigneJoueur {
   numero: number;
   titulaire: boolean;
   minutes: number;
+  /** Expulse dans ce match (carton rouge ou second jaune) : suspendu au moins au suivant. Absent = non renseigne. */
+  rouge?: boolean;
+  /** Un carton jaune dans ce match. */
+  jaune?: boolean;
 }
+
+/** Ce que l'on savait AVANT un match de la disponibilite des joueurs de l'equipe (cles de joueur). */
+export interface Disponibilite { absents: string[]; reprise: string[] }
 
 /** La feuille d'UNE equipe sur UN match. */
 export interface FeuilleEquipe {
@@ -42,6 +52,10 @@ export interface FeuilleEquipe {
   lignes: LigneJoueur[];
   /** Le dispositif SAISI par le staff pour cette equipe sur ce match (jamais une valeur par defaut), sinon null. */
   formation: string | null;
+  /** Categorie de l'equipe ("Seniors", "U17"...), pour mesurer la qualite par categorie ; "?" si inconnue. */
+  categorie: string;
+  /** Blessures et reprises en cours le jour du match (saisies par le club) : absent = aucune connue. */
+  disponibilite?: Disponibilite;
 }
 
 /** Une semaine de matchs : le modele la predit en entier avant de la decouvrir. */
@@ -80,6 +94,10 @@ export interface EntreesDonnees {
   equipes: { id: string; clubId: string; categorie?: string | null; division?: string | null; nom: string; saisonId?: string | null }[];
   clubs: { id: string; nom: string }[];
   compos: { matchId: string; cote: "dom" | "ext"; nom: string; prenom?: string | null; licence?: string | null; numero: number; titulaire: boolean; minutes?: number | null }[];
+  /** Evenements des matchs (cartons) : donnent les expulsions et avertissements de chaque feuille. */
+  evenements?: { matchId: string; type: string; sousType?: string | null; equipe: string; joueur: string }[];
+  /** Blessures saisies (joueur = cle de feuille : licence, sinon nom) : qui etait indisponible ou en reprise a la date d'un match. */
+  blessures?: { joueur: string; dateDebut?: string | null; retourEstime?: string | null; statut?: string | null }[];
   /** Restreint l'entrainement a ces saisons (toutes si absent ou vide). */
   saisonIds?: string[];
 }
@@ -106,6 +124,20 @@ function identiteEquipe(e: EquipeLue, multiples: ReadonlySet<string>): string {
   return multiples.has(base) ? `${base}|${normaliser(e.division) || normaliser(e.nom)}` : base;
 }
 
+/** Qui est indisponible ou en reprise a cette date (une blessure ne compte que si elle couvre le jour du match). */
+function disponibiliteLe(
+  plages: readonly { joueur: string; debut: number; fin: number; reprise: boolean }[], temps: number,
+): Disponibilite | undefined {
+  if (plages.length === 0) return undefined;
+  const absents = new Set<string>();
+  const reprise = new Set<string>();
+  for (const p of plages) {
+    if (temps < p.debut || temps > p.fin) continue;
+    (p.reprise ? reprise : absents).add(p.joueur);
+  }
+  return absents.size || reprise.size ? { absents: [...absents], reprise: [...reprise] } : undefined;
+}
+
 const dateFr = (t: number) => new Date(t).toISOString().slice(0, 10).split("-").reverse().join("/");
 
 /** Le lundi (00 h UTC) de la semaine d'un instant. */
@@ -126,6 +158,16 @@ export function construireJeuDonnees(entrees: EntreesDonnees): JeuDonnees {
   for (const c of entrees.compos) (composParMatch.get(c.matchId) ?? composParMatch.set(c.matchId, []).get(c.matchId)!).push(c);
   const saisonsVoulues = entrees.saisonIds?.length ? new Set(entrees.saisonIds) : null;
   const multiples = categoriesMultiples(entrees.equipes);
+  const evenementsParMatch = new Map<string, NonNullable<EntreesDonnees["evenements"]>>();
+  for (const e of entrees.evenements ?? []) {
+    if (e.type !== "carton") continue;
+    (evenementsParMatch.get(e.matchId) ?? evenementsParMatch.set(e.matchId, []).get(e.matchId)!).push(e);
+  }
+  const plages = (entrees.blessures ?? []).flatMap((b) => {
+    const p = plageBlessure(b);
+    const statut = (b.statut ?? "").toLowerCase();
+    return p ? [{ joueur: b.joueur, ...p, reprise: statut.includes("reprise") }] : [];
+  });
 
   const ecartes = { sansDate: 0, sansFeuille: 0, feuilleIncomplete: 0, horsSaison: 0 };
   const feuilles: FeuilleEquipe[] = [];
@@ -151,7 +193,11 @@ export function construireJeuDonnees(entrees: EntreesDonnees): JeuDonnees {
       lues.forEach((l, i) => {
         if (vus.has(l.joueur)) return;
         vus.add(l.joueur);
-        lignes.push({ joueur: l.joueur, nom: l.nom, numero: l.numero, titulaire: l.titulaire, minutes: Math.max(0, brutes[i].minutes ?? 0) });
+        const cartons = (evenementsParMatch.get(m.id) ?? []).filter((e) => e.equipe === cote && designeLeJoueur(e.joueur, { nom: brutes[i].nom, prenom: brutes[i].prenom ?? "" }));
+        lignes.push({
+          joueur: l.joueur, nom: l.nom, numero: l.numero, titulaire: l.titulaire, minutes: Math.max(0, brutes[i].minutes ?? 0),
+          ...(entrees.evenements ? { rouge: cartons.some((e) => estSanctionRouge(e.sousType)), jaune: cartons.some((e) => e.sousType === "jaune") } : {}),
+        });
       });
       if (lignes.filter((l) => l.titulaire).length !== 11) {
         if (lignes.length === 0) ecartes.sansFeuille++; else ecartes.feuilleIncomplete++;
@@ -168,6 +214,8 @@ export function construireJeuDonnees(entrees: EntreesDonnees): JeuDonnees {
         adversaire: clubs.get(adversaireId) ?? "Club inconnu",
         date: m.date!, temps, journee: m.journee ?? null, saisonId: m.saisonId ?? null, domicile, lignes,
         formation: domicile ? dispositifs.dom : dispositifs.ext,
+        categorie: equipe?.categorie ? normaliser(equipe.categorie) : "?",
+        disponibilite: disponibiliteLe(plages, temps),
       });
     }
   }

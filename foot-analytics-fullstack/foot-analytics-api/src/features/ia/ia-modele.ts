@@ -54,6 +54,13 @@ export const CARACTERISTIQUES_TITULAIRE: readonly Caracteristique[] = [
   { id: "minutesDernier", libelle: "Temps de jeu au dernier match", aide: "Minutes jouees au match precedent, rapportees a 90." },
   { id: "tauxAuPoste", libelle: "Titularisations a son poste habituel", aide: "Part des matchs ou le joueur a commence AU numero qu'il porte le plus : un joueur d'un poste fixe est plus previsible qu'un joueur qui comble des trous un peu partout." },
   { id: "titulaireDuPoste", libelle: "Titulaire habituel d'un poste", aide: "Le joueur est celui qui a le plus souvent commence au numero qu'il porte le plus : un poste a toujours son titulaire." },
+  { id: "indisponible", libelle: "Blessé ou indisponible ce jour-là", aide: "Une blessure saisie par le club couvre la date du match : le joueur ne sera presque jamais titulaire." },
+  { id: "reprise", libelle: "En reprise après blessure", aide: "Le joueur reprend après une blessure : titulaire moins souvent, ou avec moins de minutes." },
+  { id: "rougeDernier", libelle: "Expulsé au dernier match", aide: "Carton rouge ou second jaune au match précédent : suspendu au moins un match." },
+  { id: "sortiTot", libelle: "Sorti tôt au dernier match", aide: "Titulaire remplacé avant la 60e minute au match précédent (blessure, méforme ou choix du coach)." },
+  { id: "entreDernier", libelle: "Entré en jeu au dernier match", aide: "Remplaçant entré au match précédent : il revient souvent dans le groupe, plus rarement dans le onze." },
+  { id: "jaunesRecents", libelle: "Cartons jaunes récents", aide: "Nombre de matchs avec un carton jaune sur les 5 derniers : risque de suspension, et joueur au tempérament vif." },
+  { id: "minutesRecentes", libelle: "Charge des 3 derniers matchs", aide: "Minutes jouées sur les 3 derniers matchs, rapportées à 270 : un joueur très sollicité peut être ménagé." },
 ];
 
 export const CARACTERISTIQUES_NUMERO: readonly Caracteristique[] = [
@@ -92,7 +99,7 @@ export interface PoidsIa {
   frequencesSysteme: Record<string, number>;
 }
 
-const W_TITULAIRE_DEPART = [-3.5, 4.0, 0, 1.0, 1.0, 0.3, 0.2, 0, -0.8, -0.5, -0.6, 0.3, 0.4, 1.0, 0.5];
+const W_TITULAIRE_DEPART = [-3.5, 4.0, 0, 1.0, 1.0, 0.3, 0.2, 0, -0.8, -0.5, -0.6, 0.3, 0.4, 1.0, 0.5, -9, -0.6, -9, 0, 0.2, 0, 0];
 const W_NUMERO_DEPART = [5, 1, 2, 1];
 const W_SYSTEME_DEPART = [3, 1, 1, 2, 1, 0.5];
 
@@ -152,7 +159,9 @@ const dansLesOnze = (numero: number) => Number.isInteger(numero) && numero >= 1 
  * Lit les feuilles les plus recentes d'une equipe (la plus recente d'abord) et en tire, pour chaque joueur, ses
  * caracteristiques. `saisonId` : la saison du match a predire (pour reperer ce qui date d'une saison precedente).
  */
-export function preparerCandidats(recentesDAbord: readonly FeuilleEquipe[], saisonId: string | null, fenetre: number): Preparation {
+export function preparerCandidats(
+  recentesDAbord: readonly FeuilleEquipe[], saisonId: string | null, fenetre: number, disponibilite?: { absents?: ReadonlySet<string>; reprise?: ReadonlySet<string> },
+): Preparation {
   const fs = recentesDAbord.slice(0, fenetre);
   const n = fs.length;
   if (n === 0) return { candidats: [], derniersTitulaires: new Map(), n: 0, numerosExploitables: false };
@@ -163,6 +172,7 @@ export function preparerCandidats(recentesDAbord: readonly FeuilleEquipe[], sais
     nom: string; starts: number; start3: number; wStart: number; wAncienne: number; banc: number; entrees: number;
     premier: number; presentDernier: number; minutesDernier: number; titDernier: number; dernierNumero: number | null;
     numeros: number[]; lignes: number[];
+    rougeDernier: number; sortiTot: number; entreDernier: number; jaunes5: number; minutes3: number;
   }
   const cumuls = new Map<string, Cumul>();
   let titulaires = 0;
@@ -173,8 +183,16 @@ export function preparerCandidats(recentesDAbord: readonly FeuilleEquipe[], sais
       const c = cumuls.get(l.joueur) ?? cumuls.set(l.joueur, {
         nom: l.nom, starts: 0, start3: 0, wStart: 0, wAncienne: 0, banc: 0, entrees: 0, premier: -1, presentDernier: 0,
         minutesDernier: 0, titDernier: 0, dernierNumero: null, numeros: new Array(11).fill(0), lignes: new Array(4).fill(0),
+        rougeDernier: 0, sortiTot: 0, entreDernier: 0, jaunes5: 0, minutes3: 0,
       }).get(l.joueur)!;
-      if (r === 0) { c.presentDernier = 1; c.minutesDernier = Math.min(1, l.minutes / 90); }
+      if (r === 0) {
+        c.presentDernier = 1; c.minutesDernier = Math.min(1, l.minutes / 90);
+        if (l.rouge) c.rougeDernier = 1;
+        if (l.titulaire && l.minutes > 0 && l.minutes < 60) c.sortiTot = 1;
+        if (!l.titulaire && l.minutes > 0) c.entreDernier = 1;
+      }
+      if (r < 5 && l.jaune) c.jaunes5++;
+      if (r < 3) c.minutes3 += l.minutes;
       if (l.titulaire) {
         titulaires++;
         if (dansLesOnze(l.numero)) enRegle++;
@@ -226,6 +244,13 @@ export function preparerCandidats(recentesDAbord: readonly FeuilleEquipe[], sais
         c.minutesDernier,
         maxPoste / poidsTotal,
         poste >= 0 && proprietaire[poste] === joueur ? 1 : 0,
+        disponibilite?.absents?.has(joueur) ? 1 : 0,
+        disponibilite?.reprise?.has(joueur) ? 1 : 0,
+        c.rougeDernier,
+        c.sortiTot,
+        c.entreDernier,
+        c.jaunes5 / Math.min(5, n),
+        Math.min(1, c.minutes3 / (90 * Math.min(3, n))),
       ],
       numeros: c.wStart > 0 ? c.numeros.map((v) => v / c.wStart) : c.numeros,
       lignes: c.wStart > 0 ? c.lignes.map((v) => v / c.wStart) : c.lignes,
