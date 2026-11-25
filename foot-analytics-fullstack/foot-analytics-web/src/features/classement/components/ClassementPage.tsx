@@ -75,6 +75,7 @@ export default async function Classement() {
         matchs={garder(matchsChampionnat, CHAMPS_MATCH_CLASSEMENT)}
         joueurs={garder(joueursDuChampionnat, CHAMPS_JOUEUR_CLASSEMENT)}
         ownClubId={CLUB_PROPRE_ID}
+        equipeId={equipePropre?.id ?? null}
       />
     </div>
   );
