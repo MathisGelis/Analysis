@@ -1,4 +1,4 @@
-import { decider, MIN_FEUILLES_COMPARAISON } from "@/features/ia/ia-decision";
+import { decider, MIN_FEUILLES_COMPARAISON, modelesAElaguer, prochainNumeroModele } from "@/features/ia/ia-decision";
 import type { ComparaisonActif, MesureComparaison } from "@/features/ia/ia-entrainement";
 
 const mesure = (onze: number, perte = 0.4): MesureComparaison => ({ onze, postes: null, perte });
@@ -39,5 +39,37 @@ describe("decider : le nouveau modele remplace-t-il l'actif ?", () => {
     const d = decider(false, null);
     expect(d.action).toBe("sans_actif");
     expect(d.comparaison).toBeNull();
+  });
+});
+
+describe("historique des modèles", () => {
+  const m = (id: string, onze: number | null, extra: Partial<{ actif: boolean; perte: number | null; creeLe: string }> = {}) =>
+    ({ id, actif: false, creeLe: "2026-01-01T00:00:00.000Z", ...extra, resume: { onze, perte: extra.perte ?? null } });
+
+  it("garde les 5 meilleurs (part du onze, puis perte, puis le plus récent)", () => {
+    const tous = [m("a", 0.5), m("b", 0.7), m("c", 0.6), m("d", 0.9), m("e", 0.4), m("f", 0.8), m("g", 0.3)];
+    expect(modelesAElaguer(tous).sort()).toEqual(["e", "g"]);
+    expect(modelesAElaguer(tous, 3).sort()).toEqual(["a", "c", "e", "g"]);
+  });
+
+  it("à égalité de onze : la perte la plus basse, puis le plus récent", () => {
+    const tous = [m("a", 0.6, { perte: 0.9 }), m("b", 0.6, { perte: 0.5 }), m("c", 0.6, { perte: 0.5, creeLe: "2026-02-01T00:00:00.000Z" })];
+    expect(modelesAElaguer(tous, 2)).toEqual(["a"]);
+    expect(modelesAElaguer(tous, 1)).toEqual(["a", "b"]);
+  });
+
+  it("le modèle actif n'est jamais supprimé, même hors des meilleurs ; rien à supprimer sous la limite", () => {
+    const tous = [m("a", 0.9), m("b", 0.8), m("c", 0.7), m("faible", 0.1, { actif: true })];
+    expect(modelesAElaguer(tous, 2)).toEqual(["b", "c"]);
+    expect(modelesAElaguer(tous.slice(0, 3), 5)).toEqual([]);
+  });
+
+  it("un modèle sans score passe après ceux qui en ont un", () => {
+    expect(modelesAElaguer([m("a", null), m("b", 0.2)], 1)).toEqual(["a"]);
+  });
+
+  it("numéro du prochain modèle : un de plus que le plus grand, même si l'historique est élagué", () => {
+    expect(prochainNumeroModele([])).toBe(1);
+    expect(prochainNumeroModele(["Modele n°3", "Modele n°9", "Modele n°5"])).toBe(10);
   });
 });

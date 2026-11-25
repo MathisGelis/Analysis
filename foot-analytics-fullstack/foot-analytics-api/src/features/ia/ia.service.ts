@@ -19,7 +19,7 @@ import { Match } from "@/features/matchs/match.entity";
 import { estMatchJoue } from "@/features/matchs/match-joue";
 import { Saison } from "@/features/saisons/saison.entity";
 
-import { Decision, decider } from "./ia-decision";
+import { Decision, decider, MODELES_GARDES, modelesAElaguer, prochainNumeroModele } from "./ia-decision";
 import { construireJeuDonnees, EntreesDonnees, JeuDonnees, lundiDe } from "./ia-donnees";
 import {
   DonneesInsuffisantes, entrainer, GRILLE_COMPLETE, OptionsEntrainement, Progression, ResultatEntrainement, resumeDuResultat, ResumeModele,
@@ -152,9 +152,9 @@ export class IaService implements OnModuleInit {
       await chaine;
       const libelles = Object.fromEntries((await this.saisons.find()).map((s) => [s.id, s.nom]));
       const complet: ResultatEntrainement = { ...resultat, saisons: libelles };
-      const nombre = await this.modeles.count();
+      const numero = prochainNumeroModele((await this.modeles.find({ select: { nom: true } })).map((m) => m.nom));
       const modele = await this.modeles.save(this.modeles.create({
-        nom: `Modele n°${nombre + 1}`, entrainementId: id, poids: resultat.poids, resume: resumeDuResultat(resultat), actif: false,
+        nom: `Modele n°${numero}`, entrainementId: id, poids: resultat.poids, resume: resumeDuResultat(resultat), actif: false,
         creeLe: new Date().toISOString(),
       }));
       // La regle de securite : l'entrainement automatique ne remplace le modele actif que s'il fait au moins aussi bien.
@@ -167,6 +167,7 @@ export class IaService implements OnModuleInit {
       } else if (declencheur === "auto") {
         this.log.log(`${modele.nom} garde dans l'historique (${avis.action}) : ${avis.raison}`);
       }
+      await this.elaguerModeles();
       const decision: Decision = { ...avis, appliquee };
       await this.entrainements.update(id, {
         statut: "termine", progression: 100, message: "Termine", resultat: complet, modeleId: modele.id, decision,
@@ -351,6 +352,17 @@ export class IaService implements OnModuleInit {
   async desactiver(): Promise<void> {
     await this.modeles.update({ actif: true }, { actif: false });
     this.cache = null;
+  }
+
+  /** Ne garde que les meilleurs modeles (voir `modelesAElaguer`) : le reste n'apporte qu'un historique volumineux (poids de chaque modele). */
+  async elaguerModeles(garder = MODELES_GARDES): Promise<number> {
+    const tous = await this.modeles.find({ select: { id: true, actif: true, creeLe: true, resume: true } });
+    const aSupprimer = modelesAElaguer(tous, garder);
+    if (aSupprimer.length === 0) return 0;
+    await this.modeles.delete(aSupprimer);
+    await this.entrainements.update({ modeleId: In(aSupprimer) }, { modeleId: null });
+    this.log.log(`${aSupprimer.length} ancien(s) modele(s) supprime(s) : seuls les ${garder} meilleurs sont gardes`);
+    return aSupprimer.length;
   }
 
   async supprimerModele(id: string): Promise<void> {
