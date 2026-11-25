@@ -12,6 +12,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 import { TabBar } from "@/shared/ui/TabBar";
 import { Select } from "@/shared/ui/Select";
+import { ClassementPredit } from "./ClassementPredit";
 import { ClubBadge } from "@/features/clubs/components/ClubBadge";
 import { FormeStrip } from "@/shared/ui/Charts";
 import { FatigueBar } from "@/features/joueurs/components/FatigueBar";
@@ -19,10 +20,11 @@ import type { Club, LigneClassement, Issue } from "@/shared/lib/types";
 import { estMatchJoue } from "@/features/matchs/lib/match-joue";
 import type { JoueurClassement, MatchClassement } from "@/features/classement/lib/allegement";
 
-type Tab = "table" | "teams" | "players";
+type Tab = "table" | "predit" | "teams" | "players";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "table", label: "Classement" },
+  { id: "predit", label: "Classement prédit" },
   { id: "teams", label: "Stats équipes" },
   { id: "players", label: "Stats joueurs" },
 ];
@@ -33,10 +35,12 @@ interface Props {
   matchs: MatchClassement[];
   joueurs: JoueurClassement[];
   ownClubId: string;
+  /** L'equipe dont on lit le championnat (classement predit) ; null sans equipe selectionnee. */
+  equipeId?: string | null;
 }
 
 export function ClassementTabs({
-  classement, clubs, matchs, joueurs, ownClubId,
+  classement, clubs, matchs, joueurs, ownClubId, equipeId = null,
 }: Props) {
   const [tab, setTab] = useState<Tab>("table");
   return (
@@ -46,6 +50,7 @@ export function ClassementTabs({
       {tab === "table" && (
         <TableClassement classement={classement} clubs={clubs} ownClubId={ownClubId}/>
       )}
+      {tab === "predit" && <ClassementPredit equipeId={equipeId} ownClubId={ownClubId}/>}
       {tab === "teams" && (
         <TeamStats matchs={matchs} clubs={clubs} joueurs={joueurs} ownClubId={ownClubId}/>
       )}

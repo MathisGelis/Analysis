@@ -249,6 +249,32 @@ export interface RapportScouting {
   dernier11: { numero: number; nom: string; prenom: string; note?: string | null }[];
 }
 
+/** Une equipe du classement final predit (simulation de la fin de saison). */
+export interface LignePredite {
+  equipeId: string;
+  clubId: string;
+  nom: string;
+  actuel: { rang: number; joues: number; pts: number; diff: number };
+  restants: number;
+  ptsAttendus: number;
+  ptsBas: number;
+  ptsHaut: number;
+  rangAttendu: number;
+  rangProbable: number;
+  /** Part des simulations ou l'equipe finit a chaque rang (index 0 = 1er). */
+  rangs: number[];
+}
+
+export interface ClassementPredit {
+  equipes: LignePredite[];
+  simulations: number;
+  matchsJoues: number;
+  matchsRestants: number;
+  /** "ia" : buts attendus par le score appris ; "poisson" : modele de depart lisse. */
+  source: "ia" | "poisson";
+  modele: string | null;
+}
+
 export interface LigneClassement {
   clubId: string;
   /** Equipe classee (null sur les lignes anciennes, au niveau club). */

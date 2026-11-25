@@ -34,7 +34,7 @@ import type { ActionChrono, EtatDirect, EvenementDirect, InvitationCreee, Invita
 import type { CriteresApi, OptionsRecherche, ReponseRecherche } from "@/features/recherche-joueurs/lib/recherche-joueurs";
 
 import type {
-  Club, HistoriqueSaison, Joueur, LigneClassement, Match, MatchJoue, RapportScouting, TactiquePlan,
+  Club, ClassementPredit, HistoriqueSaison, Joueur, LigneClassement, Match, MatchJoue, RapportScouting, TactiquePlan,
 } from "./types";
 
 const RELAIS = "/api/backend";
@@ -312,6 +312,9 @@ export const api = {
   // Classement
   classement: () =>
     req<LigneClassement[]>("/classement", { fallback: DEMO_CLASSEMENT }),
+
+  // Classement final predit du championnat d'une equipe (simulation de la fin de saison).
+  classementPredit: (equipeId: string) => req<ClassementPredit | null>(`/classement/predit/${equipeId}`),
 
   // Entrainements
   entrainements: (equipeId?: string) =>
