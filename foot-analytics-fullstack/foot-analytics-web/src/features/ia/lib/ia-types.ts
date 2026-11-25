@@ -63,6 +63,18 @@ interface ResumeSysteme {
   frequent: { top1: number | null; top3: number | null; defense: number | null };
 }
 
+/** Ce que vaut une prediction de score : perte de Poisson (plus bas = mieux), bon vainqueur ou nul, ecart moyen en buts. */
+export interface MesureScore { perte: number | null; issue: number | null; ecart: number | null }
+
+export interface ResumeScore {
+  /** Matchs compares (les deux modeles avaient de quoi predire). */
+  n: number;
+  modele: MesureScore;
+  poisson: MesureScore;
+  /** Le score appris remplace le modele de Poisson au pre-match. */
+  retenu: boolean;
+}
+
 export interface BandeCalibration { de: number; a: number; n: number; probaMoyenne: number | null; tauxObserve: number | null }
 
 export interface Poids { noms: string[]; w: number[] }
@@ -75,6 +87,10 @@ interface PoidsIa {
   systeme: Poids | null;
   /** Le dispositif appris sert en direct s'il a fait au moins aussi bien que le moteur a regles (absent : non verifie). */
   systemeRetenu?: boolean;
+  /** Le modele de score (buts attendus) ; absent sur un modele ancien. */
+  score?: (Poids & { moyenneLigue: number }) | null;
+  /** Le score appris sert au pre-match s'il a fait mieux que le modele de Poisson (absent : non verifie). */
+  scoreRetenu?: boolean;
   frequencesSysteme: Record<string, number>;
 }
 
@@ -104,6 +120,8 @@ export interface ResultatEntrainement {
   nouveaux: number | null;
   sansHistorique: number;
   systeme: ResumeSysteme | null;
+  /** Le score predit par l'IA face au modele de Poisson sur les memes matchs (absent : pas assez de matchs avec un score). */
+  score?: ResumeScore | null;
   comparaison: ComparaisonActif | null;
   calibration: BandeCalibration[];
   pires: ErreurFeuille[];
@@ -183,7 +201,7 @@ export interface Caracteristique { id: string; libelle: string; aide: string }
 export interface EntrainementDetail extends EntrainementResume {
   resultat: ResultatEntrainement | null;
   poidsInitiaux: PoidsIa;
-  catalogue: { titularisation: Caracteristique[]; numeros: Caracteristique[]; systeme: Caracteristique[] };
+  catalogue: { titularisation: Caracteristique[]; numeros: Caracteristique[]; systeme: Caracteristique[]; score?: Caracteristique[] };
 }
 
 /** Le reentrainement automatique : chaque semaine, a `jour` (0 = dimanche) et `heure`, heure de `fuseau`. */

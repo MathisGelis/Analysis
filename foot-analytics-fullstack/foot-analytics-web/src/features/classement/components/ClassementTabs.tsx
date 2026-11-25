@@ -24,9 +24,9 @@ type Tab = "table" | "predit" | "teams" | "players";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "table", label: "Classement" },
-  { id: "predit", label: "Classement prédit" },
   { id: "teams", label: "Stats équipes" },
   { id: "players", label: "Stats joueurs" },
+  { id: "predit", label: "Classement prédit" },
 ];
 
 interface Props {

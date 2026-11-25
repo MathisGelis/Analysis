@@ -3,6 +3,7 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
+import { Club } from "@/features/clubs/club.entity";
 import { Equipe } from "@/features/equipes/equipe.entity";
 import { IaModule } from "@/features/ia/ia.module";
 import { Match } from "@/features/matchs/match.entity";
@@ -12,7 +13,7 @@ import { ClassementService } from "./classement.service";
 import { ClassementController } from "./classement.controller";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([LigneClassement, Match, Equipe]), IaModule],
+  imports: [TypeOrmModule.forFeature([LigneClassement, Match, Equipe, Club]), IaModule],
   controllers: [ClassementController],
   providers: [ClassementService],
   exports: [ClassementService],
