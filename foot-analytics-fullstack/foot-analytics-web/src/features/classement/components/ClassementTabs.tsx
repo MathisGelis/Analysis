@@ -6,11 +6,12 @@
 //   2. Stats equipes : agreges par club (BM, BC, dom/ext, cartons, forme).
 //   3. Stats joueurs : top joueurs trans-clubs (matchs, forme, buts, etc).
 
-import { useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 import { TabBar } from "@/shared/ui/TabBar";
+import { Select } from "@/shared/ui/Select";
 import { ClubBadge } from "@/features/clubs/components/ClubBadge";
 import { FormeStrip } from "@/shared/ui/Charts";
 import { FatigueBar } from "@/features/joueurs/components/FatigueBar";
@@ -46,7 +47,7 @@ export function ClassementTabs({
         <TableClassement classement={classement} clubs={clubs} ownClubId={ownClubId}/>
       )}
       {tab === "teams" && (
-        <TeamStats matchs={matchs} clubs={clubs} ownClubId={ownClubId}/>
+        <TeamStats matchs={matchs} clubs={clubs} joueurs={joueurs} ownClubId={ownClubId}/>
       )}
       {tab === "players" && (
         <PlayerStats joueurs={joueurs} clubs={clubs} ownClubId={ownClubId}/>
@@ -154,25 +155,82 @@ type TeamRow = {
   domV: number; domN: number; domD: number; domBP: number; domBC: number;
   extV: number; extN: number; extD: number; extBP: number; extBC: number;
   cleanSheets: number; bigWins: number; bigLoss: number;
+  pts: number; ptsMoy: number; pctV: number; pctN: number; pctD: number;
+  domPts: number; extPts: number;
+  cj: number; cr: number; cjMoy: number; crMoy: number;
 };
 
 type TeamKey = keyof TeamRow;
-const TEAM_COLS: { key: TeamKey; label: string; align?: string; title?: string; secondaire?: boolean }[] = [
-  { key: "clubNom",     label: "Club" },
-  { key: "joues",       label: "J",   align: "text-center" },
-  { key: "bp",          label: "BP",  align: "text-center" },
-  { key: "bc",          label: "BC",  align: "text-center" },
-  { key: "diff",        label: "Diff",align: "text-right" },
-  { key: "bpMoy",       label: "BP/m",align: "text-right", title: "Buts marqués par match", secondaire: true },
-  { key: "bcMoy",       label: "BC/m",align: "text-right", title: "Buts encaissés par match", secondaire: true },
-  { key: "domV",        label: "Dom V", align: "text-center", secondaire: true },
-  { key: "extV",        label: "Ext V", align: "text-center", secondaire: true },
-  { key: "cleanSheets", label: "CS",  align: "text-center", title: "Clean sheets (BC = 0)", secondaire: true },
-  { key: "bigWins",     label: "Larges V", align: "text-center", title: "Victoires de 3 buts ou plus", secondaire: true },
-];
+type ColEquipe = { key: TeamKey; label: string; align?: string; title?: string; format?: (r: TeamRow) => React.ReactNode; classe?: string };
+const pct = (n: number) => `${n}%`;
+const dec2 = (n: number) => n.toFixed(2);
+const CLUB: ColEquipe = { key: "clubNom", label: "Club" };
+const COL_J: ColEquipe = { key: "joues", label: "J", align: "text-center", title: "Matchs joués" };
 
-function TeamStats({ matchs, clubs, ownClubId }:
-  { matchs: MatchClassement[]; clubs: Club[]; ownClubId: string }) {
+type VueEquipe = "general" | "attaque" | "domext" | "resultats" | "discipline";
+const VUES_EQUIPE: { id: VueEquipe; label: string; tri: TeamKey; cols: ColEquipe[] }[] = [
+  { id: "general", label: "Général", tri: "bp", cols: [
+    CLUB, COL_J,
+    { key: "bp", label: "BP", align: "text-center", title: "Buts pour" },
+    { key: "bc", label: "BC", align: "text-center", title: "Buts contre" },
+    { key: "diff", label: "Diff", align: "text-right", format: (r) => <span className={r.diff >= 0 ? "text-win" : "text-loss"}>{r.diff >= 0 ? "+" : ""}{r.diff}</span> },
+    { key: "bpMoy", label: "BP/m", align: "text-right", title: "Buts marqués par match", format: (r) => dec2(r.bpMoy) },
+    { key: "bcMoy", label: "BC/m", align: "text-right", title: "Buts encaissés par match", format: (r) => dec2(r.bcMoy) },
+    { key: "domV", label: "Dom V", align: "text-center", classe: "text-win" },
+    { key: "extV", label: "Ext V", align: "text-center", classe: "text-win" },
+    { key: "cleanSheets", label: "CS", align: "text-center", title: "Clean sheets (BC = 0)" },
+    { key: "bigWins", label: "Larges V", align: "text-center", title: "Victoires de 3 buts ou plus" },
+  ] },
+  { id: "attaque", label: "Attaque / Défense", tri: "bpMoy", cols: [
+    CLUB, COL_J,
+    { key: "bp", label: "BP", align: "text-center", title: "Buts pour" },
+    { key: "bpMoy", label: "BP/m", align: "text-right", title: "Buts marqués par match", format: (r) => dec2(r.bpMoy) },
+    { key: "bc", label: "BC", align: "text-center", title: "Buts contre" },
+    { key: "bcMoy", label: "BC/m", align: "text-right", title: "Buts encaissés par match", format: (r) => dec2(r.bcMoy) },
+    { key: "diff", label: "Diff", align: "text-right", format: (r) => <span className={r.diff >= 0 ? "text-win" : "text-loss"}>{r.diff >= 0 ? "+" : ""}{r.diff}</span> },
+    { key: "cleanSheets", label: "CS", align: "text-center", title: "Clean sheets (BC = 0)" },
+    { key: "bigWins", label: "Larges V", align: "text-center", title: "Victoires de 3 buts ou plus" },
+    { key: "bigLoss", label: "Larges D", align: "text-center", title: "Défaites de 3 buts ou plus" },
+  ] },
+  { id: "domext", label: "Domicile / Extérieur", tri: "domPts", cols: [
+    CLUB,
+    { key: "domV", label: "Dom V", align: "text-center", classe: "text-win" },
+    { key: "domN", label: "Dom N", align: "text-center" },
+    { key: "domD", label: "Dom D", align: "text-center", classe: "text-loss" },
+    { key: "domBP", label: "Dom BP", align: "text-center", title: "Buts pour à domicile" },
+    { key: "domBC", label: "Dom BC", align: "text-center", title: "Buts contre à domicile" },
+    { key: "extV", label: "Ext V", align: "text-center", classe: "text-win" },
+    { key: "extN", label: "Ext N", align: "text-center" },
+    { key: "extD", label: "Ext D", align: "text-center", classe: "text-loss" },
+    { key: "extBP", label: "Ext BP", align: "text-center", title: "Buts pour à l'extérieur" },
+    { key: "extBC", label: "Ext BC", align: "text-center", title: "Buts contre à l'extérieur" },
+  ] },
+  { id: "resultats", label: "Résultats", tri: "ptsMoy", cols: [
+    CLUB, COL_J,
+    { key: "v", label: "V", align: "text-center", classe: "text-win" },
+    { key: "n", label: "N", align: "text-center" },
+    { key: "d", label: "D", align: "text-center", classe: "text-loss" },
+    { key: "pts", label: "Pts", align: "text-right", title: "Points (3 / 1 / 0)", classe: "font-semibold" },
+    { key: "ptsMoy", label: "Pts/m", align: "text-right", title: "Points par match", format: (r) => dec2(r.ptsMoy) },
+    { key: "pctV", label: "% V", align: "text-right", title: "Pourcentage de victoires", format: (r) => pct(r.pctV) },
+    { key: "pctN", label: "% N", align: "text-right", title: "Pourcentage de nuls", format: (r) => pct(r.pctN) },
+    { key: "pctD", label: "% D", align: "text-right", title: "Pourcentage de défaites", format: (r) => pct(r.pctD) },
+  ] },
+  { id: "discipline", label: "Discipline", tri: "cjMoy", cols: [
+    CLUB, COL_J,
+    { key: "cj", label: "CJ", align: "text-center", title: "Cartons jaunes (joueurs)", classe: "text-amber" },
+    { key: "cr", label: "CR", align: "text-center", title: "Cartons rouges (joueurs)", classe: "text-danger" },
+    { key: "cjMoy", label: "CJ/m", align: "text-right", title: "Cartons jaunes par match", format: (r) => dec2(r.cjMoy) },
+    { key: "crMoy", label: "CR/m", align: "text-right", title: "Cartons rouges par match", format: (r) => dec2(r.crMoy) },
+  ] },
+];
+const vueEquipe = (id: string | null | undefined) => VUES_EQUIPE.find((v) => v.id === id) ?? VUES_EQUIPE[0];
+
+export function TeamStats({ matchs, clubs, joueurs, ownClubId }:
+  { matchs: MatchClassement[]; clubs: Club[]; joueurs: JoueurClassement[]; ownClubId: string }) {
+  const [vueId, setVueId] = useState<VueEquipe>("general");
+  useEffect(() => { try { setVueId(vueEquipe(localStorage.getItem("fa.vue.equipes")).id); } catch { /* stockage indisponible */ } }, []);
+  const vue = vueEquipe(vueId);
   const rows = useMemo<TeamRow[]>(() => {
     const byClub = new Map<string, TeamRow>();
     const ensure = (id: string): TeamRow => {
@@ -183,6 +241,7 @@ function TeamStats({ matchs, clubs, ownClubId }:
           domV: 0, domN: 0, domD: 0, domBP: 0, domBC: 0,
           extV: 0, extN: 0, extD: 0, extBP: 0, extBC: 0,
           cleanSheets: 0, bigWins: 0, bigLoss: 0,
+          pts: 0, ptsMoy: 0, pctV: 0, pctN: 0, pctD: 0, domPts: 0, extPts: 0, cj: 0, cr: 0, cjMoy: 0, crMoy: 0,
         });
       }
       return byClub.get(id)!;
@@ -214,11 +273,24 @@ function TeamStats({ matchs, clubs, ownClubId }:
       r.diff = r.bp - r.bc;
       r.bpMoy = r.joues ? +(r.bp / r.joues).toFixed(2) : 0;
       r.bcMoy = r.joues ? +(r.bc / r.joues).toFixed(2) : 0;
+      r.pts = r.v * 3 + r.n;
+      r.domPts = r.domV * 3 + r.domN;
+      r.extPts = r.extV * 3 + r.extN;
+      r.ptsMoy = r.joues ? +(r.pts / r.joues).toFixed(2) : 0;
+      r.pctV = r.joues ? Math.round((r.v / r.joues) * 100) : 0;
+      r.pctN = r.joues ? Math.round((r.n / r.joues) * 100) : 0;
+      r.pctD = r.joues ? Math.round((r.d / r.joues) * 100) : 0;
+      for (const j of joueurs) {
+        if (j.clubId !== r.clubId) continue;
+        r.cj += j.cartonsJaunes ?? 0; r.cr += j.cartonsRouges ?? 0;
+      }
+      r.cjMoy = r.joues ? +(r.cj / r.joues).toFixed(2) : 0;
+      r.crMoy = r.joues ? +(r.cr / r.joues).toFixed(2) : 0;
     }
     return [...byClub.values()];
-  }, [matchs, clubs]);
+  }, [matchs, clubs, joueurs]);
 
-  const { rows: sorted, sortKey, sortDir, toggleSort } = useSortable<TeamRow>(
+  const { rows: sorted, sortKey, sortDir, toggleSort, setSort } = useSortable<TeamRow>(
     rows, "bp", "desc",
     { clubNom: (r) => r.clubNom.toLowerCase() },
   );
@@ -251,12 +323,23 @@ function TeamStats({ matchs, clubs, ownClubId }:
       </section>
 
       <section className="panel p-5">
-        <div className="h-section mb-3">Statistiques par équipe</div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="h-section">Statistiques par équipe</div>
+          <Select valeur={vue.id} ariaLabel="Vue des statistiques d'équipes" className="btn" recherche={false}
+            options={VUES_EQUIPE.map((v) => ({ valeur: v.id, libelle: `Vue · ${v.label}` }))}
+            onChange={(id) => {
+              const v = vueEquipe(id);
+              setVueId(v.id);
+              setSort(v.tri, "desc");
+              try { localStorage.setItem("fa.vue.equipes", v.id); } catch { /* facultatif */ }
+            }}/>
+        </div>
+        <div className="overflow-x-auto">
         <table className="table-fm">
           <thead>
             <tr>
-              {TEAM_COLS.map((c) => (
-                <th key={c.key} className={`${c.align ?? ""} ${c.secondaire ? "max-sm:hidden" : ""}`} title={c.title}>
+              {vue.cols.map((c) => (
+                <th key={c.key} className={c.align ?? ""} title={c.title}>
                   <SortHeader
                     label={c.label}
                     active={sortKey === c.key}
@@ -270,28 +353,21 @@ function TeamStats({ matchs, clubs, ownClubId }:
           <tbody>
             {sorted.map((r) => (
               <tr key={r.clubId} className={r.clubId === ownClubId ? "is-mine" : ""}>
-                <td>
-                  <Link href={`/club/${r.clubId}`} className="flex items-center gap-2 hover:text-accent">
-                    <ClubBadge clubId={r.clubId} size={20}/>
-                    <span className="text-sm">{r.clubNom}</span>
-                  </Link>
-                </td>
-                <td className="text-center tabular-nums">{r.joues}</td>
-                <td className="text-center tabular-nums">{r.bp}</td>
-                <td className="text-center tabular-nums">{r.bc}</td>
-                <td className={`text-right tabular-nums ${r.diff>=0?"text-win":"text-loss"}`}>
-                  {r.diff>=0?"+":""}{r.diff}
-                </td>
-                <td className="text-right tabular-nums max-sm:hidden">{r.bpMoy.toFixed(2)}</td>
-                <td className="text-right tabular-nums max-sm:hidden">{r.bcMoy.toFixed(2)}</td>
-                <td className="text-center tabular-nums text-win max-sm:hidden">{r.domV}</td>
-                <td className="text-center tabular-nums text-win max-sm:hidden">{r.extV}</td>
-                <td className="text-center tabular-nums max-sm:hidden">{r.cleanSheets}</td>
-                <td className="text-center tabular-nums max-sm:hidden">{r.bigWins}</td>
+                {vue.cols.map((c) => c.key === "clubNom" ? (
+                  <td key={c.key}>
+                    <Link href={`/club/${r.clubId}`} className="flex items-center gap-2 hover:text-accent">
+                      <ClubBadge clubId={r.clubId} size={20}/>
+                      <span className="text-sm">{r.clubNom}</span>
+                    </Link>
+                  </td>
+                ) : (
+                  <td key={c.key} className={`${c.align ?? ""} tabular-nums ${c.classe ?? ""}`}>{c.format ? c.format(r) : (r[c.key] as number)}</td>
+                ))}
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       </section>
     </>
   );
@@ -474,7 +550,8 @@ function useSortable<T>(
     });
   }, [rows, sortKey, sortDir]);
 
-  return { rows: sorted, sortKey, sortDir, toggleSort };
+  const setSort = (k: keyof T, dir: "asc" | "desc") => { setSortKey(k); setSortDir(dir); };
+  return { rows: sorted, sortKey, sortDir, toggleSort, setSort };
 }
 
 function SortHeader({

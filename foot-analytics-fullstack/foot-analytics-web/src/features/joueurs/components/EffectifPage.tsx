@@ -11,18 +11,17 @@ import { useOwnClubId } from "@/features/equipes/lib/own-club-context";
 import { useOwnEquipe } from "@/features/equipes/lib/own-equipe-context";
 import { Modal } from "@/shared/ui/Modal";
 import { EtatVide } from "@/shared/ui/EtatVide";
-import { LegendeColonnes } from "@/shared/ui/LegendeColonnes";
 import { Select } from "@/shared/ui/Select";
 import { optionsSimples } from "@/shared/lib/selecteur";
 import type { Joueur } from "@/shared/lib/types";
 import { debug } from "@/shared/lib/debug";
-import { postesCompacts } from "@/features/joueurs/lib/postes";
-import { classeBadgeMutation, STATUTS_MUTATION } from "@/features/tactique/lib/mutations";
+import { STATUTS_MUTATION } from "@/features/tactique/lib/mutations";
 import { useFeedback } from "@/shared/lib/feedback-context";
+import { COLONNES_VUE, lireVue, VUE_PAR_DEFAUT, VUES_EFFECTIF, type VueEffectif } from "@/features/joueurs/lib/vues-effectif";
 import { COLONNES_TRI, sensParDefaut, trierEffectif, type CleTri, type Sens } from "@/features/joueurs/lib/tri-effectif";
 
 import { JoueurAddModal } from "./JoueurAddModal";
-import { FatigueBar } from "./FatigueBar";
+import { COLONNES } from "./colonnes-effectif";
 
 const POSTES = ["TOUS","GB","DD","DC","DG","MD","MC","MO","AT","AG","AD","MIL"];
 const OPTIONS_POSTES_FILTRE = optionsSimples(POSTES);
@@ -38,6 +37,14 @@ export default function EffectifPage() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [posteFilter, setPosteFilter] = useState("TOUS");
+  const [vue, setVue] = useState<VueEffectif>(VUE_PAR_DEFAUT);
+  useEffect(() => { try { setVue(lireVue(localStorage.getItem("fa.vue.effectif"))); } catch { /* stockage indisponible */ } }, []);
+  const changerVue = (v: string) => {
+    const choisie = lireVue(v);
+    setVue(choisie);
+    try { localStorage.setItem("fa.vue.effectif", choisie); } catch { /* facultatif */ }
+  };
+  const ids = COLONNES_VUE[vue];
   const [tri, setTri] = useState<{ cle: CleTri; sens: Sens }>({ cle: "matchs", sens: "desc" });
   const [edit, setEdit] = useState<Joueur | null>(null);
   const [creating, setCreating] = useState(false);
@@ -142,6 +149,8 @@ export default function EffectifPage() {
               className="bg-transparent outline-none text-sm w-44 placeholder:text-faint"
             />
           </div>
+          <Select valeur={vue} onChange={changerVue} className="btn" ariaLabel="Vue de l'effectif" recherche={false}
+            options={VUES_EFFECTIF.map((v) => ({ valeur: v.id, libelle: `Vue · ${v.libelle}` }))}/>
           <Select valeur={posteFilter} onChange={setPosteFilter} className="btn" ariaLabel="Filtrer par poste" options={OPTIONS_POSTES_FILTRE} recherche={false}/>
           <div className="flex items-center gap-1">
             <Select valeur={tri.cle} onChange={(v)=>{ const cle = v as CleTri; setTri({ cle, sens: sensParDefaut(cle) }); }}
@@ -183,18 +192,13 @@ export default function EffectifPage() {
           <thead>
             <tr>
               <ThTri cle="nom" tri={tri} onTri={trierPar}>Joueur</ThTri>
-              <ThTri cle="poste" tri={tri} onTri={trierPar}>Poste</ThTri>
-              <ThTri cle="matchs" tri={tri} onTri={trierPar} className="text-center" titre="Matchs joués">Mat.</ThTri>
-              <ThTri cle="titularisations" tri={tri} onTri={trierPar} className="hidden text-center min-[1100px]:table-cell" titre="Titularisations">Titu</ThTri>
-              <ThTri cle="minutes" tri={tri} onTri={trierPar} className="hidden min-[1280px]:table-cell">Minutes</ThTri>
-              <ThTri cle="note" tri={tri} onTri={trierPar} className="hidden min-[1440px]:table-cell">Note</ThTri>
-              <ThTri cle="fatigue" tri={tri} onTri={trierPar} className="hidden lg:table-cell">Fatigue</ThTri>
-              <ThTri cle="buts" tri={tri} onTri={trierPar} className="text-center max-sm:hidden" titre="Buts">B</ThTri>
-              <ThTri cle="passes" tri={tri} onTri={trierPar} className="text-center max-sm:hidden" titre="Passes décisives">PD</ThTri>
-              <ThTri cle="jaunes" tri={tri} onTri={trierPar} titre="Cartons jaunes">CJ</ThTri>
-              <ThTri cle="rouges" tri={tri} onTri={trierPar} titre="Cartons rouges">CR</ThTri>
-              <ThTri cle="statut" tri={tri} onTri={trierPar} className="hidden min-[1440px]:table-cell">Statut</ThTri>
-              <th className="hidden 2xl:table-cell">Postes joués</th>
+              {ids.map((id) => {
+                const c = COLONNES[id];
+                const masque = vue === "general" ? c.masque ?? "" : "";
+                return c.cle
+                  ? <ThTri key={id} cle={c.cle} tri={tri} onTri={trierPar} className={`${c.align ?? ""} ${masque}`} titre={c.titre}>{c.label}</ThTri>
+                  : <th key={id} className={`${c.align ?? ""} ${masque}`} title={c.titre}>{c.label}</th>;
+              })}
               <th className="col-fixe text-right"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
@@ -215,41 +219,11 @@ export default function EffectifPage() {
                     </div>
                   </div>
                 </td>
-                <td><span className="badge">{j.poste}</span></td>
-                <td className="text-center tabular-nums">{j.matchs}</td>
-                <td className="hidden text-center tabular-nums min-[1100px]:table-cell">{j.titularisations}</td>
-                <td className="hidden tabular-nums text-muted min-[1280px]:table-cell">{j.minutes}'</td>
-                <td className="hidden font-semibold text-accent tabular-nums min-[1440px]:table-cell">{j.noteMoyenne?.toFixed(1)}</td>
-                <td className="hidden lg:table-cell">
-                  <FatigueBar score={j.scoreFatigue} detail={j.fatigueDetail} />
-                </td>
-                <td className="text-center max-sm:hidden">
-                  <Stepper
-                    value={j.buts ?? 0}
-                    onChange={(v) => patchStat(j.id, { buts: v })}
-                    color="accent"
-                  />
-                </td>
-                <td className="text-center max-sm:hidden">
-                  <Stepper
-                    value={j.passesDecisives ?? 0}
-                    onChange={(v) => patchStat(j.id, { passesDecisives: v })}
-                    color="sky"
-                  />
-                </td>
-                <td className="text-amber font-mono">{j.cartonsJaunes || ""}</td>
-                <td className="text-danger font-mono">{j.cartonsRouges || ""}</td>
-                <td className="hidden min-[1440px]:table-cell">
-                  <span className={`badge ${classeBadgeMutation(j.statutMutation)}`}>{j.statutMutation}</span>
-                </td>
-                <td className="hidden whitespace-nowrap font-mono text-[11px] text-muted 2xl:table-cell" title={j.postes ?? undefined}>
-                  {(() => {
-                    const { visibles, restants } = postesCompacts(j.postes);
-                    return visibles.length === 0 ? <span className="text-faint">—</span> : (
-                      <>{visibles.join(" · ")}{restants > 0 && <span className="ml-1 text-faint">+{restants}</span>}</>
-                    );
-                  })()}
-                </td>
+                {ids.map((id) => {
+                  const c = COLONNES[id];
+                  const masque = vue === "general" ? c.masque ?? "" : "";
+                  return <td key={id} className={`${c.align ?? ""} ${c.classe ?? ""} ${masque}`}>{c.cell(j, { patchStat })}</td>;
+                })}
                 <td className="col-fixe">
                   <div className="flex items-center gap-1 justify-end">
                     <button className="btn !p-1.5 sm:!p-2" onClick={()=>setEdit(j)}
@@ -267,7 +241,16 @@ export default function EffectifPage() {
           </tbody>
         </table>
         )}
-        {!loading && data.length > 0 && <LegendeColonnes abreviations={["Mat.", "Titu", "B", "PD", "CJ", "CR"]} />}
+        {!loading && data.length > 0 && (
+          <p className="mt-3 text-[11px] leading-relaxed text-faint" data-testid="legende-colonnes">
+            {ids.filter((id) => COLONNES[id].titre).map((id, k) => (
+              <span key={id}>
+                {k > 0 && " · "}
+                <span className="font-semibold text-muted">{COLONNES[id].label}</span> {COLONNES[id].titre!.charAt(0).toLowerCase() + COLONNES[id].titre!.slice(1)}
+              </span>
+            ))}
+          </p>
+        )}
       </section>
 
       {edit && (
@@ -418,38 +401,5 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="stat-label">{label}</span>
       <div className="mt-1">{children}</div>
     </label>
-  );
-}
-
-/* ---- Stepper compact (-) [N] (+) pour les stats editables en cellule. ---- */
-function Stepper({
-  value, onChange, min = 0, max = 99, color = "accent",
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  min?: number; max?: number;
-  color?: "accent" | "sky";
-}) {
-  const c = color === "sky" ? "text-sky" : "text-accent";
-  const dec = () => onChange(Math.max(min, value - 1));
-  const inc = () => onChange(Math.min(max, value + 1));
-  return (
-    <div className="inline-flex items-center gap-0.5">
-      <button
-        type="button"
-        onClick={dec}
-        className="w-5 h-5 grid place-items-center text-xs rounded border border-line bg-panel2 hover:bg-line/60 text-faint hover:text-ink"
-        aria-label="diminuer"
-      >−</button>
-      <span className={`font-mono text-sm tabular-nums w-5 text-center ${value > 0 ? c : "text-faint"}`}>
-        {value}
-      </span>
-      <button
-        type="button"
-        onClick={inc}
-        className="w-5 h-5 grid place-items-center text-xs rounded border border-line bg-panel2 hover:bg-line/60 text-faint hover:text-ink"
-        aria-label="augmenter"
-      >+</button>
-    </div>
   );
 }

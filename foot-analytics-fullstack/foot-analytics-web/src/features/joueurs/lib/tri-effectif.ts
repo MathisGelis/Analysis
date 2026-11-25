@@ -5,10 +5,12 @@
 // soit le sens : trier "du plus au moins fatigue" ne doit pas mettre en tete les joueurs sans donnee.
 
 import type { Joueur } from "@/shared/lib/types";
+import { ageAu } from "./vues-effectif";
 
 export type CleTri =
   | "nom" | "poste" | "matchs" | "titularisations" | "minutes" | "note" | "fatigue"
-  | "buts" | "passes" | "jaunes" | "rouges" | "discipline" | "statut";
+  | "buts" | "passes" | "jaunes" | "rouges" | "discipline" | "statut"
+  | "acwr" | "charge7" | "charge28" | "blessures" | "scoreDiscipline" | "age" | "taille" | "poids";
 export type Sens = "asc" | "desc";
 
 export interface ColonneTri { cle: CleTri; libelle: string; sensParDefaut: Sens }
@@ -28,6 +30,14 @@ export const COLONNES_TRI: ColonneTri[] = [
   { cle: "rouges", libelle: "Cartons rouges", sensParDefaut: "desc" },
   { cle: "discipline", libelle: "Discipline", sensParDefaut: "desc" },
   { cle: "statut", libelle: "Statut", sensParDefaut: "asc" },
+  { cle: "acwr", libelle: "ACWR", sensParDefaut: "desc" },
+  { cle: "charge7", libelle: "Charge 7 jours", sensParDefaut: "desc" },
+  { cle: "charge28", libelle: "Charge 28 jours", sensParDefaut: "desc" },
+  { cle: "blessures", libelle: "Blessures passées", sensParDefaut: "desc" },
+  { cle: "scoreDiscipline", libelle: "Score de discipline", sensParDefaut: "asc" },
+  { cle: "age", libelle: "Âge", sensParDefaut: "asc" },
+  { cle: "taille", libelle: "Taille", sensParDefaut: "desc" },
+  { cle: "poids", libelle: "Poids", sensParDefaut: "desc" },
 ];
 
 export function sensParDefaut(cle: CleTri): Sens {
@@ -58,6 +68,14 @@ function valeur(j: Joueur, cle: CleTri): number | string | null {
     // Un rouge pese trois jaunes, comme l'ancien tri "discipline".
     case "discipline": return (j.cartonsJaunes ?? 0) + (j.cartonsRouges ?? 0) * 3;
     case "statut": return j.statutMutation ?? null;
+    case "acwr": return j.acwr ?? null;
+    case "charge7": return j.chargeAcute7j ?? null;
+    case "charge28": return j.chargeChronic28j ?? null;
+    case "blessures": return j.blessuresAnt ?? 0;
+    case "scoreDiscipline": return j.scoreDiscipline ?? null;     // 100 = irreprochable : on trie d'abord les moins disciplines
+    case "age": return ageAu(j.dateNaissance, new Date());
+    case "taille": return j.tailleCm ?? null;
+    case "poids": return j.poidsKg ?? null;
   }
 }
 

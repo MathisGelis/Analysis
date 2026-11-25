@@ -226,6 +226,32 @@ test("effectif 2026-2027 : ajout d'un joueur existant (recherche floue) puis d'u
   await expect(page.getByRole("link", { name: /TESTEUR/ })).toBeVisible();
 });
 
+test("effectif : la vue change les colonnes (Stats, Médical, Discipline, Profil) et se mémorise", async () => {
+  await page.goto("/effectif");
+  const entetes = page.locator("table.table-fm thead");
+  await expect(entetes).toContainText("Fatigue");
+
+  const choisir = async (vue: string) => {
+    await page.getByRole("combobox", { name: "Vue de l'effectif" }).click();
+    await page.getByRole("option", { name: new RegExp(vue) }).click();
+  };
+  await choisir("Stats");
+  await expect(entetes).toContainText("B+PD");
+  await expect(entetes).not.toContainText("Fatigue");
+  await choisir("Médical");
+  await expect(entetes).toContainText("ACWR");
+  await choisir("Discipline");
+  await expect(entetes).toContainText("Disc.");
+  await choisir("Profil");
+  await expect(entetes).toContainText("Taille");
+
+  await page.reload();                                                         // la vue choisie est retrouvée
+  await expect(page.locator("table.table-fm thead")).toContainText("Taille");
+  await choisir("Général");
+  await expect(page.locator("table.table-fm thead")).toContainText("Fatigue");
+  await page.evaluate(() => localStorage.removeItem("fa.vue.effectif"));      // le stockage local est partage avec les tests suivants
+});
+
 test("suppression d'un joueur : confirmation dans une modale, notification, jamais de boite du navigateur", async () => {
   // Une boite alert()/confirm() native figerait la page : elle ne doit plus apparaitre.
   let dialogueNatif = false;

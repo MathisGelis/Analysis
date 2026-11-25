@@ -3,6 +3,7 @@ import path from "node:path";
 
 // Tests unitaires (dossier tests/, miroir de src/) : fonctions pures, sans DOM ni Next.
 export default defineConfig({
-  test: { include: ["tests/**/*.test.ts"], environment: "node" },
+  test: { include: ["tests/**/*.test.{ts,tsx}"], environment: "node" },
+  esbuild: { jsx: "automatic" },
   resolve: { alias: { "@": path.resolve(__dirname, "src") } },
 });
