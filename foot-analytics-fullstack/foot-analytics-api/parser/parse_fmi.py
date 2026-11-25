@@ -202,6 +202,36 @@ def _split_name(token: str) -> tuple[str, str, int | None]:
     return " ".join(nom), " ".join(prenom), numero
 
 
+# « Informations complementaires » d'une sanction : « Expl : 2 avt » = exclusion pour DEUX AVERTISSEMENTS (le second carton jaune). La
+# feuille ne dessine alors qu'un second jaune : c'est en realite un carton ROUGE, qui ne doit pas etre compte comme deux jaunes.
+EXPULSION_DEUX_AVT_RE = re.compile(r"\bexp(?:l|ulsion)\.?\s*:?\s*(?:2|deux)\s*(?:avt|avert)", re.IGNORECASE)
+
+
+def _expulse_pour_deux_avertissements(cells) -> bool:
+    """La ligne de sanction porte-t-elle « Expl : 2 avt » (dans l'une des cellules d'informations) ?"""
+    return any(EXPULSION_DEUX_AVT_RE.search(c or "") for c in cells)
+
+
+def _absorber_premier_avertissement(cartons: list, debut: int, expulses: set[int]) -> None:
+    """
+    Un joueur exclu pour deux avertissements compte UN carton rouge : son premier jaune (la ligne precedente de la meme equipe et de la
+    meme licence) est retire, pour ne pas compter jaune + rouge. `expulses` : positions (dans `cartons`) des lignes « Expl : 2 avt ».
+    """
+    a_retirer: set[int] = set()
+    for i in sorted(expulses):
+        exclu = cartons[i]
+        premiers = [j for j in range(debut, len(cartons))
+                    if j != i and j not in expulses and j not in a_retirer and cartons[j].couleur == "jaune"
+                    and cartons[j].equipe == exclu.equipe and cartons[j].licence == exclu.licence]
+        if not premiers:
+            continue
+        # Le dernier jaune joue avant l'expulsion (sinon le plus proche) : c'est le premier avertissement.
+        avant = [j for j in premiers if (cartons[j].minute or 0) <= (exclu.minute or 0)]
+        a_retirer.add((avant or premiers)[-1] if avant else premiers[0])
+    for j in sorted(a_retirer, reverse=True):
+        del cartons[j]
+
+
 def _card_color(motif: str) -> str:
     low = (motif or "").lower()
     return "rouge" if any(k in low for k in RED_KEYWORDS) else "jaune"
@@ -418,6 +448,8 @@ def _parse_discipline(table, ms: MatchSheet, page=None, tbl=None, verts: bool = 
     carton de sanction est lue sur l'icone ; a defaut on la devine d'apres le motif.
     """
     cible = ms.cartons_verts if verts else ms.cartons
+    debut = len(cible)
+    expulses: set[int] = set()
     idx_motif = next((i for i, c in enumerate(table[0] if table else []) if "motif" in _clean(c).lower()), 3)
     for i, row in enumerate(table[1:], start=1):
         cells = [_clean(c) for c in row]
@@ -439,10 +471,15 @@ def _parse_discipline(table, ms: MatchSheet, page=None, tbl=None, verts: bool = 
             couleur = _couleur_icone(page, cellule)
             if couleur not in ("jaune", "rouge"):        # icone illisible ou verte : on retombe sur le motif
                 couleur = _card_color(motif)
+            # « Expl : 2 avt » : exclu pour deux avertissements : cette ligne est l'expulsion, un seul carton rouge.
+            if _expulse_pour_deux_avertissements(cells[3:]):
+                couleur = "rouge"
+                expulses.add(len(cible))
         cible.append(Card(
             equipe=equipe, licence=lic, joueur=f"{nom} {prenom}".strip(),
             numero=num, motif=motif, couleur=couleur,
             minute=mn, arret=ar))
+    _absorber_premier_avertissement(cible, debut, expulses)
 
 
 def _parse_injuries(table, ms: MatchSheet):
