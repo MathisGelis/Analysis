@@ -12,7 +12,7 @@ import { creerBaseTest, fabriques } from "@test/support/test-db";
 describe("ClassementService.predit", () => {
   let ds: DataSource;
   let f: ReturnType<typeof fabriques>;
-  const creer = (ia?: Partial<IaService>) => new ClassementService(ds.getRepository(LigneClassement), ds.getRepository(Match), ds.getRepository(Equipe), ia as IaService);
+  const creer = (ia?: Partial<IaService>) => new ClassementService(ds.getRepository(LigneClassement), ds.getRepository(Match), ds.getRepository(Equipe), ds.getRepository(Club), ia as IaService);
 
   beforeEach(async () => { ds = await creerBaseTest(); f = fabriques(ds); });
   afterEach(() => ds.destroy());
@@ -48,6 +48,17 @@ describe("ClassementService.predit", () => {
     const alpha = r.equipes.find((e) => e.equipeId === c.equipes[0].id)!;
     expect(alpha.actuel).toMatchObject({ joues: 1, pts: 3, diff: 3 });
     expect(alpha.restants).toBe(5);
+  });
+
+  it("affiche le nom du club (pas celui de la poule), et l'equipe seulement quand un club en aligne plusieurs", async () => {
+    const c = await championnat(["Alpha", "Beta", "Gamma"]);
+    const r = (await creer().predit(c.equipes[0].id))!;
+    expect(r.equipes.map((e) => e.nom).sort()).toEqual(["Alpha", "Beta", "Gamma"]);
+    expect(r.equipes.some((e) => /Seniors/.test(e.nom))).toBe(false);
+
+    await f.equipe({ clubId: c.clubs[0].id, nom: "Seniors B", categorie: "Seniors", saisonId: c.s.id, competitionLibelle: "D2", poule: "A" });
+    const deux = (await creer().predit(c.equipes[0].id))!;
+    expect(deux.equipes.filter((e) => e.clubId === c.clubs[0].id).map((e) => e.nom).sort()).toEqual(["Alpha (Seniors B)", "Alpha (Seniors)"]);
   });
 
   it("une coupe ne compte pas ; le score appris par l'IA n'est utilise que s'il est retenu", async () => {

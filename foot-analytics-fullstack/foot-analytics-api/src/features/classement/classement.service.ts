@@ -2,9 +2,10 @@
 
 import { Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 
 import { trierChronologiquement } from "@/common/dates";
+import { Club } from "@/features/clubs/club.entity";
 import { Equipe } from "@/features/equipes/equipe.entity";
 import { attendusDuModele, MatchPasse, poidsScoreInitiaux } from "@/features/ia/ia-score";
 import { IaService } from "@/features/ia/ia.service";
@@ -14,6 +15,12 @@ import { estMatchJoue } from "@/features/matchs/match-joue";
 import { calculerClassement } from "./calcul-classement";
 import { ClassementPredit, MatchJoue, predireClassement } from "./classement-predit";
 import { LigneClassement } from "./ligne-classement.entity";
+
+/** Le club ; suivi du nom de l'equipe seulement si le club en aligne plusieurs dans ce championnat. */
+export function nomAffiche(e: Pick<Equipe, "id" | "clubId" | "nom">, nomClub: string | undefined, championnat: readonly Pick<Equipe, "id" | "clubId">[]): string {
+  const club = nomClub ?? e.nom;
+  return championnat.filter((x) => x.clubId === e.clubId).length > 1 ? `${club} (${e.nom})` : club;
+}
 
 /** Ce que la reponse ajoute a la simulation : la saison (controle d'acces) et l'origine des buts attendus. */
 export interface ReponsePredit { saisonId: string | null; source: "ia" | "poisson"; modele: string | null }
@@ -26,6 +33,7 @@ export class ClassementService implements OnApplicationBootstrap {
     @InjectRepository(LigneClassement) private repo: Repository<LigneClassement>,
     @InjectRepository(Match) private matchs: Repository<Match>,
     @InjectRepository(Equipe) private equipes: Repository<Equipe>,
+    @InjectRepository(Club) private clubs: Repository<Club>,
     // Le modele de l'IA actif (absent : le modele de score de depart, lisse, sans apprentissage).
     @Optional() private readonly ia?: IaService,
   ) {}
@@ -79,7 +87,9 @@ export class ClassementService implements OnApplicationBootstrap {
       return a ? { dom: a.moi, ext: a.adv } : { dom: moyenne * 1.12, ext: moyenne * 0.88 };
     };
     const matchsJoues: MatchJoue[] = joues.map((m) => ({ dom: m.equipeDomId!, ext: m.equipeExtId!, butsDom: m.scoreDom, butsExt: m.scoreExt }));
-    const res = predireClassement(championnat.map((e) => ({ id: e.id, clubId: e.clubId, nom: e.nom })), matchsJoues, attendus);
+    // Le nom affiche est celui du club (comme au classement) : le nom d'une equipe est sa division et sa poule ("Seniors D2 Poule C").
+    const clubs = new Map((await this.clubs.find({ where: { id: In([...new Set(championnat.map((e) => e.clubId))]) } })).map((c) => [c.id, c.nom]));
+    const res = predireClassement(championnat.map((e) => ({ id: e.id, clubId: e.clubId, nom: nomAffiche(e, clubs.get(e.clubId), championnat) })), matchsJoues, attendus);
     if (!res) return null;
     const reponse = { ...res, saisonId: equipe.saisonId ?? null, source: score ? "ia" as const : "poisson" as const, modele: score ? modele!.nom : null };
     if (this.cachePredit.size > 50) this.cachePredit.clear();
