@@ -20,6 +20,7 @@ import { ligneDuNumero, LignePoste } from "@/features/matchs/numeros-postes";
 
 import { assigner, ExempleBinaire, ExempleChoix, probabilitesChoix, sigmoide } from "./ia-maths";
 import type { FeuilleEquipe } from "./ia-donnees";
+import { poidsScoreInitiaux, type PoidsScore } from "./ia-score";
 
 /* --------------------------------------- hyperparametres --------------------------------------- */
 
@@ -95,6 +96,10 @@ export interface PoidsIa {
    * matchs, pendant l'entrainement. Absent (ancien modele) : non verifie, donc non retenu.
    */
   systemeRetenu?: boolean;
+  /** Le modele de score (buts attendus), appris sur les resultats ; absent sur un modele ancien. */
+  score?: PoidsScore | null;
+  /** Il ne sert au pre-match que s'il a fait mieux que le modele de Poisson sur les memes matchs pendant l'entrainement. */
+  scoreRetenu?: boolean;
   /** Dispositifs deja vus (effectifs), pour la frequence generale du systeme. */
   frequencesSysteme: Record<string, number>;
 }
@@ -120,6 +125,7 @@ export function poidsInitiaux(hyper: Hyper = HYPER_PAR_DEFAUT): PoidsIa {
     titularisation: poidsDe(CARACTERISTIQUES_TITULAIRE, W_TITULAIRE_DEPART),
     numeros: poidsDe(CARACTERISTIQUES_NUMERO, W_NUMERO_DEPART),
     systeme: poidsDe(CARACTERISTIQUES_SYSTEME, W_SYSTEME_DEPART),
+    score: poidsScoreInitiaux(),
     frequencesSysteme: {},
   };
 }

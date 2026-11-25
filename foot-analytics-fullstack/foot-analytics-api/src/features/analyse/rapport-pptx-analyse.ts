@@ -9,6 +9,7 @@ import { LIBELLE_POSTE, CodePoste } from "@/features/matchs/numeros-postes";
 
 import { LIBELLE_SERIE, Piste, ProfilEquipe } from "./prematch";
 import { RapportPrematch } from "./prematch.service";
+import { libelleMethodeProjection } from "./projection";
 import { Issue, SensTendance } from "./tendances";
 
 const dec = (x: number, d = 1) => x.toFixed(d).replace(".", ",");
@@ -42,7 +43,7 @@ export interface ContenuAnalyse {
     nous: string; eux: string;
     lignes: LigneComparatif[];
     projection: null | {
-      victoire: number; nul: number; defaite: number; score: string; probaScore: number; butsNous: string; butsEux: string; matchs: number; lieu: string;
+      victoire: number; nul: number; defaite: number; score: string; probaScore: number; butsNous: string; butsEux: string; matchs: number; lieu: string; methode: string;
     };
     noteProjection: string;
   };
@@ -161,6 +162,7 @@ export function contenuAnalyse(r: RapportPrematch): ContenuAnalyse {
     victoire: p.pV, nul: p.pN, defaite: p.pD, score: `${p.scoreProbable.moi} – ${p.scoreProbable.adv}`, probaScore: p.scoreProbable.proba,
     butsNous: dec(p.buts.moi), butsEux: dec(p.buts.adv), matchs: p.matchs,
     lieu: r.match ? (r.match.domicile ? "à domicile" : "à l'extérieur") : "",
+    methode: libelleMethodeProjection(p),
   } : null;
 
   // --- systeme

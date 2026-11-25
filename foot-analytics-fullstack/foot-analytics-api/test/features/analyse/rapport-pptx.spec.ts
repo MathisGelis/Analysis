@@ -368,7 +368,7 @@ describe("rapport d'avant-match PowerPoint", () => {
       const longue = "Defense permeable : Adverse FC encaisse 2,1 buts par match, dont beaucoup sur coups de pied arretes : travailler les corners";
       const contenu = {
         ...base,
-        comparatif: { ...base.comparatif, projection: { victoire: 46, nul: 27, defaite: 27, score: "2 – 1", probaScore: 12, butsNous: "1,8", butsEux: "1,2", matchs: 7, lieu: "à domicile" }, noteProjection: "" },
+        comparatif: { ...base.comparatif, projection: { victoire: 46, nul: 27, defaite: 27, score: "2 – 1", probaScore: 12, butsNous: "1,8", butsEux: "1,2", matchs: 7, lieu: "à domicile", methode: "Modèle de Poisson sur les moyennes de buts" }, noteProjection: "" },
         forme: {
           ...base.forme,
           nous: { ...base.forme.eux, club: "OL Sud Seniors 2 Longue Equipe" },

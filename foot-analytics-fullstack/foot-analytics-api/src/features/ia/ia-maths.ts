@@ -121,6 +121,49 @@ export function ajusterLogistique(exemples: ExempleBinaire[], depart: number[], 
   return w;
 }
 
+/** Un exemple de la regression de Poisson : caracteristiques, nombre observe (buts), poids de l'exemple. */
+export interface ExemplePoisson { x: number[]; y: number; s: number }
+
+/** Plafond de l'exposant : un modele qui deraille ne doit pas produire de buts attendus infinis. */
+const Z_MAX = 4;
+
+/**
+ * Regression de Poisson (lien log : lambda = exp(w . x)) regularisee vers `prior`, par Newton amorti : minimise
+ * somme s_i * (lambda_i - y_i * z_i) + l2/2 * ||w - prior||^2. Renvoie les poids (ceux de depart sans exemple).
+ */
+export function ajusterPoisson(exemples: ExemplePoisson[], depart: number[], prior: number[], opt: OptionsNewton): number[] {
+  if (exemples.length === 0) return [...depart];
+  const d = depart.length;
+  let w = [...depart];
+  const lambda = (v: number[], x: number[]) => Math.exp(Math.min(Z_MAX, produit(v, x)));
+  const objectif = (v: number[]) => {
+    let f = penalite(v, prior, opt.l2);
+    for (const e of exemples) f += e.s * (lambda(v, e.x) - e.y * produit(v, e.x));
+    return f;
+  };
+  for (let it = 0; it < (opt.iterations ?? 8); it++) {
+    const g = w.map((wi, j) => opt.l2 * (wi - prior[j]));
+    const h = Array.from({ length: d }, (_, i) => Array.from({ length: d }, (_, j) => (i === j ? opt.l2 : 0)));
+    for (const e of exemples) {
+      const l = lambda(w, e.x);
+      for (let i = 0; i < d; i++) {
+        g[i] += e.s * (l - e.y) * e.x[i];
+        if (e.x[i] === 0) continue;
+        const vi = e.s * l * e.x[i];
+        for (let j = i; j < d; j++) h[i][j] += vi * e.x[j];
+      }
+    }
+    for (let i = 0; i < d; i++) for (let j = 0; j < i; j++) h[i][j] = h[j][i];
+    const delta = resoudre(h, g);
+    const suivant = avancer(w, delta, objectif);
+    if (!suivant) break;
+    const bouge = Math.max(...suivant.map((v, j) => Math.abs(v - w[j])));
+    w = suivant;
+    if (bouge < 1e-4) break;
+  }
+  return w;
+}
+
 /** Probabilites (somme 1) de chaque candidat : softmax des scores w . phi. */
 export function probabilitesChoix(w: readonly number[], phi: readonly (readonly number[])[]): number[] {
   const z = phi.map((f) => produit(w, f));

@@ -136,7 +136,7 @@ export default async function RapportPrematch({
       {/* Projection du resultat, et nos joueurs a menager */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Section titre="Projection du résultat" icone={<Target size={11} className="text-accent" />}
-          aide="modèle de Poisson sur les moyennes de buts des deux équipes">
+          aide={r.projection?.source === "ia" ? "score prédit par l'IA, appris sur les résultats passés" : "modèle de Poisson sur les moyennes de buts des deux équipes"}>
           <ProjectionResultat r={r} />
           <AideDecision className="mt-3" />
         </Section>

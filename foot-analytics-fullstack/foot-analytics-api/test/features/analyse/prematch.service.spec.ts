@@ -17,6 +17,9 @@ import { creerBaseTest, fabriques } from "@test/support/test-db";
 import { AnalyseService } from "@/features/analyse/analyse.service";
 import { estMatchJoue } from "@/features/matchs/match-joue";
 import { PrematchService } from "@/features/analyse/prematch.service";
+import { libelleMethodeProjection } from "@/features/analyse/projection";
+import { poidsInitiaux } from "@/features/ia/ia-modele";
+import type { IaService } from "@/features/ia/ia.service";
 
 describe("estMatchJoue", () => {
   it("exclut les matchs annules, reportes et programmes (0-0 par defaut)", () => {
@@ -339,6 +342,31 @@ describe("PrematchService.rapport", () => {
       expect(p.pV + p.pN + p.pD).toBe(100);
       expect(p.matchs).toBe(5);
       expect(p.pV).toBeGreaterThan(p.pD);       // je marque plus et encaisse moins que l'adversaire
+    });
+
+    it("le score appris par l'IA remplace Poisson seulement quand le modele actif l'a retenu", async () => {
+      const c = await contexte();
+      for (let i = 0; i < 6; i++) {
+        await c.jouer(c.moi, c.tiers, c.eMoi, c.eTiers, `0${i + 1}/10/2025`, 2, 1);
+        await c.jouer(c.adv, c.tiers, c.eAdv, c.eTiers, `0${i + 1}/11/2025`, 1, 1);
+      }
+      const avecIa = (retenu: boolean) => new PrematchService(
+        svc["analyse"], ds.getRepository(Match), ds.getRepository(Equipe), ds.getRepository(Club),
+        ds.getRepository(LigneClassement), ds.getRepository(Saison), ds.getRepository(Arbitre), ds.getRepository(ObservationAdversaire),
+        { modeleActif: async () => ({ id: "m1", nom: "Modele n°3", poids: { ...poidsInitiaux(), scoreRetenu: retenu } }) } as unknown as IaService,
+      );
+
+      const poisson = (await svc.rapport(c.eMoi.id, c.adv.id)).projection!;
+      expect(poisson.source ?? "poisson").toBe("poisson");
+
+      const nonRetenu = (await avecIa(false).rapport(c.eMoi.id, c.adv.id)).projection!;
+      expect(nonRetenu).toEqual(poisson);
+
+      const ia = (await avecIa(true).rapport(c.eMoi.id, c.adv.id)).projection!;
+      expect(ia).toMatchObject({ source: "ia", modele: "Modele n°3", matchs: 6 });
+      expect(ia.pV + ia.pN + ia.pD).toBe(100);
+      expect(libelleMethodeProjection(ia)).toBe("Score prédit par l'IA (Modele n°3), appris sur les résultats passés");
+      expect(libelleMethodeProjection(poisson)).toBe("Modèle de Poisson sur les moyennes de buts");
     });
   });
 });

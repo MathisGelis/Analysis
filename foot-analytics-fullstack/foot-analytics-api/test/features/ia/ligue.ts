@@ -44,6 +44,8 @@ export interface OptionsLigue {
   saisonId?: string;
   /** Dispositif saisi par le staff (tous les matchs), sinon aucun. */
   formation?: string | null;
+  /** Vrai : des scores realistes (loi de Poisson, chaque club a une force offensive croissante, l'equipe qui recoit marque plus). */
+  scores?: boolean;
   /** Prefixe des identifiants de match (plusieurs saisons dans un meme jeu). */
   prefixe?: string;
 }
@@ -55,6 +57,14 @@ export function ligue(o: OptionsLigue = {}): EntreesDonnees {
   const semaines = o.semaines ?? 20;
   const absence = o.absence ?? 0.15;
   const hasard = alea(o.graine ?? 42);
+  // Les buts viennent d'un generateur a part : activer les scores ne change pas les feuilles tirees au sort.
+  const hasardButs = alea((o.graine ?? 42) + 7);
+  const buts = (force: number, terrain: number): number => {
+    const limite = Math.exp(-force * terrain);
+    let k = 0;
+    for (let p = hasardButs(); p > limite; p *= hasardButs()) k++;
+    return k;
+  };
   const saisonId = o.saisonId ?? "s25";
   const prefixe = o.prefixe ?? "m";
   const debut = Date.UTC(o.annee ?? 2025, 8, 6);          // debut de saison : le 6 septembre
@@ -83,6 +93,7 @@ export function ligue(o: OptionsLigue = {}): EntreesDonnees {
         id, date: dateFr(debut + w * 7 * 86_400_000), journee: String(w + 1), saisonId, competition: "Seniors D2",
         clubDom: `c${i}`, clubExt: `c${j}`, equipeDomId: `e${i}-${saisonId}`, equipeExtId: `e${j}-${saisonId}`,
         formationDom: formationDe(i), formationExt: formationDe(j), statut: "joue",
+        ...(o.scores ? { scoreDom: buts(0.7 + 0.2 * i, 1.2), scoreExt: buts(0.7 + 0.2 * j, 0.85) } : {}),
       });
       for (const [club, cote] of [[i, "dom"], [j, "ext"]] as const) {
         const parti = new Set<number>();
@@ -124,7 +135,7 @@ export async function insererLigue(ds: import("typeorm").DataSource, entrees: En
   await ds.getRepository(Match).save(entrees.matchs.map((m) => ({
     id: m.id, date: m.date ?? undefined, journee: m.journee ?? undefined, saisonId: m.saisonId ?? undefined, competition: m.competition ?? undefined,
     clubDom: m.clubDom, clubExt: m.clubExt, equipeDomId: m.equipeDomId ?? undefined, equipeExtId: m.equipeExtId ?? undefined,
-    formationDom: m.formationDom ?? undefined, formationExt: m.formationExt ?? undefined, statut: m.statut ?? "joue", scoreDom: 1, scoreExt: 0,
+    formationDom: m.formationDom ?? undefined, formationExt: m.formationExt ?? undefined, statut: m.statut ?? "joue", scoreDom: m.scoreDom ?? 1, scoreExt: m.scoreExt ?? 0,
   })));
   // Par lots : la base de test (sql.js) n'aime pas les milliers de parametres d'un seul INSERT.
   for (let i = 0; i < entrees.compos.length; i += 200) {

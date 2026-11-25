@@ -52,6 +52,11 @@ export interface FeuilleEquipe {
   lignes: LigneJoueur[];
   /** Le dispositif SAISI par le staff pour cette equipe sur ce match (jamais une valeur par defaut), sinon null. */
   formation: string | null;
+  /** Buts marques et encaisses par cette equipe ; null quand le score n'est pas connu (jamais pour une feuille d'entrainement). */
+  buts: number | null;
+  butsContre: number | null;
+  /** Identite de l'equipe adverse (meme forme que `equipe`), pour retrouver son historique. */
+  adversaireEquipe: string;
   /** Categorie de l'equipe ("Seniors", "U17"...), pour mesurer la qualite par categorie ; "?" si inconnue. */
   categorie: string;
   /** Blessures et reprises en cours le jour du match (saisies par le club) : absent = aucune connue. */
@@ -90,6 +95,7 @@ export interface EntreesDonnees {
     id: string; date?: string | null; journee?: string | null; saisonId?: string | null; competition?: string | null;
     clubDom: string; clubExt: string; equipeDomId?: string | null; equipeExtId?: string | null;
     formationDom?: string | null; formationExt?: string | null; dispositifsSaisis?: boolean | null; statut?: string | null;
+    scoreDom?: number | null; scoreExt?: number | null;
   }[];
   equipes: { id: string; clubId: string; categorie?: string | null; division?: string | null; nom: string; saisonId?: string | null }[];
   clubs: { id: string; nom: string }[];
@@ -206,6 +212,9 @@ export function construireJeuDonnees(entrees: EntreesDonnees): JeuDonnees {
       const clubId = domicile ? m.clubDom : m.clubExt;
       const adversaireId = domicile ? m.clubExt : m.clubDom;
       const equipe = equipes.get((domicile ? m.equipeDomId : m.equipeExtId) ?? "");
+      const equipeAdv = equipes.get((domicile ? m.equipeExtId : m.equipeDomId) ?? "");
+      const butsPour = domicile ? m.scoreDom : m.scoreExt;
+      const butsContre = domicile ? m.scoreExt : m.scoreDom;
       const nomClub = clubs.get(clubId) ?? "Club inconnu";
       feuilles.push({
         matchId: m.id,
@@ -214,6 +223,9 @@ export function construireJeuDonnees(entrees: EntreesDonnees): JeuDonnees {
         adversaire: clubs.get(adversaireId) ?? "Club inconnu",
         date: m.date!, temps, journee: m.journee ?? null, saisonId: m.saisonId ?? null, domicile, lignes,
         formation: domicile ? dispositifs.dom : dispositifs.ext,
+        buts: typeof butsPour === "number" ? butsPour : null,
+        butsContre: typeof butsContre === "number" ? butsContre : null,
+        adversaireEquipe: equipeAdv ? identiteEquipe(equipeAdv, multiples) : `${adversaireId}|?|${normaliser(m.competition)}`,
         categorie: equipe?.categorie ? normaliser(equipe.categorie) : "?",
         disponibilite: disponibiliteLe(plages, temps),
       });

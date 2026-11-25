@@ -15,6 +15,7 @@
 // logarithmique est la plus basse. Fonctions pures (l'acces a la base est dans ia.service.ts).
 
 import { fusionnerSystemes } from "@/features/analyse/systeme-probable";
+import { attendusPoisson, issueDepuisAttendus } from "@/features/analyse/projection";
 import { predireSysteme as predireSystemeSaisi } from "@/features/matchs/systeme";
 
 import type { FeuilleEquipe, JeuDonnees, ResumeDonnees } from "./ia-donnees";
@@ -27,7 +28,8 @@ import {
   numerosDeFeuilleExploitables, poidsInitiaux, PoidsIa, predireOnze, predireSysteme, preparerCandidats, preparerSysteme, Preparation,
   PreparationSysteme, structureDuSysteme,
 } from "./ia-modele";
-import { ajusterChoix, ajusterLogistique, ExempleBinaire, ExempleChoix } from "./ia-maths";
+import { ajusterChoix, ajusterLogistique, ajusterPoisson, ExempleBinaire, ExempleChoix, ExemplePoisson } from "./ia-maths";
+import { butsAttendus, caracteristiquesScore, FENETRE_SCORE, MatchPasse, W_SCORE_DEPART } from "./ia-score";
 
 /** Les jeux d'hyperparametres essayes par un entrainement complet. */
 export const GRILLE_COMPLETE: readonly Hyper[] = [
@@ -148,6 +150,22 @@ interface ResumeSysteme {
   frequent: { top1: number | null; top3: number | null; defense: number | null };
 }
 
+/** Ce que vaut une prediction de score : perte de Poisson par equipe (plus bas = mieux), bon vainqueur / nul, ecart moyen en buts. */
+interface MesureScore { perte: number | null; issue: number | null; ecart: number | null }
+
+/** Le modele de score face au modele de Poisson sur les moyennes, sur les memes matchs. */
+export interface ResumeScore {
+  /** Matchs compares (les deux modeles avaient de quoi predire). */
+  n: number;
+  modele: MesureScore;
+  poisson: MesureScore;
+  /** Il remplace le modele de Poisson au pre-match : assez de matchs et une perte au moins aussi basse. */
+  retenu: boolean;
+}
+
+/** Sous ce nombre de matchs compares, la comparaison n'est que du bruit : le modele de Poisson est conserve. */
+export const MIN_MATCHS_SCORE_COMPARES = 30;
+
 interface BandeCalibration { de: number; a: number; n: number; probaMoyenne: number | null; tauxObserve: number | null }
 
 interface ResultatEssai {
@@ -169,6 +187,8 @@ interface ResultatEssai {
   /** Feuilles sans aucun historique : rien a predire. */
   sansHistorique: number;
   systeme: ResumeSysteme | null;
+  /** Le score predit par l'IA, face au modele de Poisson (absent : pas assez de matchs avec un score). */
+  score?: ResumeScore | null;
   /** Face au modele actif (absent : aucun modele actif a l'epoque, ou essai leger). */
   comparaison: ComparaisonActif | null;
   calibration: BandeCalibration[];
@@ -218,6 +238,28 @@ interface Commun {
   systeme: SystemePrepare | null;
   /** Ce que le modele actif voit de l'equipe (sa propre fenetre d'historique), pour les semaines de la comparaison. */
   prepActif: Preparation | null;
+  /** Ce que l'on savait avant le match pour predire les buts de cette equipe, et ce qui s'est vraiment passe. */
+  score: ScorePrepare | null;
+}
+
+interface ScorePrepare {
+  x: number[];
+  /** Buts marques par l'equipe. */
+  y: number;
+  matchId: string;
+  domicile: boolean;
+  /** Buts attendus du modele de Poisson sur les moyennes de la saison (null : trop peu de matchs pour qu'il predise). */
+  poisson: number | null;
+}
+
+const versPasses = (feuilles: readonly FeuilleEquipe[]): MatchPasse[] =>
+  feuilles.filter((f) => f.buts !== null && f.butsContre !== null).map((f) => ({ buts: f.buts!, butsContre: f.butsContre!, domicile: f.domicile }));
+
+/** Moyennes de buts de la saison (jusqu'ici) d'une equipe, comme le modele de Poisson les lit ; null sous 5 matchs. */
+function moyennesSaison(passe: readonly FeuilleEquipe[], saisonId: string | null): { bpm: number; bcm: number } | null {
+  const m = versPasses(passe.filter((f) => f.saisonId === saisonId));
+  if (m.length < 5) return null;
+  return { bpm: m.reduce((s, x) => s + x.buts, 0) / m.length, bcm: m.reduce((s, x) => s + x.butsContre, 0) / m.length };
 }
 
 interface FeuillePreparee {
@@ -244,6 +286,8 @@ function preparer(
 ): { prepares: FeuillePreparee[]; communs: Commun[] } {
   const historiques = new Map<string, FeuilleEquipe[]>();
   const frequences: FrequencesSysteme = frequencesVides();
+  // Moyenne de buts par equipe et par match jusqu'ici (sert au lissage des moyennes d'une equipe qui a peu joue).
+  const ligue = { somme: 0, n: 0 };
   const prepares: FeuillePreparee[] = [];
   const communs: Commun[] = communsExistants ?? [];
   let i = 0;
@@ -270,14 +314,30 @@ function preparer(
           };
         }
         const prepActif = reference && etape.debut > reference.apres ? preparerCandidats(passe, f.saisonId, reference.poids.hyper.fenetre, dispo) : null;
-        communs.push({ refs, systeme, prepActif });
+        let score: ScorePrepare | null = null;
+        if (f.buts !== null && f.butsContre !== null) {
+          const passeAdv = recentes((historiques.get(f.adversaireEquipe) ?? []).filter((x) => x.matchId !== f.matchId), HISTORIQUE_MAX);
+          const x = caracteristiquesScore(versPasses(passe).slice(0, FENETRE_SCORE), versPasses(passeAdv).slice(0, FENETRE_SCORE), f.domicile, ligue.n ? ligue.somme / ligue.n : 1.3);
+          const msMoi = moyennesSaison(passe, f.saisonId);
+          const msAdv = moyennesSaison(passeAdv, f.saisonId);
+          if (x) {
+            score = {
+              x, y: f.buts, matchId: f.matchId, domicile: f.domicile,
+              poisson: msMoi && msAdv ? attendusPoisson({ moi: msMoi, adv: msAdv, domicileMoi: f.domicile }).moi : null,
+            };
+          }
+        }
+        communs.push({ refs, systeme, prepActif, score });
       }
       prepares.push({ feuille: f, etape: etape.indice, prep, commun: communs[i] });
       hist.push(f);
       i++;
     }
     // Les frequences generales des dispositifs ne se mettent a jour qu'a la fin de la semaine (pas de fuite dans la semaine).
-    for (const f of etape.feuilles) if (f.formation) compterSysteme(frequences, f.formation);
+    for (const f of etape.feuilles) {
+      if (f.formation) compterSysteme(frequences, f.formation);
+      if (f.buts !== null) { ligue.somme += f.buts; ligue.n++; }
+    }
   }
   return { prepares, communs };
 }
@@ -312,6 +372,10 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
   let wT = [...priorT];
   let wN = [...priorN];
   let wS = [...priorS];
+  const priorSc = [...W_SCORE_DEPART];
+  let wSc = [...priorSc];
+  const poolSc: { e: ExemplePoisson; etape: number }[] = [];
+  const mesuresScore = { n: 0, modele: new MesureEnCours(), poisson: new MesureEnCours() };
   const poidsCourants = (): PoidsIa => ({
     ...depart, titularisation: { noms: depart.titularisation.noms, w: wT }, numeros: { noms: depart.numeros.noms, w: wN },
     systeme: { noms: depart.systeme!.noms, w: wS },
@@ -362,6 +426,8 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
     const nouveauxT: { e: ExempleBinaire; etape: number }[] = [];
     const nouveauxN: { e: ExempleChoix; etape: number }[] = [];
     const nouveauxS: { e: ExempleChoix; etape: number }[] = [];
+    const nouveauxSc: { e: ExemplePoisson; etape: number }[] = [];
+    const paires = new Map<string, Partial<Record<"dom" | "ext", { lam: number; poisson: number | null; y: number }>>>();
 
     for (const p of feuilles) {
       const f = p.feuille;
@@ -450,6 +516,15 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
         if (!ctx.leger && sys.vrai >= 0) nouveauxS.push({ e: { phi: sys.prep.phi, vrai: sys.vrai, s: 1 }, etape: etape.indice });
       }
 
+      // 2 bis) Les buts : ce que le modele de score annonce pour cette equipe, a comparer a Poisson (evalue par match, plus bas).
+      const sc = p.commun.score;
+      if (!ctx.leger && sc) {
+        const lam = butsAttendus(wSc, sc.x);
+        const paire = paires.get(sc.matchId) ?? paires.set(sc.matchId, {}).get(sc.matchId)!;
+        paire[sc.domicile ? "dom" : "ext"] = { lam, poisson: sc.poisson, y: sc.y };
+        nouveauxSc.push({ e: { x: sc.x, y: sc.y, s: 1 }, etape: etape.indice });
+      }
+
       // 3) Ce que cette feuille apprendra au modele (utilise a la fin de la semaine, pas avant).
       if (p.prep.candidats.length > 0) {
         for (const e of exemplesTitularisation(p.prep, reelsIds)) nouveauxT.push({ e, etape: etape.indice });
@@ -459,12 +534,26 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
       }
     }
 
+    // Les matchs dont les deux equipes ont ete predites par les deux modeles : la comparaison ne porte que sur eux.
+    for (const { dom, ext } of paires.values()) {
+      if (!dom || !ext || dom.poisson === null || ext.poisson === null) continue;
+      mesuresScore.n++;
+      mesuresScore.modele.ajouter(dom.lam, ext.lam, dom.y, ext.y);
+      mesuresScore.poisson.ajouter(dom.poisson, ext.poisson, dom.y, ext.y);
+    }
+
     // 4) La semaine est decouverte : on reajuste le modele sur tout ce qu'il a vu.
+    poolSc.push(...nouveauxSc);
+    if (poolSc.length > MAX_EXEMPLES_TITULAIRES) poolSc.splice(0, poolSc.length - MAX_EXEMPLES_TITULAIRES);
     poolT.push(...nouveauxT); poolN.push(...nouveauxN); poolS.push(...nouveauxS);
     if (poolT.length > MAX_EXEMPLES_TITULAIRES) poolT.splice(0, poolT.length - MAX_EXEMPLES_TITULAIRES);
     if (poolN.length > MAX_EXEMPLES_NUMEROS) poolN.splice(0, poolN.length - MAX_EXEMPLES_NUMEROS);
     if (poolS.length > MAX_EXEMPLES_SYSTEME) poolS.splice(0, poolS.length - MAX_EXEMPLES_SYSTEME);
     const oubli = (etapeExemple: number) => (hyper.demiVie ? 0.5 ** ((etape.indice - etapeExemple) / hyper.demiVie) : 1);
+    if (nouveauxSc.length > 0) {
+      for (const x of poolSc) x.e.s = oubli(x.etape);
+      wSc = ajusterPoisson(poolSc.map((x) => x.e), wSc, priorSc, optionsAjust);
+    }
     if (nouveauxT.length > 0) {
       for (const x of poolT) x.e.s = oubli(x.etape);
       wT = ajusterLogistique(poolT.map((x) => x.e), wT, priorT, optionsAjust);
@@ -502,11 +591,14 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
   const recent = agregatsVides();
   for (const { a, i } of avecPredictions) if (i >= debutRecent) for (const m of METHODES) recent[m].fusionner(a[m]);
 
+  const score = ctx.leger ? null : resumeScore(mesuresScore);
   const frequencesFinales = depart.frequencesSysteme;
   const systemeAppris = poolS.length >= MIN_DISPOSITIFS_APPRIS;
   const poidsFinaux: PoidsIa = {
     ...poidsCourants(), frequencesSysteme: frequencesFinales,
     systeme: systemeAppris ? { noms: depart.systeme!.noms, w: wS } : null,
+    score: { noms: depart.score!.noms, w: wSc, moyenneLigue: moyenneButs(ctx.jeu.feuilles) },
+    scoreRetenu: score?.retenu === true,
     // Le dispositif appris ne sert en direct que s'il a fait au moins aussi bien que le moteur a regles, sur les memes matchs.
     systemeRetenu: systemeAppris && stats.n > 0 && stats.modele.top1 >= stats.moteur.top1,
   };
@@ -528,6 +620,11 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
   if (evaluees < 30) alertes.push(`Seulement ${evaluees} compositions predites : trop peu pour que les moyennes soient fiables.`);
   if (global.modele.nPostes < Math.max(10, evaluees / 4)) alertes.push("Peu de feuilles aux numeros lisibles (convention des postes) : la precision par poste est peu significative.");
   if (stats.n > 0 && stats.n < 20) alertes.push(`Seulement ${stats.n} dispositifs saisis : la lecture du systeme reste indicative.`);
+  if (score && !score.retenu) {
+    alertes.push(score.n < MIN_MATCHS_SCORE_COMPARES
+      ? `Seulement ${score.n} matchs pour comparer le score appris au modele de Poisson : il n'est pas utilise au pre-match.`
+      : "Le score appris n'a pas fait mieux que le modele de Poisson sur les memes matchs : il n'est pas utilise au pre-match.");
+  }
   if (systemeAppris && !poidsFinaux.systemeRetenu) alertes.push("Le modele de dispositif a fait moins bien que le moteur a regles sur les memes matchs : il n'est pas utilise en direct.");
 
   return {
@@ -538,7 +635,7 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
     parCategorie: ctx.leger ? undefined : classerGroupes([...parCategorie].map(([nom, a]) => ligneGroupe(nom, nom, a)), 3, 12),
     nouveaux: evaluees ? arrondi(inconnus / (evaluees * 11)) : null, sansHistorique,
     systeme: stats.n > 0 ? { n: stats.n, modele: rapport("modele"), moteur: rapport("moteur"), dernier: rapport("dernier"), frequent: rapport("frequent") } : null,
-    comparaison,
+    comparaison, score,
     calibration: calibrage.map((b, i) => ({
       de: i / BANDES, a: (i + 1) / BANDES, n: b.n,
       probaMoyenne: b.n ? arrondi(b.somme / b.n) : null, tauxObserve: b.n ? arrondi(b.vrais / b.n) : null,
@@ -551,6 +648,51 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
     alertes,
   };
 }
+
+/** Les mesures cumulees d'un modele de score : perte de Poisson par equipe, bon vainqueur / nul, ecart en buts. */
+class MesureEnCours {
+  private perte = 0;
+  private bons = 0;
+  private ecart = 0;
+  private matchs = 0;
+
+  ajouter(lDom: number, lExt: number, butsDom: number, butsExt: number): void {
+    this.matchs++;
+    this.perte += perteButs(lDom, butsDom) + perteButs(lExt, butsExt);
+    this.ecart += Math.abs(lDom - butsDom) + Math.abs(lExt - butsExt);
+    const { v, n, d } = issueDepuisAttendus(lDom, lExt);
+    const prevu = v >= n && v >= d ? 1 : d >= n ? -1 : 0;
+    if (prevu === Math.sign(butsDom - butsExt)) this.bons++;
+  }
+
+  resume(): MesureScore {
+    return this.matchs
+      ? { perte: arrondi(this.perte / (2 * this.matchs)), issue: arrondi(this.bons / this.matchs), ecart: arrondi(this.ecart / (2 * this.matchs)) }
+      : { perte: null, issue: null, ecart: null };
+  }
+}
+
+/** Perte (log-vraisemblance negative) de la loi de Poisson : lambda - y ln(lambda) + ln(y!). */
+function perteButs(lambda: number, y: number): number {
+  let logFactorielle = 0;
+  for (let k = 2; k <= y; k++) logFactorielle += Math.log(k);
+  return lambda - y * Math.log(Math.max(lambda, 1e-9)) + logFactorielle;
+}
+
+function resumeScore(m: { n: number; modele: MesureEnCours; poisson: MesureEnCours }): ResumeScore | null {
+  if (m.n === 0) return null;
+  const modele = m.modele.resume();
+  const poisson = m.poisson.resume();
+  return {
+    n: m.n, modele, poisson,
+    retenu: m.n >= MIN_MATCHS_SCORE_COMPARES && modele.perte !== null && poisson.perte !== null && modele.perte <= poisson.perte,
+  };
+}
+
+const moyenneButs = (feuilles: readonly FeuilleEquipe[]): number => {
+  const avecScore = feuilles.filter((f) => f.buts !== null);
+  return avecScore.length ? +(avecScore.reduce((s, f) => s + f.buts!, 0) / avecScore.length).toFixed(3) : 1.3;
+};
 
 function compterFrequence(poids: PoidsIa, systeme: string): void {
   poids.frequencesSysteme[systeme] = (poids.frequencesSysteme[systeme] ?? 0) + 1;
@@ -639,6 +781,8 @@ export interface ResumeModele {
   systemeAppris: boolean;
   /** Le dispositif appris a fait au moins aussi bien que le moteur a regles : il sert en direct avec ce modele. */
   systemeRetenu: boolean;
+  /** Le score appris a fait mieux que le modele de Poisson : il sert au pre-match avec ce modele. */
+  scoreRetenu?: boolean;
   /** Lundi (ms UTC) de la derniere semaine de matchs que ce modele a vue : la limite de ce qu'il a appris. */
   derniereSemaine: number | null;
 }
@@ -652,5 +796,6 @@ export function resumeDuResultat(r: ResultatEntrainement): ResumeModele {
     referenceOnze: meilleureRef ? r.global[meilleureRef].onze : null, reference: meilleureRef,
     perte: r.perte, systemeAppris: r.poids.systeme !== null, systemeRetenu: r.poids.systemeRetenu === true,
     derniereSemaine: r.donnees.derniereSemaine,
+    scoreRetenu: r.poids.scoreRetenu === true,
   };
 }

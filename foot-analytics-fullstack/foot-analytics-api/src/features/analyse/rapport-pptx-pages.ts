@@ -98,7 +98,7 @@ function comparatif(ids: Ids, c: ContenuRapport["comparatif"]): { libelle: strin
   corps += texte(ids(), "Buts attendus", { x: x + 182880, y: haut + 2700000, cx: cx - 365760, cy: 220000 },
     [{ segments: [{ t: "Buts attendus : ", gras: true, taille: 10, couleur: COULEUR.blanc }, { t: `${p.butsNous} pour nous, ${p.butsEux} pour eux`, taille: 10, couleur: COULEUR.blanc }] }], { ancre: "ctr" });
   corps += texte(ids(), "Note projection", { x: x + 182880, y: haut + 2960000, cx: cx - 365760, cy: 400000 },
-    [para(`Modèle de Poisson sur les moyennes de buts (au moins ${p.matchs} matchs de chaque équipe)${p.lieu ? `, ${p.lieu} compris` : ""}.`, { taille: 8, couleur: COULEUR.vertClair, italique: true })], { ancre: "t" });
+    [para(`${p.methode} (au moins ${p.matchs} matchs de chaque équipe)${p.lieu ? `, ${p.lieu} compris` : ""}.`, { taille: 8, couleur: COULEUR.vertClair, italique: true })], { ancre: "t" });
   return { libelle: "COMPARATIF", titre: "Nous contre eux", corps };
 }
 

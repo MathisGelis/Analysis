@@ -198,6 +198,7 @@ export class IaService implements OnModuleInit {
       select: {
         id: true, date: true, journee: true, saisonId: true, competition: true, clubDom: true, clubExt: true,
         equipeDomId: true, equipeExtId: true, formationDom: true, formationExt: true, dispositifsSaisis: true, statut: true,
+        scoreDom: true, scoreExt: true,
       },
     });
     const joues = matchs.filter(estMatchJoue);
