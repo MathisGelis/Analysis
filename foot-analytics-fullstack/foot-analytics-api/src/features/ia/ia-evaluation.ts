@@ -99,6 +99,38 @@ const arrondi = (x: number | null, d = 4): number | null => (x === null ? null :
 const resumer = (a: Agregat): ResumeNote => ({ n: a.n, onze: arrondi(a.onze), postes: arrondi(a.postes), nPostes: a.nPostes, parfaits: a.parfaits });
 export { arrondi };
 
+/** La qualite du modele sur un groupe (une equipe, une categorie) face a la meilleure methode simple sur les memes matchs. */
+export interface LigneGroupe {
+  nom: string;
+  categorie: string | null;
+  /** Compositions predites. */
+  n: number;
+  modele: number | null;
+  /** Meilleure des trois references (dernier onze, moteur a regles, titulaires frequents) et son nom. */
+  referenceOnze: number | null;
+  reference: Exclude<Methode, "modele"> | null;
+  /** modele - reference : negatif = le modele fait moins bien qu'une methode simple ici. */
+  ecart: number | null;
+}
+
+export function ligneGroupe(nom: string, categorie: string | null, a: Agregats): LigneGroupe {
+  const refs = (["dernier", "moteur", "frequence"] as const).filter((m) => a[m].n > 0);
+  const meilleure = refs.sort((x, y) => (a[y].onze ?? 0) - (a[x].onze ?? 0))[0] ?? null;
+  const modele = arrondi(a.modele.onze);
+  const referenceOnze = meilleure ? arrondi(a[meilleure].onze) : null;
+  return {
+    nom, categorie, n: a.modele.n, modele, referenceOnze, reference: meilleure,
+    ecart: modele !== null && referenceOnze !== null ? +(modele - referenceOnze).toFixed(4) : null,
+  };
+}
+
+/** Du groupe le plus mal servi (ecart le plus bas) au mieux servi ; ceux qui ont trop peu de predictions sont ecartes. */
+export function classerGroupes(lignes: readonly LigneGroupe[], minPredictions = 3, limite = 20): LigneGroupe[] {
+  return lignes.filter((l) => l.n >= minPredictions)
+    .sort((x, y) => (x.ecart ?? Infinity) - (y.ecart ?? Infinity) || y.n - x.n || x.nom.localeCompare(y.nom))
+    .slice(0, limite);
+}
+
 export type Agregats = Record<Methode, Agregat>;
 export const agregatsVides = (): Agregats => ({ modele: new Agregat(), dernier: new Agregat(), moteur: new Agregat(), frequence: new Agregat() });
 export const resumerTous = (a: Agregats): Record<Methode, ResumeNote> => ({

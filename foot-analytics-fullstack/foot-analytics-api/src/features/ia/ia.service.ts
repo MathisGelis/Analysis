@@ -12,14 +12,19 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
 import { parseDateFlexible } from "@/common/dates";
+import { empreinteLicence } from "@/features/analyse/compo-numeros";
+import { normaliser } from "@/common/fuzzy";
+import { Blessure } from "@/features/blessures/blessure.entity";
 import { Club } from "@/features/clubs/club.entity";
+import { Joueur } from "@/features/joueurs/joueur.entity";
+import { EvenementMatch } from "@/features/matchs/evenement-match.entity";
 import { Composition } from "@/features/matchs/composition.entity";
 import { Equipe } from "@/features/equipes/equipe.entity";
 import { Match } from "@/features/matchs/match.entity";
 import { estMatchJoue } from "@/features/matchs/match-joue";
 import { Saison } from "@/features/saisons/saison.entity";
 
-import { Decision, decider } from "./ia-decision";
+import { Decision, decider, MODELES_GARDES, modelesAElaguer, prochainNumeroModele } from "./ia-decision";
 import { construireJeuDonnees, EntreesDonnees, JeuDonnees, lundiDe } from "./ia-donnees";
 import {
   DonneesInsuffisantes, entrainer, GRILLE_COMPLETE, OptionsEntrainement, Progression, ResultatEntrainement, resumeDuResultat, ResumeModele,
@@ -146,15 +151,15 @@ export class IaService implements OnModuleInit {
       const apres = actif ? await this.derniereSemaineDuModele(actif) : null;
       const reference: OptionsEntrainement["reference"] = actif && apres !== null ? { id: actif.id, nom: actif.nom, poids: actif.poids, apres } : undefined;
       const resultat = await entrainer(jeu, {
-        grille: options.optimiser ? GRILLE_COMPLETE : [HYPER_PAR_DEFAUT],
+        grille: options.optimiser ? GRILLE_COMPLETE : [HYPER_PAR_DEFAUT], affiner: options.optimiser,
         progression, cooperer, annule: () => this.annulations.has(id), reference,
       });
       await chaine;
       const libelles = Object.fromEntries((await this.saisons.find()).map((s) => [s.id, s.nom]));
       const complet: ResultatEntrainement = { ...resultat, saisons: libelles };
-      const nombre = await this.modeles.count();
+      const numero = prochainNumeroModele((await this.modeles.find({ select: { nom: true } })).map((m) => m.nom));
       const modele = await this.modeles.save(this.modeles.create({
-        nom: `Modele n°${nombre + 1}`, entrainementId: id, poids: resultat.poids, resume: resumeDuResultat(resultat), actif: false,
+        nom: `Modele n°${numero}`, entrainementId: id, poids: resultat.poids, resume: resumeDuResultat(resultat), actif: false,
         creeLe: new Date().toISOString(),
       }));
       // La regle de securite : l'entrainement automatique ne remplace le modele actif que s'il fait au moins aussi bien.
@@ -167,6 +172,7 @@ export class IaService implements OnModuleInit {
       } else if (declencheur === "auto") {
         this.log.log(`${modele.nom} garde dans l'historique (${avis.action}) : ${avis.raison}`);
       }
+      await this.elaguerModeles();
       const decision: Decision = { ...avis, appliquee };
       await this.entrainements.update(id, {
         statut: "termine", progression: 100, message: "Termine", resultat: complet, modeleId: modele.id, decision,
@@ -209,7 +215,31 @@ export class IaService implements OnModuleInit {
       compos.push(...lignes);
       await cooperer();
     }
-    return construireJeuDonnees({ matchs: joues, equipes, clubs, compos, saisonIds: saisonIds ?? undefined });
+    // Les cartons (expulsions, avertissements) de chaque feuille, et les blessures saisies par les clubs.
+    const evenements: NonNullable<EntreesDonnees["evenements"]> = [];
+    const manager = this.matchs.manager;
+    for (let i = 0; i < joues.length; i += TAILLE_LOT) {
+      const lot = joues.slice(i, i + TAILLE_LOT).map((m) => m.id);
+      evenements.push(...await manager.getRepository(EvenementMatch).find({
+        where: { matchId: In(lot), type: "carton" },
+        select: { matchId: true, type: true, sousType: true, equipe: true, joueur: true },
+      }));
+      await cooperer();
+    }
+    const blessures = await this.blessuresDeFeuille();
+    return construireJeuDonnees({ matchs: joues, equipes, clubs, compos, evenements, blessures, saisonIds: saisonIds ?? undefined });
+  }
+
+  /** Les blessures saisies, rattachees a la cle de feuille du joueur (licence, sinon nom) : la meme identite que les feuilles de match. */
+  private async blessuresDeFeuille(): Promise<NonNullable<EntreesDonnees["blessures"]>> {
+    const manager = this.matchs.manager;
+    const blessures = await manager.getRepository(Blessure).find({ select: { joueurId: true, dateDebut: true, retourEstime: true, statut: true } });
+    if (blessures.length === 0) return [];
+    const fiches = await manager.getRepository(Joueur).find({
+      where: { id: In([...new Set(blessures.map((b) => b.joueurId))]) }, select: { id: true, licence: true, nom: true, prenom: true },
+    });
+    const cle = new Map(fiches.map((j) => [j.id, j.licence ? `lic:${empreinteLicence(j.licence)}` : `nom:${normaliser(`${j.nom} ${j.prenom ?? ""}`)}`]));
+    return blessures.flatMap((b) => (cle.has(b.joueurId) ? [{ joueur: cle.get(b.joueurId)!, dateDebut: b.dateDebut, retourEstime: b.retourEstime, statut: b.statut }] : []));
   }
 
   /* ------------------------------------------- lecture ------------------------------------------- */
@@ -351,6 +381,17 @@ export class IaService implements OnModuleInit {
   async desactiver(): Promise<void> {
     await this.modeles.update({ actif: true }, { actif: false });
     this.cache = null;
+  }
+
+  /** Ne garde que les meilleurs modeles (voir `modelesAElaguer`) : le reste n'apporte qu'un historique volumineux (poids de chaque modele). */
+  async elaguerModeles(garder = MODELES_GARDES): Promise<number> {
+    const tous = await this.modeles.find({ select: { id: true, actif: true, creeLe: true, resume: true } });
+    const aSupprimer = modelesAElaguer(tous, garder);
+    if (aSupprimer.length === 0) return 0;
+    await this.modeles.delete(aSupprimer);
+    await this.entrainements.update({ modeleId: In(aSupprimer) }, { modeleId: null });
+    this.log.log(`${aSupprimer.length} ancien(s) modele(s) supprime(s) : seuls les ${garder} meilleurs sont gardes`);
+    return aSupprimer.length;
   }
 
   async supprimerModele(id: string): Promise<void> {

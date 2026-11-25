@@ -69,3 +69,33 @@ export function decider(aUnActif: boolean, comparaison: ComparaisonActif | null)
     ? { action: "remplace", comparaison, raison: `Aussi bon que ${actif.nom} ${base} (${pct(nouveau.onze)} des titulaires predits) et probabilites au moins aussi bien calibrees : il le remplace.` }
     : { action: "conserve", comparaison, raison: `Autant de titulaires predits que ${actif.nom} ${base} (${pct(nouveau.onze)}) mais des probabilites moins bien calibrees : le modele actif est conserve.` };
 }
+
+/* ------------------------------------------- historique des modeles ------------------------------------------- */
+
+/** Nombre de modeles gardes : les meilleurs, plus le modele actif s'il n'en fait pas partie. */
+export const MODELES_GARDES = 5;
+
+interface ModeleClassable { id: string; actif: boolean; creeLe: string; resume: { onze: number | null; perte: number | null } }
+
+/**
+ * Les modeles a supprimer pour ne garder que les `garder` meilleurs. Classement : part du onze bien predite (la plus haute),
+ * puis perte (la plus basse), puis le plus recent. Le modele actif n'est jamais supprime (il compte dans les `garder`).
+ */
+export function modelesAElaguer(modeles: readonly ModeleClassable[], garder = MODELES_GARDES): string[] {
+  const note = (m: ModeleClassable) => m.resume.onze ?? -1;
+  const classes = [...modeles].sort((a, b) =>
+    note(b) - note(a)
+    || (a.resume.perte ?? Infinity) - (b.resume.perte ?? Infinity)
+    || b.creeLe.localeCompare(a.creeLe));
+  const gardes = new Set<string>(classes.filter((m) => m.actif).map((m) => m.id));
+  for (const m of classes) {
+    if (gardes.size >= Math.max(garder, gardes.size)) break;
+    gardes.add(m.id);
+  }
+  return modeles.filter((m) => !gardes.has(m.id)).map((m) => m.id);
+}
+
+/** Le numero du prochain modele : un de plus que le plus grand deja pris (le nombre de modeles ne suffit plus une fois l'historique elague). */
+export function prochainNumeroModele(noms: readonly string[]): number {
+  return noms.reduce((max, n) => Math.max(max, Number(/n°(\d+)\s*$/.exec(n)?.[1] ?? 0)), 0) + 1;
+}

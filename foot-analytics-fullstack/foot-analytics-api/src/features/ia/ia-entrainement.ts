@@ -19,7 +19,8 @@ import { predireSysteme as predireSystemeSaisi } from "@/features/matchs/systeme
 
 import type { FeuilleEquipe, JeuDonnees, ResumeDonnees } from "./ia-donnees";
 import {
-  Agregat, Agregats, agregatsVides, arrondi, Methode, METHODES, noter, PrevisionPlate, previsionsDeReference, ResumeNote, resumerTous,
+  Agregat, Agregats, agregatsVides, arrondi, classerGroupes, LigneGroupe, ligneGroupe, Methode, METHODES, noter, PrevisionPlate,
+  previsionsDeReference, ResumeNote, resumerTous,
 } from "./ia-evaluation";
 import {
   compterSysteme, exemplesNumeros, exemplesTitularisation, FrequencesSysteme, frequencesVides, Hyper, HYPER_PAR_DEFAUT,
@@ -33,8 +34,32 @@ export const GRILLE_COMPLETE: readonly Hyper[] = [
   { fenetre: 6, l2: 0.3, demiVie: null }, { fenetre: 6, l2: 3, demiVie: null },
   { fenetre: 10, l2: 0.3, demiVie: null }, { fenetre: 10, l2: 3, demiVie: null },
   { fenetre: 14, l2: 0.3, demiVie: null }, { fenetre: 14, l2: 3, demiVie: null },
+  { fenetre: 20, l2: 0.3, demiVie: null }, { fenetre: 20, l2: 3, demiVie: null },
   { fenetre: 10, l2: 0.3, demiVie: 12 }, { fenetre: 10, l2: 3, demiVie: 12 },
+  { fenetre: 20, l2: 0.3, demiVie: 12 }, { fenetre: 20, l2: 3, demiVie: 12 },
 ];
+
+const FENETRES = [4, 6, 8, 10, 14, 20, 28];
+const L2 = [0.1, 0.3, 1, 3, 10];
+const DEMI_VIES: (number | null)[] = [null, 6, 12, 24];
+
+/**
+ * Les reglages voisins d'un reglage : un cran de plus ou de moins sur chaque axe (fenetre, regularisation, oubli). Apres
+ * une grille grossiere, on les essaie autour du gagnant pour affiner sans essayer toutes les combinaisons.
+ */
+export function voisins(h: Hyper): Hyper[] {
+  const cran = <T,>(valeurs: readonly T[], v: T): T[] => {
+    const i = valeurs.indexOf(v);
+    return i < 0 ? [] : [valeurs[i - 1], valeurs[i + 1]].filter((x): x is T => x !== undefined);
+  };
+  return [
+    ...cran(FENETRES, h.fenetre).map((fenetre) => ({ ...h, fenetre })),
+    ...cran(L2, h.l2).map((l2) => ({ ...h, l2 })),
+    ...cran(DEMI_VIES, h.demiVie).map((demiVie) => ({ ...h, demiVie })),
+  ];
+}
+
+const memeReglage = (a: Hyper, b: Hyper) => a.fenetre === b.fenetre && a.l2 === b.l2 && a.demiVie === b.demiVie;
 
 /** Sous ce nombre de dispositifs saisis, le modele de dispositif reste a ses poids de depart. */
 const MIN_DISPOSITIFS_APPRIS = 8;
@@ -55,6 +80,8 @@ export interface OptionsEntrainement {
   progression?: (p: Progression) => void;
   /** Rend la main a la boucle d'evenements entre deux etapes (le serveur reste reactif). */
   cooperer?: () => Promise<void>;
+  /** Apres la grille, essaie les reglages voisins du gagnant (un cran de plus ou de moins sur chaque axe). */
+  affiner?: boolean;
   /** Vrai : l'entrainement est interrompu (leve une erreur). */
   annule?: () => boolean;
   /**
@@ -133,6 +160,10 @@ interface ResultatEssai {
   recent: Record<Methode, ResumeNote>;
   courbe: PointCourbe[];
   parSaison: Record<string, Record<Methode, ResumeNote>>;
+  /** Equipes les plus mal servies par le modele (face a la meilleure methode simple) : ou l'IA a le plus a apprendre. */
+  parEquipe?: LigneGroupe[];
+  /** Meme mesure par categorie ("seniors", "u17"...). */
+  parCategorie?: LigneGroupe[];
   /** Part des titulaires reels dont le joueur etait inconnu de l'equipe (nouveaux : imprevisibles). */
   nouveaux: number | null;
   /** Feuilles sans aucun historique : rien a predire. */
@@ -196,6 +227,11 @@ interface FeuillePreparee {
   commun: Commun;
 }
 
+/** Les blessures et reprises connues le jour du match, au format du modele. */
+const disponibiliteDe = (f: FeuilleEquipe) => f.disponibilite
+  ? { absents: new Set(f.disponibilite.absents), reprise: new Set(f.disponibilite.reprise) }
+  : undefined;
+
 /** Les `k` feuilles les plus recentes d'une equipe, la plus recente d'abord. */
 const recentes = (liste: readonly FeuilleEquipe[], k: number) => liste.slice(-k).reverse();
 
@@ -216,7 +252,8 @@ function preparer(
     for (const f of etape.feuilles) {
       const hist = historiques.get(f.equipe) ?? historiques.set(f.equipe, []).get(f.equipe)!;
       const passe = recentes(hist, HISTORIQUE_MAX);
-      const prep = preparerCandidats(passe, f.saisonId, fenetre);
+      const dispo = disponibiliteDe(f);
+      const prep = preparerCandidats(passe, f.saisonId, fenetre, dispo);
       if (!communsExistants) {
         const refs = previsionsDeReference(passe, REFERENCE_FENETRE);
         let systeme: SystemePrepare | null = null;
@@ -232,7 +269,7 @@ function preparer(
             },
           };
         }
-        const prepActif = reference && etape.debut > reference.apres ? preparerCandidats(passe, f.saisonId, reference.poids.hyper.fenetre) : null;
+        const prepActif = reference && etape.debut > reference.apres ? preparerCandidats(passe, f.saisonId, reference.poids.hyper.fenetre, dispo) : null;
         communs.push({ refs, systeme, prepActif });
       }
       prepares.push({ feuille: f, etape: etape.indice, prep, commun: communs[i] });
@@ -289,6 +326,8 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
   const global = agregatsVides();
   const parEtape: Agregats[] = [];
   const parSaison = new Map<string, Agregats>();
+  const parEquipe = new Map<string, { nom: string; categorie: string; a: Agregats }>();
+  const parCategorie = new Map<string, Agregats>();
   const courbe: PointCourbe[] = [];
   let sommePerte = 0;
   let nPerte = 0;
@@ -343,10 +382,12 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
           frequence: p.commun.refs.frequence ? noter(p.commun.refs.frequence, f.lignes) : null,
         };
         const saison = parSaison.get(f.saisonId ?? "?") ?? parSaison.set(f.saisonId ?? "?", agregatsVides()).get(f.saisonId ?? "?")!;
+        const equipe = parEquipe.get(f.equipe) ?? parEquipe.set(f.equipe, { nom: f.libelleEquipe, categorie: f.categorie, a: agregatsVides() }).get(f.equipe)!;
+        const categorie = parCategorie.get(f.categorie) ?? parCategorie.set(f.categorie, agregatsVides()).get(f.categorie)!;
         for (const m of METHODES) {
           const note = notes[m];
           if (!note) continue;
-          agregats[m].ajouter(note); global[m].ajouter(note); saison[m].ajouter(note);
+          agregats[m].ajouter(note); global[m].ajouter(note); saison[m].ajouter(note); equipe.a[m].ajouter(note); categorie[m].ajouter(note);
         }
 
         // Le meme match, predit par le modele actif avec ses poids figes (seulement les semaines qu'il n'avait pas vues).
@@ -493,6 +534,8 @@ async function essayer(hyper: Hyper, prepares: FeuillePreparee[], ctx: Contexte)
     hyper, perte: nPerte ? arrondi(sommePerte / nPerte) : null, poids: poidsFinaux,
     global: resumerTous(global), recent: resumerTous(recent), courbe,
     parSaison: Object.fromEntries([...parSaison].map(([id, a]) => [id, resumerTous(a)])),
+    parEquipe: ctx.leger ? undefined : classerGroupes([...parEquipe.values()].map((e) => ligneGroupe(e.nom, e.categorie, e.a))),
+    parCategorie: ctx.leger ? undefined : classerGroupes([...parCategorie].map(([nom, a]) => ligneGroupe(nom, nom, a)), 3, 12),
     nouveaux: evaluees ? arrondi(inconnus / (evaluees * 11)) : null, sansHistorique,
     systeme: stats.n > 0 ? { n: stats.n, modele: rapport("modele"), moteur: rapport("moteur"), dernier: rapport("dernier"), frequent: rapport("frequent") } : null,
     comparaison,
@@ -544,10 +587,24 @@ export async function entrainer(jeu: JeuDonnees, options: OptionsEntrainement = 
   if (grille.length > 1) {
     // Phase 1 : tous les jeux d'hyperparametres, en essai leger ; on garde celui de perte la plus basse.
     const legers: ResultatEssai[] = [];
+    const finGrille = options.affiner ? 45 : 60;
     for (const [i, h] of grille.entries()) {
-      legers.push(await essayer(h, parFenetre.get(h.fenetre)!, { ...commun, essai: i, essais: grille.length, debut: 10, fin: 60, leger: true }));
+      legers.push(await essayer(h, parFenetre.get(h.fenetre)!, { ...commun, essai: i, essais: grille.length, debut: 10, fin: finGrille, leger: true }));
     }
     legers.sort(meilleur);
+    // Phase 1 bis : les reglages voisins du gagnant (une seule ronde), pour affiner sans essayer toutes les combinaisons.
+    if (options.affiner) {
+      const aEssayer = voisins(legers[0].hyper).filter((h) => !legers.some((l) => memeReglage(l.hyper, h)));
+      for (const [i, h] of aEssayer.entries()) {
+        if (!parFenetre.has(h.fenetre)) {
+          const { prepares, communs: c } = preparer(jeu, h.fenetre, communs, options.reference);
+          communs = c;
+          parFenetre.set(h.fenetre, prepares);
+        }
+        legers.push(await essayer(h, parFenetre.get(h.fenetre)!, { ...commun, essai: i, essais: aEssayer.length, debut: finGrille, fin: 60, leger: true }));
+      }
+      legers.sort(meilleur);
+    }
     // Phase 2 : le gagnant, entierement : les numeros et le dispositif apprennent aussi, toutes les mesures sont faites.
     gagnant = await essayer(legers[0].hyper, parFenetre.get(legers[0].hyper.fenetre)!, { ...commun, essai: 0, essais: 1, debut: 60, fin: 100, leger: false });
     essais = legers.map((r, i) => ({

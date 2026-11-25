@@ -5,9 +5,13 @@
 // Fonctions pures.
 
 import { trierChronologiquement, parseDateFlexible } from "@/common/dates";
-import { lignesDeFeuille, structureDe } from "@/features/analyse/compo-numeros";
+import { normaliser } from "@/common/fuzzy";
+import { empreinteLicence, lignesDeFeuille, structureDe } from "@/features/analyse/compo-numeros";
+import { deserialiserEntree } from "@/features/joueurs/fatigue";
 import { dispositionDe } from "@/features/analyse/disposition-onze";
 import type { SystemeProbable } from "@/features/analyse/systeme-probable";
+import { designeLeJoueur } from "@/features/matchs/minutes";
+import { estSanctionRouge } from "@/features/matchs/suspensions";
 import { systemesRenseignes } from "@/features/matchs/systeme";
 
 import type { FeuilleEquipe } from "./ia-donnees";
@@ -18,7 +22,10 @@ import {
 
 /** Un match joue d'une equipe, tel que le rapport d'equipe le connait. */
 export interface MatchDeLEquipe {
-  m: { id: string; date?: string | null; journee?: string | null; saisonId?: string | null; formationDom?: string | null; formationExt?: string | null; dispositifsSaisis?: boolean | null };
+  m: { id: string; date?: string | null; journee?: string | null; saisonId?: string | null; formationDom?: string | null; formationExt?: string | null; dispositifsSaisis?: boolean | null;
+    /** Evenements du match (cartons) : s'ils sont lus, la feuille sait qui a ete expulse ou averti (comme a l'entrainement). */
+    evenements?: { type: string; sousType?: string | null; equipe: string; joueur: string }[] | null;
+  };
   dom: boolean;
   titulaires: { nom: string; prenom?: string | null; licence?: string | null; numero: number; titulaire: boolean; minutes?: number | null }[];
   bancs: { nom: string; prenom?: string | null; licence?: string | null; numero: number; titulaire: boolean; minutes?: number | null }[];
@@ -31,23 +38,46 @@ export function feuillesDeLEquipe(matchs: readonly MatchDeLEquipe[]): FeuilleEqu
   for (const i of classes) {
     const brutes = [...i.titulaires, ...i.bancs];
     if (!brutes.some((c) => c.titulaire)) continue;
+    const cote = i.dom ? "dom" : "ext";
     const lues = lignesDeFeuille(i.m, brutes);
     const vus = new Set<string>();
     const lignes: FeuilleEquipe["lignes"] = [];
     lues.forEach((l, k) => {
       if (vus.has(l.joueur)) return;
       vus.add(l.joueur);
-      lignes.push({ joueur: l.joueur, nom: l.nom, numero: l.numero, titulaire: l.titulaire, minutes: Math.max(0, brutes[k].minutes ?? 0) });
+      const cartons = (i.m.evenements ?? []).filter((e) => e.type === "carton" && e.equipe === cote && designeLeJoueur(e.joueur, { nom: brutes[k].nom, prenom: brutes[k].prenom ?? "" }));
+      lignes.push({
+        joueur: l.joueur, nom: l.nom, numero: l.numero, titulaire: l.titulaire, minutes: Math.max(0, brutes[k].minutes ?? 0),
+        ...(i.m.evenements ? { rouge: cartons.some((e) => estSanctionRouge(e.sousType)), jaune: cartons.some((e) => e.sousType === "jaune") } : {}),
+      });
     });
     const dispositifs = systemesRenseignes(i.m);
     feuilles.push({
       matchId: i.m.id, equipe: "direct", libelleEquipe: "", adversaire: "", date: i.m.date ?? "", temps: parseDateFlexible(i.m.date) ?? 0,
       journee: i.m.journee ?? null, saisonId: i.m.saisonId ?? null, domicile: i.dom, lignes,
       // Le dispositif SAISI par le staff pour cette equipe sur ce match (jamais une valeur par defaut), comme a l'entrainement.
-      formation: i.dom ? dispositifs.dom : dispositifs.ext,
+      formation: i.dom ? dispositifs.dom : dispositifs.ext, categorie: "?",
     });
   }
   return feuilles;
+}
+
+/**
+ * Blessures et reprises du moment, au format du modele (cles de feuille), d'apres l'etat de chaque joueur du club
+ * (le statut saisi par le staff, relu de sa fiche de fatigue). Donnee privee du club : a n'appeler que pour son propre rapport.
+ */
+export function disponibiliteDesJoueurs(
+  joueurs: readonly { licence?: string | null; nom: string; prenom?: string | null; fatigueEntree?: string | null }[], maintenant = new Date(),
+): { absents: Set<string>; reprise: Set<string> } {
+  const absents = new Set<string>();
+  const reprise = new Set<string>();
+  for (const j of joueurs) {
+    const e = deserialiserEntree(j.fatigueEntree, maintenant);
+    if (!e || (!e.indisponible && !e.enReprise)) continue;
+    const cle = j.licence ? `lic:${empreinteLicence(j.licence)}` : `nom:${normaliser(`${j.nom} ${j.prenom ?? ""}`)}`;
+    (e.indisponible ? absents : reprise).add(cle);
+  }
+  return { absents, reprise };
 }
 
 export interface CompoProbableModele {
@@ -60,9 +90,13 @@ export interface CompoProbableModele {
 }
 
 /** La compo probable d'apres le modele, ou null si l'equipe n'a aucune feuille avec onze. */
-export function compoProbableDuModele(poids: PoidsIa, matchs: readonly MatchDeLEquipe[], saisonId: string | null): CompoProbableModele | null {
+export function compoProbableDuModele(
+  poids: PoidsIa, matchs: readonly MatchDeLEquipe[], saisonId: string | null,
+  /** Blessures et reprises en cours aujourd'hui (cles de joueur) : seulement quand le demandeur est du club (donnee privee). */
+  disponibilite?: { absents?: ReadonlySet<string>; reprise?: ReadonlySet<string> },
+): CompoProbableModele | null {
   const feuilles = feuillesDeLEquipe(matchs);
-  const prep = preparerCandidats([...feuilles].reverse().slice(0, HISTORIQUE_MAX), saisonId, poids.hyper.fenetre);
+  const prep = preparerCandidats([...feuilles].reverse().slice(0, HISTORIQUE_MAX), saisonId, poids.hyper.fenetre, disponibilite);
   const pred = predireOnze(poids, prep);
   if (!pred) return null;
   const titularisations = new Map(prep.candidats.map((c) => [c.joueur, c.titularisations]));

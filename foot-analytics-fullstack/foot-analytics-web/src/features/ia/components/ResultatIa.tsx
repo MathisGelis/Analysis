@@ -223,6 +223,32 @@ export function ResultatIa({ detail }: { detail: EntrainementDetail }) {
         <ErreursIa pires={r.pires} difficiles={r.difficiles} />
       </Bloc>
 
+      {(r.parEquipe?.length ?? 0) > 0 && (
+        <Bloc titre="Équipes les moins bien servies" testid="groupes-ia"
+          aide="Part des titulaires bien prédits par équipe et par catégorie, face à la meilleure méthode simple sur les mêmes matchs. Un écart négatif : l'IA fait moins bien qu'une règle simple pour cette équipe.">
+          <div className="grid gap-6 lg:grid-cols-2">
+            {[{ titre: "Par équipe", lignes: r.parEquipe! }, { titre: "Par catégorie", lignes: r.parCategorie ?? [] }].map((g) => (
+              <section key={g.titre} aria-label={g.titre}>
+                <h3 className="h-section mb-2">{g.titre}</h3>
+                <ul className="space-y-1.5">
+                  {g.lignes.slice(0, 8).map((l) => (
+                    <li key={l.nom} className="panel-inset flex items-baseline justify-between gap-3 p-2.5 text-sm" data-testid="groupe-ia">
+                      <span className="min-w-0 truncate font-semibold text-ink">{l.nom}</span>
+                      <span className="shrink-0 text-right text-xs text-muted">
+                        {pct(l.modele, 0)} <span className="text-faint">· {l.n} compos</span>
+                        {l.ecart !== null && (
+                          <span className={`ml-2 font-mono ${l.ecart < 0 ? "text-danger" : "text-win"}`}>{l.ecart >= 0 ? "+" : ""}{(l.ecart * 100).toFixed(0)} pts</span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        </Bloc>
+      )}
+
       <Bloc titre="Réglages essayes" testid="essais-ia"
         aide="Chaque combinaison a été jouée sur toute la période ; la perte mesure la justesse des probabilités (plus bas = mieux). Le meilleur est retenu.">
         <div className="overflow-x-auto">

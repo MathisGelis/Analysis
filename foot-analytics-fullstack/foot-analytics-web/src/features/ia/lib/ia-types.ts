@@ -35,6 +35,17 @@ export interface ErreurFeuille {
   fauxPositifs: { nom: string; proba: number }[];
 }
 
+/** La qualite de l'IA sur un groupe (equipe, categorie) face a la meilleure methode simple. */
+export interface LigneGroupe {
+  nom: string;
+  categorie: string | null;
+  n: number;
+  modele: number | null;
+  referenceOnze: number | null;
+  reference: "dernier" | "moteur" | "frequence" | null;
+  ecart: number | null;
+}
+
 export interface JoueurDifficile {
   nom: string;
   equipe: string;
@@ -87,6 +98,9 @@ export interface ResultatEntrainement {
   recent: NotesParMethode;
   courbe: PointCourbe[];
   parSaison: Record<string, NotesParMethode>;
+  /** Equipes et categories les moins bien servies (absent : ancien entrainement). */
+  parEquipe?: LigneGroupe[];
+  parCategorie?: LigneGroupe[];
   nouveaux: number | null;
   sansHistorique: number;
   systeme: ResumeSysteme | null;
