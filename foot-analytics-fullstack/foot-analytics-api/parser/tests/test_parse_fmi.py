@@ -285,3 +285,59 @@ def test_reference_encadrement_complet(neuville):
     assert ("BUVORAS Nadi", "E/DR", "recevante") in staff
     assert ("FEVUMAZ GIS LAGUREZ Vafu Fotodolo", "E", "visiteuse") in staff
     assert len(staff) == 4
+
+
+# --------------------------------------------------------------------------- #
+#  « Expl : 2 avt » : exclusion pour deux avertissements = un carton ROUGE
+# --------------------------------------------------------------------------- #
+ENTETE_DISCIPLINE = ["Equipe", "N° licence", "NOM Prénom", "Motif", "Informations complémentaires", "Min (+)"]
+
+
+def _discipline(*lignes):
+    ms = p.MatchSheet(source_fichier="synthetique.pdf")
+    p._parse_discipline([ENTETE_DISCIPLINE, *lignes], ms)
+    return ms.cartons
+
+
+def test_expulsion_deux_avertissements_compte_comme_un_seul_rouge():
+    cartons = _discipline(
+        ["Club Test A", "9600000001", "10 - DUPONT Jean", "Comportement antisportif", "", "60' + 0'"],
+        ["Club Test A", "9600000001", "10 - DUPONT Jean", "Comportement antisportif", "Expl : 2 avt", "61' + 0'"],
+        ["Club Test A", "9600000002", "9 - MARTIN Paul", "Comportement antisportif", "", "22' + 0'"],
+    )
+    # Un seul rouge pour le joueur exclu (son premier avertissement est absorbe), les autres cartons inchanges.
+    assert [(c.joueur, c.couleur, c.minute) for c in cartons] == [
+        ("DUPONT Jean", "rouge", 61),
+        ("MARTIN Paul", "jaune", 22),
+    ]
+
+
+def test_expulsion_deux_avertissements_ne_retire_que_le_jaune_du_joueur_exclu():
+    cartons = _discipline(
+        ["Club Test A", "9600000001", "10 - DUPONT Jean", "Comportement antisportif", "", "20' + 0'"],       # jaune ancien du meme joueur... 
+        ["Club Test A", "9600000002", "9 - MARTIN Paul", "Comportement antisportif", "", "22' + 0'"],
+        ["Club Test A", "9600000001", "10 - DUPONT Jean", "Comportement antisportif", "Expl : 2 avt", "61' + 0'"],
+        ["Club Test B", "9600000001", "10 - DURAND Luc", "Comportement antisportif", "", "30' + 0'"],   # autre equipe : intact
+    )
+    assert [(c.equipe, c.joueur, c.couleur) for c in cartons] == [
+        ("Club Test A", "MARTIN Paul", "jaune"),
+        ("Club Test A", "DUPONT Jean", "rouge"),
+        ("Club Test B", "DURAND Luc", "jaune"),
+    ]
+
+
+def test_expulsion_sans_jaune_precedent_reste_un_rouge():
+    cartons = _discipline(["Club Test A", "9600000001", "10 - DUPONT Jean", "Comportement antisportif", "Expl : 2 avt", "61' + 0'"])
+    assert [(c.joueur, c.couleur) for c in cartons] == [("DUPONT Jean", "rouge")]
+
+
+@pytest.mark.parametrize("information", ["Expl : 2 avt", "Expl: 2 avt", "EXPL : 2 AVT", "Expl. : 2 avt", "Expulsion : 2 avertissements", "Expl : deux avt"])
+def test_expulsion_deux_avertissements_ecritures_courantes(information):
+    cartons = _discipline(["Club Test A", "9600000001", "10 - DUPONT Jean", "Comportement antisportif", information, "61' + 0'"])
+    assert cartons[0].couleur == "rouge"
+
+
+@pytest.mark.parametrize("information", ["", "Blessé", "2 avt", "Expl : 1 avt"])
+def test_une_information_ordinaire_ne_change_pas_la_couleur(information):
+    cartons = _discipline(["Club Test A", "9600000001", "10 - DUPONT Jean", "Comportement antisportif", information, "61' + 0'"])
+    assert cartons[0].couleur == "jaune"
