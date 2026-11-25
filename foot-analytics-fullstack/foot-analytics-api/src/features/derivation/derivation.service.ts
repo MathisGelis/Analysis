@@ -36,7 +36,7 @@ import { Saison } from "@/features/saisons/saison.entity";
 import { StaffMatch } from "@/features/coachs/staff-match.entity";
 import { Tactique } from "@/features/tactiques/tactique.entity";
 import { noteIndicative } from "@/features/joueurs/indicateurs";
-import { champsFatigue, Effort, RPE_MATCH } from "@/features/joueurs/fatigue";
+import { champsFatigue, deserialiserEntree, Effort, RPE_MATCH } from "@/features/joueurs/fatigue";
 import { anneeDebutPourDate, nomSaison } from "@/common/saison-date";
 import { estMatchJoue } from "@/features/matchs/match-joue";
 import { doublonsProgrammes } from "@/features/matchs/programme";
@@ -136,6 +136,49 @@ export function lignesModifiees<T extends Record<string, any>>(
   });
 }
 
+/**
+ * Les efforts d'entrainement de chaque joueur, par club et par joueur (`club|joueur`). Une seance appartient au club de son equipe ; seules
+ * celles dont la date et la charge sont lisibles comptent. Partage par le recalcul complet des joueurs et par le rafraichissement de la
+ * fatigue d'un seul club.
+ */
+export function seancesParJoueurDe(trainings: Entrainement[], clubDeLEquipe: Map<string, string>): Map<string, Effort[]> {
+  const res = new Map<string, Effort[]>();
+  for (const t of trainings) {
+    const d = parseDateAny(t.date);
+    const club = t.equipeId ? clubDeLEquipe.get(t.equipeId) : undefined;
+    if (!d || !(t.charge > 0) || !club) continue;
+    for (const pid of (t.joueursPresents ?? [])) {
+      const k = `${club}|${pid}`;
+      const arr = res.get(k) ?? [];
+      arr.push({ date: d, ua: t.charge, source: "entrainement" });
+      res.set(k, arr);
+    }
+  }
+  return res;
+}
+
+/** Blessures par joueur (`club|joueur`) : nombre, indisponibles, en reprise, derniere fin passee. Partage avec le rafraichissement par club. */
+export function etatDesBlessures(blessures: Blessure[], now: Date) {
+  const blessuresParJoueur = new Map<string, number>();
+  const indisponibles = new Set<string>();
+  const enReprise = new Set<string>();
+  const finBlessure = new Map<string, Date>();
+  for (const b of blessures) {
+    const k = `${b.clubId}|${b.joueurId}`;
+    blessuresParJoueur.set(k, (blessuresParJoueur.get(k) ?? 0) + 1);
+    if (b.statut && /indisp/i.test(b.statut)) indisponibles.add(k);
+    if (b.statut && /reprise/i.test(b.statut)) enReprise.add(k);
+    const fin = parseDateAny(b.retourEstime);
+    if (fin && fin <= now && (!finBlessure.get(k) || fin > finBlessure.get(k)!)) finBlessure.set(k, fin);
+  }
+  return { blessuresParJoueur, indisponibles, enReprise, finBlessure };
+}
+
+export function ageAuJour(naissance: string | null | undefined, now: Date): number | null {
+  const d = parseDateAny(naissance);
+  return d ? Math.floor(daysBetween(now, d) / 365.25) : null;
+}
+
 @Injectable()
 export class DerivationService implements OnApplicationBootstrap {
   private readonly journal = new Logger(DerivationService.name);
@@ -169,6 +212,70 @@ export class DerivationService implements OnApplicationBootstrap {
     } catch (e) {
       this.journal.warn(`Cartons du staff non reclasses au demarrage : ${(e as Error).message}`);
     }
+  }
+
+  /** Rafraichissements de fatigue en cours, par club : une rafale de saisies ne lance qu'un calcul de plus (voir `rafraichirFatigueClub`). */
+  private readonly fatigueEnCours = new Map<string, { aRelancer: boolean; fin: Promise<number> }>();
+
+  /**
+   * Remet a jour la FATIGUE des joueurs d'UN club apres une seance ou une blessure, sans relire un seul match : les efforts de match sont deja
+   * gardes sur chaque fiche (`fatigueEntree`), on remplace seulement les seances et le statut de blessure. Rend le nombre de fiches ecrites.
+   * Plusieurs appels pendant un calcul se regroupent : le calcul se relance UNE fois a la fin, et chaque appelant attend ce dernier calcul
+   * (la saisie qui vient d'etre faite est donc toujours prise en compte).
+   */
+  rafraichirFatigueClub(clubId: string): Promise<number> {
+    const enCours = this.fatigueEnCours.get(clubId);
+    if (enCours) { enCours.aRelancer = true; return enCours.fin; }
+    const etat = { aRelancer: false, fin: Promise.resolve(0) };
+    etat.fin = (async () => {
+      let n = 0;
+      try {
+        do { etat.aRelancer = false; n = await this.fatigueDuClub(clubId); } while (etat.aRelancer);
+      } finally { this.fatigueEnCours.delete(clubId); }
+      return n;
+    })();
+    this.fatigueEnCours.set(clubId, etat);
+    return etat.fin;
+  }
+
+  /** Meme chose a partir d'une equipe (une seance appartient a l'equipe). Equipe inconnue : rien. */
+  async rafraichirFatigueEquipe(equipeId: string | null | undefined): Promise<number> {
+    if (!equipeId) return 0;
+    const equipe = await this.equipesRepo.findOne({ where: { id: equipeId }, select: { id: true, clubId: true } });
+    return equipe ? this.rafraichirFatigueClub(equipe.clubId) : 0;
+  }
+
+  private async fatigueDuClub(clubId: string): Promise<number> {
+    const now = new Date();
+    const equipes = await this.equipesRepo.find({ where: { clubId }, select: { id: true, clubId: true } });
+    const [joueurs, seances, blessures] = await Promise.all([
+      this.joueurs.find({ where: { clubId } }),
+      equipes.length ? this.entrainements.find({ where: { equipeId: In(equipes.map((e) => e.id)) } }) : Promise.resolve([] as Entrainement[]),
+      this.blessures.find({ where: { clubId } }),
+    ]);
+    const presents = new Set(seances.flatMap((t) => t.joueursPresents ?? []));
+    const isMine = joueurs.some((j) => presents.has(j.id));        // « mon effectif » : le club dont des joueurs ont des seances (voir recomputeJoueurs)
+    const parJoueur = seancesParJoueurDe(seances, new Map(equipes.map((e) => [e.id, e.clubId])));
+    const { blessuresParJoueur, indisponibles, enReprise, finBlessure } = etatDesBlessures(blessures, now);
+    const aEcrire: Joueur[] = [];
+    for (const j of joueurs) {
+      const avant = deserialiserEntree(j.fatigueEntree, now);
+      if (!avant) continue;                                          // fiche saisie a la main, jamais calculee : le recalcul complet s'en charge
+      const k = `${clubId}|${j.id}`;
+      const champs = champsFatigue({
+        aujourdhui: now,
+        efforts: [...avant.efforts.filter((e) => e.source === "match"), ...(isMine ? parJoueur.get(k) ?? [] : [])],
+        indisponible: indisponibles.has(k), enReprise: enReprise.has(k),
+        blessuresAnt: blessuresParJoueur.get(k) ?? 0, finDerniereBlessure: finBlessure.get(k) ?? null,
+        age: ageAuJour(j.dateNaissance, now), sources: isMine ? "complet" : "matchs",
+      });
+      // Seule l'entree stockee fait foi : le reste s'en deduit a chaque lecture (la date du detail change a chaque calcul).
+      if (champs.fatigueEntree === j.fatigueEntree && (blessuresParJoueur.get(k) ?? 0) === (j.blessuresAnt ?? 0)) continue;
+      Object.assign(j, champs, { blessuresAnt: blessuresParJoueur.get(k) ?? 0 });
+      aEcrire.push(j);
+    }
+    if (aEcrire.length) await this.joueurs.save(aEcrire, { chunk: 200 });
+    return aEcrire.length;
   }
 
   /** Reconstruit l'effectif de tous les clubs depuis les compositions. */
@@ -326,38 +433,11 @@ export class DerivationService implements OnApplicationBootstrap {
     // club (cle "club|joueur"). Une seance appartient au club de son equipe ; une blessure, au club qui l'a saisie.
     const now = new Date();
     const clubDeLEquipe = new Map((await this.equipesRepo.find()).map((e) => [e.id, e.clubId]));
-    const seancesParJoueur = new Map<string, Effort[]>();
-    for (const t of trainings) {
-      const d = parseDateAny(t.date);
-      const club = t.equipeId ? clubDeLEquipe.get(t.equipeId) : undefined;
-      if (!d || !(t.charge > 0) || !club) continue;
-      for (const pid of (t.joueursPresents ?? [])) {
-        const k = `${club}|${pid}`;
-        const arr = seancesParJoueur.get(k) ?? [];
-        arr.push({ date: d, ua: t.charge, source: "entrainement" });
-        seancesParJoueur.set(k, arr);
-      }
-    }
+    const seancesParJoueur = seancesParJoueurDe(trainings, clubDeLEquipe);
 
     // Blessures par joueur, dans le club qui les a saisies : antecedents, statut du moment, retour recent.
-    const blessuresParJoueur = new Map<string, number>();
-    const indisponibles = new Set<string>();
-    const enReprise = new Set<string>();
-    const finBlessure = new Map<string, Date>();
-    for (const b of blessuresAll) {
-      const k = `${b.clubId}|${b.joueurId}`;
-      blessuresParJoueur.set(k, (blessuresParJoueur.get(k) ?? 0) + 1);
-      if (b.statut && /indisp/i.test(b.statut)) indisponibles.add(k);
-      if (b.statut && /reprise/i.test(b.statut)) enReprise.add(k);
-      const fin = parseDateAny(b.retourEstime);
-      if (fin && fin <= now && (!finBlessure.get(k) || fin > finBlessure.get(k)!)) {
-        finBlessure.set(k, fin);
-      }
-    }
-    const ageDe = (naissance?: string | null): number | null => {
-      const d = parseDateAny(naissance);
-      return d ? Math.floor(daysBetween(now, d) / 365.25) : null;
-    };
+    const { blessuresParJoueur, indisponibles, enReprise, finBlessure } = etatDesBlessures(blessuresAll, now);
+    const ageDe = (naissance?: string | null): number | null => ageAuJour(naissance, now);
 
     /** Champs de fatigue d'un joueur agrege : seances (mon effectif) + matchs. */
     const fatigueDe = (a: Agg, found: Joueur | null, isMine: boolean) => {
@@ -1402,7 +1482,30 @@ export class DerivationService implements OnApplicationBootstrap {
     return { doublonsSupprimes: doublons.length };
   }
 
-  async rebuildAll() {
+  private reconstructionEnCours: { aRelancer: boolean; fin: Promise<Awaited<ReturnType<DerivationService["rebuildAllUneFois"]>>> } | null = null;
+
+  /**
+   * Reconstruction complete, regroupee : si une reconstruction tourne deja, les appels arrives entre-temps n'en lancent pas
+   * chacun une (des imports en rafale) mais attendent UNE seule relance qui verra tous les matchs importes.
+   */
+  rebuildAll(): Promise<Awaited<ReturnType<DerivationService["rebuildAllUneFois"]>>> {
+    if (this.reconstructionEnCours) {
+      this.reconstructionEnCours.aRelancer = true;
+      return this.reconstructionEnCours.fin;
+    }
+    const etat = { aRelancer: false, fin: undefined as unknown as Promise<Awaited<ReturnType<DerivationService["rebuildAllUneFois"]>>> };
+    etat.fin = (async () => {
+      try {
+        let r;
+        do { etat.aRelancer = false; r = await this.rebuildAllUneFois(); } while (etat.aRelancer);
+        return r;
+      } finally { this.reconstructionEnCours = null; }
+    })();
+    this.reconstructionEnCours = etat;
+    return etat.fin;
+  }
+
+  async rebuildAllUneFois() {
     await this.reclasserCartonsStaff();
     const dedoublonnage = await this.dedoublonnerProgrammes();
     const backfill = await this.backfillSaisonEtEquipes();

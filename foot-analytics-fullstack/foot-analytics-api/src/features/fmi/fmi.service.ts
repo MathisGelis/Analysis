@@ -643,9 +643,10 @@ export class FmiService {
 
     // Phase 4 : une seule reconstruction a la fin. Son echec ne doit pas
     // masquer le rapport : les matchs sont deja en base.
-    let derive: { joueurs?: number; classement?: number; erreur?: string };
+    let derive: { joueurs?: number; classement?: number; erreur?: string } = {};
     try {
-      derive = await this.derivation.rebuildAll();
+      // Aucune feuille importee (toutes en echec) : rien n'a change en base, inutile de tout reconstruire.
+      if (results.some((r) => r.statut !== "echec")) derive = await this.derivation.rebuildAll();
     } catch (e: any) {
       this.log.error(`Reconstruction effectifs/classement echouee apres import : ${e.message}`);
       derive = { erreur: e.message };

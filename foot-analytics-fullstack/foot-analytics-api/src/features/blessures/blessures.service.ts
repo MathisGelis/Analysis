@@ -5,6 +5,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { DerivationService } from "@/features/derivation/derivation.service";
+import { blessureChangeLaFatigue } from "@/features/derivation/pertinence";
 
 import { Blessure } from "./blessure.entity";
 import { seChevauchent } from "./periode-blessure";
@@ -21,8 +22,12 @@ export class BlessuresService {
    * Une blessure (ou sa fin) change le statut du joueur : indisponible = pas de score de fatigue, reprise =
    * vulnerabilite. On recalcule les joueurs sans jamais faire echouer la saisie de la blessure.
    */
-  private async rafraichirFatigue() {
-    try { await this.derivation?.recomputeJoueurs(); }
+  private async rafraichirFatigue(clubId?: string | null) {
+    try {
+      // Le club connu : on ne recalcule que ses joueurs, sans relire les matchs. Sinon (blessure sans club), recalcul complet.
+      if (clubId) await this.derivation?.rafraichirFatigueClub(clubId);
+      else await this.derivation?.recomputeJoueurs();
+    }
     catch { /* la blessure est deja enregistree */ }
   }
   findAll(joueurId?: string) {
@@ -74,22 +79,26 @@ export class BlessuresService {
     const { forcer, ...data } = dto;
     await this.verifierChevauchement(data as any, forcer);
     const cree = await this.repo.save(this.repo.create(data));
-    await this.rafraichirFatigue();
+    await this.rafraichirFatigue(cree.clubId);
     return cree;
   }
   async update(id: string, dto: Partial<UpsertBlessureDto>) {
     const b = await this.findOne(id);
     const { forcer, ...data } = dto;
     delete (data as { clubId?: unknown }).clubId;              // le club proprietaire ne change pas
+    const avant = { joueurId: b.joueurId, clubId: b.clubId, dateDebut: b.dateDebut, retourEstime: b.retourEstime, statut: b.statut };
     Object.assign(b, data);
     await this.verifierChevauchement(b, forcer, id);
     const maj = await this.repo.save(b);
-    await this.rafraichirFatigue();
+    // Une note ou un type de blessure modifie ne change pas la disponibilite : rien a recalculer.
+    if (blessureChangeLaFatigue(avant, maj)) await this.rafraichirFatigue(maj.clubId);
     return maj;
   }
   async remove(id: string) {
-    await this.repo.remove(await this.findOne(id));
-    await this.rafraichirFatigue();
+    const b = await this.findOne(id);
+    const clubId = b.clubId;
+    await this.repo.remove(b);
+    await this.rafraichirFatigue(clubId);
     return { ok: true, id };
   }
 }

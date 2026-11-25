@@ -396,6 +396,39 @@ describe("DerivationService - cartons et arbitres", () => {
       expect(detail.matchs14j).toBe(2);
     });
 
+    it("rafraichir la fatigue d'un club donne les memes valeurs qu'un recalcul complet, sans relire les matchs", async () => {
+      figerLHorloge(new Date(2026, 9, 14, 12));
+      const { zaz } = await equipeAvecCharge();
+      await svc.recomputeJoueurs();
+      const eq = await ds.getRepository(Equipe).findOneByOrFail({ nom: "Seniors" });
+      await ds.getRepository(Entrainement).save({
+        equipeId: eq.id, date: jour(1), dureeMin: 120, intensite: 9, charge: 900, joueursPresents: [zaz.id], presents: 1, total: 1,
+      });
+      const lireChamps = async () => {
+        const j = await ds.getRepository(Joueur).findOneByOrFail({ id: zaz.id });
+        return { score: j.scoreFatigue, acwr: j.acwr, aigue: j.chargeAcute7j, entree: j.fatigueEntree };
+      };
+      const avant = await lireChamps();
+      const matchsLus = jest.spyOn(ds.getRepository(Match), "find");
+      await svc.rafraichirFatigueEquipe(eq.id);
+      expect(matchsLus).not.toHaveBeenCalled();
+      const incremental = await lireChamps();
+      expect(incremental.aigue).toBeGreaterThan(avant.aigue ?? 0);   // la nouvelle seance compte
+
+      await svc.recomputeJoueurs();
+      expect(await lireChamps()).toEqual(incremental);
+    });
+
+    it("des rafraichissements simultanes du meme club sont regroupes et se terminent tous", async () => {
+      figerLHorloge(new Date(2026, 9, 14, 12));
+      const { moi } = await equipeAvecCharge();
+      await svc.recomputeJoueurs();
+      const espion = jest.spyOn(svc as any, "fatigueDuClub");
+      const rs = await Promise.all([1, 2, 3, 4, 5].map(() => svc.rafraichirFatigueClub(moi.id)));
+      expect(rs).toHaveLength(5);
+      expect(espion.mock.calls.length).toBeLessThanOrEqual(2);       // 1 passe + au plus 1 relance, pas 5
+    });
+
     it("sans les seances la fatigue serait plus basse : l'entrainement compte vraiment", async () => {
       figerLHorloge(new Date(2026, 9, 14, 12));
       const { zaz } = await equipeAvecCharge();

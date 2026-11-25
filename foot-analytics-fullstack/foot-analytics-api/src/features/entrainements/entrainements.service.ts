@@ -5,6 +5,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { DerivationService } from "@/features/derivation/derivation.service";
+import { seanceChangeLaFatigue } from "@/features/derivation/pertinence";
 
 import { Entrainement } from "./entrainement.entity";
 import { calcCharge } from "./charge-entrainement";
@@ -35,9 +36,11 @@ export class EntrainementsService {
    * une seance modifiee/supprimee doit propager. On ne refait QUE recomputeJoueurs
    * (pas tout le rebuildAll), c'est suffisant et bien plus rapide.
    */
-  private async refreshFatigueAsync() {
-    try { await this.derivation.recomputeJoueurs(); }
-    catch (e) { /* swallow : la sauvegarde principale a deja reussi */ }
+  private async refreshFatigueAsync(...equipeIds: (string | null | undefined)[]) {
+    try {
+      // Seulement les joueurs du ou des clubs concernes, sans relire les matchs : la fatigue d'un autre club ne bouge pas.
+      for (const id of new Set(equipeIds.filter((x): x is string => !!x))) await this.derivation.rafraichirFatigueEquipe(id);
+    } catch (e) { /* swallow : la sauvegarde principale a deja reussi */ }
   }
 
   async create(dto: CreateEntrainementDto) {
@@ -46,21 +49,25 @@ export class EntrainementsService {
       ? dto.joueursPresents.length
       : dto.presents ?? 0;
     const saved = await this.repo.save(this.repo.create({ ...dto, charge, presents }));
-    await this.refreshFatigueAsync();
+    await this.refreshFatigueAsync(saved.equipeId);
     return saved;
   }
   async update(id: string, dto: Partial<CreateEntrainementDto>) {
     const e = await this.findOne(id);
+    const avant = { equipeId: e.equipeId, date: e.date, charge: e.charge, joueursPresents: [...(e.joueursPresents ?? [])] };
     Object.assign(e, dto);
     e.charge = calcCharge(e.dureeMin, e.intensite, e.type, e.espace);
     if (dto.joueursPresents) e.presents = dto.joueursPresents.length;
     const saved = await this.repo.save(e);
-    await this.refreshFatigueAsync();
+    // Un changement de theme, de terrain ou de duree sans effet sur la charge ne touche pas a la fatigue : rien a recalculer.
+    if (seanceChangeLaFatigue(avant, saved)) await this.refreshFatigueAsync(avant.equipeId, saved.equipeId);
     return saved;
   }
   async remove(id: string) {
-    await this.repo.remove(await this.findOne(id));
-    await this.refreshFatigueAsync();
+    const e = await this.findOne(id);
+    const equipeId = e.equipeId;
+    await this.repo.remove(e);
+    await this.refreshFatigueAsync(equipeId);
     return { ok: true, id };
   }
 }
