@@ -2033,6 +2033,28 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
 });
 
+test("data hub de mon club : résultats, attaque, cartes des tirs filtrables avec la cage, joueurs", async () => {
+  const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { clubId: string };
+  await page.goto(`/club/${fixtures.clubId}`);
+  await page.getByRole("tab", { name: "Data Hub" }).click();
+  const hub = page.getByTestId("data-hub");
+  await expect(hub).toBeVisible();
+  await expect(page.getByTestId("hub-resultats")).toBeVisible();
+  await expect(page.getByTestId("hub-attaque")).toContainText("xG estimé");
+  await expect(page.getByTestId("hub-defense")).toContainText("Arrêts du gardien");
+
+  // La carte des tirs : filtres cadrés / non cadrés / buts, et la cage.
+  const carte = page.getByTestId("hub-carte-tirs");
+  await expect(carte).toContainText("Dans la cage");
+  const resume = carte.getByTestId("carte-tirs-resume");
+  const tous = await resume.innerText();
+  await carte.getByRole("radio", { name: "Buts" }).click();
+  await expect(carte.getByRole("radio", { name: "Buts" })).toHaveAttribute("aria-checked", "true");
+  expect(await resume.innerText()).not.toBe(tous);
+  await carte.getByRole("radio", { name: "Tous" }).click();
+  await expect(resume).toHaveText(tous);
+});
+
 test("direct : un autre appareil saisit et on le voit, et ce qui n'a pas pu partir survit au rechargement", async () => {
   test.setTimeout(120_000);
   const { token } = await (await fetch(`${API_URL}/auth/login`, {

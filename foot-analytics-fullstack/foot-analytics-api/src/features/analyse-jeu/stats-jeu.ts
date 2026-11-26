@@ -7,7 +7,7 @@
 
 import { compteurs, CompteursCote, estBut } from "../direct/stats-direct";
 import { COULOIRS, TIERS } from "../direct/types";
-import { xgDuTir } from "./xg";
+import { xgDuTir, xgTotal } from "./xg";
 
 export type Cote = "dom" | "ext";
 
@@ -97,6 +97,7 @@ export function resumerMatch(args: {
       { cle: "fautes", libelle: "Fautes", nous: n.fautes, eux: e.fautes },
       { cle: "hors_jeux", libelle: "Hors-jeux", nous: n.horsJeux, eux: e.horsJeux },
       { cle: "arrets", libelle: "Arrêts du gardien", nous: n.arrets, eux: e.arrets },
+      { cle: "xg", libelle: "xG estimé", nous: xgTotal(evenements.filter((x) => x.cote === nousCote)), eux: xgTotal(evenements.filter((x) => x.cote === eux)) },
     );
   }
   if (detail || fmi.some((x) => x.type === "carton")) {

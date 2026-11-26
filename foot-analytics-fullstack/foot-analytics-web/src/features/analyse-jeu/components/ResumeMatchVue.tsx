@@ -11,6 +11,7 @@ import { api, messageApi } from "@/shared/lib/api";
 import { Spinner } from "@/shared/ui/Spinner";
 
 import { libelleScore, partDe, phraseTranches } from "../lib/affichage-jeu";
+import { CarteTirs } from "./CarteTirs";
 import { CarteZones } from "./CarteZones";
 import type { Constat, ResumeMatch } from "../lib/jeu-types";
 
@@ -112,8 +113,10 @@ export function ResumeMatchVue({ matchId }: { matchId: string }) {
       {r.sources.detail && (
         <section aria-label="Carte des tirs" className="panel space-y-2 p-4">
           <h2 className="font-display text-base font-bold text-ink">Carte des tirs</h2>
-          {totalTirs === 0 ? (
+          {totalTirs === 0 && !(r.tirsDetail && r.tirsDetail.nous.length + r.tirsDetail.eux.length > 0) ? (
             <p className="text-sm text-muted">Aucun tir n&apos;a été placé sur le terrain pendant la saisie.</p>
+          ) : r.tirsDetail ? (
+            <CarteTirs nous={r.tirsDetail.nous} eux={r.tirsDetail.eux} />
           ) : (
             <>
               <CarteZones carte={r.carte} nom="Carte des tirs de ton équipe" />

@@ -11,6 +11,8 @@ import {
 
 import { api } from "@/shared/lib/api";
 import { getOwnSaisonIdServer } from "@/features/equipes/lib/own-equipe";
+import { getOwnClubIdServer } from "@/features/equipes/lib/own-club";
+import { StatsDirectJoueur } from "@/features/analyse-jeu/components/StatsDirectJoueur";
 import { choisirSaisonFiche, indiceDiscipline, numeroPrincipal } from "@/features/joueurs/lib/fiche-joueur";
 import { DonutStat, Sparkline } from "@/shared/ui/Charts";
 import { COULEUR_NIVEAU, LIBELLE_NIVEAU, lireDetailFatigue, niveauFatigue } from "@/features/joueurs/lib/fatigue";
@@ -74,6 +76,7 @@ export default async function JoueurPage({
     .map((e: any) => Math.round(e.charge ?? 0));
 
   const discipline = indiceDiscipline(totaux);
+  const clubProprId = await getOwnClubIdServer();
 
   return (
     <div className="space-y-6 fade-up">
@@ -239,6 +242,9 @@ export default async function JoueurPage({
                 }
               />
             </div>
+
+            {/* Ce que le direct attribue au joueur (tirs, passes, arrets, fautes...) : seulement les joueurs de mon club */}
+            {j.clubId === clubProprId && <StatsDirectJoueur joueurId={j.id} saisonId={saison?.id} nomSaison={saison?.nom} />}
 
             {/* Terrain + derniers matchs */}
             <div className="grid grid-cols-12 gap-4">
