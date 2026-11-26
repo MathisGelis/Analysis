@@ -30,6 +30,7 @@ import type { RapportFff } from "@/features/calendrier/lib/calendrier-fff";
 import type { EtatApresMatch, BilanMatch, NoteJoueur } from "@/features/apres-match/lib/apres-types";
 import type { EtatObservations, ValeursSection } from "@/features/apres-match/lib/observations";
 import type { Lieu, ReponseAdversaire, ReponseCroisements, ReponseJeu, ResumeMatch } from "@/features/analyse-jeu/lib/jeu-types";
+import type { ReponseDataHub, ReponseStatsJoueur } from "@/features/analyse-jeu/lib/data-hub-types";
 import type { ActionChrono, EtatDirect, EvenementDirect, InvitationCreee, InvitationVue, SaisieEvenement } from "@/features/direct/lib/direct-types";
 import type { CriteresApi, OptionsRecherche, ReponseRecherche } from "@/features/recherche-joueurs/lib/recherche-joueurs";
 
@@ -422,6 +423,18 @@ export const api = {
   jeuAdversaire: (equipeId: string, adversaireId: string) =>
     req<ReponseAdversaire>(`/analyse-jeu/adversaire?${new URLSearchParams({ equipeId, adversaireId })}`),
   resumeMatch: (matchId: string) => req<ResumeMatch>(`/analyse-jeu/matchs/${matchId}/resume`),
+  /** Le Data Hub de mon equipe (resultats, attaque, defense, coups de pied arretes, discipline, joueurs, tendance). */
+  dataHub: (clubId: string, p: { equipeId?: string; saisonId?: string; lieu: Lieu; derniers: number | null }) => {
+    const q = new URLSearchParams();
+    if (p.equipeId) q.set("equipeId", p.equipeId);
+    if (p.saisonId) q.set("saisonId", p.saisonId);
+    if (p.lieu !== "tous") q.set("lieu", p.lieu);
+    if (p.derniers) q.set("derniers", String(p.derniers));
+    return req<ReponseDataHub>(`/analyse-jeu/club/${clubId}/data-hub${q.size ? `?${q}` : ""}`);
+  },
+  /** Les stats d'un joueur de mon club d'apres le jeu saisi en direct. */
+  statsJoueurDirect: (joueurId: string, saisonId?: string | null) =>
+    req<ReponseStatsJoueur>(`/analyse-jeu/joueurs/${joueurId}/stats${saisonId ? `?saisonId=${saisonId}` : ""}`),
   apresMatch: (matchId: string) => req<EtatApresMatch>(`/apres-match/matchs/${matchId}`),
   apresMatchNoter: (matchId: string, joueurId: string, corps: { note?: number | null; commentaire?: string | null }) =>
     req<NoteJoueur>(`/apres-match/matchs/${matchId}/joueurs/${joueurId}`, { method: "PUT", body: JSON.stringify(corps) }),

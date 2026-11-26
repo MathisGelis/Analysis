@@ -1828,6 +1828,55 @@ test("calendrier FFF : un fichier .ics depose cree les matchs à venir, le rejou
   await expect(page.getByTestId("cal-fff-erreur")).toContainText("Adresse invalide");
 });
 
+test("data hub de mon club : résultats, attaque, cartes des tirs filtrables avec la cage, joueurs", async () => {
+  const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { clubId: string; equipeId: string; saison2526: string };
+  // Un match joue, saisi en direct sur la saison 2025-2026 de cette equipe (le match du parcours precedent est rouvert : pas encore « joue »).
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const appeler = (chemin: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
+    ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+  });
+  const adversaire = await (await appeler("/clubs", { method: "POST", body: JSON.stringify({ nom: "Club Data Hub" }) })).json();
+  const match = await (await appeler("/matchs", { method: "POST", body: JSON.stringify({
+    clubDom: fixtures.clubId, clubExt: adversaire.id, equipeDomId: fixtures.equipeId, saisonId: fixtures.saison2526,
+    date: "2026-06-06", statut: "joue", scoreDom: 1, scoreExt: 0,
+  }) })).json();
+  expect(match.id).toBeTruthy();
+  await appeler(`/direct/matchs/${match.id}/chrono`, { method: "POST", body: JSON.stringify({ action: "demarrer" }) });
+  const saisir = (n: number, corps: object) => appeler(`/direct/matchs/${match.id}/evenements/hub-${match.id.slice(0, 8)}-${n}-zzzzzz`, { method: "PUT", body: JSON.stringify(corps) });
+  await saisir(1, { cote: "dom", type: "tir", resultat: "but", periode: 1, minute: 12, zoneTier: 0, zoneCouloir: 2, zoneCadre: 1 });
+  await saisir(2, { cote: "dom", type: "tir", resultat: "non_cadre", periode: 1, minute: 30, zoneTier: 1, zoneCouloir: 3 });
+  await saisir(3, { cote: "ext", type: "tir", resultat: "cadre", periode: 2, minute: 60, zoneTier: 0, zoneCouloir: 1 });
+  const base = `http://localhost:${WEB_PORT}`;
+  const avant = (await contexte.cookies()).filter((c) => c.name === "ownSaisonId" || c.name === "ownEquipeId" || c.name === "ownSelValide");
+  await contexte.addCookies([
+    { name: "ownSaisonId", value: fixtures.saison2526, url: base },
+    { name: "ownEquipeId", value: fixtures.equipeId, url: base },
+  ]);
+  await page.goto(`/club/${fixtures.clubId}`);
+  await page.getByRole("tab", { name: "Data Hub" }).click();
+  const hub = page.getByTestId("data-hub");
+  await expect(hub).toBeVisible();
+  await expect(page.getByTestId("hub-resultats")).toBeVisible();
+  await expect(page.getByTestId("hub-attaque")).toContainText("xG estimé");
+  await expect(page.getByTestId("hub-defense")).toContainText("Arrêts du gardien");
+
+  // La carte des tirs : filtres cadrés / non cadrés / buts, et la cage.
+  const carte = page.getByTestId("hub-carte-tirs");
+  await expect(carte).toContainText("Dans la cage");
+  const resume = carte.getByTestId("carte-tirs-resume");
+  const tous = await resume.innerText();
+  await carte.getByRole("radio", { name: "Buts" }).click();
+  await expect(carte.getByRole("radio", { name: "Buts" })).toHaveAttribute("aria-checked", "true");
+  expect(await resume.innerText()).not.toBe(tous);
+  await carte.getByRole("radio", { name: "Tous" }).click();
+  await expect(resume).toHaveText(tous);
+
+  await contexte.addCookies(avant.map((c) => ({ name: c.name, value: c.value, url: base })));         // la selection d'avant, pour les tests suivants
+});
+
 test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adverse), la frise se corrige, le match se clôture et se rouvre", async () => {
   test.setTimeout(150_000);
   const axe = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");

@@ -19,6 +19,11 @@ export function scoreDirect(evenements: EvenementCalcul[]): { dom: number; ext: 
   return score;
 }
 
+/** Un tir qui a ete arrete : cadre (« cadre » = arrete par le gardien, voir actions du direct) ou penalty arrete. */
+export const estTirArrete = (e: EvenementCalcul): boolean =>
+  (e.type === "tir" || e.type === "coup_franc") ? e.resultat === "cadre" || e.resultat === "arrete"
+  : e.type === "penalty" ? e.resultat === "arrete" : false;
+
 export interface CompteursCote {
   tirs: number;
   tirsCadres: number;
@@ -55,6 +60,13 @@ export function compteurs(evenements: EvenementCalcul[]): { dom: CompteursCote; 
     else if (t === "arret") c.arrets++;
     else if (t === "carton_jaune") c.jaunes++;
     else if (t === "carton_rouge") c.rouges++;
+  }
+  // Les arrets du gardien : chaque tir adverse arrete en est un, sans double saisie. La touche « Arret » reste utile pour un arret
+  // qui n'est pas saisi comme tir : on garde alors le plus grand des deux comptes (jamais la somme, un meme arret pourrait etre note deux fois).
+  for (const cote of ["dom", "ext"] as const) {
+    const autre = cote === "dom" ? "ext" : "dom";
+    const derives = evenements.filter((e) => e.cote === autre && estTirArrete(e)).length;
+    res[cote].arrets = Math.max(res[cote].arrets, derives);
   }
   return res;
 }

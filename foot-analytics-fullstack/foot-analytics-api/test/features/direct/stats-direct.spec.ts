@@ -18,6 +18,30 @@ describe("score et compteurs du direct", () => {
       ev("ext", "carton_jaune"), ev("ext", "carton_rouge"),
     ]);
     expect(c.dom).toMatchObject({ tirs: 6, tirsCadres: 3, buts: 1, corners: 2, coupsFrancs: 2 });
-    expect(c.ext).toMatchObject({ tirs: 1, tirsCadres: 1, penaltys: 1, fautes: 2, horsJeux: 1, arrets: 1, jaunes: 1, rouges: 1 });
+    expect(c.ext).toMatchObject({ tirs: 1, tirsCadres: 1, penaltys: 1, fautes: 2, horsJeux: 1, jaunes: 1, rouges: 1 });
+  });
+
+  describe("arrets du gardien : deduits des tirs arretes", () => {
+    it("un tir adverse cadre ou arrete (penalty compris) est un arret ; un but, un tir non cadre, un poteau ou un penalty rate n'en sont pas", () => {
+      const c = compteurs([
+        ev("dom", "tir", "cadre"), ev("dom", "tir", "arrete"), ev("dom", "tir", "but"), ev("dom", "tir", "non_cadre"), ev("dom", "tir", "poteau"),
+        ev("dom", "coup_franc", "cadre"), ev("dom", "penalty", "arrete"), ev("dom", "penalty", "rate"), ev("dom", "penalty", "but"),
+      ]);
+      expect(c.ext.arrets).toBe(4);              // cadre, arrete, coup franc cadre, penalty arrete
+      expect(c.dom.arrets).toBe(0);              // les tirs de dom sont arretes par le gardien de ext, pas par le sien
+    });
+
+    it("la touche « Arret » complete sans doubler : on garde le plus grand des deux comptes", () => {
+      const tirs = [ev("dom", "tir", "cadre"), ev("dom", "tir", "cadre")];
+      expect(compteurs([...tirs, ev("ext", "arret"), ev("ext", "arret")]).ext.arrets).toBe(2);                 // meme arrets notes deux fois : 2, pas 4
+      expect(compteurs([...tirs, ev("ext", "arret"), ev("ext", "arret"), ev("ext", "arret")]).ext.arrets).toBe(3);   // un arret hors tirs saisis
+      expect(compteurs([ev("ext", "arret")]).ext.arrets).toBe(1);                                                // sans tir saisi : la touche seule
+    });
+
+    it("un penalty arrete est cadre et compte comme tir, penalty et arret", () => {
+      const c = compteurs([ev("dom", "penalty", "arrete")]);
+      expect(c.dom).toMatchObject({ tirs: 1, tirsCadres: 1, penaltys: 1, buts: 0 });
+      expect(c.ext.arrets).toBe(1);
+    });
   });
 });

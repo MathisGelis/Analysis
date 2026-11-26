@@ -15,8 +15,17 @@ export interface ResumeMatch {
   butsSource: "direct" | "fmi" | "aucune";
   /** 15 zones, ligne par ligne : tiers offensif d'abord, puis median, puis defensif ; 5 couloirs de gauche a droite. */
   carte: { tirs: number[]; buts: number[] };
+  /** Chaque tir saisi : de quoi filtrer la carte (cadrés, non cadrés, buts) et dessiner la cage. */
+  tirsDetail?: { nous: TirCarte[]; eux: TirCarte[] };
   contextes: { nom: string; tirs: number; buts: number }[];
   constats: Constat[];
+}
+
+/** Un tir de la carte : resultat, zone du terrain (tiers, couloir), zone du cadre (0 a 5), xG estime. */
+export interface TirCarte {
+  type: string; resultat: string; minute: number;
+  tier: number | null; couloir: number | null; cadre: number | null; xg: number;
+  contextes?: string[];
 }
 
 /* ---- Le jeu de l'equipe sur plusieurs matchs (analyse-jeu/jeu-equipe.ts) ---- */

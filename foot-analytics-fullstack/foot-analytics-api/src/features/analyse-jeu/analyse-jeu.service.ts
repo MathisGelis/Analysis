@@ -2,7 +2,7 @@
 //
 // Les analyses tirees du jeu saisi en direct, jointes a la feuille de match (FMI). Lecture seule : ce module ne modifie rien.
 
-import { ForbiddenException, Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
@@ -19,7 +19,11 @@ import { EvenementMatch } from "@/features/matchs/evenement-match.entity";
 import { estMatchJoue } from "@/features/matchs/match-joue";
 import { Match } from "@/features/matchs/match.entity";
 
+import { Club } from "@/features/clubs/club.entity";
+import { Tactique } from "@/features/tactiques/tactique.entity";
+
 import { ContexteMatch, croiser } from "./croisements";
+import { dataHub, statsJoueur } from "./data-hub";
 import { filtrerMatchs, jeuEquipe, Lieu, MatchJeu } from "./jeu-equipe";
 import { resumerMatch } from "./stats-jeu";
 
@@ -46,12 +50,19 @@ export class AnalyseJeuService {
     const tous = await this.matchs.find({ where: [{ ...filtreSaison, clubDom: clubId }, { ...filtreSaison, clubExt: clubId }] });
     const bruts = tous.filter((m) => estMatchJoue(m) && (!p.equipeId || m.equipeDomId === p.equipeId || m.equipeExtId === p.equipeId));
     const ids = bruts.map((m) => m.id);
-    const [evs, fmi] = ids.length
-      ? await Promise.all([this.direct.find({ where: { matchId: In(ids) } }), this.fmi.find({ where: { matchId: In(ids) } })])
-      : [[], []];
+    const [evs, fmi, plans] = ids.length
+      ? await Promise.all([
+        this.direct.find({ where: { matchId: In(ids) } }), this.fmi.find({ where: { matchId: In(ids) } }),
+        this.direct.manager.getRepository(Tactique).find({ where: { matchId: In(ids) } }),
+      ])
+      : [[], [], []];
     const matchs = bruts.map((m): MatchJeu => {
       const domicile = p.equipeId ? m.equipeDomId === p.equipeId : m.clubDom === clubId;
+      // Le gardien de depart : le premier du onze enregistre a l'avant-match pour l'equipe de mon club dans ce match.
+      const equipeDuMatch = domicile ? m.equipeDomId : m.equipeExtId;
+      const plan = plans.find((x) => x.matchId === m.id && (!equipeDuMatch || x.equipeId === equipeDuMatch));
       return {
+        gardien: plan?.titulaires?.[0] || null,
         matchId: m.id, date: m.date ?? null, journee: m.journee ?? null, domicile, adversaireId: domicile ? m.clubExt : m.clubDom,
         formation: (domicile ? m.formationDom : m.formationExt) || null, bp: domicile ? m.scoreDom ?? 0 : m.scoreExt ?? 0, bc: domicile ? m.scoreExt ?? 0 : m.scoreDom ?? 0,
         evenements: evs.filter((e) => e.matchId === m.id && !e.supprimeLe),
@@ -129,6 +140,52 @@ export class AnalyseJeuService {
     });
     const jeu = jeuEquipe(filtrerMatchs(matchs, "tous", null));
     return { adversaireId, matchsContreNous: matchs.length, jeu: { ...jeu, joueurs: [] } };
+  }
+
+  /** Les noms des clubs adverses, par identifiant. */
+  private async nomsDesClubs(ids: (string | null)[]): Promise<Map<string, string>> {
+    const uniques = [...new Set(ids.filter((x): x is string => !!x))];
+    if (uniques.length === 0) return new Map();
+    return new Map((await this.matchs.manager.getRepository(Club).find({ where: { id: In(uniques) }, select: { id: true, nom: true } })).map((c) => [c.id, c.nom]));
+  }
+
+  /** Le Data Hub de mon equipe : resultats, attaque, defense, coups de pied arretes, discipline, joueurs, tendance. Reserve au staff du club. */
+  async dataHub(ctx: ContexteAcces, clubId: string, f: FiltresJeu) {
+    this.exigerClub(ctx, clubId);
+    const portee = await this.acces.portee(ctx, { equipeId: f.equipeId, saisonId: f.saisonId });
+    const { matchs } = await this.matchsJeu(clubId, portee);
+    const retenus = filtrerMatchs(matchs, f.lieu, f.derniers);
+    const hub = dataHub(retenus);
+    const ids = hub.joueurs.map((j) => j.joueurId);
+    const fiches = ids.length ? await this.joueurs.find({ where: { id: In(ids) } }) : [];
+    const fiche = new Map(fiches.map((j) => [j.id, j]));
+    const clubs = await this.nomsDesClubs(hub.parMatch.map((m) => m.adversaireId));
+    return {
+      filtres: { ...portee, lieu: f.lieu, derniers: f.derniers }, matchsDeLaSaison: matchs.length, hub: {
+        ...hub,
+        // Les joueurs sont nommes (et rejoints a ce que l'app sait deja : minutes, note, fatigue).
+        joueurs: hub.joueurs.map((j) => {
+          const x = fiche.get(j.joueurId);
+          return { ...j, nom: x ? [x.prenom, x.nom].filter(Boolean).join(" ") : "Joueur", poste: x?.poste ?? null, minutes: x?.minutes ?? null, noteMoyenne: x?.noteMoyenne ?? null, scoreFatigue: x?.scoreFatigue ?? null };
+        }),
+        parMatch: hub.parMatch.map((m) => ({ ...m, adversaire: (m.adversaireId && clubs.get(m.adversaireId)) || "Adversaire" })),
+      },
+    };
+  }
+
+  /** Les stats d'un joueur de mon club d'apres les evenements saisis en direct (tirs, passes, arrets, cartons...). Reserve au staff du club. */
+  async statsDuJoueur(ctx: ContexteAcces, joueurId: string, saisonId?: string) {
+    const joueur = await this.joueurs.findOne({ where: { id: joueurId } });
+    if (!joueur?.clubId) throw new NotFoundException(`Joueur ${joueurId} introuvable`);
+    this.exigerClub(ctx, joueur.clubId);
+    const portee = await this.acces.portee(ctx, { saisonId });
+    const { matchs } = await this.matchsJeu(joueur.clubId, { saisonId: portee.saisonId });
+    const stats = statsJoueur(matchs, joueurId);
+    const clubs = await this.nomsDesClubs(stats.parMatch.map((m) => m.adversaireId));
+    return {
+      saisonId: portee.saisonId ?? null, matchsDeLaSaison: matchs.length, matchsSaisis: matchs.filter((m) => m.evenements.length > 0).length,
+      stats: { ...stats, parMatch: stats.parMatch.map((m) => ({ ...m, adversaire: (m.adversaireId && clubs.get(m.adversaireId)) || "Adversaire" })) },
+    };
   }
 
   /** Le resume d'un de MES matchs : stats des deux equipes, buts par tranche, carte des tirs, constats. */

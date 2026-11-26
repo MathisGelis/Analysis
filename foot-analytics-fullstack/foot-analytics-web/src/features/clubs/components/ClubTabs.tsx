@@ -10,11 +10,12 @@ import { Abr, LegendeColonnes } from "@/shared/ui/LegendeColonnes";
 import { useState } from "react";
 import Link from "next/link";
 import {
-  AlertTriangle, ArrowDownRight, ArrowUpRight, Check, FileText,
+  AlertTriangle, ArrowDownRight, ArrowUpRight, Check, Database, FileText,
   Star, Users, X,
 } from "lucide-react";
 
 import { TabBar } from "@/shared/ui/TabBar";
+import { DataHubPanel } from "@/features/analyse-jeu/components/DataHubPanel";
 import type { Club, Equipe, Joueur, RapportScouting, LigneClassement, Issue } from "@/shared/lib/types";
 import { BarsChart, FormeStrip } from "@/shared/ui/Charts";
 import { FatigueBar } from "@/features/joueurs/components/FatigueBar";
@@ -26,7 +27,7 @@ import type { SituationClub } from "@/features/analyse/lib/situation-types";
 
 import { ClubBadge } from "./ClubBadge";
 
-type Tab = "overview" | "effectif" | "matchs" | "scouting";
+type Tab = "overview" | "effectif" | "matchs" | "scouting" | "datahub";
 
 interface ResultatLigne {
   matchId: string; journee: string; lieu: "Domicile" | "Extérieur";
@@ -69,6 +70,7 @@ const TABS: { id: Tab; label: string; icon: any }[] = [
   { id: "effectif", label: "Effectif", icon: Users },
   { id: "matchs", label: "Matchs", icon: ArrowUpRight },
   { id: "scouting", label: "Rapport scouting", icon: FileText },
+  { id: "datahub", label: "Data Hub", icon: Database },
 ];
 
 // Cherche un joueur correspondant au nom/club -> renvoie son id si trouve.
@@ -169,7 +171,7 @@ export function ClubTabs({
       </header>
 
       {/* ============= BARRE D'ONGLETS ============= */}
-      <TabBar onglets={TABS} actif={tab} onChange={setTab} label="Sections du club" />
+      <TabBar onglets={isMine ? TABS : TABS.filter((t) => t.id !== "datahub")} actif={tab} onChange={setTab} label="Sections du club" />
 
       {/* ============= PANELS ============= */}
       {tab === "overview" && <OverviewPanel
@@ -179,6 +181,7 @@ export function ClubTabs({
       />}
       {tab === "effectif" && <EffectifPanel joueurs={joueurs} isMine={isMine} />}
       {tab === "matchs" && <MatchsPanel resultats={resultats} />}
+      {tab === "datahub" && isMine && <DataHubPanel clubId={club.id} equipeId={equipe?.id} saisonId={equipe?.saisonId ?? undefined} />}
       {tab === "scouting" && <ScoutingPanel
         club={club} equipe={equipe} bilan={bilan} resultats={resultats}
         joueurs={annuaire ?? joueurs} rapport={rapport} cumulCJ={cumulCJ} cumulCR={cumulCR}
