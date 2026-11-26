@@ -26,6 +26,18 @@ export class AnalyseJeuController {
     return this.svc.jeu(ctx, clubId, filtres(q));
   }
 
+  /** Le Data Hub de mon equipe (resultats, attaque, defense, coups de pied arretes, discipline, joueurs, tendance). */
+  @Get("club/:clubId/data-hub")
+  dataHub(@Acces() ctx: ContexteAcces, @Param("clubId") clubId: string, @Query() q: { equipeId?: string; saisonId?: string; lieu?: string; derniers?: string }) {
+    return this.svc.dataHub(ctx, clubId, filtres(q));
+  }
+
+  /** Les stats d'un joueur de mon club d'apres le jeu saisi en direct. */
+  @Get("joueurs/:joueurId/stats")
+  statsJoueur(@Acces() ctx: ContexteAcces, @Param("joueurId") joueurId: string, @Query("saisonId") saisonId?: string) {
+    return this.svc.statsDuJoueur(ctx, joueurId, saisonId);
+  }
+
   /** Le jeu saisi croise avec le danger, l'impact des joueurs, la rotation, la charge et le dispositif. */
   @Get("club/:clubId/croisements")
   croisements(@Acces() ctx: ContexteAcces, @Param("clubId") clubId: string, @Query() q: { equipeId?: string; saisonId?: string; lieu?: string; derniers?: string }) {

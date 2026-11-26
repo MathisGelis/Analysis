@@ -8,6 +8,7 @@ import { parseDateFlexible } from "@/common/dates";
 
 import { estBut } from "../direct/stats-direct";
 import { COULOIRS, TIERS } from "../direct/types";
+import { arretsDuMatch } from "./arrets";
 import { Cote, EvenementFmi, EvenementJeu, NOMS_TRANCHES, resumerMatch, ResumeMatch } from "./stats-jeu";
 
 export type Lieu = "tous" | "domicile" | "exterieur";
@@ -19,6 +20,8 @@ export interface MatchJeu {
   domicile: boolean; adversaireId: string | null; formation: string | null;
   bp: number; bc: number;
   evenements: EvenementJeu[]; fmi: EvenementFmi[];
+  /** Le gardien de depart de l'equipe analysee (fiche joueur), quand l'avant-match le donne : sert a attribuer les arrets deduits des tirs. */
+  gardien?: string | null;
 }
 
 const nousCoteDe = (m: MatchJeu): Cote => (m.domicile ? "dom" : "ext");
@@ -147,7 +150,7 @@ export function jeuEquipe(matchs: MatchJeu[]): JeuEquipe {
 }
 
 /** Ce que chaque joueur a fait, d'apres les evenements saisis de mon equipe (par identifiant de fiche : un numero adverse n'en a pas). */
-function joueursDe(matchs: MatchJeu[]): JoueurJeu[] {
+export function joueursDe(matchs: MatchJeu[]): JoueurJeu[] {
   const l = new Map<string, JoueurJeu & { vus: Set<string> }>();
   const j = (id: string) => l.get(id) ?? (l.set(id, { joueurId: id, matchs: 0, buts: 0, passes: 0, tirs: 0, cadres: 0, arrets: 0, jaunes: 0, rouges: 0, vus: new Set() }), l.get(id)!);
   for (const m of matchs) {
@@ -160,12 +163,13 @@ function joueursDe(matchs: MatchJeu[]): JoueurJeu[] {
           x.tirs++;
           if (e.resultat === "but" || e.resultat === "cadre" || e.resultat === "arrete") x.cadres++;
           if (estBut(e)) x.buts++;
-        } else if (e.type === "arret") x.arrets++;
-        else if (e.type === "carton_jaune") x.jaunes++;
+        } else if (e.type === "carton_jaune") x.jaunes++;
         else if (e.type === "carton_rouge") x.rouges++;
       }
       if (e.joueur2Id && estBut(e)) vu(e.joueur2Id).passes++;
     }
+    // Les arrets : ceux saisis, ou deduits des tirs adverses arretes (voir arrets.ts), attribues au gardien en jeu.
+    for (const [id, n] of Object.entries(arretsDuMatch(m).parGardien)) { const x = j(id); x.vus.add(m.matchId); x.arrets += n; }
   }
   return [...l.values()].map(({ vus, ...x }) => ({ ...x, matchs: vus.size })).sort((a, b) => b.buts - a.buts || b.passes - a.passes || b.tirs - a.tirs);
 }

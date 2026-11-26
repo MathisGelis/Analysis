@@ -7,12 +7,13 @@
 
 import { compteurs, CompteursCote, estBut } from "../direct/stats-direct";
 import { COULOIRS, TIERS } from "../direct/types";
+import { xgDuTir } from "./xg";
 
 export type Cote = "dom" | "ext";
 
 export interface EvenementJeu {
   cote: Cote; type: string; resultat?: string | null; minute: number;
-  zoneTier?: number | null; zoneCouloir?: number | null; contextes?: string[] | null;
+  zoneTier?: number | null; zoneCouloir?: number | null; zoneCadre?: number | null; contextes?: string[] | null;
   joueurId?: string | null; joueur2Id?: string | null;
 }
 export interface EvenementFmi { type: string; sousType?: string | null; minute?: number | null; equipe: Cote }
@@ -24,6 +25,21 @@ export const trancheDe = (minute: number): number => Math.min(5, Math.max(0, Mat
 export const NOMS_TIERS = ["Offensif", "Médian", "Défensif"] as const;
 export const NOMS_COULOIRS = ["gauche", "axe gauche", "centre", "axe droit", "droit"] as const;
 export const nomZone = (index: number) => `${NOMS_TIERS[Math.floor(index / COULOIRS)]} · ${NOMS_COULOIRS[index % COULOIRS]}`;
+
+/** Un tir de la carte : de quoi le filtrer (cadre, non cadre, but), le placer sur le terrain et dans la cage. */
+export interface TirCarte {
+  type: "tir" | "coup_franc" | "penalty";
+  /** but, cadre (arrete par le gardien), arrete (penalty), non_cadre, contre, poteau, rate. */
+  resultat: string;
+  minute: number;
+  /** Zone du terrain (tiers 0 = offensif, couloir 0 = gauche), null quand elle n'est pas saisie. */
+  tier: number | null; couloir: number | null;
+  /** Zone du cadre (0 a 5 : haut gauche, haut centre, haut droit, bas gauche, bas centre, bas droit), null quand elle n'est pas saisie. */
+  cadre: number | null;
+  /** xG estime (voir xg.ts). */
+  xg: number;
+  contextes: string[];
+}
 
 export interface LigneStat { cle: string; libelle: string; nous: number; eux: number }
 export interface Constat { id: string; titre: string; detail: string; ton: "bon" | "alerte" | "neutre" }
@@ -38,6 +54,8 @@ export interface ResumeMatch {
   tranches: { nom: string; nous: number; eux: number }[];
   butsSource: "direct" | "fmi" | "aucune";
   carte: { tirs: number[]; buts: number[] };
+  /** Chaque tir saisi, pour filtrer la carte (cadres, non cadres, buts) et dessiner la cage : les nôtres, et ceux de l'adversaire. */
+  tirsDetail: { nous: TirCarte[]; eux: TirCarte[] };
   contextes: { nom: string; tirs: number; buts: number }[];
   constats: Constat[];
 }
@@ -115,9 +133,14 @@ export function resumerMatch(args: {
     }
   }
 
+  const detailDe = (cote: Cote): TirCarte[] => evenements.filter((x) => x.cote === cote && estTirAuBut(x) && !!x.resultat).map((x) => ({
+    type: x.type as TirCarte["type"], resultat: x.resultat as string, minute: x.minute, tier: x.zoneTier ?? null, couloir: x.zoneCouloir ?? null,
+    cadre: x.zoneCadre ?? null, xg: xgDuTir(x), contextes: x.contextes ?? [],
+  }));
   const conversion = { nous: pct(n.buts, n.tirs), eux: pct(e.buts, e.tirs) };
   const res: ResumeMatch = {
     nousCote, score, sources: { detail, fmi: fmi.length > 0 }, stats, conversion, tranches, butsSource, carte,
+    tirsDetail: { nous: detailDe(nousCote), eux: detailDe(eux) },
     contextes: [...contextes].map(([nom, l]) => ({ nom, ...l })).sort((a, b) => b.tirs - a.tirs),
     constats: [],
   };

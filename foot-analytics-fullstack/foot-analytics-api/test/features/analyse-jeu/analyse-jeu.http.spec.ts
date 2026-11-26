@@ -112,6 +112,47 @@ describe("analyse-jeu : resume d'un match", () => {
       expect(r.tirs.familles.some((f: any) => f.famille === "Coup de pied arrêté")).toBe(true);
     });
 
+    it("data hub : reserve au staff, resultats de tous les matchs, tirs et xG des matchs saisis, joueurs nommes", async () => {
+      const route = `/analyse-jeu/club/${m.ol.id}/data-hub?equipeId=${m.sen26.id}`;
+      const tiers = await t.f.club("Club Tiers Hub");
+      const intrus = await t.compte({ login: "RTIERSHB1", role: "referent", clubId: tiers.id });
+      expect((await t.appel(intrus)("GET", route)).statut).toBe(403);
+      expect((await t.appel()("GET", route)).statut).toBe(401);
+
+      const r = (await t.appel(await ref())("GET", route)).corps;
+      expect(r.hub.couverture.saisis).toBeGreaterThanOrEqual(2);
+      expect(r.hub.resultats.joues).toBeGreaterThan(r.hub.couverture.saisis);
+      expect(r.hub.attaque.tirs.pour).toBeGreaterThanOrEqual(4);
+      expect(r.hub.attaque.xg.pour).toBeGreaterThan(0);
+      expect(r.hub.defense.arrets).toBeGreaterThanOrEqual(1);                  // le tir adverse cadre saisi est un arret
+      expect(r.hub.tirs.pour.length).toBe(r.hub.attaque.tirs.pour);
+      expect(r.hub.parMatch.every((x: any) => typeof x.adversaire === "string")).toBe(true);
+      expect((await t.appel(await ref())("GET", `${route}&lieu=nimporte`)).statut).toBe(400);
+    });
+
+    it("stats d'un joueur : reservees au staff de son club, ses tirs et ses arrets du direct", async () => {
+      const mt = await joue("2027-04-05", 1, 0, false, true);
+      const joueur = await t.f.joueur({ nom: "STATS", prenom: "Jo", clubId: m.ol.id, licence: "9999999999" });
+      const a = t.appel(await ref());
+      await a("POST", `/direct/matchs/${mt.id}/chrono`, { action: "demarrer" });
+      const put = (n: number, corps: object) => a("PUT", `/direct/matchs/${mt.id}/evenements/st-${mt.id.slice(0, 8)}-${n}-zzzzzz`, corps);
+      await put(1, { cote: "dom", type: "tir", resultat: "but", periode: 1, minute: 12, joueurId: joueur.id, joueurNumero: 9, zoneTier: 0, zoneCouloir: 2, zoneCadre: 1 });
+      await put(2, { cote: "dom", type: "penalty", resultat: "arrete", periode: 1, minute: 40, joueurId: joueur.id, joueurNumero: 9 });
+      const route = `/analyse-jeu/joueurs/${joueur.id}/stats`;
+
+      const tiers = await t.f.club("Club Tiers Stats");
+      const intrus = await t.compte({ login: "RTIERSST1", role: "referent", clubId: tiers.id });
+      expect((await t.appel(intrus)("GET", route)).statut).toBe(403);
+      expect((await t.appel()("GET", route)).statut).toBe(401);
+      expect((await a("GET", `/analyse-jeu/joueurs/inconnu/stats`)).statut).toBe(404);
+
+      const r = (await a("GET", route)).corps.stats;
+      expect(r).toMatchObject({ matchs: 1, tirs: 2, cadres: 2, buts: 1, penaltys: { tires: 1, marques: 0 } });
+      expect(r.tirsDetail).toHaveLength(2);
+      expect(r.tirsDetail[0]).toMatchObject({ resultat: "but", cadre: 1, tier: 0, couloir: 2 });
+      expect(r.parMatch[0].adversaire).toEqual(expect.any(String));
+    });
+
     it("croisements : danger mesure, facteurs, dispositifs", async () => {
       const a = t.appel(await ref());
       const r = (await a("GET", `/analyse-jeu/club/${m.ol.id}/croisements?equipeId=${m.sen26.id}`)).corps;
