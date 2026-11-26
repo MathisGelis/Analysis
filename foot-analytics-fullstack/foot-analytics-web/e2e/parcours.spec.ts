@@ -2034,7 +2034,14 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
 });
 
 test("data hub de mon club : résultats, attaque, cartes des tirs filtrables avec la cage, joueurs", async () => {
-  const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { clubId: string };
+  const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { clubId: string; equipeId: string; saison2526: string };
+  // Le direct de ce parcours a ete saisi sur la saison 2025-2026 de cette equipe : c'est celle que l'on consulte.
+  const base = `http://localhost:${WEB_PORT}`;
+  const avant = (await contexte.cookies()).filter((c) => c.name === "ownSaisonId" || c.name === "ownEquipeId" || c.name === "ownSelValide");
+  await contexte.addCookies([
+    { name: "ownSaisonId", value: fixtures.saison2526, url: base },
+    { name: "ownEquipeId", value: fixtures.equipeId, url: base },
+  ]);
   await page.goto(`/club/${fixtures.clubId}`);
   await page.getByRole("tab", { name: "Data Hub" }).click();
   const hub = page.getByTestId("data-hub");
@@ -2053,6 +2060,8 @@ test("data hub de mon club : résultats, attaque, cartes des tirs filtrables ave
   expect(await resume.innerText()).not.toBe(tous);
   await carte.getByRole("radio", { name: "Tous" }).click();
   await expect(resume).toHaveText(tous);
+
+  await contexte.addCookies(avant.map((c) => ({ name: c.name, value: c.value, url: base })));         // la selection d'avant, pour les tests suivants
 });
 
 test("direct : un autre appareil saisit et on le voit, et ce qui n'a pas pu partir survit au rechargement", async () => {
