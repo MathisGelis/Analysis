@@ -87,16 +87,18 @@ export default function ApresMatchPage({ matchId }: { matchId: string }) {
   const peutCloturer = etat.statutDirect === "termine" && !etat.clotureLe;
   const score = etat.match.scoreDom !== null && etat.match.scoreExt !== null ? `${etat.match.scoreDom} - ${etat.match.scoreExt}` : null;
 
+  // Pas de router.refresh() apres le push : lance juste apres, il relance la page COURANTE et peut annuler la navigation (le bouton
+  // semblait alors ne rien faire). La fiche du match est une page dynamique : elle relit les donnees a l'arrivee.
   /** Enregistre ce qui est en attente, puis ramene a la fiche du match (qui montre alors les dispositifs, le score et l'apres-match a jour). */
   const retourAuMatch = async () => {
     setOccupe(true);
-    try { await sauvegarde.vider(); router.push(`/matchs/${matchId}`); router.refresh(); }
+    try { await sauvegarde.vider(); router.push(`/matchs/${matchId}`); }
     catch (e) { setErreur(messageApi(e, "Enregistrement impossible.")); setOccupe(false); }
   };
   /** Cloture le match (apres avoir tout enregistre), puis ramene a sa fiche. */
   const cloturer = async () => {
     setOccupe(true);
-    try { await sauvegarde.vider(); await api.directCloturer(matchId); router.push(`/matchs/${matchId}`); router.refresh(); }
+    try { await sauvegarde.vider(); await api.directCloturer(matchId); router.push(`/matchs/${matchId}`); }
     catch (e) { setErreur(messageApi(e, "Clôture impossible.")); setOccupe(false); }
   };
 
