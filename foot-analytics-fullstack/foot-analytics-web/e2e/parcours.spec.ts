@@ -2035,7 +2035,25 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
 
 test("data hub de mon club : résultats, attaque, cartes des tirs filtrables avec la cage, joueurs", async () => {
   const fixtures = JSON.parse(readFileSync(FIXTURES, "utf8")) as { clubId: string; equipeId: string; saison2526: string };
-  // Le direct de ce parcours a ete saisi sur la saison 2025-2026 de cette equipe : c'est celle que l'on consulte.
+  // Un match joue, saisi en direct sur la saison 2025-2026 de cette equipe (le match du parcours precedent est rouvert : pas encore « joue »).
+  const { token } = await (await fetch(`${API_URL}/auth/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login: "AADMIN", password: MOT_DE_PASSE }),
+  })).json();
+  const appeler = (chemin: string, init: RequestInit = {}) => fetch(`${API_URL}${chemin}`, {
+    ...init, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+  });
+  const adversaire = await (await appeler("/clubs", { method: "POST", body: JSON.stringify({ nom: "Club Data Hub" }) })).json();
+  const match = await (await appeler("/matchs", { method: "POST", body: JSON.stringify({
+    clubDom: fixtures.clubId, clubExt: adversaire.id, equipeDomId: fixtures.equipeId, saisonId: fixtures.saison2526,
+    date: "2026-06-06", statut: "joue", scoreDom: 1, scoreExt: 0,
+  }) })).json();
+  expect(match.id).toBeTruthy();
+  await appeler(`/direct/matchs/${match.id}/chrono`, { method: "POST", body: JSON.stringify({ action: "demarrer" }) });
+  const saisir = (n: number, corps: object) => appeler(`/direct/matchs/${match.id}/evenements/hub-${match.id.slice(0, 8)}-${n}-zzzzzz`, { method: "PUT", body: JSON.stringify(corps) });
+  await saisir(1, { cote: "dom", type: "tir", resultat: "but", periode: 1, minute: 12, zoneTier: 0, zoneCouloir: 2, zoneCadre: 1 });
+  await saisir(2, { cote: "dom", type: "tir", resultat: "non_cadre", periode: 1, minute: 30, zoneTier: 1, zoneCouloir: 3 });
+  await saisir(3, { cote: "ext", type: "tir", resultat: "cadre", periode: 2, minute: 60, zoneTier: 0, zoneCouloir: 1 });
   const base = `http://localhost:${WEB_PORT}`;
   const avant = (await contexte.cookies()).filter((c) => c.name === "ownSaisonId" || c.name === "ownEquipeId" || c.name === "ownSelValide");
   await contexte.addCookies([
