@@ -98,7 +98,7 @@ export function FeuilleSaisie({
 
         {(vue === "joueur" || vue === "joueur2" || vue === "passeur") && (
           <div>
-            <div className="mb-2 text-sm font-semibold text-ink">{vue === "joueur" ? def.roleJoueur : def.roleJoueur2}</div>
+            <div className="mb-2 text-sm font-semibold text-ink">{vue === "joueur" ? def.roleJoueur : vue === "passeur" ? "Qui a fait la passe ?" : def.roleJoueur2}</div>
             <ChoixJoueur
               // Le tireur, le fautif, le sortant, le passeur : sur le terrain. L'entrant d'un remplacement : sur le banc (la liste habituelle sans compo).
               joueurs={vue === "joueur" ? joueurs : compo && vue === "joueur2" && def.type === "remplacement" ? compo.banc : joueurs.filter((j) => j.id !== saisie.joueurId)} adversaire={!nous}

@@ -7,7 +7,10 @@
 
 import { useEffect, useState } from "react";
 
+import { Download } from "lucide-react";
+
 import { api, messageApi } from "@/shared/lib/api";
+import { useFeedback } from "@/shared/lib/feedback-context";
 import { Spinner } from "@/shared/ui/Spinner";
 
 import { libelleScore, partDe, phraseTranches } from "../lib/affichage-jeu";
@@ -16,6 +19,35 @@ import { CarteZones } from "./CarteZones";
 import type { Constat, ResumeMatch } from "../lib/jeu-types";
 
 const BORD: Record<Constat["ton"], string> = { bon: "rgb(var(--accent-strong))", alerte: "rgb(var(--amber))", neutre: "rgb(var(--line-strong))" };
+
+/** Telecharge le rapport d'apres-match (PowerPoint ou PDF) : score, stats, tirs, compo, mouvements et bilan, prets a envoyer. */
+function ExportApresMatch({ matchId }: { matchId: string }) {
+  const { notifier } = useFeedback();
+  const [occupe, setOccupe] = useState<"pptx" | "pdf" | null>(null);
+  async function telecharger(format: "pptx" | "pdf") {
+    setOccupe(format);
+    try {
+      const { fichier, nom } = await api.exporterApresMatch(matchId, format);
+      const url = URL.createObjectURL(fichier);
+      const lien = document.createElement("a");
+      lien.href = url; lien.download = nom;
+      document.body.appendChild(lien); lien.click(); lien.remove();
+      URL.revokeObjectURL(url);
+      notifier.succes(`${nom} téléchargé.`);
+    } catch (e) {
+      notifier.erreur(`Export impossible : ${messageApi(e)}`);
+    } finally {
+      setOccupe(null);
+    }
+  }
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2" data-testid="export-apres-match">
+      <span className="mr-auto text-xs text-muted">Rapport à envoyer au staff ou aux joueurs</span>
+      <button type="button" className="btn text-sm" disabled={occupe !== null} onClick={() => void telecharger("pptx")}><Download size={14} aria-hidden /> {occupe === "pptx" ? "Préparation…" : "PowerPoint"}</button>
+      <button type="button" className="btn text-sm" disabled={occupe !== null} onClick={() => void telecharger("pdf")}><Download size={14} aria-hidden /> {occupe === "pdf" ? "Préparation…" : "PDF"}</button>
+    </div>
+  );
+}
 
 export function ResumeMatchVue({ matchId }: { matchId: string }) {
   const [r, setR] = useState<ResumeMatch | null>(null);
@@ -30,6 +62,7 @@ export function ResumeMatchVue({ matchId }: { matchId: string }) {
 
   return (
     <div className="space-y-4">
+      <ExportApresMatch matchId={matchId} />
       <div className="panel flex items-center justify-between gap-3 p-4">
         <div className="text-center">
           <div className="text-[11px] uppercase tracking-wide text-muted">Nous</div>

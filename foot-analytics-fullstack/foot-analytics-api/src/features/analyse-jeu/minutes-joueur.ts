@@ -31,3 +31,40 @@ export function presencesDuJoueur(
   }
   return res;
 }
+
+/** Le onze du coup d'envoi d'un match (plan de jeu de ce match) : qui commence, avec quel numero. */
+export interface PlanDepart { matchId: string; titulaires: readonly string[]; remplacants: readonly string[]; numeros?: Record<string, number> | null }
+export interface EvenementDirectMinutes { matchId: string; cote: "dom" | "ext"; type: string; minute: number; joueurId?: string | null; joueur2Id?: string | null }
+
+/**
+ * Les minutes d'un joueur DEDUITES DU DIRECT : plus precises que la feuille de match, parce qu'elles viennent de ce que le staff a saisi
+ * (remplacements a la minute, carton rouge). Un titulaire joue de 0 a sa sortie (remplace ou expulse), un entrant de son entree a la fin.
+ * La fin du match est la derniere minute saisie (au moins 90). Un joueur qui n'est ni dans le onze ni entre : aucune presence.
+ * Ne porte que sur les matchs dont on connait le onze de depart et dont le direct a des evenements ; le reste reste a la feuille de match.
+ */
+export function presencesDuDirect(
+  joueurId: string, plans: readonly PlanDepart[], evenements: readonly EvenementDirectMinutes[], cotes: ReadonlyMap<string, "dom" | "ext">,
+): Map<string, Presence> {
+  const res = new Map<string, Presence>();
+  for (const plan of plans) {
+    const cote = cotes.get(plan.matchId);
+    const evs = evenements.filter((e) => e.matchId === plan.matchId);
+    if (!cote || evs.length === 0 || plan.titulaires.filter(Boolean).length < 7) continue;
+    const fin = Math.max(90, ...evs.map((e) => e.minute));
+    const nous = evs.filter((e) => e.cote === cote).sort((a, b) => a.minute - b.minute);
+    const titulaire = plan.titulaires.includes(joueurId);
+    const entree = nous.find((e) => e.type === "remplacement" && e.joueur2Id === joueurId);
+    if (!titulaire && !entree) continue;
+    const debut = titulaire ? 0 : entree!.minute;
+    const sortie = nous.find((e) => e.minute >= debut && ((e.type === "remplacement" && e.joueurId === joueurId) || (e.type === "carton_rouge" && e.joueurId === joueurId)));
+    res.set(plan.matchId, { minutes: Math.max(0, Math.min(fin, sortie?.minute ?? fin) - debut), titulaire, numero: plan.numeros?.[joueurId] ?? null });
+  }
+  return res;
+}
+
+/** Les presences du direct d'abord (plus precises), la feuille de match pour les matchs que le direct ne couvre pas. */
+export function fusionnerPresences(direct: ReadonlyMap<string, Presence>, feuille: ReadonlyMap<string, Presence>): Map<string, Presence> {
+  const res = new Map(feuille);
+  for (const [id, p] of direct) res.set(id, { ...p, numero: p.numero ?? feuille.get(id)?.numero ?? null });
+  return res;
+}

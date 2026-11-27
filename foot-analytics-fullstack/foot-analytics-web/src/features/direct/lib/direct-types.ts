@@ -42,6 +42,8 @@ export interface JoueurDirect {
   poste: string | null;
   numero: number | null;
   role: "titulaire" | "remplacant" | "groupe";
+  /** Score de fatigue (0-100), pour les alertes ; absent pour un saisisseur invite. */
+  fatigue?: number | null;
 }
 
 export interface ChronoDirect {

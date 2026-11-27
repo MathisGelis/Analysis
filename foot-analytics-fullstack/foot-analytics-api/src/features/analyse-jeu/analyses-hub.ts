@@ -6,7 +6,7 @@
 // lecture dit sur combien de matchs elle repose : rien n'est affirme sur un echantillon trop petit. Fonctions pures.
 
 import { estBut } from "../direct/stats-direct";
-import { croiserSegments, type SegmentSysteme } from "@/features/matchs/systeme";
+import { croiserSegments, libelleFormation, type SegmentSysteme } from "@/features/matchs/systeme";
 import { COULOIRS } from "../direct/types";
 import { familleDe, filtrerMatchs, MatchJeu } from "./jeu-equipe";
 import { arretsDuMatch } from "./arrets";
@@ -45,6 +45,7 @@ const estTir = (e: EvenementJeu) => e.type === "tir" || e.type === "coup_franc" 
 const estCadre = (e: EvenementJeu) => e.resultat === "but" || e.resultat === "cadre" || e.resultat === "arrete";
 const nousDe = (m: MatchJeu) => (m.domicile ? "dom" : "ext") as "dom" | "ext";
 const r2 = (x: number) => +x.toFixed(2);
+const signe2 = (x: number) => `${x > 0 ? "+" : ""}${x.toFixed(2)}`;
 const somme = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
 const part = (a: number, b: number): number | null => (b > 0 ? Math.round((a / b) * 100) : null);
 
@@ -69,6 +70,8 @@ export interface Analyses {
   /** Matchs saisis en direct : tout ce qui suit, sauf les dispositifs, ne porte que sur eux. */
   matchsSaisis: number;
   dispositifs: AnalyseDispositifs;
+  /** NOS dispositifs tenus : ce que chaque systeme nous a donne, au prorata des minutes jouees sous lui. */
+  nosDispositifs: AnalyseNosDispositifs;
   creation: AnalyseOccasions;
   concession: AnalyseOccasions & { gardien: null | { tirsCadres: number; arrets: number; butsEncaisses: number; xgCadres: number; butsEvites: number } };
   score: AnalyseScore;
@@ -76,6 +79,25 @@ export interface Analyses {
   profil: AnalyseProfil;
   dependances: null | { buteur: { joueurId: string; buts: number; part: number } | null; passeur: { joueurId: string; passes: number; part: number } | null; partCpa: number | null; partTransition: number | null; buts: number };
   constats: Constat[];
+}
+
+/* ---- nos dispositifs ---- */
+export interface LigneNosDispositifs {
+  formation: string;
+  /** Part de match(s) jouee sous ce dispositif (un match a deux systemes compte pour chacun, au prorata) et minutes correspondantes. */
+  matchs: number; minutes: number;
+  v: number; n: number; d: number; ptsParMatch: number; bpParMatch: number; bcParMatch: number;
+  /** Sur les seuls matchs saisis en direct, rapportes a 90 minutes jouees sous ce dispositif : tirs et xG pendant qu'il etait en place. */
+  minutesSaisies: number; tirsPour90: number | null; tirsContre90: number | null; xgPour90: number | null; xgContre90: number | null; xgDiff90: number | null;
+  fiabilite: Fiabilite;
+}
+export interface AnalyseNosDispositifs {
+  couverture: { avec: number; total: number };
+  lignes: LigneNosDispositifs[];
+  /** Les changements de systeme en cours de match, du plus frequent au moins frequent. */
+  changements: { de: string; vers: string; fois: number }[];
+  /** Matchs ou l'on a change de systeme en cours de jeu. */
+  matchsAvecChangement: number;
 }
 
 /* ---- dispositifs affrontes ---- */
@@ -153,6 +175,48 @@ function dispositifs(matchs: MatchHub[]): AnalyseDispositifs {
     if (meilleurs[0]) reponses.push(meilleurs[0]);
   }
   return { couverture: { avec: avec.length, total: matchs.length }, repartition: lignes.map((l) => ({ formation: l.formation, matchs: l.matchs })), lignes, reponses };
+}
+
+function nosDispositifs(matchs: MatchHub[]): AnalyseNosDispositifs {
+  interface Part { m: MatchHub; formation: string; poids: number; debut: number; fin: number }
+  const parts: Part[] = matchs.flatMap((m) => segmentsDe(m, "saisie").map((s) => ({ m, formation: s.formation, poids: s.poids, debut: s.debut, fin: s.fin })));
+  const groupes = new Map<string, Part[]>();
+  for (const p of parts) (groupes.get(p.formation) ?? groupes.set(p.formation, []).get(p.formation)!).push(p);
+  const pts = (m: MatchHub) => (m.bp > m.bc ? 3 : m.bp === m.bc ? 1 : 0);
+  const lignes = [...groupes].map(([formation, ps]): LigneNosDispositifs => {
+    const poids = somme(ps.map((p) => p.poids));
+    const minutes = somme(ps.map((p) => p.poids * (p.m.dureeMin ?? 90)));
+    const saisis = ps.filter((p) => p.m.evenements.length > 0);
+    const minutesSaisies = somme(saisis.map((p) => p.poids * (p.m.dureeMin ?? 90)));
+    const dans = (p: Part, cote: "nous" | "eux") => tirsDe(p.m, cote).filter((t) => t.minute >= p.debut && t.minute < p.fin);
+    const pour = saisis.flatMap((p) => dans(p, "nous")), contre = saisis.flatMap((p) => dans(p, "eux"));
+    const p90 = (x: number) => (minutesSaisies >= 30 ? r2((x / minutesSaisies) * 90) : null);
+    const xgP = p90(somme(pour.map((t) => t.xg))), xgC = p90(somme(contre.map((t) => t.xg)));
+    const v = (f: (m: MatchHub) => boolean) => r2(somme(ps.filter((p) => f(p.m)).map((p) => p.poids)));
+    return {
+      formation, matchs: r2(poids), minutes: Math.round(minutes), v: v((m) => m.bp > m.bc), n: v((m) => m.bp === m.bc), d: v((m) => m.bp < m.bc),
+      ptsParMatch: r2(moyennePonderee(ps.map((p) => ({ x: pts(p.m), poids: p.poids }))) ?? 0),
+      bpParMatch: r2(moyennePonderee(ps.map((p) => ({ x: p.m.bp, poids: p.poids }))) ?? 0), bcParMatch: r2(moyennePonderee(ps.map((p) => ({ x: p.m.bc, poids: p.poids }))) ?? 0),
+      minutesSaisies: Math.round(minutesSaisies), tirsPour90: p90(pour.length), tirsContre90: p90(contre.length), xgPour90: xgP, xgContre90: xgC,
+      xgDiff90: xgP !== null && xgC !== null ? r2(xgP - xgC) : null, fiabilite: fiabiliteDe(poids, 3, 6),
+    };
+  }).sort((a, b) => b.matchs - a.matchs || a.formation.localeCompare(b.formation));
+
+  const transitions = new Map<string, { de: string; vers: string; fois: number }>();
+  let avecChangement = 0;
+  for (const m of matchs) {
+    const segs = segmentsDe(m, "saisie");
+    if (segs.length > 1) avecChangement++;
+    for (let i = 1; i < segs.length; i++) {
+      const cle = `${segs[i - 1].formation}>${segs[i].formation}`;
+      const t = transitions.get(cle) ?? { de: segs[i - 1].formation, vers: segs[i].formation, fois: 0 };
+      t.fois++; transitions.set(cle, t);
+    }
+  }
+  return {
+    couverture: { avec: matchs.filter((m) => segmentsDe(m, "saisie").length > 0).length, total: matchs.length }, lignes,
+    changements: [...transitions.values()].sort((a, b) => b.fois - a.fois), matchsAvecChangement: avecChangement,
+  };
 }
 
 /* ---- occasions creees / concedees ---- */
@@ -371,6 +435,7 @@ export function analyserHub(matchs: MatchHub[]): Analyses {
   const analyses: Analyses = {
     matchsSaisis: saisis.length,
     dispositifs: dispositifs(matchs),
+    nosDispositifs: nosDispositifs(matchs),
     creation,
     concession: { ...concede, gardien: saisis.length ? { tirsCadres: cadresConcedes.length, arrets, butsEncaisses, xgCadres, butsEvites: r2(xgCadres - butsEncaisses) } : null },
     score: etatsDuScore(saisis), rythme: rythme(saisis), profil: profil(matchs), dependances: dependances(saisis), constats: [],
@@ -474,11 +539,20 @@ export function constatsDuHub(a: Analyses): Constat[] {
   if (disp.couverture.avec >= 3) {
     const pire = disp.lignes.filter((x) => x.matchs >= 3).sort((x, y) => x.ptsParMatch - y.ptsParMatch)[0];
     const meilleur = disp.lignes.filter((x) => x.matchs >= 3).sort((x, y) => y.ptsParMatch - x.ptsParMatch)[0];
-    if (pire && pire.ptsParMatch <= 0.8) l.push({ id: "dispositif_difficile", domaine: "adversaires", ton: "alerte", titre: `Des difficultés face au ${pire.formation}`, fiabilite: pire.fiabilite,
+    if (pire && pire.ptsParMatch <= 0.8) l.push({ id: "dispositif_difficile", domaine: "adversaires", ton: "alerte", titre: `Des difficultés face au ${libelleFormation(pire.formation)}`, fiabilite: pire.fiabilite,
       detail: `${pire.v}V ${pire.n}N ${pire.d}D en ${pire.matchs} matchs (${pire.ptsParMatch.toFixed(2)} pt par match).`,
-      piste: disp.reponses.find((r) => r.adverse === pire.formation) ? `Notre meilleure réponse jusqu'ici : le ${disp.reponses.find((r) => r.adverse === pire.formation)!.nous}.` : "Préparer une réponse tactique spécifique à ce dispositif (largeur, supériorité au milieu)." });
-    if (meilleur && meilleur !== pire && meilleur.ptsParMatch >= 2.2) l.push({ id: "dispositif_facile", domaine: "adversaires", ton: "bon", titre: `À l'aise face au ${meilleur.formation}`, fiabilite: meilleur.fiabilite,
+      piste: disp.reponses.find((r) => r.adverse === pire.formation) ? `Notre meilleure réponse jusqu'ici : le ${libelleFormation(disp.reponses.find((r) => r.adverse === pire.formation)!.nous)}.` : "Préparer une réponse tactique spécifique à ce dispositif (largeur, supériorité au milieu)." });
+    if (meilleur && meilleur !== pire && meilleur.ptsParMatch >= 2.2) l.push({ id: "dispositif_facile", domaine: "adversaires", ton: "bon", titre: `À l'aise face au ${libelleFormation(meilleur.formation)}`, fiabilite: meilleur.fiabilite,
       detail: `${meilleur.v}V ${meilleur.n}N ${meilleur.d}D en ${meilleur.matchs} matchs (${meilleur.ptsParMatch.toFixed(2)} pts par match).` });
+  }
+  // Nos dispositifs : celui qui nous fait le mieux jouer (xG par 90 minutes sous ce systeme), seulement avec assez de minutes saisies.
+  const nos = a.nosDispositifs.lignes.filter((x) => x.xgDiff90 !== null && x.minutesSaisies >= 180);
+  if (nos.length >= 2) {
+    const tri = [...nos].sort((x, y) => (y.xgDiff90 as number) - (x.xgDiff90 as number)), haut = tri[0], bas = tri[tri.length - 1];
+    if ((haut.xgDiff90 as number) - (bas.xgDiff90 as number) >= 0.4) l.push({
+      id: "dispositif_nous", domaine: "profil", ton: "neutre", titre: `On joue mieux en ${libelleFormation(haut.formation)} qu'en ${libelleFormation(bas.formation)}`, fiabilite: fiabiliteDe(Math.round(Math.min(haut.matchs, bas.matchs)), 2, 5),
+      detail: `Écart de xG par 90 minutes : ${signe2(haut.xgDiff90 as number)} en ${libelleFormation(haut.formation)} (${haut.minutesSaisies} min saisies) contre ${signe2(bas.xgDiff90 as number)} en ${libelleFormation(bas.formation)} (${bas.minutesSaisies} min).`,
+      piste: `Le ${libelleFormation(haut.formation)} est le système qui nous fait créer le plus de danger pour le moins en concéder ; à privilégier quand le contexte s'y prête.` });
   }
   // Dependances.
   const dep = a.dependances;

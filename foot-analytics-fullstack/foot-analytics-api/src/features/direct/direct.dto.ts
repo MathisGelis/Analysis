@@ -29,7 +29,7 @@ export class EvenementDirectDto {
   @IsOptional() @IsInt() @Min(0) @Max(TIERS - 1) zoneTier?: number | null;
   @IsOptional() @IsInt() @Min(0) @Max(COULOIRS - 1) zoneCouloir?: number | null;
   @IsOptional() @IsInt() @Min(0) @Max(ZONES_CADRE - 1) zoneCadre?: number | null;
-  @IsOptional() @IsArray() @ArrayMaxSize(6) @IsString({ each: true }) @MaxLength(40, { each: true }) contextes?: string[];
+  @IsOptional() @IsArray() @ArrayMaxSize(11) @IsString({ each: true }) @MaxLength(40, { each: true }) contextes?: string[];
 }
 
 export class InvitationDto {

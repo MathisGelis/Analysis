@@ -88,16 +88,19 @@ export default function ApresMatchPage({ matchId }: { matchId: string }) {
   const score = etat.match.scoreDom !== null && etat.match.scoreExt !== null ? `${etat.match.scoreDom} - ${etat.match.scoreExt}` : null;
 
   /** Enregistre ce qui est en attente, puis ramene a la fiche du match (qui montre alors les dispositifs, le score et l'apres-match a jour). */
+  // Pas de router.refresh() juste apres le push : il peut annuler la navigation qui vient de partir (Next 15) ; la page cible se recharge d'elle-meme.
   const retourAuMatch = async () => {
     setOccupe(true);
-    try { await sauvegarde.vider(); router.push(`/matchs/${matchId}`); router.refresh(); }
-    catch (e) { setErreur(messageApi(e, "Enregistrement impossible.")); setOccupe(false); }
+    try { await sauvegarde.vider(); router.push(`/matchs/${matchId}`); }
+    catch (e) { setErreur(messageApi(e, "Enregistrement impossible.")); }
+    finally { setOccupe(false); }                  // une navigation perdue (page qui se rafraichit pendant l'hydratation) ne doit pas laisser le bouton bloque
   };
   /** Cloture le match (apres avoir tout enregistre), puis ramene a sa fiche. */
   const cloturer = async () => {
     setOccupe(true);
-    try { await sauvegarde.vider(); await api.directCloturer(matchId); router.push(`/matchs/${matchId}`); router.refresh(); }
-    catch (e) { setErreur(messageApi(e, "Clôture impossible.")); setOccupe(false); }
+    try { await sauvegarde.vider(); await api.directCloturer(matchId); router.push(`/matchs/${matchId}`); }
+    catch (e) { setErreur(messageApi(e, "Clôture impossible.")); }
+    finally { setOccupe(false); }
   };
 
   return (

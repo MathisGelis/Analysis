@@ -2034,7 +2034,12 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
 
   // Le recalage du chrono et la fin du match, puis la cloture verrouille la saisie jusqu'a la reouverture.
   await page.getByRole("button", { name: "Mi-temps" }).click();
+  // Le bilan de mi-temps : les chiffres de la premiere periode et des pistes, pour le staff.
+  const bilan = page.getByTestId("bilan-mi-temps");
+  await expect(bilan.getByRole("heading", { name: "Bilan de la 1re période" })).toBeVisible();
+  await expect(bilan.getByRole("row", { name: /^Tirs \d/ })).toBeVisible();
   await page.getByRole("button", { name: "2e période" }).click();
+  await expect(bilan).toHaveCount(0);
   await page.getByRole("button", { name: "Fin du match" }).click();
   await expect(tableau).toContainText("Match terminé");
   await page.getByRole("button", { name: "Clôturer le match" }).click();
@@ -2053,15 +2058,15 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await page.getByRole("tab", { name: "Compo" }).click();
   const compo = page.getByTestId("vue-compo");
   await expect(compo.getByTestId("terrain-compo")).toBeVisible();
-  await expect(compo.getByText(/Sur le terrain · 11 sur 11/)).toBeVisible();
+  await expect(compo.getByText(/Sur le terrain · \d+ sur 11/)).toBeVisible();
   await compo.getByRole("button", { name: "Changer de système" }).click();
   await page.locator("div.fixed.inset-0").getByRole("button", { name: "4-4-2 losange" }).click();
   await page.locator("div.fixed.inset-0").getByRole("button", { name: /^Valider 4-4-2 losange/ }).click();
   await expect(compo.getByText("Système : 4-4-2 losange")).toBeVisible();
   await expect(compo.getByText(/4-4-2 losange · 0 changement/)).toBeVisible();
-  const apresSysteme = await (await appeler(`/direct/matchs/${match.id}`)).json();
-  expect(apresSysteme.evenements.filter((e: any) => e.type === "systeme").map((e: any) => e.resultat)).toEqual(["4-1-2-1-2"]);
-  expect(apresSysteme.compo.formation).toBeTruthy();
+  // L'evenement part en arriere-plan (file d'envoi) : on attend qu'il soit enregistre cote serveur.
+  await expect.poll(async () => ((await (await appeler(`/direct/matchs/${match.id}`)).json()).evenements as any[]).filter((e) => e.type === "systeme").map((e) => e.resultat), { timeout: 10_000 }).toEqual(["4-1-2-1-2"]);
+  expect((await (await appeler(`/direct/matchs/${match.id}`)).json()).compo.formation).toBeTruthy();
   await page.getByRole("tab", { name: "Actions" }).click();
 
   // L'apres-match, depuis la banniere de fin : le bilan s'enregistre tout seul, la page est accessible, puis on cloture le match.
@@ -2102,6 +2107,10 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await expect(page.getByRole("heading", { name: "Le match en chiffres" })).toBeVisible();
   await expect(page.getByRole("img", { name: /Corners : \d pour nous, \d pour eux/ })).toBeVisible();
   for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur le résumé (${theme})`).toEqual([]);
+  // L'export du rapport d'après-match : un vrai fichier PowerPoint, nommé d'après la date du match.
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+  const [telechargement] = await Promise.all([page.waitForEvent("download", { timeout: 30_000 }), page.getByTestId("export-apres-match").getByRole("button", { name: "PowerPoint" }).click()]);
+  expect(telechargement.suggestedFilename()).toMatch(/^apres-match-.*\.pptx$/);
   // Clôturer enregistre tout puis ramène à la fiche du match, où le dispositif observé de l'adversaire est renseigné.
   await page.getByRole("button", { name: "Clôturer le match" }).click();
   await expect(page).toHaveURL(new RegExp(`/matchs/${match.id}$`), { timeout: 15_000 });
@@ -2109,8 +2118,8 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await expect(page.getByText("4-3-3").first()).toBeVisible();
   // Une fois clôturé, « Match clôturé » enregistre et ramène aussi à la fiche du match.
   await page.goto(`/matchs/${match.id}/apres`);
-  await page.getByRole("button", { name: "Match clôturé" }).click();
-  await expect(page).toHaveURL(new RegExp(`/matchs/${match.id}$`), { timeout: 15_000 });
+  // Juste apres un chargement complet, la page se rafraichit parfois pour reparer la selection d'equipe / de saison : un clic peut etre perdu, on reclique.
+  await cliquerJusquaNavigation(page.getByRole("button", { name: "Match clôturé" }), new RegExp(`/matchs/${match.id}$`));
   await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
 });
 

@@ -27,8 +27,14 @@ import { segmentsDeSysteme, systemesRenseignes } from "@/features/matchs/systeme
 
 import { analyserHub, MatchHub } from "./analyses-hub";
 import { dataHub, rangsDansEffectif, statsJoueur } from "./data-hub";
-import { presencesDuJoueur } from "./minutes-joueur";
+import { fusionnerPresences, presencesDuDirect, presencesDuJoueur } from "./minutes-joueur";
 import { filtrerMatchs, jeuEquipe, Lieu, MatchJeu } from "./jeu-equipe";
+import { pdfDepuisPptx } from "@/features/analyse/pdf-depuis-pptx";
+import { BilanMatch } from "@/features/apres-match/bilan-match.entity";
+import { libelleFormation } from "@/features/matchs/systeme";
+
+import { bilanMiTemps } from "./bilan-mi-temps";
+import { construireRapportApresMatch } from "./rapport-apres-match";
 import { resumerMatch } from "./stats-jeu";
 
 export interface FiltresJeu { equipeId?: string; saisonId?: string; lieu: Lieu; derniers: number | null }
@@ -206,7 +212,11 @@ export class AnalyseJeuService {
       ? await Promise.all([this.compos.find({ where: { matchId: In(ids) } }), this.fmi.find({ where: { matchId: In(ids) } })])
       : [[], []];
     const cotes = new Map(saisis.map((m) => [m.matchId, (m.domicile ? "dom" : "ext") as "dom" | "ext"]));
-    const presences = presencesDuJoueur(joueur, lignes, evtFmi, cotes);
+    // Le direct fait foi quand il connait le onze de depart et les remplacements du match : plus precis que la feuille de match.
+    const plans = ids.length ? await this.direct.manager.getRepository(Tactique).find({ where: { matchId: In(ids) } }) : [];
+    const duDirect = presencesDuDirect(joueurId, plans.map((p) => ({ matchId: p.matchId as string, titulaires: p.titulaires ?? [], remplacants: p.remplacants ?? [], numeros: p.numeros })),
+      saisis.flatMap((m) => m.evenements.map((e) => ({ matchId: m.matchId, cote: e.cote, type: e.type, minute: e.minute, joueurId: e.joueurId, joueur2Id: e.joueur2Id }))), cotes);
+    const presences = fusionnerPresences(duDirect, presencesDuJoueur(joueur, lignes, evtFmi, cotes));
     const stats = statsJoueur(matchs, joueurId, presences);
     const rangs = rangsDansEffectif(matchs, joueurId);
     const clubs = await this.nomsDesClubs(stats.parMatch.map((m) => m.adversaireId));
@@ -227,5 +237,38 @@ export class AnalyseJeuService {
       fmi: fmi.map((e) => ({ type: e.type, sousType: e.sousType, minute: e.minute, equipe: e.equipe })),
       scoreDom: m.scoreDom ?? 0, scoreExt: m.scoreExt ?? 0, scoreOfficiel: m.statut === "joue",
     });
+  }
+
+  /** Le bilan de la premiere periode d'un de MES matchs, pour la mi-temps : chiffres, ou l'on concede, joueurs a suivre, pistes. */
+  async miTemps(ctx: ContexteAcces, matchId: string) {
+    const m = await this.acces.matchGere(ctx, matchId);
+    const evs = await this.direct.find({ where: { matchId } });
+    return bilanMiTemps({ nousCote: (await this.directSvc.nous(ctx, m)).cote, evenements: evs.filter((e) => !e.supprimeLe) as never });
+  }
+
+  /** Le rapport d'apres-match d'un de MES matchs, en PowerPoint ou en PDF : resume, stats, tirs, compo, mouvements, bilan de l'entraineur. */
+  async exporterApresMatch(ctx: ContexteAcces, matchId: string, format: "pptx" | "pdf") {
+    const m = await this.acces.matchGere(ctx, matchId);
+    const [etat, resume] = await Promise.all([this.directSvc.etat(ctx, matchId), this.resume(ctx, matchId)]);
+    const nous = etat.nousCote;
+    const clubNous = nous === "dom" ? m.clubDom : m.clubExt;
+    const bilan = await this.matchs.manager.getRepository(BilanMatch).findOne({ where: { id: `${matchId}:${clubNous}` } });
+    const parId = new Map(etat.joueurs.map((j) => [j.id, j]));
+    const nomDe = (j: { prenom: string | null; nom: string }) => [j.prenom, j.nom].filter(Boolean).join(" ");
+    const mouvements = etat.evenements.filter((e) => e.cote === nous && ["remplacement", "carton_rouge", "systeme"].includes(e.type))
+      .sort((a, b) => a.periode - b.periode || a.minute - b.minute)
+      .map((e) => ({
+        minute: e.minuteAffichee ?? String(e.minute),
+        texte: e.type === "remplacement" ? `${e.joueur2Numero ?? "–"} ${e.joueur2Nom ?? ""} remplace ${e.joueurNumero ?? "–"} ${e.joueurNom ?? ""}`.replace(/\s+/g, " ").trim()
+          : e.type === "carton_rouge" ? `Carton rouge : ${e.joueurNumero ?? "–"} ${e.joueurNom ?? ""}`.trim() : `Système : ${libelleFormation(e.resultat ?? "")}`,
+      }));
+    const fichierPptx = await construireRapportApresMatch({
+      nomNous: nous === "dom" ? etat.match.nomDom : etat.match.nomExt, nomEux: nous === "dom" ? etat.match.nomExt : etat.match.nomDom,
+      date: etat.match.date, competition: etat.match.competition, journee: etat.match.journee, resume,
+      compo: etat.compo ? { formation: etat.compo.formation, titulaires: etat.compo.titulaires.map((id) => parId.get(id)).filter((j): j is NonNullable<typeof j> => !!j).map((j) => ({ numero: j.numero, nom: nomDe(j) })) } : null,
+      mouvements, bilan: bilan ? { positifs: bilan.positifs, aTravailler: bilan.aTravailler, bilan: bilan.bilan } : null,
+    });
+    const base = `apres-match-${(etat.match.date ?? "match").replace(/[^0-9a-z-]/gi, "-")}`;
+    return format === "pdf" ? { fichier: await pdfDepuisPptx(fichierPptx), nom: `${base}.pdf` } : { fichier: fichierPptx, nom: `${base}.pptx` };
   }
 }

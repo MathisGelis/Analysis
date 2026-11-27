@@ -20,6 +20,9 @@ import type { Cote, EvenementDirect } from "../lib/direct-types";
 import { libelleFormation } from "@/shared/lib/formation";
 import { Saisie, saisieDepuisEvenement, saisieInitiale } from "../lib/saisie";
 import { FeuilleSaisie } from "./FeuilleSaisie";
+import { alertesDirect } from "../lib/alertes-direct";
+import { BandeauAlertes } from "./BandeauAlertes";
+import { BilanMiTemps } from "./BilanMiTemps";
 import { FeuilleSysteme } from "./FeuilleSysteme";
 import { TerrainDeLEtat } from "./TerrainCompo";
 import { sourceStaff, type SourceDirect } from "../lib/source-direct";
@@ -97,6 +100,8 @@ export default function DirectPage({ matchId, source: sourceFournie }: { matchId
         affichage={d.chronoAffiche} minute={d.minute} occupe={d.occupe} cloture={cloture} onAction={(a, m) => void d.chrono(a, m)}
         chronoPermis={!invite || !!etat.invitation?.peutChrono} />
 
+      {!cloture && <BandeauAlertes alertes={alertesDirect({ evenements: d.evenements, nousCote: nous, minute: d.minute, compo: compoMaintenant, joueurs: etat.joueurs })} />}
+
       {invite ? (
         (etat.chrono.statut === "termine" || cloture) && <p className="panel-inset border-l-2 border-accent p-3 text-sm text-ink" role="status">{cloture ? "Direct clôturé par le staff : la saisie est verrouillée." : "Match terminé. Le staff clôturera le direct."}</p>
       ) : (
@@ -121,6 +126,8 @@ export default function DirectPage({ matchId, source: sourceFournie }: { matchId
       )}
         </>
       )}
+
+      {!invite && etat.chrono.statut === "mi_temps" && d.evenements.length > 0 && <BilanMiTemps key={d.evenements.length} matchId={matchId} nomNous={nomNous} nomEux={nomEux} />}
 
       {compoMaintenant && (
         <div role="tablist" aria-label="Vue du direct" className="flex gap-1 rounded-2xl border border-line bg-surface p-1">
