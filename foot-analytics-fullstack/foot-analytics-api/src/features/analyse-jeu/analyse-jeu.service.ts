@@ -27,7 +27,7 @@ import { segmentsDeSysteme, systemesRenseignes } from "@/features/matchs/systeme
 
 import { analyserHub, MatchHub } from "./analyses-hub";
 import { dataHub, rangsDansEffectif, statsJoueur } from "./data-hub";
-import { presencesDuJoueur } from "./minutes-joueur";
+import { fusionnerPresences, presencesDuDirect, presencesDuJoueur } from "./minutes-joueur";
 import { filtrerMatchs, jeuEquipe, Lieu, MatchJeu } from "./jeu-equipe";
 import { resumerMatch } from "./stats-jeu";
 
@@ -206,7 +206,11 @@ export class AnalyseJeuService {
       ? await Promise.all([this.compos.find({ where: { matchId: In(ids) } }), this.fmi.find({ where: { matchId: In(ids) } })])
       : [[], []];
     const cotes = new Map(saisis.map((m) => [m.matchId, (m.domicile ? "dom" : "ext") as "dom" | "ext"]));
-    const presences = presencesDuJoueur(joueur, lignes, evtFmi, cotes);
+    // Le direct fait foi quand il connait le onze de depart et les remplacements du match : plus precis que la feuille de match.
+    const plans = ids.length ? await this.direct.manager.getRepository(Tactique).find({ where: { matchId: In(ids) } }) : [];
+    const duDirect = presencesDuDirect(joueurId, plans.map((p) => ({ matchId: p.matchId as string, titulaires: p.titulaires ?? [], remplacants: p.remplacants ?? [], numeros: p.numeros })),
+      saisis.flatMap((m) => m.evenements.map((e) => ({ matchId: m.matchId, cote: e.cote, type: e.type, minute: e.minute, joueurId: e.joueurId, joueur2Id: e.joueur2Id }))), cotes);
+    const presences = fusionnerPresences(duDirect, presencesDuJoueur(joueur, lignes, evtFmi, cotes));
     const stats = statsJoueur(matchs, joueurId, presences);
     const rangs = rangsDansEffectif(matchs, joueurId);
     const clubs = await this.nomsDesClubs(stats.parMatch.map((m) => m.adversaireId));
