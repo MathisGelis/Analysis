@@ -38,6 +38,10 @@ export interface DataHub {
   joueurs: DataHubJoueur[];
   parMatch: { matchId: string; date: string | null; adversaireId: string | null; adversaire: string; domicile: boolean; bp: number; bc: number; saisi: boolean;
     tirs: number | null; tirsContre: number | null; xg: number | null; xgContre: number | null; arrets: number | null }[];
+  /** Les analyses : dispositifs affrontes, creation, concession, score, rythme, profil. Absent d'une ancienne reponse. */
+  analyses?: AnalysesHub;
+  /** Le nom des joueurs cites dans les analyses (reseau de passes, dependances). */
+  noms?: Record<string, string>;
 }
 
 export interface ReponseDataHub {
@@ -56,3 +60,54 @@ export interface StatsJoueurDirect {
 }
 
 export interface ReponseStatsJoueur { saisonId: string | null; matchsDeLaSaison: number; matchsSaisis: number; stats: StatsJoueurDirect }
+
+/* ---- Les analyses du Data Hub (analyse-jeu/analyses-hub.ts) ---- */
+export type Fiabilite = "faible" | "moyenne" | "bonne";
+
+export interface ConstatHub {
+  id: string;
+  domaine: "creation" | "concession" | "adversaires" | "score" | "rythme" | "profil";
+  ton: "bon" | "alerte" | "neutre";
+  titre: string; detail: string; piste?: string; fiabilite: Fiabilite;
+}
+
+export interface LigneDispositif {
+  formation: string; matchs: number; v: number; n: number; d: number; ptsParMatch: number; bpParMatch: number; bcParMatch: number;
+  saisis: number; tirsPour: number; tirsContre: number; xgPour: number; xgContre: number; xgDiffParMatch: number | null;
+  conversionAdv: number | null; butsAdvMoinsXg: number | null; fiabilite: Fiabilite;
+}
+
+export interface OccasionsHub {
+  tirs: number; buts: number; xg: number;
+  zones: { tirs: number[]; buts: number[]; xg: number[]; sansZone: number };
+  couloirs: { nom: "gauche" | "axe" | "droite"; tirs: number; xg: number }[];
+  familles: { famille: string; tirs: number; buts: number; xg: number }[];
+  qualite: { nom: string; tirs: number }[];
+  grosses: { total: number; marquees: number };
+  reseau: { passeurId: string; tireurId: string; tirs: number; buts: number; xg: number }[];
+}
+
+export interface Indicateur { cle: string; libelle: string; saison: number | null; recent: number | null; meilleurSiHaut: boolean; unite: "" | "%" }
+
+export interface AnalysesHub {
+  matchsSaisis: number;
+  dispositifs: {
+    couverture: { avec: number; total: number };
+    repartition: { formation: string; matchs: number }[];
+    lignes: LigneDispositif[];
+    reponses: { adverse: string; nous: string; matchs: number; ptsParMatch: number }[];
+  };
+  creation: OccasionsHub;
+  concession: OccasionsHub & { gardien: null | { tirsCadres: number; arrets: number; butsEncaisses: number; xgCadres: number; butsEvites: number } };
+  score: {
+    matchs: number;
+    etats: { etat: "mene" | "egalite" | "mene_par_adv"; minutes: number; tirsPour: number; tirsContre: number; xgPour: number; xgContre: number; xgPour90: number | null; xgContre90: number | null }[];
+  };
+  rythme: { tirsPour: number[]; tirsContre: number[]; xgPour: number[]; xgContre: number[]; butsPour: number[]; butsContre: number[]; fautes: number[]; cartons: { pour: number[]; contre: number[] } };
+  profil: { recents: number; indicateurs: Indicateur[]; radar: { axe: string; saison: 100; recent: number | null }[] };
+  dependances: null | {
+    buts: number; buteur: { joueurId: string; buts: number; part: number } | null; passeur: { joueurId: string; passes: number; part: number } | null;
+    partCpa: number | null; partTransition: number | null;
+  };
+  constats: ConstatHub[];
+}

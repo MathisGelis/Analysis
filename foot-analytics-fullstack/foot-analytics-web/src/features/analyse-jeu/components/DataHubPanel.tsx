@@ -9,6 +9,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Database } from "lucide-react";
 
+import { TabBar } from "@/shared/ui/TabBar";
+
 import { api, messageApi } from "@/shared/lib/api";
 import { BarsChart, FormeStrip } from "@/shared/ui/Charts";
 import { Spinner } from "@/shared/ui/Spinner";
@@ -16,7 +18,9 @@ import { Spinner } from "@/shared/ui/Spinner";
 import type { DataHub, ReponseDataHub } from "../lib/data-hub-types";
 import { CleTriJoueur, nb, pc, signe, trierJoueursHub } from "../lib/format-hub";
 import type { Lieu, PourContre } from "../lib/jeu-types";
+import { Lectures, SectionAdversaires, SectionConcession, SectionCreation, SectionProfil, SectionRythme } from "./AnalysesHub";
 import { CarteTirs } from "./CarteTirs";
+import { CourbesMatchs } from "./graphiques";
 
 const TRANCHES = ["0-15", "16-30", "31-45", "46-60", "61-75", "76-90+"];
 const LIEUX: [Lieu, string][] = [["tous", "Saison complète"], ["domicile", "Domicile"], ["exterieur", "Extérieur"]];
@@ -85,9 +89,37 @@ export function DataHubPanel({ clubId, equipeId, saisonId }: { clubId: string; e
   );
 }
 
+type Section = "ensemble" | "creation" | "concession" | "adversaires" | "rythme" | "profil" | "joueurs" | "matchs";
+const SECTIONS: { id: Section; label: string }[] = [
+  { id: "ensemble", label: "Vue d'ensemble" }, { id: "creation", label: "Création" }, { id: "concession", label: "Concession" },
+  { id: "adversaires", label: "Adversaires" }, { id: "rythme", label: "Score et rythme" }, { id: "profil", label: "Profil" },
+  { id: "joueurs", label: "Joueurs" }, { id: "matchs", label: "Match par match" },
+];
+
 function Contenu({ r }: { r: ReponseDataHub }) {
   const h = r.hub;
+  const [section, setSection] = useState<Section>("ensemble");
+  const a = h.analyses;
+  const noms = h.noms ?? {};
   if (h.couverture.matchs === 0) return <p className="panel-inset p-4 text-sm text-muted">Aucun match joué avec ces filtres.</p>;
+  return (
+    <>
+      <TabBar onglets={SECTIONS} actif={section} onChange={setSection} label="Sections du Data Hub" />
+      {section === "ensemble" && <Ensemble r={r} />}
+      {section === "creation" && a && <SectionCreation a={a} noms={noms} />}
+      {section === "concession" && a && <SectionConcession a={a} />}
+      {section === "adversaires" && a && <SectionAdversaires a={a} />}
+      {section === "rythme" && a && <SectionRythme a={a} />}
+      {section === "profil" && a && <SectionProfil a={a} noms={noms} />}
+      {section === "joueurs" && (h.joueurs.length > 0 ? <Joueurs h={h} /> : <p className="panel-inset p-4 text-sm text-muted">Aucun joueur désigné dans les matchs saisis.</p>)}
+      {section === "matchs" && <Tendance h={h} />}
+    </>
+  );
+}
+
+function Ensemble({ r }: { r: ReponseDataHub }) {
+  const h = r.hub;
+  const a = h.analyses;
   return (
     <>
       <p className="panel-inset border-l-2 border-accent p-3 text-[13px] text-ink" role="status">
@@ -95,6 +127,9 @@ function Contenu({ r }: { r: ReponseDataHub }) {
         <strong>{h.couverture.saisis} saisi{h.couverture.saisis > 1 ? "s" : ""} en direct</strong> : tirs, xG, arrêts, coups de pied arrêtés et discipline ne portent que sur ceux-là ;
         les résultats portent sur tous les matchs. Le xG est une estimation d&apos;après la zone et le contexte saisis.
       </p>
+      {a && a.constats.length > 0 && (
+        <Bloc titre="À retenir" testid="hub-a-retenir"><Lectures constats={a.constats.slice(0, 4)} /><p className="text-[11px] text-faint">● ○ ○ : lecture indicative ; ● ● ● : échantillon solide. Les autres sections détaillent chaque lecture.</p></Bloc>
+      )}
       <Resultats h={h} />
       {h.attaque && <Attaque h={h} />}
       {h.defense && <Defense h={h} />}
@@ -108,8 +143,6 @@ function Contenu({ r }: { r: ReponseDataHub }) {
           <BarsChart height={200} legend={["Marqués", "Encaissés"]} data={TRANCHES.map((label, i) => ({ label, a: h.tranches.pour[i], b: h.tranches.contre[i] }))} />
         </Bloc>
       )}
-      {h.joueurs.length > 0 && <Joueurs h={h} />}
-      <Tendance h={h} />
     </>
   );
 }
@@ -262,6 +295,9 @@ function Joueurs({ h }: { h: DataHub }) {
 function Tendance({ h }: { h: DataHub }) {
   return (
     <Bloc titre="Match par match" testid="hub-tendance">
+      {h.parMatch.some((m) => m.saisi) && (
+        <CourbesMatchs titre="xG créé et concédé match par match" noms={h.parMatch.map((m) => (m.date ?? "").slice(0, 5))} pour={h.parMatch.map((m) => m.xg)} contre={h.parMatch.map((m) => m.xgContre)} />
+      )}
       <div className="overflow-x-auto">
         <table className="table-fm">
           <thead><tr><th>Match</th><th className="text-center">Score</th><th className="text-center">Tirs</th><th className="text-center max-sm:hidden">Tirs contre</th><th className="text-right">xG</th><th className="text-right max-sm:hidden">xG contre</th><th className="text-center max-sm:hidden">Arrêts</th></tr></thead>

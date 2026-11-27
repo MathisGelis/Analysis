@@ -1874,6 +1874,18 @@ test("data hub de mon club : résultats, attaque, cartes des tirs filtrables ave
   await carte.getByRole("radio", { name: "Tous" }).click();
   await expect(resume).toHaveText(tous);
 
+  // Les sections d'analyse : graphiques et lectures, chacune avec sa propre alternative textuelle.
+  for (const [onglet, testid, texte] of [
+    ["Création", "hub-creation", "D'où vient le danger qu'on crée"], ["Concession", "hub-concession", "Comment on concède"],
+    ["Adversaires", "hub-adversaires", "Dispositif de l'adversaire connu"], ["Score et rythme", "hub-rythme", "Danger par tranche de 15 minutes"],
+    ["Profil", "hub-profil", "Profil de l'équipe"],
+  ] as const) {
+    await hub.getByRole("tab", { name: onglet }).click();
+    await expect(page.getByTestId(testid)).toContainText(texte);
+  }
+  await hub.getByRole("tab", { name: "Création" }).click();
+  await expect(page.getByTestId("hub-creation").getByRole("img", { name: /xG créé par zone/ })).toBeVisible();
+
   await contexte.addCookies(avant.map((c) => ({ name: c.name, value: c.value, url: base })));         // la selection d'avant, pour les tests suivants
 });
 
