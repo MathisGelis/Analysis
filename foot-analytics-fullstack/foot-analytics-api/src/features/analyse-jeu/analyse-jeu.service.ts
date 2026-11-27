@@ -23,6 +23,9 @@ import { Club } from "@/features/clubs/club.entity";
 import { Tactique } from "@/features/tactiques/tactique.entity";
 
 import { ContexteMatch, croiser } from "./croisements";
+import { systemesRenseignes } from "@/features/matchs/systeme";
+
+import { analyserHub, MatchHub } from "./analyses-hub";
 import { dataHub, statsJoueur } from "./data-hub";
 import { filtrerMatchs, jeuEquipe, Lieu, MatchJeu } from "./jeu-equipe";
 import { resumerMatch } from "./stats-jeu";
@@ -56,12 +59,15 @@ export class AnalyseJeuService {
         this.direct.manager.getRepository(Tactique).find({ where: { matchId: In(ids) } }),
       ])
       : [[], [], []];
-    const matchs = bruts.map((m): MatchJeu => {
+    const matchs = bruts.map((m): MatchHub => {
       const domicile = p.equipeId ? m.equipeDomId === p.equipeId : m.clubDom === clubId;
+      // Les dispositifs tels que le staff les a SAISIS (ou observes en apres-match) : jamais une valeur par defaut.
+      const sys = systemesRenseignes(m);
       // Le gardien de depart : le premier du onze enregistre a l'avant-match pour l'equipe de mon club dans ce match.
       const equipeDuMatch = domicile ? m.equipeDomId : m.equipeExtId;
       const plan = plans.find((x) => x.matchId === m.id && (!equipeDuMatch || x.equipeId === equipeDuMatch));
       return {
+        formationSaisie: domicile ? sys.dom : sys.ext, formationAdverse: domicile ? sys.ext : sys.dom,
         gardien: plan?.titulaires?.[0] || null,
         matchId: m.id, date: m.date ?? null, journee: m.journee ?? null, domicile, adversaireId: domicile ? m.clubExt : m.clubDom,
         formation: (domicile ? m.formationDom : m.formationExt) || null, bp: domicile ? m.scoreDom ?? 0 : m.scoreExt ?? 0, bc: domicile ? m.scoreExt ?? 0 : m.scoreDom ?? 0,
@@ -156,7 +162,9 @@ export class AnalyseJeuService {
     const { matchs } = await this.matchsJeu(clubId, portee);
     const retenus = filtrerMatchs(matchs, f.lieu, f.derniers);
     const hub = dataHub(retenus);
-    const ids = hub.joueurs.map((j) => j.joueurId);
+    const analyses = analyserHub(retenus);
+    const idsAnalyses = [...analyses.creation.reseau.flatMap((l) => [l.passeurId, l.tireurId]), analyses.dependances?.buteur?.joueurId, analyses.dependances?.passeur?.joueurId].filter((x): x is string => !!x);
+    const ids = [...new Set([...hub.joueurs.map((j) => j.joueurId), ...idsAnalyses])];
     const fiches = ids.length ? await this.joueurs.find({ where: { id: In(ids) } }) : [];
     const fiche = new Map(fiches.map((j) => [j.id, j]));
     const clubs = await this.nomsDesClubs(hub.parMatch.map((m) => m.adversaireId));
@@ -169,6 +177,8 @@ export class AnalyseJeuService {
           return { ...j, nom: x ? [x.prenom, x.nom].filter(Boolean).join(" ") : "Joueur", poste: x?.poste ?? null, minutes: x?.minutes ?? null, noteMoyenne: x?.noteMoyenne ?? null, scoreFatigue: x?.scoreFatigue ?? null };
         }),
         parMatch: hub.parMatch.map((m) => ({ ...m, adversaire: (m.adversaireId && clubs.get(m.adversaireId)) || "Adversaire" })),
+        analyses,
+        noms: Object.fromEntries(idsAnalyses.map((id) => { const x = fiche.get(id); return [id, x ? [x.prenom, x.nom].filter(Boolean).join(" ") : "Joueur"]; })),
       },
     };
   }

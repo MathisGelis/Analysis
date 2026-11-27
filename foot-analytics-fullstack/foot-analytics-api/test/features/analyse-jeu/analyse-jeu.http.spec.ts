@@ -127,6 +127,13 @@ describe("analyse-jeu : resume d'un match", () => {
       expect(r.hub.defense.arrets).toBeGreaterThanOrEqual(1);                  // le tir adverse cadre saisi est un arret
       expect(r.hub.tirs.pour.length).toBe(r.hub.attaque.tirs.pour);
       expect(r.hub.parMatch.every((x: any) => typeof x.adversaire === "string")).toBe(true);
+      expect(r.hub.analyses.matchsSaisis).toBeGreaterThanOrEqual(2);
+      expect(r.hub.analyses.dispositifs.couverture.total).toBe(r.hub.couverture.matchs);
+      expect(r.hub.analyses.creation.tirs).toBe(r.hub.attaque.tirs.pour);
+      expect(r.hub.analyses.concession.tirs).toBe(r.hub.attaque.tirs.contre);
+      expect(r.hub.analyses.profil.radar).toHaveLength(6);
+      expect(Array.isArray(r.hub.analyses.constats)).toBe(true);
+      expect(typeof r.hub.noms).toBe("object");
       expect((await t.appel(await ref())("GET", `${route}&lieu=nimporte`)).statut).toBe(400);
     });
 
