@@ -51,15 +51,25 @@ export interface ReponseDataHub {
 }
 
 export interface StatsJoueurDirect {
+  /** Minutes et titularisations dans les matchs saisis (feuille de match) ; null si la feuille de ce joueur n'est pas connue. */
+  presence: null | { matchs: number; minutes: number; titularisations: number };
+  tranches: { buts: number[]; tirs: number[] };
+  familles: { famille: string; tirs: number; buts: number; xg: number }[];
+  grosses: { total: number; marquees: number };
+  butsCpa: number;
+  gardien: null | { matchs: number; tirsCadres: number; arrets: number; butsEncaisses: number; xgCadres: number; butsEvites: number; penaltysSubis: number; penaltysArretes: number; cleanSheets: number };
   joueurId: string; matchs: number; buts: number; passes: number; passesCles: number; tirs: number; cadres: number; xg: number;
   penaltys: { tires: number; marques: number }; coupsFrancs: { tires: number; buts: number };
   corners: number; arrets: number; fautes: number; horsJeux: number; jaunes: number; rouges: number; entrees: number; sorties: number; blessures: number;
   tirsDetail: (TirCarte & { matchId: string })[];
   parMatch: { matchId: string; date: string | null; adversaireId: string | null; adversaire: string; domicile: boolean; bp: number; bc: number;
-    buts: number; passes: number; tirs: number; cadres: number; xg: number; arrets: number; fautes: number; jaunes: number; rouges: number }[];
+    minutes: number | null; titulaire: boolean | null; buts: number; passes: number; passesCles: number; tirs: number; cadres: number; xg: number;
+    arrets: number; butsEncaisses: number; fautes: number; jaunes: number; rouges: number }[];
 }
 
-export interface ReponseStatsJoueur { saisonId: string | null; matchsDeLaSaison: number; matchsSaisis: number; stats: StatsJoueurDirect }
+export interface RangEffectif { cle: "buts" | "passes" | "passesCles" | "tirs" | "xg" | "arrets"; libelle: string; valeur: number; rang: number; sur: number }
+
+export interface ReponseStatsJoueur { saisonId: string | null; matchsDeLaSaison: number; matchsSaisis: number; stats: StatsJoueurDirect; rangs?: RangEffectif[] }
 
 /* ---- Les analyses du Data Hub (analyse-jeu/analyses-hub.ts) ---- */
 export type Fiabilite = "faible" | "moyenne" | "bonne";

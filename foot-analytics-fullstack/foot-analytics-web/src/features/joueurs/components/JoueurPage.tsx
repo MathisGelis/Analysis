@@ -243,9 +243,6 @@ export default async function JoueurPage({
               />
             </div>
 
-            {/* Ce que le direct attribue au joueur (tirs, passes, arrets, fautes...) : seulement les joueurs de mon club */}
-            {j.clubId === clubProprId && <StatsDirectJoueur joueurId={j.id} saisonId={saison?.id} nomSaison={saison?.nom} />}
-
             {/* Terrain + derniers matchs */}
             <div className="grid grid-cols-12 gap-4">
               <div className="col-span-12 md:col-span-5">
@@ -301,6 +298,9 @@ export default async function JoueurPage({
                 )}
               </div>
             </div>
+
+            {/* Ce que le direct attribue au joueur, selon son poste : seulement les joueurs de mon club */}
+            {j.clubId === clubProprId && <StatsDirectJoueur joueurId={j.id} saisonId={saison?.id} nomSaison={saison?.nom} poste={j.poste} numero={numero} />}
           </section>
         }
         medicalContent={
