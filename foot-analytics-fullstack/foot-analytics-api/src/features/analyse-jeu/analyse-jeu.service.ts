@@ -26,7 +26,8 @@ import { ContexteMatch, croiser } from "./croisements";
 import { systemesRenseignes } from "@/features/matchs/systeme";
 
 import { analyserHub, MatchHub } from "./analyses-hub";
-import { dataHub, statsJoueur } from "./data-hub";
+import { dataHub, rangsDansEffectif, statsJoueur } from "./data-hub";
+import { presencesDuJoueur } from "./minutes-joueur";
 import { filtrerMatchs, jeuEquipe, Lieu, MatchJeu } from "./jeu-equipe";
 import { resumerMatch } from "./stats-jeu";
 
@@ -190,11 +191,21 @@ export class AnalyseJeuService {
     this.exigerClub(ctx, joueur.clubId);
     const portee = await this.acces.portee(ctx, { saisonId });
     const { matchs } = await this.matchsJeu(joueur.clubId, { saisonId: portee.saisonId });
-    const stats = statsJoueur(matchs, joueurId);
+    // Ses minutes dans les matchs saisis (feuille de match) : de quoi rapporter ses actions a 90 minutes.
+    const saisis = matchs.filter((m) => m.evenements.length > 0);
+    const ids = saisis.map((m) => m.matchId);
+    const [lignes, evtFmi] = ids.length
+      ? await Promise.all([this.compos.find({ where: { matchId: In(ids) } }), this.fmi.find({ where: { matchId: In(ids) } })])
+      : [[], []];
+    const cotes = new Map(saisis.map((m) => [m.matchId, (m.domicile ? "dom" : "ext") as "dom" | "ext"]));
+    const presences = presencesDuJoueur(joueur, lignes, evtFmi, cotes);
+    const stats = statsJoueur(matchs, joueurId, presences);
+    const rangs = rangsDansEffectif(matchs, joueurId);
     const clubs = await this.nomsDesClubs(stats.parMatch.map((m) => m.adversaireId));
     return {
       saisonId: portee.saisonId ?? null, matchsDeLaSaison: matchs.length, matchsSaisis: matchs.filter((m) => m.evenements.length > 0).length,
       stats: { ...stats, parMatch: stats.parMatch.map((m) => ({ ...m, adversaire: (m.adversaireId && clubs.get(m.adversaireId)) || "Adversaire" })) },
+      rangs,
     };
   }
 

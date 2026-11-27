@@ -20,6 +20,7 @@ import { CleTriJoueur, nb, pc, signe, trierJoueursHub } from "../lib/format-hub"
 import type { Lieu, PourContre } from "../lib/jeu-types";
 import { Lectures, SectionAdversaires, SectionConcession, SectionCreation, SectionProfil, SectionRythme } from "./AnalysesHub";
 import { CarteTirs } from "./CarteTirs";
+import { LieuMatch } from "./LieuMatch";
 import { CourbesMatchs } from "./graphiques";
 
 const TRANCHES = ["0-15", "16-30", "31-45", "46-60", "61-75", "76-90+"];
@@ -304,7 +305,7 @@ function Tendance({ h }: { h: DataHub }) {
           <tbody>
             {h.parMatch.map((m) => (
               <tr key={m.matchId}>
-                <td><Link href={`/matchs/${m.matchId}`} className="hover:text-accent">{m.date ?? ""} · {m.domicile ? "vs" : "@"} {m.adversaire}</Link></td>
+                <td><Link href={`/matchs/${m.matchId}`} className="flex flex-wrap items-center gap-x-2 hover:text-accent"><LieuMatch domicile={m.domicile} /> <span>{m.adversaire}</span> <span className="text-[11px] text-faint">{m.date ?? ""}</span></Link></td>
                 <td className="text-center tabular-nums">{m.bp}–{m.bc}</td>
                 <td className="text-center tabular-nums">{m.saisi ? m.tirs : "–"}</td>
                 <td className="text-center tabular-nums max-sm:hidden">{m.saisi ? m.tirsContre : "–"}</td>
