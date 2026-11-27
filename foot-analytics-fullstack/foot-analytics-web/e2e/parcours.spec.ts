@@ -2034,7 +2034,12 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
 
   // Le recalage du chrono et la fin du match, puis la cloture verrouille la saisie jusqu'a la reouverture.
   await page.getByRole("button", { name: "Mi-temps" }).click();
+  // Le bilan de mi-temps : les chiffres de la premiere periode et des pistes, pour le staff.
+  const bilan = page.getByTestId("bilan-mi-temps");
+  await expect(bilan.getByRole("heading", { name: "Bilan de la 1re période" })).toBeVisible();
+  await expect(bilan.getByRole("row", { name: /^Tirs / })).toBeVisible();
   await page.getByRole("button", { name: "2e période" }).click();
+  await expect(bilan).toHaveCount(0);
   await page.getByRole("button", { name: "Fin du match" }).click();
   await expect(tableau).toContainText("Match terminé");
   await page.getByRole("button", { name: "Clôturer le match" }).click();

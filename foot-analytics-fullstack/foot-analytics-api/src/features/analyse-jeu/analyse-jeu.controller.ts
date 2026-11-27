@@ -52,4 +52,5 @@ export class AnalyseJeuController {
   }
 
   @Get("matchs/:matchId/resume") resume(@Acces() ctx: ContexteAcces, @Param("matchId") matchId: string) { return this.svc.resume(ctx, matchId); }
+  @Get("matchs/:matchId/mi-temps") miTemps(@Acces() ctx: ContexteAcces, @Param("matchId") matchId: string) { return this.svc.miTemps(ctx, matchId); }
 }

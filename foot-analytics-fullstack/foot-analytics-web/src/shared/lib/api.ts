@@ -31,6 +31,7 @@ import type { EtatApresMatch, BilanMatch, NoteJoueur } from "@/features/apres-ma
 import type { EtatObservations, ValeursSection } from "@/features/apres-match/lib/observations";
 import type { Lieu, ReponseAdversaire, ReponseCroisements, ReponseJeu, ResumeMatch } from "@/features/analyse-jeu/lib/jeu-types";
 import type { ReponseDataHub, ReponseStatsJoueur } from "@/features/analyse-jeu/lib/data-hub-types";
+import type { BilanMiTemps } from "@/features/direct/lib/bilan-types";
 import type { ActionChrono, EtatDirect, EvenementDirect, InvitationCreee, InvitationVue, SaisieEvenement } from "@/features/direct/lib/direct-types";
 import type { CriteresApi, OptionsRecherche, ReponseRecherche } from "@/features/recherche-joueurs/lib/recherche-joueurs";
 
@@ -423,6 +424,8 @@ export const api = {
   jeuAdversaire: (equipeId: string, adversaireId: string) =>
     req<ReponseAdversaire>(`/analyse-jeu/adversaire?${new URLSearchParams({ equipeId, adversaireId })}`),
   resumeMatch: (matchId: string) => req<ResumeMatch>(`/analyse-jeu/matchs/${matchId}/resume`),
+  /** Le bilan de la premiere periode, pour la mi-temps (chiffres, ou l'on concede, joueurs a suivre, pistes). */
+  bilanMiTemps: (matchId: string) => req<BilanMiTemps>(`/analyse-jeu/matchs/${matchId}/mi-temps`),
   /** Le Data Hub de mon equipe (resultats, attaque, defense, coups de pied arretes, discipline, joueurs, tendance). */
   dataHub: (clubId: string, p: { equipeId?: string; saisonId?: string; lieu: Lieu; derniers: number | null }) => {
     const q = new URLSearchParams();

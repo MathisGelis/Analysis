@@ -20,6 +20,7 @@ import type { Cote, EvenementDirect } from "../lib/direct-types";
 import { libelleFormation } from "@/shared/lib/formation";
 import { Saisie, saisieDepuisEvenement, saisieInitiale } from "../lib/saisie";
 import { FeuilleSaisie } from "./FeuilleSaisie";
+import { BilanMiTemps } from "./BilanMiTemps";
 import { FeuilleSysteme } from "./FeuilleSysteme";
 import { TerrainDeLEtat } from "./TerrainCompo";
 import { sourceStaff, type SourceDirect } from "../lib/source-direct";
@@ -121,6 +122,8 @@ export default function DirectPage({ matchId, source: sourceFournie }: { matchId
       )}
         </>
       )}
+
+      {!invite && etat.chrono.statut === "mi_temps" && d.evenements.length > 0 && <BilanMiTemps key={d.evenements.length} matchId={matchId} nomNous={nomNous} nomEux={nomEux} />}
 
       {compoMaintenant && (
         <div role="tablist" aria-label="Vue du direct" className="flex gap-1 rounded-2xl border border-line bg-surface p-1">

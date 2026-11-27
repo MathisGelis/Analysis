@@ -29,6 +29,7 @@ import { analyserHub, MatchHub } from "./analyses-hub";
 import { dataHub, rangsDansEffectif, statsJoueur } from "./data-hub";
 import { fusionnerPresences, presencesDuDirect, presencesDuJoueur } from "./minutes-joueur";
 import { filtrerMatchs, jeuEquipe, Lieu, MatchJeu } from "./jeu-equipe";
+import { bilanMiTemps } from "./bilan-mi-temps";
 import { resumerMatch } from "./stats-jeu";
 
 export interface FiltresJeu { equipeId?: string; saisonId?: string; lieu: Lieu; derniers: number | null }
@@ -231,5 +232,12 @@ export class AnalyseJeuService {
       fmi: fmi.map((e) => ({ type: e.type, sousType: e.sousType, minute: e.minute, equipe: e.equipe })),
       scoreDom: m.scoreDom ?? 0, scoreExt: m.scoreExt ?? 0, scoreOfficiel: m.statut === "joue",
     });
+  }
+
+  /** Le bilan de la premiere periode d'un de MES matchs, pour la mi-temps : chiffres, ou l'on concede, joueurs a suivre, pistes. */
+  async miTemps(ctx: ContexteAcces, matchId: string) {
+    const m = await this.acces.matchGere(ctx, matchId);
+    const evs = await this.direct.find({ where: { matchId } });
+    return bilanMiTemps({ nousCote: (await this.directSvc.nous(ctx, m)).cote, evenements: evs.filter((e) => !e.supprimeLe) as never });
   }
 }
