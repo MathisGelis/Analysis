@@ -153,7 +153,11 @@ describe("analyse-jeu : resume d'un match", () => {
       expect((await t.appel()("GET", route)).statut).toBe(401);
       expect((await a("GET", `/analyse-jeu/joueurs/inconnu/stats`)).statut).toBe(404);
 
-      const r = (await a("GET", route)).corps.stats;
+      const corps = (await a("GET", route)).corps;
+      const r = corps.stats;
+      expect(corps.rangs.find((x: any) => x.cle === "buts")).toMatchObject({ valeur: 1, rang: 1, sur: 1 });
+      expect(r.gardien).toBeNull();                                          // un joueur de champ n'a pas de ligne de gardien
+      expect(r.tranches.tirs).toHaveLength(6);
       expect(r).toMatchObject({ matchs: 1, tirs: 2, cadres: 2, buts: 1, penaltys: { tires: 1, marques: 0 } });
       expect(r.tirsDetail).toHaveLength(2);
       expect(r.tirsDetail[0]).toMatchObject({ resultat: "but", cadre: 1, tier: 0, couloir: 2 });

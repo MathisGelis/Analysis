@@ -7,8 +7,9 @@
 // Chaque arret est attribue au gardien en jeu a cette minute : le gardien de depart (avant-match), remplace quand un remplacement
 // le fait sortir. Sans gardien connu, l'arret compte pour l'equipe mais pas pour un joueur. Fonction pure.
 
-import { estTirArrete } from "../direct/stats-direct";
+import { estBut, estTirArrete } from "../direct/stats-direct";
 import type { MatchJeu } from "./jeu-equipe";
+import { xgDuTir } from "./xg";
 
 export interface ArretsDuMatch {
   /** Les arrets de l'equipe analysee. */
@@ -41,4 +42,38 @@ export function arretsDuMatch(m: MatchJeu): ArretsDuMatch {
   }
   // Un arret saisi a la main avec un gardien nomme garde son attribution quand les arrets deduits ne couvrent pas tout.
   return { total, parGardien };
+}
+
+/** Ce qu'un gardien a vecu dans un match : les tirs cadres subis, ses arrets, les buts encaisses quand il etait dans les buts, le xG cadre. */
+export interface ParcoursGardien { tirsCadres: number; arrets: number; butsEncaisses: number; xgCadres: number; penaltysSubis: number; penaltysArretes: number }
+
+/** Le gardien en jeu a une minute : celui de depart, remplace quand un remplacement le fait sortir. */
+function gardienA(m: MatchJeu, minute: number): string | null {
+  const nous = m.domicile ? "dom" : "ext";
+  let gardien = m.gardien ?? null;
+  const remplacements = m.evenements.filter((e) => e.cote === nous && e.type === "remplacement" && e.joueurId && e.joueur2Id).sort((a, b) => a.minute - b.minute);
+  for (const r of remplacements) if (r.minute <= minute && r.joueurId === gardien) gardien = r.joueur2Id ?? gardien;
+  return gardien;
+}
+
+/**
+ * Pour chaque gardien du match : ce qu'il a subi quand il etait dans les buts (d'apres le gardien de depart et les remplacements). Les arrets
+ * sont ceux de `arretsDuMatch` (saisis avec le gardien nomme, sinon deduits des tirs arretes) : un meme arret n'est jamais compte deux fois.
+ */
+export function parcoursDesGardiens(m: MatchJeu): Record<string, ParcoursGardien> {
+  const nous = m.domicile ? "dom" : "ext";
+  const res: Record<string, ParcoursGardien> = {};
+  const de = (id: string) => (res[id] ??= { tirsCadres: 0, arrets: 0, butsEncaisses: 0, xgCadres: 0, penaltysSubis: 0, penaltysArretes: 0 });
+  for (const e of m.evenements) {
+    if (e.cote === nous || !e.resultat || !(e.type === "tir" || e.type === "coup_franc" || e.type === "penalty")) continue;
+    const g = gardienA(m, e.minute);
+    if (!g) continue;
+    if (e.type === "penalty") { de(g).penaltysSubis++; if (estTirArrete(e)) de(g).penaltysArretes++; }
+    if (!(estBut(e) || estTirArrete(e))) continue;
+    const x = de(g);
+    x.tirsCadres++; x.xgCadres += xgDuTir(e);
+    if (estBut(e)) x.butsEncaisses++;
+  }
+  for (const [id, n] of Object.entries(arretsDuMatch(m).parGardien)) de(id).arrets += n;
+  return res;
 }

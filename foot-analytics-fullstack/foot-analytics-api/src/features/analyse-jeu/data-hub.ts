@@ -6,8 +6,10 @@
 // rien n'est invente. Chaque bloc dit sur combien de matchs il porte. Fonctions pures.
 
 import { estBut } from "../direct/stats-direct";
-import { arretsDuMatch } from "./arrets";
-import { filtrerMatchs, jeuEquipe, JoueurJeu, MatchJeu } from "./jeu-equipe";
+import { arretsDuMatch, parcoursDesGardiens } from "./arrets";
+import { familleDe, filtrerMatchs, jeuEquipe, JoueurJeu, MatchJeu } from "./jeu-equipe";
+import type { Presence } from "./minutes-joueur";
+import { trancheDe } from "./stats-jeu";
 import type { EvenementJeu } from "./stats-jeu";
 import { xgDuTir, xgTotal } from "./xg";
 
@@ -34,21 +36,46 @@ export interface StatsJoueur {
   fautes: number; horsJeux: number; jaunes: number; rouges: number;
   entrees: number; sorties: number; blessures: number;
   /** Chaque tir du joueur, pour sa carte et la cage. */
-  tirsDetail: { matchId: string; type: string; resultat: string; minute: number; tier: number | null; couloir: number | null; cadre: number | null; xg: number }[];
-  parMatch: { matchId: string; date: string | null; adversaireId: string | null; domicile: boolean; bp: number; bc: number;
-    buts: number; passes: number; tirs: number; cadres: number; xg: number; arrets: number; fautes: number; jaunes: number; rouges: number }[];
+  tirsDetail: { matchId: string; type: string; resultat: string; minute: number; tier: number | null; couloir: number | null; cadre: number | null; xg: number; contextes: string[] }[];
+  /** Minutes jouees dans les matchs saisis ou il figure sur la feuille (feuille de match), titularisations, et nombre de ces matchs. Absent : feuille inconnue. */
+  presence: null | { matchs: number; minutes: number; titularisations: number };
+  /** Buts et tirs par tranche de 15 minutes. */
+  tranches: { buts: number[]; tirs: number[] };
+  /** Tirs, buts et xG par famille de jeu (jeu place, transition, coup de pied arrete, autre). */
+  familles: { famille: string; tirs: number; buts: number; xg: number }[];
+  /** Grosses occasions (xG de 0,3 ou plus) et part marquee ; buts sur coup de pied arrete ou penalty. */
+  grosses: { total: number; marquees: number };
+  butsCpa: number;
+  /** Ce qu'il a vecu comme gardien (arrets, tirs cadres subis, buts encaisses quand il etait dans les buts...) ; null s'il n'a jamais ete attribue comme gardien. */
+  gardien: null | { matchs: number; tirsCadres: number; arrets: number; butsEncaisses: number; xgCadres: number; butsEvites: number; penaltysSubis: number; penaltysArretes: number; cleanSheets: number };
+  parMatch: { matchId: string; date: string | null; adversaireId: string | null; domicile: boolean; bp: number; bc: number; minutes: number | null; titulaire: boolean | null;
+    buts: number; passes: number; passesCles: number; tirs: number; cadres: number; xg: number; arrets: number; butsEncaisses: number; fautes: number; jaunes: number; rouges: number }[];
 }
 
-export function statsJoueur(matchs: MatchJeu[], joueurId: string): StatsJoueur {
+export function statsJoueur(matchs: MatchJeu[], joueurId: string, presences?: ReadonlyMap<string, Presence>): StatsJoueur {
   const s: StatsJoueur = {
     joueurId, matchs: 0, buts: 0, passes: 0, passesCles: 0, tirs: 0, cadres: 0, xg: 0, penaltys: { tires: 0, marques: 0 }, coupsFrancs: { tires: 0, buts: 0 },
     corners: 0, arrets: 0, fautes: 0, horsJeux: 0, jaunes: 0, rouges: 0, entrees: 0, sorties: 0, blessures: 0, tirsDetail: [], parMatch: [],
+    presence: null, tranches: { buts: Array(6).fill(0), tirs: Array(6).fill(0) }, familles: [], grosses: { total: 0, marquees: 0 }, butsCpa: 0, gardien: null,
   };
+  const familles = new Map<string, { tirs: number; buts: number; xg: number }>();
+  let gardien: NonNullable<StatsJoueur["gardien"]> | null = null;
+  if (presences) s.presence = { matchs: 0, minutes: 0, titularisations: 0 };
   for (const m of filtrerMatchs(matchs, "tous", null)) {
     const nous = nousDe(m);
     const arretsM = arretsDuMatch(m).parGardien[joueurId] ?? 0;
-    const ligne = { matchId: m.matchId, date: m.date, adversaireId: m.adversaireId, domicile: m.domicile, bp: m.bp, bc: m.bc, buts: 0, passes: 0, tirs: 0, cadres: 0, xg: 0, arrets: arretsM, fautes: 0, jaunes: 0, rouges: 0 };
-    let present = arretsM > 0;
+    const pres = presences?.get(m.matchId);
+    const vecu = parcoursDesGardiens(m)[joueurId];
+    const ligne = { matchId: m.matchId, date: m.date, adversaireId: m.adversaireId, domicile: m.domicile, bp: m.bp, bc: m.bc, minutes: pres ? pres.minutes : null, titulaire: pres ? pres.titulaire : null,
+      buts: 0, passes: 0, passesCles: 0, tirs: 0, cadres: 0, xg: 0, arrets: arretsM, butsEncaisses: vecu?.butsEncaisses ?? 0, fautes: 0, jaunes: 0, rouges: 0 };
+    let present = arretsM > 0 || !!vecu || !!pres;
+    if (vecu) {
+      gardien ??= { matchs: 0, tirsCadres: 0, arrets: 0, butsEncaisses: 0, xgCadres: 0, butsEvites: 0, penaltysSubis: 0, penaltysArretes: 0, cleanSheets: 0 };
+      gardien.matchs++; gardien.tirsCadres += vecu.tirsCadres; gardien.arrets += vecu.arrets; gardien.butsEncaisses += vecu.butsEncaisses;
+      gardien.xgCadres += vecu.xgCadres; gardien.penaltysSubis += vecu.penaltysSubis; gardien.penaltysArretes += vecu.penaltysArretes;
+      if (m.bc === 0 && (pres?.minutes ?? 90) >= 60 && vecu.butsEncaisses === 0) gardien.cleanSheets++;
+    }
+    if (pres && s.presence) { s.presence.matchs++; s.presence.minutes += pres.minutes; if (pres.titulaire) s.presence.titularisations++; }
     for (const e of m.evenements) {
       if (e.cote !== nous) continue;
       if (e.joueurId === joueurId) {
@@ -61,7 +88,15 @@ export function statsJoueur(matchs: MatchJeu[], joueurId: string): StatsJoueur {
           if (estBut(e)) { s.buts++; ligne.buts++; }
           if (e.type === "penalty") { s.penaltys.tires++; if (estBut(e)) s.penaltys.marques++; }
           if (e.type === "coup_franc") { s.coupsFrancs.tires++; if (estBut(e)) s.coupsFrancs.buts++; }
-          s.tirsDetail.push({ matchId: m.matchId, type: e.type, resultat: e.resultat, minute: e.minute, tier: e.zoneTier ?? null, couloir: e.zoneCouloir ?? null, cadre: e.zoneCadre ?? null, xg });
+          s.tirsDetail.push({ matchId: m.matchId, type: e.type, resultat: e.resultat, minute: e.minute, tier: e.zoneTier ?? null, couloir: e.zoneCouloir ?? null, cadre: e.zoneCadre ?? null, xg, contextes: e.contextes ?? [] });
+          s.tranches.tirs[trancheDe(e.minute)]++;
+          if (estBut(e)) s.tranches.buts[trancheDe(e.minute)]++;
+          if (xg >= 0.3) { s.grosses.total++; if (estBut(e)) s.grosses.marquees++; }
+          const ctx = e.contextes ?? [];
+          if (estBut(e) && (e.type === "penalty" || e.type === "coup_franc" || ctx.some((c) => familleDe(c) === "Coup de pied arrêté"))) s.butsCpa++;
+          const famille = e.type === "penalty" || e.type === "coup_franc" ? "Coup de pied arrêté" : (ctx.map(familleDe).find((f) => f !== "Autre") ?? (ctx.length ? "Autre" : "Non précisé"));
+          const f = familles.get(famille) ?? familles.set(famille, { tirs: 0, buts: 0, xg: 0 }).get(famille)!;
+          f.tirs++; f.xg += xg; if (estBut(e)) f.buts++;
         } else if (e.type === "corner") s.corners++;
         else if (e.type === "faute") { s.fautes++; ligne.fautes++; }
         else if (e.type === "hors_jeu") s.horsJeux++;
@@ -73,7 +108,7 @@ export function statsJoueur(matchs: MatchJeu[], joueurId: string): StatsJoueur {
       if (e.joueur2Id === joueurId) {
         present = true;
         if (e.type === "remplacement") s.entrees++;
-        else if (estTir(e) && e.resultat) { if (estBut(e)) { s.passes++; ligne.passes++; } else s.passesCles++; }
+        else if (estTir(e) && e.resultat) { if (estBut(e)) { s.passes++; ligne.passes++; } else { s.passesCles++; ligne.passesCles++; } }
       }
     }
     s.arrets += arretsM;
@@ -81,7 +116,34 @@ export function statsJoueur(matchs: MatchJeu[], joueurId: string): StatsJoueur {
   }
   s.xg = +s.xg.toFixed(2);
   for (const l of s.parMatch) l.xg = +l.xg.toFixed(2);
+  s.familles = [...familles].map(([famille, l]) => ({ famille, ...l, xg: +l.xg.toFixed(2) })).sort((a, b) => b.tirs - a.tirs);
+  if (gardien) s.gardien = { ...gardien, xgCadres: +gardien.xgCadres.toFixed(2), butsEvites: +(gardien.xgCadres - gardien.butsEncaisses).toFixed(2) };
   return s;
+}
+
+/** Le rang d'un joueur parmi les joueurs de son equipe pour quelques stats cles : « 2e buteur sur 7 », « 1er en passes cles ». Seulement ce qu'il a fait au moins une fois. */
+export interface RangEffectif { cle: "buts" | "passes" | "passesCles" | "tirs" | "xg" | "arrets"; libelle: string; valeur: number; rang: number; sur: number }
+
+const METRIQUES_RANG: { cle: RangEffectif["cle"]; libelle: string }[] = [
+  { cle: "buts", libelle: "buts" }, { cle: "passes", libelle: "passes décisives" }, { cle: "passesCles", libelle: "passes clés" },
+  { cle: "tirs", libelle: "tirs" }, { cle: "xg", libelle: "xG créé" }, { cle: "arrets", libelle: "arrêts" },
+];
+
+export function rangsDansEffectif(matchs: MatchJeu[], joueurId: string): RangEffectif[] {
+  const ids = new Set<string>();
+  for (const m of matchs) {
+    if (m.gardien) ids.add(m.gardien);
+    for (const e of m.evenements) { if (e.joueurId) ids.add(e.joueurId); if (e.joueur2Id) ids.add(e.joueur2Id); }
+  }
+  ids.add(joueurId);
+  const stats = [...ids].map((id) => statsJoueur(matchs, id));
+  const moi = stats.find((s) => s.joueurId === joueurId)!;
+  return METRIQUES_RANG.flatMap(({ cle, libelle }): RangEffectif[] => {
+    const valeur = moi[cle];
+    if (!(valeur > 0)) return [];
+    const avec = stats.filter((s) => s[cle] > 0);
+    return [{ cle, libelle, valeur, rang: 1 + avec.filter((s) => s[cle] > valeur).length, sur: avec.length }];
+  });
 }
 
 /* ----------------------------------------------- l'equipe ----------------------------------------------- */
