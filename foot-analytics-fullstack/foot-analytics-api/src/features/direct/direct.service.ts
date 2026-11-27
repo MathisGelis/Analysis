@@ -201,7 +201,8 @@ export class DirectService {
       joueurNumero: dto.joueurNumero ?? null, joueurNom: dto.joueurNom || null, joueurId: dto.joueurId || null,
       joueur2Numero: dto.joueur2Numero ?? null, joueur2Nom: dto.joueur2Nom || null, joueur2Id: dto.joueur2Id || null,
       zoneTier: dto.zoneTier ?? null, zoneCouloir: dto.zoneCouloir ?? null, zoneCadre: dto.zoneCadre ?? null,
-      contextes: [...new Set((dto.contextes ?? []).map((c) => c.trim()).filter(Boolean))], supprimeLe: null,
+      // Un changement de systeme garde l'arrangement des postes tel quel (ordre, postes vides) ; les autres evenements, des libelles courts sans doublon.
+      contextes: dto.type === "systeme" ? (dto.contextes ?? []).map((c) => c.trim()) : [...new Set((dto.contextes ?? []).map((c) => c.trim()).filter(Boolean))], supprimeLe: null,
     };
     const e = await this.evenements.save(this.evenements.create({ ...(existant ?? { id, matchId, auteurId: origine?.auteurId ?? ctx.compte.id }), ...champs }));
     const carton = (x?: EvenementDirect | null) => x?.type === "carton_jaune" || x?.type === "carton_rouge";
@@ -293,6 +294,7 @@ export class DirectService {
   /** Un resultat doit etre de la liste du type ; le cadre n'a de sens que pour un tir cadre ou un but. */
   private valider(dto: EvenementDirectDto) {
     // Un changement de systeme porte le nouveau dispositif en resultat (« 4-1-2-1-2 » pour le 4-4-2 losange) et n'a ni joueur ni zone.
+    if (dto.type !== "systeme" && (dto.contextes?.length ?? 0) > 6) throw new BadRequestException("Six contextes au plus.");
     if (dto.type === "systeme") {
       if (!formationValide(dto.resultat)) throw new BadRequestException("Un changement de systeme doit donner un dispositif valide (ex. 4-3-3).");
       return;
