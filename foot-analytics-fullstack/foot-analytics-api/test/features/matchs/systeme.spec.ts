@@ -1,5 +1,6 @@
 import {
-  estFormationInventee, formationValide, normaliserFormation, ObservationSysteme, predireSysteme, refusSaisieDispositifs, systemesRenseignes,
+  croiserSegments, estFormationInventee, FORMATION_LOSANGE, formationDepuisLibelle, formationValide, libelleFormation, normaliserFormation, ObservationSysteme, predireSysteme,
+  refusSaisieDispositifs, segmentsDeSysteme, systemesRenseignes,
 } from "@/features/matchs/systeme";
 
 describe("formationValide / normaliserFormation", () => {
@@ -120,5 +121,34 @@ describe("refusSaisieDispositifs : qui peut saisir un dispositif", () => {
 
   it("le couple invente par l'ancien import compte pour vide : on peut le remplacer", () => {
     expect(refusSaisieDispositifs({ formationDom: "4-4-2", formationExt: "4-2-3-1" }, { formationDom: "4-3-3", formationExt: "5-3-2" }, false)).toBeNull();
+  });
+});
+
+describe("4-4-2 losange et changements de systeme", () => {
+  it("le losange est un dispositif valide (4-1-2-1-2) avec son libelle", () => {
+    expect(formationValide(FORMATION_LOSANGE)).toBe(true);
+    expect(libelleFormation(FORMATION_LOSANGE)).toBe("4-4-2 losange");
+    expect(libelleFormation("4-3-3")).toBe("4-3-3");
+    expect(formationDepuisLibelle("4-4-2 losange")).toBe(FORMATION_LOSANGE);
+    expect(formationDepuisLibelle("4-3-3")).toBe("4-3-3");
+  });
+
+  it("les segments : coup d'envoi puis chaque changement, poids = part du match, le dernier va jusqu'au bout", () => {
+    const s = segmentsDeSysteme("4-2-3-1", [{ minute: 64, formation: "4-1-2-1-2" }, { minute: 30, formation: "4-4-2" }], 90);
+    expect(s.map((x) => [x.formation, x.debut, x.poids])).toEqual([["4-2-3-1", 0, 30 / 90], ["4-4-2", 30, 34 / 90], ["4-1-2-1-2", 64, 26 / 90]]);
+    expect(s.reduce((t, x) => t + x.poids, 0)).toBeCloseTo(1, 6);
+    expect(s[2].fin).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it("sans dispositif au coup d'envoi, seule la partie renseignee compte ; un dispositif illisible est ecarte", () => {
+    expect(segmentsDeSysteme(null, [{ minute: 45, formation: "4-3-3" }], 90).map((x) => [x.formation, x.poids])).toEqual([["4-3-3", 0.5]]);
+    expect(segmentsDeSysteme(null, [], 90)).toEqual([]);
+    expect(segmentsDeSysteme("4-3-3", [{ minute: 50, formation: "n'importe quoi" }], 90).map((x) => x.formation)).toEqual(["4-3-3"]);
+  });
+
+  it("les couples de dispositifs tenus en meme temps", () => {
+    const adv = segmentsDeSysteme("4-4-2", [{ minute: 45, formation: "4-1-2-1-2" }], 90), nous = segmentsDeSysteme("4-3-3", [{ minute: 60, formation: "4-4-2" }], 90);
+    const c = croiserSegments(adv, nous, 90);
+    expect(c.map((x) => [x.adverse, x.nous, +x.poids.toFixed(3)])).toEqual([["4-4-2", "4-3-3", 0.5], ["4-1-2-1-2", "4-3-3", 0.167], ["4-1-2-1-2", "4-4-2", 0.333]]);
   });
 });

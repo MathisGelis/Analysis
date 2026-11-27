@@ -122,17 +122,24 @@ export function croiser(jeu: JeuEquipe, mesures: MesuresRapport, contextes: Cont
 }
 
 function dispositifsDe(jeu: JeuEquipe): Croisements["dispositifs"] {
-  const g = new Map<string, typeof jeu.matchs>();
-  for (const m of jeu.matchs) if (m.formation) g.set(m.formation, [...(g.get(m.formation) ?? []), m]);
-  return [...g].map(([formation, ms]) => {
-    const s = ms.filter((m) => m.saisi && m.tirs !== null);
-    const buts = s.reduce((t, m) => t + m.bp, 0), tirs = s.reduce((t, m) => t + (m.tirs as number), 0);
+  // Un match se repartit entre les dispositifs que l'equipe a tenus, au prorata de leur duree (un changement de systeme compte pour chacun).
+  type Part = { m: (typeof jeu.matchs)[number]; poids: number };
+  const g = new Map<string, Part[]>();
+  for (const m of jeu.matchs) {
+    const segs = m.segments?.length ? m.segments.map((s) => ({ formation: s.formation, poids: s.poids })) : m.formation ? [{ formation: m.formation, poids: 1 }] : [];
+    for (const s of segs) g.set(s.formation, [...(g.get(s.formation) ?? []), { m, poids: s.poids }]);
+  }
+  const pond = (ps: Part[], f: (m: Part["m"]) => number) => { const w = ps.reduce((t, p) => t + p.poids, 0); return w > 0 ? ps.reduce((t, p) => t + f(p.m) * p.poids, 0) / w : 0; };
+  return [...g].map(([formation, ps]) => {
+    const s = ps.filter((p) => p.m.saisi && p.m.tirs !== null);
+    const poidsSaisis = s.reduce((t, p) => t + p.poids, 0), poids = ps.reduce((t, p) => t + p.poids, 0);
+    const buts = s.reduce((t, p) => t + p.m.bp * p.poids, 0), tirs = s.reduce((t, p) => t + (p.m.tirs as number) * p.poids, 0);
     return {
-      formation, matchs: ms.length, saisis: s.length,
-      butsPourParMatch: arrondi(moyenne(ms.map((m) => m.bp)), 1), butsContreParMatch: arrondi(moyenne(ms.map((m) => m.bc)), 1),
-      pointsParMatch: arrondi(moyenne(ms.map((m) => points(m.bp, m.bc)))),
-      tirsParMatch: s.length ? arrondi(tirs / s.length, 1) : null, conversion: tirs > 0 ? Math.round((buts / tirs) * 100) : null,
-      echantillonFaible: ms.length < 3,
+      formation, matchs: arrondi(poids, 1), saisis: arrondi(poidsSaisis, 1),
+      butsPourParMatch: arrondi(pond(ps, (m) => m.bp), 1), butsContreParMatch: arrondi(pond(ps, (m) => m.bc), 1),
+      pointsParMatch: arrondi(pond(ps, (m) => points(m.bp, m.bc))),
+      tirsParMatch: poidsSaisis > 0 ? arrondi(tirs / poidsSaisis, 1) : null, conversion: tirs > 0 ? Math.round((buts / tirs) * 100) : null,
+      echantillonFaible: poids < 3,
     };
   }).sort((a, b) => b.matchs - a.matchs);
 }

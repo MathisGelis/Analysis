@@ -6,6 +6,7 @@
 // lecture dit sur combien de matchs elle repose : rien n'est affirme sur un echantillon trop petit. Fonctions pures.
 
 import { estBut } from "../direct/stats-direct";
+import { croiserSegments, type SegmentSysteme } from "@/features/matchs/systeme";
 import { COULOIRS } from "../direct/types";
 import { familleDe, filtrerMatchs, MatchJeu } from "./jeu-equipe";
 import { arretsDuMatch } from "./arrets";
@@ -22,6 +23,11 @@ export interface MatchHub extends MatchJeu {
   formationSaisie?: string | null;
   /** Le dispositif de l'adversaire, saisi ou observe en apres-match ; null sinon. */
   formationAdverse?: string | null;
+  /** Les dispositifs au fil du match (coup d'envoi puis changements saisis en direct) : les stats se repartissent au prorata de leur duree. */
+  segmentsSaisie?: SegmentSysteme[];
+  segmentsAdverse?: SegmentSysteme[];
+  /** Duree du match en minutes (au moins 90), pour les poids des segments. */
+  dureeMin?: number;
 }
 
 export interface Constat {
@@ -89,32 +95,60 @@ export interface AnalyseDispositifs {
   reponses: { adverse: string; nous: string; matchs: number; ptsParMatch: number }[];
 }
 
+/** Un morceau de match joue sous un dispositif : le poids est la part du match (1 quand le dispositif n'a pas change). */
+interface PartDispositif { m: MatchHub; formation: string; poids: number; debut: number; fin: number }
+
+/** Les dispositifs d'un cote : les segments saisis, sinon le dispositif du coup d'envoi sur tout le match. */
+function segmentsDe(m: MatchHub, cote: "saisie" | "adverse"): SegmentSysteme[] {
+  const segments = cote === "saisie" ? m.segmentsSaisie : m.segmentsAdverse;
+  if (segments) return segments;
+  const f = cote === "saisie" ? m.formationSaisie : m.formationAdverse;
+  return f ? [{ formation: f, debut: 0, fin: Number.POSITIVE_INFINITY, poids: 1 }] : [];
+}
+
+/** Moyenne ponderee ; null sans poids. */
+const moyennePonderee = (valeurs: { x: number; poids: number }[]): number | null => {
+  const p = somme(valeurs.map((v) => v.poids));
+  return p > 0 ? somme(valeurs.map((v) => v.x * v.poids)) / p : null;
+};
+
 function dispositifs(matchs: MatchHub[]): AnalyseDispositifs {
-  const avec = matchs.filter((m) => !!m.formationAdverse);
-  const groupes = new Map<string, MatchHub[]>();
-  for (const m of avec) (groupes.get(m.formationAdverse!) ?? groupes.set(m.formationAdverse!, []).get(m.formationAdverse!)!).push(m);
+  // Un match se repartit entre les dispositifs adverses qu'il a vus, au prorata de leur duree (un changement de systeme compte pour chacun).
+  const parts: PartDispositif[] = matchs.flatMap((m) => segmentsDe(m, "adverse").map((s) => ({ m, formation: s.formation, poids: s.poids, debut: s.debut, fin: s.fin })));
+  const avec = matchs.filter((m) => segmentsDe(m, "adverse").length > 0);
+  const groupes = new Map<string, PartDispositif[]>();
+  for (const p of parts) (groupes.get(p.formation) ?? groupes.set(p.formation, []).get(p.formation)!).push(p);
   const pts = (m: MatchHub) => (m.bp > m.bc ? 3 : m.bp === m.bc ? 1 : 0);
-  const lignes = [...groupes].map(([formation, ms]): LigneDispositif => {
-    const saisis = ms.filter((m) => m.evenements.length > 0);
-    const pour = saisis.flatMap((m) => tirsDe(m, "nous")), contre = saisis.flatMap((m) => tirsDe(m, "eux"));
+  const lignes = [...groupes].map(([formation, ps]): LigneDispositif => {
+    const poids = somme(ps.map((p) => p.poids));
+    const saisis = ps.filter((p) => p.m.evenements.length > 0);
+    const poidsSaisis = somme(saisis.map((p) => p.poids));
+    // Seuls les tirs pris pendant que le dispositif etait en place comptent pour lui.
+    const dansLaPart = (p: PartDispositif, cote: "nous" | "eux") => tirsDe(p.m, cote).filter((t) => t.minute >= p.debut && t.minute < p.fin);
+    const pour = saisis.flatMap((p) => dansLaPart(p, "nous")), contre = saisis.flatMap((p) => dansLaPart(p, "eux"));
     const xgPour = r2(somme(pour.map((t) => t.xg))), xgContre = r2(somme(contre.map((t) => t.xg)));
     const butsAdv = contre.filter((t) => t.but).length;
+    const part3 = (f: (m: MatchHub) => boolean) => r2(somme(ps.filter((p) => f(p.m)).map((p) => p.poids)));
     return {
-      formation, matchs: ms.length, v: ms.filter((m) => m.bp > m.bc).length, n: ms.filter((m) => m.bp === m.bc).length, d: ms.filter((m) => m.bp < m.bc).length,
-      ptsParMatch: r2(somme(ms.map(pts)) / ms.length), bpParMatch: r2(somme(ms.map((m) => m.bp)) / ms.length), bcParMatch: r2(somme(ms.map((m) => m.bc)) / ms.length),
-      saisis: saisis.length, tirsPour: pour.length, tirsContre: contre.length, xgPour, xgContre,
-      xgDiffParMatch: saisis.length ? r2((xgPour - xgContre) / saisis.length) : null,
-      conversionAdv: part(butsAdv, contre.length), butsAdvMoinsXg: saisis.length ? r2(butsAdv - xgContre) : null,
-      fiabilite: fiabiliteDe(ms.length, 3, 6),
+      formation, matchs: r2(poids), v: part3((m) => m.bp > m.bc), n: part3((m) => m.bp === m.bc), d: part3((m) => m.bp < m.bc),
+      ptsParMatch: r2(moyennePonderee(ps.map((p) => ({ x: pts(p.m), poids: p.poids }))) ?? 0),
+      bpParMatch: r2(moyennePonderee(ps.map((p) => ({ x: p.m.bp, poids: p.poids }))) ?? 0),
+      bcParMatch: r2(moyennePonderee(ps.map((p) => ({ x: p.m.bc, poids: p.poids }))) ?? 0),
+      saisis: r2(poidsSaisis), tirsPour: pour.length, tirsContre: contre.length, xgPour, xgContre,
+      xgDiffParMatch: poidsSaisis > 0 ? r2((xgPour - xgContre) / poidsSaisis) : null,
+      conversionAdv: part(butsAdv, contre.length), butsAdvMoinsXg: poidsSaisis > 0 ? r2(butsAdv - xgContre) : null,
+      fiabilite: fiabiliteDe(poids, 3, 6),
     };
   }).sort((a, b) => b.matchs - a.matchs || a.formation.localeCompare(b.formation));
 
+  // Notre meilleure reponse a chaque dispositif adverse affronte au moins deux matchs : les couples sont ceux tenus en meme temps.
+  const couples = matchs.flatMap((m) => croiserSegments(segmentsDe(m, "adverse"), segmentsDe(m, "saisie"), m.dureeMin ?? 90).map((c) => ({ ...c, m })));
   const reponses: AnalyseDispositifs["reponses"] = [];
-  for (const [adverse, ms] of groupes) {
-    if (ms.length < 2) continue;
-    const parNous = new Map<string, MatchHub[]>();
-    for (const m of ms.filter((x) => !!x.formationSaisie)) (parNous.get(m.formationSaisie!) ?? parNous.set(m.formationSaisie!, []).get(m.formationSaisie!)!).push(m);
-    const meilleurs = [...parNous].map(([nous, l]) => ({ adverse, nous, matchs: l.length, ptsParMatch: r2(somme(l.map(pts)) / l.length) }))
+  for (const [adverse, ps] of groupes) {
+    if (somme(ps.map((p) => p.poids)) < 2) continue;
+    const parNous = new Map<string, typeof couples>();
+    for (const c of couples.filter((x) => x.adverse === adverse)) (parNous.get(c.nous) ?? parNous.set(c.nous, []).get(c.nous)!).push(c);
+    const meilleurs = [...parNous].map(([nous, l]) => ({ adverse, nous, matchs: r2(somme(l.map((c) => c.poids))), ptsParMatch: r2(moyennePonderee(l.map((c) => ({ x: pts(c.m), poids: c.poids }))) ?? 0) }))
       .sort((a, b) => b.ptsParMatch - a.ptsParMatch || b.matchs - a.matchs);
     if (meilleurs[0]) reponses.push(meilleurs[0]);
   }

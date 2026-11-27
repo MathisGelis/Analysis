@@ -3,7 +3,7 @@
 // Vocabulaire des evenements saisis en direct : types, resultats autorises par type, zones du terrain.
 
 export const TYPES_EVENEMENT = [
-  "tir", "arret", "corner", "coup_franc", "penalty", "faute", "hors_jeu", "carton_jaune", "carton_rouge", "remplacement", "blessure",
+  "tir", "arret", "corner", "coup_franc", "penalty", "faute", "hors_jeu", "carton_jaune", "carton_rouge", "remplacement", "blessure", "systeme",
 ] as const;
 export type TypeEvenement = (typeof TYPES_EVENEMENT)[number];
 

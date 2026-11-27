@@ -23,7 +23,7 @@ import { Club } from "@/features/clubs/club.entity";
 import { Tactique } from "@/features/tactiques/tactique.entity";
 
 import { ContexteMatch, croiser } from "./croisements";
-import { systemesRenseignes } from "@/features/matchs/systeme";
+import { segmentsDeSysteme, systemesRenseignes } from "@/features/matchs/systeme";
 
 import { analyserHub, MatchHub } from "./analyses-hub";
 import { dataHub, rangsDansEffectif, statsJoueur } from "./data-hub";
@@ -67,8 +67,16 @@ export class AnalyseJeuService {
       // Le gardien de depart : le premier du onze enregistre a l'avant-match pour l'equipe de mon club dans ce match.
       const equipeDuMatch = domicile ? m.equipeDomId : m.equipeExtId;
       const plan = plans.find((x) => x.matchId === m.id && (!equipeDuMatch || x.equipeId === equipeDuMatch));
+      // Les dispositifs au fil du match : celui du coup d'envoi, puis chaque changement saisi en direct (les stats se repartissent au prorata).
+      const evsMatch = evs.filter((e) => e.matchId === m.id && !e.supprimeLe);
+      const changements = (cote: "dom" | "ext") => evsMatch.filter((e) => e.type === "systeme" && e.cote === cote && !!e.resultat).map((e) => ({ minute: e.minute, formation: e.resultat as string }));
+      const dureeMin = Math.max(90, ...evsMatch.map((e) => e.minute));
+      const mien = domicile ? "dom" : "ext", leur = domicile ? "ext" : "dom";
       return {
         formationSaisie: domicile ? sys.dom : sys.ext, formationAdverse: domicile ? sys.ext : sys.dom,
+        dureeMin, segmentsSaisie: segmentsDeSysteme(domicile ? sys.dom : sys.ext, changements(mien), dureeMin),
+        segmentsAdverse: segmentsDeSysteme(domicile ? sys.ext : sys.dom, changements(leur), dureeMin),
+        segments: segmentsDeSysteme(domicile ? m.formationDom : m.formationExt, changements(mien), dureeMin),
         gardien: plan?.titulaires?.[0] || null,
         matchId: m.id, date: m.date ?? null, journee: m.journee ?? null, domicile, adversaireId: domicile ? m.clubExt : m.clubDom,
         formation: (domicile ? m.formationDom : m.formationExt) || null, bp: domicile ? m.scoreDom ?? 0 : m.scoreExt ?? 0, bc: domicile ? m.scoreExt ?? 0 : m.scoreDom ?? 0,

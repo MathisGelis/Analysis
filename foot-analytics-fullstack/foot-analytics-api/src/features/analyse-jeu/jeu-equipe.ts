@@ -5,6 +5,7 @@
 // fautes... ; tous les matchs donnent score, cartons et buts dates quand la feuille de match les a. Fonctions pures.
 
 import { parseDateFlexible } from "@/common/dates";
+import type { SegmentSysteme } from "@/features/matchs/systeme";
 
 import { estBut } from "../direct/stats-direct";
 import { COULOIRS, TIERS } from "../direct/types";
@@ -22,6 +23,8 @@ export interface MatchJeu {
   evenements: EvenementJeu[]; fmi: EvenementFmi[];
   /** Le gardien de depart de l'equipe analysee (fiche joueur), quand l'avant-match le donne : sert a attribuer les arrets deduits des tirs. */
   gardien?: string | null;
+  /** Le dispositif de l'equipe au fil du match (coup d'envoi puis changements saisis) : les stats par dispositif se repartissent au prorata. */
+  segments?: SegmentSysteme[];
 }
 
 const nousCoteDe = (m: MatchJeu): Cote => (m.domicile ? "dom" : "ext");
@@ -70,7 +73,7 @@ export interface JeuEquipe {
     arrets: { pour: number; contre: number };
     jaunes: { pour: number; contre: number }; rouges: { pour: number; contre: number };
   };
-  matchs: { matchId: string; date: string | null; domicile: boolean; adversaireId: string | null; bp: number; bc: number; saisi: boolean; tirs: number | null; cadres: number | null; formation: string | null }[];
+  matchs: { matchId: string; date: string | null; domicile: boolean; adversaireId: string | null; bp: number; bc: number; saisi: boolean; segments?: SegmentSysteme[]; tirs: number | null; cadres: number | null; formation: string | null }[];
   joueurs: JoueurJeu[];
 }
 
@@ -104,7 +107,7 @@ export function jeuEquipe(matchs: MatchJeu[]): JeuEquipe {
     matchs: matchs.map((m, i) => {
       const r = resumes[i].r;
       return { matchId: m.matchId, date: m.date, domicile: m.domicile, adversaireId: m.adversaireId, bp: m.bp, bc: m.bc, saisi: m.evenements.length > 0,
-        tirs: stat(r, "tirs")?.nous ?? null, cadres: stat(r, "cadres")?.nous ?? null, formation: m.formation };
+        tirs: stat(r, "tirs")?.nous ?? null, cadres: stat(r, "cadres")?.nous ?? null, formation: m.formation, segments: m.segments };
     }),
     joueurs: joueursDe(matchs),
   };

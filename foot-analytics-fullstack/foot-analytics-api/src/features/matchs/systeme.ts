@@ -15,6 +15,52 @@ import { parseDateFlexible } from "@/common/dates";
 /** Les valeurs ecrites en dur par l'ancien import, sur le match recevant / visiteur. */
 export const FORMATION_INVENTEE = { dom: "4-4-2", ext: "4-2-3-1" } as const;
 
+/**
+ * Le « 4-4-2 losange » s'ecrit 4-1-2-1-2 (un milieu defensif, deux milieux excentres, un meneur, deux attaquants) : meme notation que les
+ * autres dispositifs, donc il passe partout (validation, terrain, stats). `libelleFormation` donne le nom que l'on affiche.
+ */
+export const FORMATION_LOSANGE = "4-1-2-1-2";
+const LIBELLES_FORMATION: Record<string, string> = { [FORMATION_LOSANGE]: "4-4-2 losange" };
+/** Le nom d'un dispositif tel qu'on l'affiche : « 4-4-2 losange » pour 4-1-2-1-2, sinon le dispositif tel quel. */
+export const libelleFormation = <T extends string | null | undefined>(formation: T): T | string => (formation && LIBELLES_FORMATION[formation]) || formation;
+
+/** Le contraire : « 4-4-2 losange » (libelle choisi dans une liste) donne 4-1-2-1-2 ; le reste est rendu tel quel. */
+export const formationDepuisLibelle = (libelle: string): string => Object.entries(LIBELLES_FORMATION).find(([, l]) => l === libelle)?.[0] ?? libelle;
+
+/** Un dispositif tenu pendant une partie du match, avec son poids (part du match jouee sous ce dispositif). */
+export interface SegmentSysteme { formation: string; debut: number; fin: number; poids: number }
+
+/**
+ * Les dispositifs d'une equipe au fil d'un match : celui du coup d'envoi, puis chaque changement saisi en direct (a sa minute).
+ * Le poids d'un segment est la part du match jouee sous ce dispositif (les poids somment a 1) : les stats se repartissent au prorata.
+ * Le dernier segment va jusqu'a la fin (fin = Infinity), pour que les evenements du temps additionnel lui reviennent.
+ * Un dispositif inconnu ou illisible n'est pas compte : on ne repartit que sur ce qui a ete renseigne.
+ */
+export function segmentsDeSysteme(initial: string | null | undefined, changements: { minute: number; formation: string }[], dureeMin: number): SegmentSysteme[] {
+  const duree = Math.max(1, dureeMin);
+  const bornes = [...changements].filter((c) => formationValide(c.formation)).sort((a, b) => a.minute - b.minute);
+  const points: { debut: number; formation: string | null }[] = [{ debut: 0, formation: formationValide(initial) ? (initial as string) : null }];
+  for (const c of bornes) points.push({ debut: Math.min(Math.max(0, c.minute), duree), formation: c.formation });
+  const res: SegmentSysteme[] = [];
+  points.forEach((p, i) => {
+    const suivant = points[i + 1];
+    const fin = suivant ? suivant.debut : duree;
+    if (p.formation && fin > p.debut) res.push({ formation: p.formation, debut: p.debut, fin: suivant ? fin : Number.POSITIVE_INFINITY, poids: (fin - p.debut) / duree });
+  });
+  return res;
+}
+
+/** Les couples (dispositif adverse, notre dispositif) tenus en meme temps, avec la part du match que chacun a duree. */
+export function croiserSegments(adverses: SegmentSysteme[], nous: SegmentSysteme[], dureeMin: number): { adverse: string; nous: string; poids: number }[] {
+  const duree = Math.max(1, dureeMin);
+  const res: { adverse: string; nous: string; poids: number }[] = [];
+  for (const a of adverses) for (const n of nous) {
+    const chevauche = Math.min(a.fin, n.fin, duree) - Math.max(a.debut, n.debut);
+    if (chevauche > 0) res.push({ adverse: a.formation, nous: n.formation, poids: chevauche / duree });
+  }
+  return res;
+}
+
 /** "4-2-3-1" : 2 a 5 lignes de 1 a 6 joueurs, dix joueurs de champ au total. */
 export function formationValide(formation: string | null | undefined): boolean {
   const n = (formation ?? "").split("-").map((x) => Number(x.trim()));
