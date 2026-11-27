@@ -87,6 +87,11 @@ export interface LigneDispositif {
   conversionAdv: number | null; butsAdvMoinsXg: number | null; fiabilite: Fiabilite;
 }
 
+export interface LigneNosDispositifs {
+  formation: string; matchs: number; minutes: number; v: number; n: number; d: number; ptsParMatch: number; bpParMatch: number; bcParMatch: number;
+  minutesSaisies: number; tirsPour90: number | null; tirsContre90: number | null; xgPour90: number | null; xgContre90: number | null; xgDiff90: number | null; fiabilite: Fiabilite;
+}
+
 export interface OccasionsHub {
   tirs: number; buts: number; xg: number;
   zones: { tirs: number[]; buts: number[]; xg: number[]; sansZone: number };
@@ -106,6 +111,11 @@ export interface AnalysesHub {
     repartition: { formation: string; matchs: number }[];
     lignes: LigneDispositif[];
     reponses: { adverse: string; nous: string; matchs: number; ptsParMatch: number }[];
+  };
+  /** Nos dispositifs tenus, au prorata des minutes jouees sous chacun. Absent d'une ancienne reponse. */
+  nosDispositifs?: {
+    couverture: { avec: number; total: number }; lignes: LigneNosDispositifs[];
+    changements: { de: string; vers: string; fois: number }[]; matchsAvecChangement: number;
   };
   creation: OccasionsHub;
   concession: OccasionsHub & { gardien: null | { tirsCadres: number; arrets: number; butsEncaisses: number; xgCadres: number; butsEvites: number } };

@@ -191,7 +191,41 @@ export function SectionAdversaires({ a }: { a: AnalysesHub }) {
           )}
         </>
       )}
+      {a.nosDispositifs && a.nosDispositifs.lignes.length > 0 && <NosDispositifs n={a.nosDispositifs} />}
     </div>
+  );
+}
+
+/** Nos propres dispositifs : ce que chaque systeme nous a donne, un match a plusieurs systemes comptant pour chacun au prorata de ses minutes. */
+export function NosDispositifs({ n }: { n: NonNullable<AnalysesHub["nosDispositifs"]> }) {
+  return (
+    <Bloc titre="Nos dispositifs" aide="Un match où l'on change de système compte pour chacun, au prorata des minutes jouées sous lui. Tirs et xG sont rapportés à 90 minutes sous le dispositif, sur les matchs saisis en direct.">
+      <div className="space-y-3" data-testid="hub-nos-dispositifs">
+        <div className="overflow-x-auto">
+          <table className="table-fm">
+            <thead><tr><th>Dispositif</th><th className="text-center">Matchs</th><th className="text-right max-sm:hidden">Minutes</th><th className="text-right">Pts / match</th><th className="text-right">xG créé / 90</th><th className="text-right">xG concédé / 90</th><th className="text-right">Écart xG / 90</th></tr></thead>
+            <tbody>
+              {n.lignes.map((l) => (
+                <tr key={l.formation}>
+                  <td className="font-semibold text-ink">{libelleFormation(l.formation)}{l.fiabilite === "faible" && <span className="ml-1.5 text-[11px] font-normal text-faint">échantillon faible</span>}</td>
+                  <td className="text-center tabular-nums">{+l.matchs.toFixed(1)}<span className="text-faint"> · {l.v}V {l.n}N {l.d}D</span></td>
+                  <td className="text-right tabular-nums text-muted max-sm:hidden">{l.minutes}</td>
+                  <td className="text-right tabular-nums">{nb(l.ptsParMatch, 2)}</td>
+                  <td className="text-right tabular-nums text-accent">{l.xgPour90 === null ? "–" : nb(l.xgPour90, 2)}</td>
+                  <td className="text-right tabular-nums text-sky">{l.xgContre90 === null ? "–" : nb(l.xgContre90, 2)}</td>
+                  <td className={`text-right tabular-nums ${l.xgDiff90 === null ? "" : l.xgDiff90 >= 0 ? "text-win" : "text-loss"}`}>{l.xgDiff90 === null ? "–" : signe(l.xgDiff90)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {n.changements.length > 0 && (
+          <p className="text-[13px] text-muted">
+            Changements en cours de match ({n.matchsAvecChangement} match{n.matchsAvecChangement > 1 ? "s" : ""}) : {n.changements.map((c) => `${libelleFormation(c.de)} → ${libelleFormation(c.vers)} (${c.fois})`).join(", ")}.
+          </p>
+        )}
+      </div>
+    </Bloc>
   );
 }
 

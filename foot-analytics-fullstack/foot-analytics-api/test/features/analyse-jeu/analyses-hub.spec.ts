@@ -157,3 +157,27 @@ describe("dispositifs : un changement de systeme se repartit au prorata", () => 
     expect(d.couverture).toEqual({ avec: 2, total: 2 });
   });
 });
+
+describe("nos dispositifs tenus", () => {
+  // Match 1 : 4-3-3 puis 4-1-2-1-2 a la 45e (nous menons au tir apres le changement) ; match 2 : 4-3-3 tout du long.
+  const m1 = match([tir("dom", "but", 20, { zoneTier: 0, zoneCouloir: 2 }), tir("ext", "cadre", 30, { zoneTier: 0, zoneCouloir: 2 }), tir("dom", "but", 60, { zoneTier: 0, zoneCouloir: 2 }), tir("dom", "cadre", 70, { zoneTier: 0, zoneCouloir: 2 })], {
+    formationSaisie: "4-3-3", dureeMin: 90, segmentsSaisie: segmentsDeSysteme("4-3-3", [{ minute: 45, formation: "4-1-2-1-2" }], 90),
+  });
+  const m2 = match([tir("ext", "but", 10, { zoneTier: 0, zoneCouloir: 2 })], { formationSaisie: "4-3-3", dureeMin: 90, segmentsSaisie: segmentsDeSysteme("4-3-3", [], 90) });
+  const n = analyserHub([m1, m2]).nosDispositifs;
+
+  it("chaque systeme compte pour ses minutes : matchs, minutes, resultats et xG par 90 minutes sous lui", () => {
+    const l433 = n.lignes.find((x) => x.formation === "4-3-3")!, losange = n.lignes.find((x) => x.formation === "4-1-2-1-2")!;
+    expect(l433).toMatchObject({ matchs: 1.5, minutes: 135, v: 0.5, d: 1, minutesSaisies: 135 });
+    expect(losange).toMatchObject({ matchs: 0.5, minutes: 45, v: 0.5, d: 0, minutesSaisies: 45 });
+    expect(losange.xgPour90).toBeGreaterThan(l433.xgPour90 as number);                  // 3 tirs a nous sous le losange (dont deux buts), un seul sous le 4-3-3
+    expect(losange.tirsContre90).toBe(0);
+    expect(l433.tirsContre90).toBeGreaterThan(0);
+  });
+
+  it("les changements en cours de match sont comptes", () => {
+    expect(n.changements).toEqual([{ de: "4-3-3", vers: "4-1-2-1-2", fois: 1 }]);
+    expect(n.matchsAvecChangement).toBe(1);
+    expect(n.couverture).toEqual({ avec: 2, total: 2 });
+  });
+});
