@@ -5,7 +5,7 @@
 export type Cote = "dom" | "ext";
 
 export type TypeAction =
-  | "tir" | "arret" | "corner" | "coup_franc" | "penalty" | "faute" | "hors_jeu" | "carton_jaune" | "carton_rouge" | "remplacement" | "blessure";
+  | "tir" | "arret" | "corner" | "coup_franc" | "penalty" | "faute" | "hors_jeu" | "carton_jaune" | "carton_rouge" | "remplacement" | "blessure" | "systeme";
 
 export type StatutDirect = "avant" | "en_cours" | "pause" | "mi_temps" | "termine";
 export type ActionChrono = "demarrer" | "pause" | "reprendre" | "mi_temps" | "deuxieme_periode" | "fin" | "corriger";
@@ -77,6 +77,8 @@ export interface EtatDirect {
   invitation?: { libelle: string; peutChrono: boolean; expireLe: string };
   /** L'avant-match de ce match est-il fait (onze enregistre pour ce match) ? Sinon le staff est renvoye vers l'avant-match. */
   avantMatch?: { pret: boolean; titulaires: number; banc: number; possible: boolean };
+  /** Le onze du coup d'envoi (11 postes dans l'ordre du terrain, gardien d'abord, "" = poste vide) et son dispositif ; null tant que l'avant-match n'est pas fait. */
+  compo?: { formation: string; titulaires: string[] } | null;
 }
 
 /* ---- Invitations a saisir ---- */

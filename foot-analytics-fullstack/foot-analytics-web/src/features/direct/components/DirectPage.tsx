@@ -13,9 +13,15 @@ import { ArrowLeft, ListOrdered, Redo2, Undo2 } from "lucide-react";
 import { Modal } from "@/shared/ui/Modal";
 import { Spinner } from "@/shared/ui/Spinner";
 
+import { etatCompo, joueursSurLeTerrain, type EtatCompo } from "../lib/compo-direct";
+import { joueurLibelle, libelleEvenement } from "../lib/actions";
+import { libelleMinute } from "../lib/chrono";
 import type { Cote, EvenementDirect } from "../lib/direct-types";
+import { libelleFormation } from "@/shared/lib/formation";
 import { Saisie, saisieDepuisEvenement, saisieInitiale } from "../lib/saisie";
 import { FeuilleSaisie } from "./FeuilleSaisie";
+import { FeuilleSysteme } from "./FeuilleSysteme";
+import { TerrainDeLEtat } from "./TerrainCompo";
 import { sourceStaff, type SourceDirect } from "../lib/source-direct";
 import { InviterSaisisseur } from "./InviterSaisisseur";
 import { FriseDirect } from "./FriseDirect";
@@ -33,6 +39,8 @@ export default function DirectPage({ matchId, source: sourceFournie }: { matchId
   const [coteSaisie, setCoteSaisie] = useState<Cote | null>(null);
   const [ouverte, setOuverte] = useState<Ouverte | null>(null);
   const [frise, setFrise] = useState(false);
+  const [vueSaisie, setVueSaisie] = useState<"actions" | "compo">("actions");
+  const [systeme, setSysteme] = useState<Ouverte | null>(null);
 
   // Le parcours : le direct ne s'ouvre pas tant que l'avant-match de ce match n'est pas fait (onze et numeros enregistres), sauf s'il
   // est deja commence. Un saisisseur invite n'est jamais renvoye : c'est le staff qui a prepare le match.
@@ -72,8 +80,16 @@ export default function DirectPage({ matchId, source: sourceFournie }: { matchId
   const nomEux = nous === "dom" ? etat.match.nomExt : etat.match.nomDom;
   const dureePeriode = etat.chrono.dureePeriodeMin;
 
+  // La compo visuelle : le onze du coup d'envoi, rejoue avec les remplacements, rouges et changements de systeme de notre equipe.
+  const compoDe = (evs: EvenementDirect[]): EtatCompo | null => (etat.compo ? etatCompo({ compo: etat.compo, joueurs: etat.joueurs, evenements: evs, nousCote: nous }) : null);
+  const compoMaintenant = compoDe(d.evenements);
+  /** La compo telle qu'elle etait au moment d'une saisie (corriger un ancien evenement ne propose pas ceux qui n'etaient pas encore la). */
+  const compoAvant = (periode: number, minute: number, idExclu: string | null) =>
+    compoDe(d.evenements.filter((e) => e.id !== idExclu && (e.periode < periode || (e.periode === periode && e.minute <= minute))));
+  const ouvrirSysteme = () => setSysteme({ saisie: saisieInitiale("systeme", nous, etat.chrono.periode, d.minute), id: null });
+
   const ouvrir = (actionId: string) => setOuverte({ saisie: saisieInitiale(actionId, cote, etat.chrono.periode, d.minute), id: null });
-  const corriger = (e: EvenementDirect) => { setFrise(false); setOuverte({ saisie: saisieDepuisEvenement(e), id: e.id }); };
+  const corriger = (e: EvenementDirect) => { setFrise(false); if (e.type === "systeme") setSysteme({ saisie: saisieDepuisEvenement(e), id: e.id }); else setOuverte({ saisie: saisieDepuisEvenement(e), id: e.id }); };
 
   const colonneSaisie = (
     <div className="space-y-3">
@@ -106,6 +122,20 @@ export default function DirectPage({ matchId, source: sourceFournie }: { matchId
         </>
       )}
 
+      {compoMaintenant && (
+        <div role="tablist" aria-label="Vue du direct" className="flex gap-1 rounded-2xl border border-line bg-surface p-1">
+          {([["actions", "Actions"], ["compo", "Compo"]] as const).map(([id, libelle]) => (
+            <button key={id} type="button" role="tab" aria-selected={vueSaisie === id} onClick={() => setVueSaisie(id)}
+              className={`h-11 flex-1 rounded-xl text-sm font-bold transition-colors ${vueSaisie === id ? "bg-accentstrong sur-accent" : "text-muted hover:text-ink"}`}>{libelle}</button>
+          ))}
+        </div>
+      )}
+
+      {compoMaintenant && vueSaisie === "compo" ? (
+        <VueCompo etat={compoMaintenant} evenements={d.evenements.filter((e) => e.cote === nous && ["remplacement", "carton_rouge", "systeme"].includes(e.type))}
+          dureePeriodeMin={dureePeriode} desactive={ferme} onRemplacant={() => ouvrir("remplacement")} onSysteme={ouvrirSysteme} />
+      ) : (
+        <>
       <div className="flex gap-1 rounded-2xl border border-line bg-surface p-1" role="group" aria-label="Équipe concernée">
         {([[nous, "Notre équipe"], [eux, "Adversaire"]] as [Cote, string][]).map(([c, libelle]) => (
           <button key={c} type="button" aria-pressed={cote === c} onClick={() => setCoteSaisie(c)}
@@ -114,6 +144,9 @@ export default function DirectPage({ matchId, source: sourceFournie }: { matchId
       </div>
 
       <GrilleActions onChoisir={ouvrir} desactive={ferme} />
+
+        </>
+      )}
 
       <section aria-label="Derniers événements" className="space-y-2">
         <div className="flex items-center justify-between gap-2">
@@ -192,11 +225,59 @@ export default function DirectPage({ matchId, source: sourceFournie }: { matchId
       {ouverte && (
         <FeuilleSaisie
           saisie={ouverte.saisie} onChange={(saisie) => setOuverte({ ...ouverte, saisie })} joueurs={etat.joueurs} nousCote={nous}
+          compo={compoAvant(ouverte.saisie.periode, ouverte.saisie.minute, ouverte.id)}
           dureePeriodeMin={dureePeriode} correction={ouverte.id !== null}
           onFermer={() => setOuverte(null)}
           onEnregistrer={() => { d.enregistrer(ouverte.saisie, ouverte.id ?? undefined); setOuverte(null); }}
           onSupprimer={ouverte.id ? () => { d.supprimer(ouverte.id as string); setOuverte(null); } : undefined} />
       )}
+      {systeme && (() => {
+        const compo = compoAvant(systeme.saisie.periode, systeme.saisie.minute, systeme.id);
+        return compo ? (
+          <FeuilleSysteme compo={compo} periode={systeme.saisie.periode} minute={systeme.saisie.minute} dureePeriodeMin={dureePeriode}
+            formationInitiale={systeme.id ? systeme.saisie.resultat : null} correction={systeme.id !== null}
+            onFermer={() => setSysteme(null)}
+            onValider={(formation, ordre) => { d.enregistrer({ ...systeme.saisie, resultat: formation, contextes: ordre }, systeme.id ?? undefined); setSysteme(null); setVueSaisie("compo"); }}
+            onSupprimer={systeme.id ? () => { d.supprimer(systeme.id as string); setSysteme(null); } : undefined} />
+        ) : null;
+      })()}
     </div>
+  );
+}
+
+/** L'onglet Compo : les joueurs sur le terrain, les mouvements du match, le banc, et les deux touches propres a l'effectif (remplacant, systeme). */
+function VueCompo({ etat, evenements, dureePeriodeMin, desactive, onRemplacant, onSysteme }: {
+  etat: EtatCompo; evenements: EvenementDirect[]; dureePeriodeMin: number; desactive: boolean; onRemplacant: () => void; onSysteme: () => void;
+}) {
+  const sur = joueursSurLeTerrain(etat);
+  const mouvements = [...evenements].sort((a, b) => a.periode - b.periode || a.minute - b.minute);
+  const nbChangements = evenements.filter((e) => e.type === "remplacement").length;
+  return (
+    <section aria-label="Compo de l'équipe" className="space-y-3" data-testid="vue-compo">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="h-section">Sur le terrain · {sur} sur 11</h2>
+        <span className="text-xs text-muted">{libelleFormation(etat.formation)} · {nbChangements} changement{nbChangements > 1 ? "s" : ""}</span>
+      </div>
+      <TerrainDeLEtat etat={etat} />
+      <p className="flex items-center gap-2 text-xs text-muted"><span aria-hidden className="h-3.5 w-3.5 rounded-full border-2 border-white bg-surface-2" /> L&apos;entrant prend le poste du sortant ; un joueur expulsé reste grisé à son poste.</p>
+      <div className="panel-inset space-y-2 p-3">
+        <h3 className="h-section">Mouvements</h3>
+        {mouvements.length === 0 && <p className="text-sm text-muted">Aucun changement pour l&apos;instant.</p>}
+        {mouvements.map((e) => (
+          <div key={e.id} className="flex items-baseline gap-2.5 text-sm">
+            <span className={`w-9 shrink-0 font-display text-[13px] font-bold tabular-nums ${e.type === "carton_rouge" ? "text-danger" : e.type === "systeme" ? "text-sky" : "text-amber"}`}>{libelleMinute(e.minute, e.periode, dureePeriodeMin)}&apos;</span>
+            <span className="text-ink">
+              {e.type === "remplacement" ? <><b>{joueurLibelle(e.joueur2Numero, e.joueur2Nom)}</b> remplace {joueurLibelle(e.joueurNumero, e.joueurNom)}</>
+                : e.type === "carton_rouge" ? <>Carton rouge · <b>{joueurLibelle(e.joueurNumero, e.joueurNom)}</b></> : libelleEvenement(e)}
+            </span>
+          </div>
+        ))}
+        <p className="text-xs text-muted">Banc restant : {etat.banc.length === 0 ? "plus personne" : `${etat.banc.length} joueur${etat.banc.length > 1 ? "s" : ""} (${etat.banc.map((j) => `n°${j.numero ?? "–"}`).join(", ")})`}</p>
+      </div>
+      <div className="flex gap-2">
+        <button type="button" disabled={desactive} onClick={onRemplacant} className="btn btn-primary !h-13 flex-1 text-sm font-bold disabled:opacity-50">Remplaçant</button>
+        <button type="button" disabled={desactive} onClick={onSysteme} className="btn !h-13 flex-1 text-sm font-bold disabled:opacity-50">Changer de système</button>
+      </div>
+    </section>
   );
 }

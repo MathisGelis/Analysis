@@ -15,7 +15,7 @@ export interface SectionObservation { id: string; titre: string; aide?: string; 
 export const MAX_JOUEURS = 3;
 export const MAX_TEXTE = 300;
 
-const FORMATIONS = ["4-4-2", "4-3-3", "4-2-3-1", "4-1-4-1", "4-4-1-1", "3-5-2", "3-4-3", "5-3-2", "5-4-1", "Autre"] as const;
+const FORMATIONS = ["4-4-2", "4-4-2 losange", "4-3-3", "4-2-3-1", "4-1-4-1", "4-4-1-1", "3-5-2", "3-4-3", "5-3-2", "5-4-1", "Autre"] as const;
 const choix = (id: string, libelle: string, options: readonly string[]): ChampObservation => ({ id, libelle, type: "choix", options });
 const multi = (id: string, libelle: string, options: readonly string[]): ChampObservation => ({ id, libelle, type: "multi", options });
 const note = (id: string, libelle: string): ChampObservation => ({ id, libelle, type: "note" });

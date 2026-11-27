@@ -26,6 +26,7 @@ import { dispositifAffiche, formationDuOnze, nomDeFamille, ordonnerPourTerrain, 
 import type { SituationClub } from "@/features/analyse/lib/situation-types";
 
 import { ClubBadge } from "./ClubBadge";
+import { libelleFormation } from "@/shared/lib/formation";
 
 type Tab = "overview" | "effectif" | "matchs" | "scouting" | "datahub";
 
@@ -533,7 +534,7 @@ function ScoutingPanel({
                 joueurs={titulairesTerrain.slice(0, 11).map((j): JoueurTerrain => ({
                   numero: j.numero, nom: nomDeFamille(j.nom), capitaine: j.capitaine,
                 }))}
-                titre={`Dernier onze · ${formationOnze.formation}${formationOnze.exact ? "" : " (probable)"}`}
+                titre={`Dernier onze · ${libelleFormation(formationOnze.formation)}${formationOnze.exact ? "" : " (probable)"}`}
                 couleur={club.couleur}
               />
               </div>

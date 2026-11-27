@@ -155,6 +155,19 @@ describe("direct : routes", () => {
     expect((await put({ cote: "dom", type: "penalty", resultat: "arrete", periode: 2, minute: 70 }, 5)).statut).toBe(200);
   });
 
+  it("changement de systeme : le nouveau dispositif (4-4-2 losange = 4-1-2-1-2) est le resultat ; un dispositif illisible est refuse", async () => {
+    const mt = await matchNeuf();
+    const a = t.appel(await ref());
+    const put = (corps: object, n: number) => a("PUT", `${base(mt.id)}/evenements/${id(n)}`, corps);
+    expect((await put({ cote: "dom", type: "systeme", resultat: "4-1-2-1-2", periode: 2, minute: 64 }, 7)).statut).toBe(200);
+    expect((await put({ cote: "dom", type: "systeme", periode: 2, minute: 64 }, 8)).statut).toBe(400);                 // sans dispositif
+    expect((await put({ cote: "dom", type: "systeme", resultat: "4-4-3", periode: 2, minute: 64 }, 9)).statut).toBe(400);  // 11 joueurs de champ
+    expect((await put({ cote: "dom", type: "systeme", resultat: "losange", periode: 2, minute: 64 }, 9)).statut).toBe(400);
+    const etat = (await a("GET", base(mt.id))).corps;
+    expect(etat.evenements.filter((e: any) => e.type === "systeme").map((e: any) => e.resultat)).toEqual(["4-1-2-1-2"]);
+    expect(etat.score).toEqual({ dom: 0, ext: 0 });                                                                    // un changement de systeme ne touche pas au score
+  });
+
   it("cloture : seulement apres la fin ; ensuite plus de saisie, jusqu'a la reouverture", async () => {
     const mt = await matchNeuf();
     const a = t.appel(await ref());

@@ -2,6 +2,8 @@
 //
 // Les actions de la grille, leurs etapes de saisie, et les libelles : tout ce qui decrit « comment on note un tir » en un seul endroit.
 
+import { libelleFormation } from "@/shared/lib/formation";
+
 import type { Cote, EvenementDirect, TypeAction } from "./direct-types";
 
 export type Etape = "joueur" | "joueur2" | "zone";
@@ -41,6 +43,7 @@ export const ACTIONS: DefAction[] = [
   { id: "carton_jaune", libelle: "Carton jaune", type: "carton_jaune", etapes: ["joueur"], roleJoueur: "Qui est averti ?" },
   { id: "carton_rouge", libelle: "Carton rouge", type: "carton_rouge", etapes: ["joueur"], roleJoueur: "Qui est expulsé ?" },
   { id: "remplacement", libelle: "Remplacement", type: "remplacement", etapes: ["joueur", "joueur2"], roleJoueur: "Qui sort ?", roleJoueur2: "Qui entre ?", joueurObligatoire: true },
+  { id: "systeme", libelle: "Changement de système", type: "systeme", etapes: [], roleJoueur: "Nouveau système" },
   { id: "blessure", libelle: "Blessure", type: "blessure", etapes: ["joueur"], roleJoueur: "Qui est blessé ?" },
 ];
 
@@ -52,7 +55,7 @@ export const LIBELLE_RESULTAT: Record<string, string> = {
 
 const LIBELLE_TYPE: Record<TypeAction, string> = {
   tir: "Tir", arret: "Arrêt", corner: "Corner", coup_franc: "Coup franc", penalty: "Penalty", faute: "Faute", hors_jeu: "Hors-jeu",
-  carton_jaune: "Carton jaune", carton_rouge: "Carton rouge", remplacement: "Remplacement", blessure: "Blessure",
+  carton_jaune: "Carton jaune", carton_rouge: "Carton rouge", remplacement: "Remplacement", blessure: "Blessure", systeme: "Changement de système",
 };
 
 /** « But », « Tir cadré », « Carton jaune »... : le titre d'un evenement dans la frise. */
@@ -65,6 +68,7 @@ export function libelleEvenement(e: Pick<EvenementDirect, "type" | "resultat">):
     if (e.resultat === "poteau") return "Tir sur le poteau";
     return "Tir";
   }
+  if (e.type === "systeme") return e.resultat ? `Système : ${libelleFormation(e.resultat)}` : LIBELLE_TYPE.systeme;
   if (e.type === "penalty" && e.resultat) return `Penalty ${e.resultat === "but" ? "marqué" : e.resultat === "arrete" ? "arrêté" : e.resultat === "rate" ? "raté" : "sur le poteau"}`;
   if (e.type === "coup_franc" && e.resultat) return e.resultat === "but" ? "But sur coup franc" : `Coup franc ${LIBELLE_RESULTAT[e.resultat]?.toLowerCase() ?? ""}`.trim();
   return LIBELLE_TYPE[e.type];

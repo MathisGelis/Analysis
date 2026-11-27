@@ -25,6 +25,7 @@ import { ActionChronoDto, EvenementDirectDto } from "./direct.dto";
 import { Direct } from "./direct.entity";
 import { EvenementDirect } from "./evenement-direct.entity";
 import { compteurs, scoreDirect } from "./stats-direct";
+import { formationValide } from "@/features/matchs/systeme";
 import { RESULTATS_PAR_TYPE } from "./types";
 
 /** Qui agit quand ce n'est pas un compte : un saisisseur invite par lien (voir invitations.service.ts). */
@@ -70,6 +71,7 @@ export class DirectService {
     const { cote: nousCote, equipeId } = await this.nous(ctx, m);
     const [dom, ext] = await Promise.all([this.clubs.findOne({ where: { id: m.clubDom } }), this.clubs.findOne({ where: { id: m.clubExt } })]);
     const etat = etatDe(d);
+    const plan = await this.planDuMatch(equipeId, matchId);
     return {
       match: {
         id: m.id, clubDom: m.clubDom, clubExt: m.clubExt, nomDom: dom?.nom ?? "Domicile", nomExt: ext?.nom ?? "Exterieur",
@@ -86,7 +88,9 @@ export class DirectService {
       compteurs: compteurs(evs),
       joueurs: equipeId ? await this.joueursDe(equipeId, matchId) : [],
       /** L'avant-match de CE match est-il fait ? (le front renvoie vers l'avant-match tant que non). */
-      avantMatch: { ...DirectService.avantMatchPret(await this.planDuMatch(equipeId, matchId)), possible: !!equipeId },
+      avantMatch: { ...DirectService.avantMatchPret(plan), possible: !!equipeId },
+      /** Le onze du coup d'envoi dans l'ordre des postes (gardien d'abord, "" = poste vide) et son dispositif : la compo visuelle du direct. */
+      compo: plan && DirectService.avantMatchPret(plan).pret ? { formation: plan.formation, titulaires: plan.titulaires ?? [] } : null,
     };
   }
 
@@ -288,6 +292,11 @@ export class DirectService {
 
   /** Un resultat doit etre de la liste du type ; le cadre n'a de sens que pour un tir cadre ou un but. */
   private valider(dto: EvenementDirectDto) {
+    // Un changement de systeme porte le nouveau dispositif en resultat (« 4-1-2-1-2 » pour le 4-4-2 losange) et n'a ni joueur ni zone.
+    if (dto.type === "systeme") {
+      if (!formationValide(dto.resultat)) throw new BadRequestException("Un changement de systeme doit donner un dispositif valide (ex. 4-3-3).");
+      return;
+    }
     const permis = RESULTATS_PAR_TYPE[dto.type as keyof typeof RESULTATS_PAR_TYPE];
     if (dto.resultat && !permis?.includes(dto.resultat)) throw new BadRequestException(`Resultat « ${dto.resultat} » impossible pour ${dto.type}.`);
     if (dto.zoneCadre !== undefined && dto.zoneCadre !== null && !["but", "cadre", "arrete"].includes(dto.resultat ?? "")) {

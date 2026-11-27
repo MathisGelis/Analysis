@@ -22,7 +22,7 @@ import { BilanDto, NoteJoueurDto } from "./apres-match.dto";
 import { BilanMatch } from "./bilan-match.entity";
 import { NoteJoueurMatch } from "./note-joueur-match.entity";
 import { ObservationAdversaire } from "./observation-adversaire.entity";
-import { formationValide, systemesRenseignes } from "@/features/matchs/systeme";
+import { formationDepuisLibelle, formationValide, systemesRenseignes } from "@/features/matchs/systeme";
 import { CATALOGUE, Observations, sectionsRemplies, validerSection, ValeursSection } from "./observations-adversaire";
 import { fichesDuMatch } from "./temps-de-jeu";
 
@@ -109,7 +109,8 @@ export class ApresMatchService {
    */
   private async reporterDispositifAdverse(m: Match, cote: "dom" | "ext", avant: ValeursSection | undefined, apres: ValeursSection) {
     const lire = (v: ValeursSection | undefined) => {
-      const f = (v?.en_possession ?? v?.sans_ballon) as string | undefined;
+      const brut = (v?.en_possession ?? v?.sans_ballon) as string | undefined;
+      const f = brut ? formationDepuisLibelle(brut) : undefined;                  // « 4-4-2 losange » -> 4-1-2-1-2
       return f && formationValide(f) ? f : null;
     };
     const ancien = lire(avant), nouveau = lire(apres);

@@ -8,6 +8,7 @@
 import { BarsChart } from "@/shared/ui/Charts";
 
 import type { Croisements, ReponseCroisements } from "../lib/jeu-types";
+import { libelleFormation } from "@/shared/lib/formation";
 
 const LECTURE_JOUEUR: Record<Croisements["joueurs"][number]["lecture"], string> = {
   impact_sans_production: "Impact élevé, peu de buts et de passes saisis",
@@ -124,7 +125,7 @@ function Dispositifs({ lignes }: { lignes: Croisements["dispositifs"] }) {
           <tbody>
             {lignes.map((d) => (
               <tr key={d.formation} className="border-t border-line">
-                <th scope="row" className="py-1.5 text-left font-semibold text-ink">{d.formation}{d.echantillonFaible && <span className="ml-1.5 text-[11px] font-normal text-amber">peu de matchs</span>}</th>
+                <th scope="row" className="py-1.5 text-left font-semibold text-ink">{libelleFormation(d.formation)}{d.echantillonFaible && <span className="ml-1.5 text-[11px] font-normal text-amber">peu de matchs</span>}</th>
                 <td className="py-1.5 text-right tabular-nums">{d.matchs}</td><td className="py-1.5 text-right tabular-nums">{String(d.pointsParMatch).replace(".", ",")}</td>
                 <td className="py-1.5 text-right tabular-nums">{String(d.butsPourParMatch).replace(".", ",")}</td><td className="py-1.5 text-right tabular-nums">{String(d.butsContreParMatch).replace(".", ",")}</td>
                 <td className="py-1.5 text-right tabular-nums">{d.tirsParMatch === null ? "–" : String(d.tirsParMatch).replace(".", ",")}</td><td className="py-1.5 text-right tabular-nums">{d.conversion === null ? "–" : `${d.conversion} %`}</td>

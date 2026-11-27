@@ -1991,7 +1991,12 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await feuille.getByRole("button", { name: "Offensif · centre" }).click();
   await feuille.getByRole("button", { name: "Attaque placée" }).click();
   await feuille.getByRole("button", { name: "Cadre haut droit" }).click();
+  // Chaque frappe demande son passeur avant d'etre enregistree (« Sans passeur » en un geste), sur tous les tirs.
   await feuille.getByRole("button", { name: /^Enregistrer(?! ainsi)/ }).click();
+  await expect(feuille.getByText("Qui a fait la passe ?")).toBeVisible();
+  await expect(feuille.getByRole("button", { name: "Autre joueur…" })).toHaveCount(0);
+  await feuille.getByRole("button", { name: "Sans passeur" }).click();
+  await feuille.getByRole("button", { name: /^Enregistrer le but/ }).click();
   await expect(tableau.getByLabel("Score : 1 à 0")).toBeVisible();
 
   // Un tir adverse : pave numerique, resultat obligatoire.
@@ -2043,6 +2048,21 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   expect(etat.evenements).toHaveLength(3);
   expect(etat.nousCote).toBe("dom");
   expect(etat.chrono.statut).toBe("termine");
+
+  // La compo visuelle (onglet Compo) et le changement de systeme : le 4-4-2 losange, date, repris par la frise et l'API.
+  await page.getByRole("tab", { name: "Compo" }).click();
+  const compo = page.getByTestId("vue-compo");
+  await expect(compo.getByTestId("terrain-compo")).toBeVisible();
+  await expect(compo.getByText(/Sur le terrain · 11 sur 11/)).toBeVisible();
+  await compo.getByRole("button", { name: "Changer de système" }).click();
+  await page.locator("div.fixed.inset-0").getByRole("button", { name: "4-4-2 losange" }).click();
+  await page.locator("div.fixed.inset-0").getByRole("button", { name: /^Valider 4-4-2 losange/ }).click();
+  await expect(compo.getByText("Système : 4-4-2 losange")).toBeVisible();
+  await expect(compo.getByText(/4-4-2 losange · 0 changement/)).toBeVisible();
+  const apresSysteme = await (await appeler(`/direct/matchs/${match.id}`)).json();
+  expect(apresSysteme.evenements.filter((e: any) => e.type === "systeme").map((e: any) => e.resultat)).toEqual(["4-1-2-1-2"]);
+  expect(apresSysteme.compo.formation).toBeTruthy();
+  await page.getByRole("tab", { name: "Actions" }).click();
 
   // L'apres-match, depuis la banniere de fin : le bilan s'enregistre tout seul, la page est accessible, puis on cloture le match.
   await cliquerJusquaNavigation(page.getByRole("link", { name: "Après-match" }), /\/matchs\/[^/]+\/apres$/);

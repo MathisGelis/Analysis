@@ -73,8 +73,9 @@ describe("libellés", () => {
   });
 
   it("chaque action de la grille a ses étapes et un type connu", () => {
-    expect(ACTIONS.map((a) => a.id)).toEqual(["but", "tir", "arret", "corner", "coup_franc", "penalty", "faute", "hors_jeu", "carton_jaune", "carton_rouge", "remplacement", "blessure"]);
-    for (const a of ACTIONS) expect(a.etapes[0]).toBe("joueur");
+    expect(ACTIONS.map((a) => a.id)).toEqual(["but", "tir", "arret", "corner", "coup_franc", "penalty", "faute", "hors_jeu", "carton_jaune", "carton_rouge", "remplacement", "systeme", "blessure"]);
+    // Le changement de système n'a pas de joueur : il se saisit sur son propre écran (compo + dispositif).
+    for (const a of ACTIONS.filter((x) => x.id !== "systeme")) expect(a.etapes[0]).toBe("joueur");
   });
 });
 
@@ -86,5 +87,16 @@ describe("score recalculé sur l'écran", () => {
     ];
     expect(calculerScore(evs)).toEqual({ dom: 1, ext: 1 });
     expect(compteursDe(evs).dom).toMatchObject({ tirs: 2, tirsCadres: 2, buts: 1, corners: 1 });
+  });
+});
+
+describe("changement de système", () => {
+  it("l'événement porte le dispositif en résultat et l'arrangement des postes en contextes, sans joueur ni zone", () => {
+    const s = { ...saisieInitiale("systeme", "dom", 2, 64), resultat: "4-1-2-1-2", contextes: ["a", "b", ""] };
+    expect(versEvenement(s, "id-systeme")).toMatchObject({ type: "systeme", resultat: "4-1-2-1-2", minute: 64, periode: 2, contextes: ["a", "b", ""], joueurNumero: null, zoneTier: null });
+  });
+  it("la frise l'écrit avec le nom du dispositif (4-4-2 losange)", () => {
+    expect(libelleEvenement({ type: "systeme", resultat: "4-1-2-1-2" })).toBe("Système : 4-4-2 losange");
+    expect(libelleEvenement({ type: "systeme", resultat: "4-3-3" })).toBe("Système : 4-3-3");
   });
 });

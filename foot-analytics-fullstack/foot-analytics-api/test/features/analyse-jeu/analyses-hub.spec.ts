@@ -1,3 +1,4 @@
+import { segmentsDeSysteme } from "@/features/matchs/systeme";
 import { analyserHub, constatsDuHub, fiabiliteDe, MatchHub } from "@/features/analyse-jeu/analyses-hub";
 
 let n = 0;
@@ -135,5 +136,24 @@ describe("interpretations", () => {
     expect(ids).toContain("concession_couloir");
     expect(ids).toContain("dispositif_difficile");
     expect(constatsDuHub(analyserHub(ms)).length).toBeLessThanOrEqual(10);
+  });
+});
+
+describe("dispositifs : un changement de systeme se repartit au prorata", () => {
+  // Defaite 0-1 contre un 4-4-2 passe en 4-1-2-1-2 a la 45e : la moitie du match pour chacun.
+  const m = match([tir("ext", "but", 60)], {
+    formationAdverse: "4-4-2", formationSaisie: "4-3-3", dureeMin: 90,
+    segmentsAdverse: segmentsDeSysteme("4-4-2", [{ minute: 45, formation: "4-1-2-1-2" }], 90),
+    segmentsSaisie: segmentsDeSysteme("4-3-3", [], 90),
+  });
+  const autre = match([tir("dom", "but", 20)], { formationAdverse: "4-4-2", formationSaisie: "4-3-3" });          // victoire contre un 4-4-2 sans changement
+  const d = analyserHub([m, autre]).dispositifs;
+
+  it("chaque dispositif compte pour la part du match qu'il a dure, bilan et tirs compris", () => {
+    const plein = d.lignes.find((x) => x.formation === "4-4-2")!, losange = d.lignes.find((x) => x.formation === "4-1-2-1-2")!;
+    expect(plein).toMatchObject({ matchs: 1.5, v: 1, n: 0, d: 0.5, tirsContre: 0 });                               // le but encaisse a la 60e est sous le losange
+    expect(losange).toMatchObject({ matchs: 0.5, v: 0, d: 0.5, tirsContre: 1, ptsParMatch: 0 });
+    expect(plein.ptsParMatch).toBeCloseTo((3 * 1 + 0 * 0.5) / 1.5, 2);
+    expect(d.couverture).toEqual({ avec: 2, total: 2 });
   });
 });

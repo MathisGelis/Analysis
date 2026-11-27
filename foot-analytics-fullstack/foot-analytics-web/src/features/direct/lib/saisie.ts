@@ -44,6 +44,13 @@ export function manque(s: Saisie): string | null {
 /** L'evenement a envoyer : ce qui n'a pas de sens pour l'action (zone d'un arret, cadre d'un tir non cadre) est retire. */
 export function versEvenement(s: Saisie, id: string): SaisieEvenement {
   const def = action(s.actionId);
+  // Un changement de systeme porte le dispositif en resultat et l'arrangement des postes (identifiants, dans l'ordre du terrain) en contextes.
+  if (def.type === "systeme") {
+    return {
+      id, cote: s.cote, type: "systeme", resultat: s.resultat, periode: s.periode, minute: s.minute, joueurNumero: null, joueurNom: null, joueurId: null,
+      joueur2Numero: null, joueur2Nom: null, joueur2Id: null, zoneTier: null, zoneCouloir: null, zoneCadre: null, contextes: s.contextes,
+    };
+  }
   const resultat = def.resultats && s.resultat && def.resultats.includes(s.resultat) ? s.resultat : null;
   const zone = def.terrain && s.zoneTier !== null && s.zoneCouloir !== null;
   return {

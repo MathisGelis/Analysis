@@ -21,6 +21,7 @@ import type { EvenementMatch } from "@/shared/lib/types";
 import { ArbitresMatchBlock } from "./ArbitresMatchBlock";
 import { MatchActions } from "./MatchActions";
 import { SystemeMatch } from "./SystemeMatch";
+import { libelleFormation } from "@/shared/lib/formation";
 
 /** Un match sans feuille n'a pas de score : le statut remplace le "resultat final". */
 const LIBELLE_STATUT: Record<string, string> = { prevu: "À venir", a_venir: "À venir", reporte: "Reporté", annule: "Annulé" };
@@ -85,7 +86,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   )?.arbitre;
 
   // Libelles tolerants aux champs vides (FMI incomplete, match saisi a la main).
-  const dispositif = (f?: string | null) => (f ? ` · ${f}` : "");
+  const dispositif = (f?: string | null) => (f ? ` · ${libelleFormation(f)}` : "");
   const libelleCompetition = [m.competition, m.poule ? `Poule ${m.poule}` : null]
     .filter(Boolean).join(" · ") || "—";
 
