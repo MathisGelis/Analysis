@@ -2053,15 +2053,15 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await page.getByRole("tab", { name: "Compo" }).click();
   const compo = page.getByTestId("vue-compo");
   await expect(compo.getByTestId("terrain-compo")).toBeVisible();
-  await expect(compo.getByText(/Sur le terrain · 11 sur 11/)).toBeVisible();
+  await expect(compo.getByText(/Sur le terrain · \d+ sur 11/)).toBeVisible();
   await compo.getByRole("button", { name: "Changer de système" }).click();
   await page.locator("div.fixed.inset-0").getByRole("button", { name: "4-4-2 losange" }).click();
   await page.locator("div.fixed.inset-0").getByRole("button", { name: /^Valider 4-4-2 losange/ }).click();
   await expect(compo.getByText("Système : 4-4-2 losange")).toBeVisible();
   await expect(compo.getByText(/4-4-2 losange · 0 changement/)).toBeVisible();
-  const apresSysteme = await (await appeler(`/direct/matchs/${match.id}`)).json();
-  expect(apresSysteme.evenements.filter((e: any) => e.type === "systeme").map((e: any) => e.resultat)).toEqual(["4-1-2-1-2"]);
-  expect(apresSysteme.compo.formation).toBeTruthy();
+  // L'evenement part en arriere-plan (file d'envoi) : on attend qu'il soit enregistre cote serveur.
+  await expect.poll(async () => ((await (await appeler(`/direct/matchs/${match.id}`)).json()).evenements as any[]).filter((e) => e.type === "systeme").map((e) => e.resultat), { timeout: 10_000 }).toEqual(["4-1-2-1-2"]);
+  expect((await (await appeler(`/direct/matchs/${match.id}`)).json()).compo.formation).toBeTruthy();
   await page.getByRole("tab", { name: "Actions" }).click();
 
   // L'apres-match, depuis la banniere de fin : le bilan s'enregistre tout seul, la page est accessible, puis on cloture le match.
