@@ -35,7 +35,7 @@ export class SaisieController {
   @Get("etat") @UseGuards(InvitationGuard)
   async etat(@Acces() ctx: ContexteAcces, @Req() req: { invitation: InvitationDirect }) {
     const e = await this.direct.etat(ctx, req.invitation.matchId);
-    return { ...e, evenements: e.evenements.map(sansAuteur), invitation: { libelle: req.invitation.libelle, peutChrono: req.invitation.peutChrono, expireLe: req.invitation.expireLe } };
+    return { ...e, joueurs: e.joueurs.map(({ fatigue: _f, ...j }) => j), evenements: e.evenements.map(sansAuteur), invitation: { libelle: req.invitation.libelle, peutChrono: req.invitation.peutChrono, expireLe: req.invitation.expireLe } };
   }
 
   /** Idempotent, comme la saisie du staff : rejouer la requete ne cree jamais de doublon. */

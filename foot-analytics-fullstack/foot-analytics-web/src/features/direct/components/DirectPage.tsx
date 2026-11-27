@@ -20,6 +20,8 @@ import type { Cote, EvenementDirect } from "../lib/direct-types";
 import { libelleFormation } from "@/shared/lib/formation";
 import { Saisie, saisieDepuisEvenement, saisieInitiale } from "../lib/saisie";
 import { FeuilleSaisie } from "./FeuilleSaisie";
+import { alertesDirect } from "../lib/alertes-direct";
+import { BandeauAlertes } from "./BandeauAlertes";
 import { BilanMiTemps } from "./BilanMiTemps";
 import { FeuilleSysteme } from "./FeuilleSysteme";
 import { TerrainDeLEtat } from "./TerrainCompo";
@@ -97,6 +99,8 @@ export default function DirectPage({ matchId, source: sourceFournie }: { matchId
       <Tableau nomNous={nomNous} nomEux={nomEux} scoreNous={d.score[nous]} scoreEux={d.score[eux]} chrono={etat.chrono}
         affichage={d.chronoAffiche} minute={d.minute} occupe={d.occupe} cloture={cloture} onAction={(a, m) => void d.chrono(a, m)}
         chronoPermis={!invite || !!etat.invitation?.peutChrono} />
+
+      {!cloture && <BandeauAlertes alertes={alertesDirect({ evenements: d.evenements, nousCote: nous, minute: d.minute, compo: compoMaintenant, joueurs: etat.joueurs })} />}
 
       {invite ? (
         (etat.chrono.statut === "termine" || cloture) && <p className="panel-inset border-l-2 border-accent p-3 text-sm text-ink" role="status">{cloture ? "Direct clôturé par le staff : la saisie est verrouillée." : "Match terminé. Le staff clôturera le direct."}</p>

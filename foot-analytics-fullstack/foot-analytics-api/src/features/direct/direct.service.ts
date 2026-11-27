@@ -155,6 +155,8 @@ export class DirectService {
     const vus = effectif.filter((j) => !!j.id);
     const fiche = (j: any, role: "titulaire" | "remplacant" | "groupe", numero: number | null) => ({
       id: j.id as string, nom: j.nom as string, prenom: (j.prenom ?? null) as string | null, poste: (j.poste ?? null) as string | null, numero, role,
+      /** Score de fatigue (0-100) pour les alertes du direct ; retire pour un saisisseur invite (donnee de sante). */
+      fatigue: (j.scoreFatigue ?? null) as number | null,
     });
     if (planMatch) {
       const titulaires = (planMatch.titulaires ?? []).filter(Boolean), remplacants = planMatch.remplacants ?? [];
