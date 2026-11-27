@@ -8,17 +8,34 @@
 import { useState } from "react";
 import { Delete } from "lucide-react";
 
+import type { EtatCompo } from "../lib/compo-direct";
 import type { JoueurDirect } from "../lib/direct-types";
+import { TerrainDeLEtat } from "./TerrainCompo";
 
 export interface JoueurChoisi { numero: number | null; nom: string | null; id: string | null }
 
 const nomComplet = (j: JoueurDirect) => [j.prenom, j.nom].filter(Boolean).join(" ");
 
 export function ChoixJoueur({
-  joueurs, adversaire, choisi, onChoisir, aucunLibelle = "Joueur inconnu",
+  joueurs, adversaire, choisi, onChoisir, aucunLibelle = "Joueur inconnu", compo, inactifs, etiquette,
 }: {
   joueurs: JoueurDirect[]; adversaire: boolean; choisi: JoueurChoisi; onChoisir: (j: JoueurChoisi) => void; aucunLibelle?: string;
+  /** La compo du moment : notre equipe se choisit alors sur le terrain (sans banc). Sans compo (avant-match non fait), la liste habituelle. */
+  compo?: EtatCompo | null;
+  /** Joueurs que l'on ne peut pas choisir ici (ex. le tireur quand on cherche son passeur). */
+  inactifs?: string[];
+  etiquette?: string;
 }) {
+  if (!adversaire && compo) {
+    return (
+      <div className="space-y-3">
+        <TerrainDeLEtat etat={compo} choisiId={choisi.id} etiquette={etiquette}
+          inactifs={(_, s) => !!s.joueur && !!inactifs?.includes(s.joueur.id)}
+          onChoisir={(_, s) => { if (s.joueur) onChoisir({ numero: s.joueur.numero, nom: nomComplet(s.joueur) || null, id: s.joueur.id }); }} />
+        <JoueurInconnu actif={choisi.id === null && choisi.numero === null} onClick={() => onChoisir({ numero: null, nom: null, id: null })} libelle={aucunLibelle} />
+      </div>
+    );
+  }
   if (adversaire) return <PaveNumero numero={choisi.numero} onChange={(n) => onChoisir({ numero: n, nom: null, id: null })} aucunLibelle={aucunLibelle} />;
   const groupes: [string, JoueurDirect[]][] = [
     ["Titulaires", joueurs.filter((j) => j.role === "titulaire")],

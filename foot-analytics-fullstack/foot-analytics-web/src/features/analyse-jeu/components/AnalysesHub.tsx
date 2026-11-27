@@ -9,6 +9,7 @@ import { AlertTriangle, CheckCircle2, Info, Lightbulb } from "lucide-react";
 import type { AnalysesHub, ConstatHub, Fiabilite, OccasionsHub } from "../lib/data-hub-types";
 import { nb, pc, signe } from "../lib/format-hub";
 import { BarresH, BarresTranches, Camembert, CarteValeurs, Radar, couleurDe } from "./graphiques";
+import { libelleFormation } from "@/shared/lib/formation";
 
 const LIBELLE_FIABILITE: Record<Fiabilite, string> = { faible: "Indicatif (peu de matchs)", moyenne: "Fiabilité moyenne", bonne: "Fiabilité bonne" };
 const POINTS: Record<Fiabilite, string> = { faible: "●○○", moyenne: "●●○", bonne: "●●●" };
@@ -154,11 +155,11 @@ export function SectionAdversaires({ a }: { a: AnalysesHub }) {
           <Lectures constats={a.constats.filter((c) => c.domaine === "adversaires")} vide="Pas de dispositif qui sorte du lot (au moins 3 matchs contre le même sont nécessaires)." />
           <div className="grid gap-4 lg:grid-cols-2">
             <Bloc titre="Les dispositifs qu'on affronte">
-              <Camembert titre="Matchs par dispositif adverse" unite=" matchs" parts={d.repartition.map((r) => ({ libelle: r.formation, valeur: r.matchs }))} />
+              <Camembert titre="Matchs par dispositif adverse" unite=" matchs" parts={d.repartition.map((r) => ({ libelle: libelleFormation(r.formation), valeur: r.matchs }))} />
             </Bloc>
             <Bloc titre="Nos points contre chacun" aide="Points par match (3 pour une victoire, 1 pour un nul). Le nombre de matchs est indiqué : un seul match ne prouve rien.">
               <BarresH titre="Points par match selon le dispositif adverse" max={3}
-                lignes={d.lignes.map((l, i) => ({ libelle: `${l.formation} · ${l.matchs} match${l.matchs > 1 ? "s" : ""}`, valeur: l.ptsParMatch, texte: `${nb(l.ptsParMatch, 2)} pts · ${l.v}V ${l.n}N ${l.d}D`, couleur: l.ptsParMatch >= 2 ? "rgb(var(--win))" : l.ptsParMatch >= 1 ? "rgb(var(--amber))" : "rgb(var(--danger))", detail: `${LIBELLE_FIABILITE[l.fiabilite]}${i === 0 ? "" : ""}` }))} />
+                lignes={d.lignes.map((l, i) => ({ libelle: `${libelleFormation(l.formation)} · ${+l.matchs.toFixed(1)} match${l.matchs > 1 ? "s" : ""}`, valeur: l.ptsParMatch, texte: `${nb(l.ptsParMatch, 2)} pts · ${l.v}V ${l.n}N ${l.d}D`, couleur: l.ptsParMatch >= 2 ? "rgb(var(--win))" : l.ptsParMatch >= 1 ? "rgb(var(--amber))" : "rgb(var(--danger))", detail: `${LIBELLE_FIABILITE[l.fiabilite]}${i === 0 ? "" : ""}` }))} />
             </Bloc>
           </div>
           <Bloc titre="Leur efficacité contre nous" aide="Sur les matchs saisis en direct : ce que chaque dispositif nous crée et ce qu'on lui crée (xG), sa conversion, et s'il marque plus (ou moins) que ses occasions ne le disaient.">
@@ -168,7 +169,7 @@ export function SectionAdversaires({ a }: { a: AnalysesHub }) {
                 <tbody>
                   {d.lignes.map((l) => (
                     <tr key={l.formation}>
-                      <td className="font-semibold text-ink">{l.formation}</td>
+                      <td className="font-semibold text-ink">{libelleFormation(l.formation)}</td>
                       <td className="text-center tabular-nums">{l.matchs}{l.saisis < l.matchs && <span className="text-faint"> ({l.saisis} saisis)</span>}</td>
                       <td className="text-right tabular-nums text-accent">{l.saisis ? nb(l.xgPour / l.saisis, 2) : "–"}</td>
                       <td className="text-right tabular-nums text-sky">{l.saisis ? nb(l.xgContre / l.saisis, 2) : "–"}</td>
@@ -184,7 +185,7 @@ export function SectionAdversaires({ a }: { a: AnalysesHub }) {
           {d.reponses.length > 0 && (
             <Bloc titre="Notre meilleure réponse" aide="Contre un dispositif affronté au moins deux fois : notre dispositif qui a rapporté le plus de points. Petit échantillon : une piste, pas une règle.">
               <ul className="space-y-1.5">
-                {d.reponses.map((r) => <li key={r.adverse} className="flex items-center justify-between gap-2 text-sm"><span>Contre un <strong className="text-ink">{r.adverse}</strong> : notre <strong className="text-accent">{r.nous}</strong></span><span className="tabular-nums text-muted">{nb(r.ptsParMatch, 2)} pts · {r.matchs} match{r.matchs > 1 ? "s" : ""}</span></li>)}
+                {d.reponses.map((r) => <li key={r.adverse} className="flex items-center justify-between gap-2 text-sm"><span>Contre un <strong className="text-ink">{libelleFormation(r.adverse)}</strong> : notre <strong className="text-accent">{libelleFormation(r.nous)}</strong></span><span className="tabular-nums text-muted">{nb(r.ptsParMatch, 2)} pts · {r.matchs} match{r.matchs > 1 ? "s" : ""}</span></li>)}
               </ul>
             </Bloc>
           )}

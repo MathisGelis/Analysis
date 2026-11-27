@@ -13,6 +13,7 @@ import { FORMATIONS } from "@/features/tactique/lib/composition";
 import { useFeedback } from "@/shared/lib/feedback-context";
 import { Select } from "@/shared/ui/Select";
 import { optionsSimples } from "@/shared/lib/selecteur";
+import { libelleFormation } from "@/shared/lib/formation";
 
 const NON_RENSEIGNE = "";
 
@@ -28,13 +29,13 @@ export function SystemeMatch({
   const [enCours, setEnCours] = useState(false);
   // Un dispositif deja saisi hors de la liste usuelle reste proposable.
   const formations = valeur && !(FORMATIONS as readonly string[]).includes(valeur) ? [...FORMATIONS, valeur] : [...FORMATIONS];
-  const options = [{ valeur: NON_RENSEIGNE, libelle: "Non renseigné" }, ...optionsSimples(formations)];
+  const options = [{ valeur: NON_RENSEIGNE, libelle: "Non renseigné" }, ...formations.map((f) => ({ valeur: f, libelle: libelleFormation(f) }))];
 
   async function changer(nouvelle: string) {
     setEnCours(true);
     try {
       await api.updateDispositifs(matchId, { [cote === "dom" ? "formationDom" : "formationExt"]: nouvelle });
-      notifier.succes(nouvelle ? `Système de ${equipe} : ${nouvelle}.` : `Système de ${equipe} efface.`);
+      notifier.succes(nouvelle ? `Système de ${equipe} : ${libelleFormation(nouvelle)}.` : `Système de ${equipe} efface.`);
       router.refresh();
     } catch (e) {
       notifier.erreur(`Enregistrement impossible : ${messageApi(e)}`);
@@ -47,7 +48,7 @@ export function SystemeMatch({
     return (
       <div className="flex items-center gap-2 text-xs">
         <span className="min-w-0 flex-1 truncate text-muted">{equipe}</span>
-        <span className="badge font-mono" title="Déjà renseigné : seul un club du match ou un administrateur peut le modifier.">{valeur}</span>
+        <span className="badge font-mono" title="Déjà renseigné : seul un club du match ou un administrateur peut le modifier.">{libelleFormation(valeur)}</span>
       </div>
     );
   }

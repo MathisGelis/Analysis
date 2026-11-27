@@ -19,6 +19,7 @@ import { FORMATION_DEFAUT, formationsProposees, MAX_REMPLACANTS, NB_TITULAIRES }
 
 import { lireSaisie, numeroEffectif, numerosAEnvoyer, numerosOk, verifierNumeros, type Choisis } from "../lib/numeros";
 import { affecter, basculerBanc, nbTitulaires, onzeComplet, postesDeFormation } from "../lib/terrain-avant";
+import { libelleFormation } from "@/shared/lib/formation";
 
 /** Sous ce nombre de titulaires, le onze n'est pas considere comme fait (le foot a 8 compris). */
 const MIN_TITULAIRES = 7;
@@ -195,7 +196,7 @@ export default function AvantMatchPage({ matchId, force = false }: { matchId: st
         <>
           <div className="flex items-center justify-between gap-2 pt-1">
             <h2 className="text-sm font-semibold text-ink">Composition de départ</h2>
-            <button type="button" onClick={() => setChoixDispositif(true)} aria-label={`Dispositif : ${plan.formation}. Changer`} className="btn !h-9 font-display font-bold">{plan.formation}</button>
+            <button type="button" onClick={() => setChoixDispositif(true)} aria-label={`Dispositif : ${libelleFormation(plan.formation)}. Changer`} className="btn !h-9 font-display font-bold">{libelleFormation(plan.formation)}</button>
           </div>
 
           <div className="relative h-[340px] overflow-hidden rounded-2xl border-2" style={{ borderColor: "rgb(var(--terrain-ligne))", backgroundColor: "rgb(var(--terrain))" }}>
@@ -333,7 +334,7 @@ export default function AvantMatchPage({ matchId, force = false }: { matchId: st
             <div className="flex flex-wrap gap-2">
               {formationsProposees(plan.formation).map((f) => (
                 <button key={f} type="button" aria-pressed={plan.formation === f} onClick={() => { maj({ formation: f }); setChoixDispositif(false); }}
-                  className={`btn !h-11 font-display font-bold ${plan.formation === f ? "!border-accent bg-accent/15 text-accent" : ""}`}>{f}</button>
+                  className={`btn !h-11 font-display font-bold ${plan.formation === f ? "!border-accent bg-accent/15 text-accent" : ""}`}>{libelleFormation(f)}</button>
               ))}
             </div>
             <div className="flex justify-end"><button type="button" className="btn" onClick={() => setChoixDispositif(false)}>Fermer</button></div>

@@ -37,6 +37,7 @@ import { FatigueBar } from "@/features/joueurs/components/FatigueBar";
 import { RegleMutations } from "./RegleMutations";
 import { SelecteurJoueur } from "./SelecteurJoueur";
 import { DernierPlanRealise } from "./DernierPlanRealise";
+import { libelleFormation } from "@/shared/lib/formation";
 
 export default function Tactique() {
   return (
@@ -165,7 +166,7 @@ function TactiqueContent() {
 
   // ---- Derives ---------------------------------------------------------------------------------
   const slots = useMemo(() => slotsDeFormation(formation), [formation]);
-  const optionsFormations = useMemo(() => optionsSimples(formationsProposees(formation)), [formation]);
+  const optionsFormations = useMemo(() => formationsProposees(formation).map((f) => ({ valeur: f, libelle: libelleFormation(f) })), [formation]);
   const parId = useMemo(() => new Map(joueurs.map((j) => [j.id, j])), [joueurs]);
   const groupe = useMemo(() => [...titulaires.filter((x): x is string => !!x), ...remplacants], [titulaires, remplacants]);
   const statutsGroupe = useMemo(() => groupe.map((id) => parId.get(id)?.statutMutation), [groupe, parId]);

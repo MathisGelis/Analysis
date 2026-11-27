@@ -3,6 +3,8 @@
 // Terrain vu de dessus avec joueurs disposes selon une formation textuelle.
 // Toutes les couleurs utilisent les CSS vars du theme.
 
+import { libelleFormation } from "@/shared/lib/formation";
+
 export interface JoueurTerrain {
   numero: number;
   nom: string;
@@ -65,7 +67,7 @@ export function Pitch({
       {titre && (
         <div className="flex items-center justify-between mb-2">
           <div className="h-section">{titre}</div>
-          <span className="badge badge-accent">{formationAffichee}</span>
+          <span className="badge badge-accent">{libelleFormation(formationAffichee)}</span>
         </div>
       )}
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto rounded-md">

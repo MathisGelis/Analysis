@@ -16,15 +16,18 @@ import {
 import { libelleMinute } from "../lib/chrono";
 import type { Cote, JoueurDirect } from "../lib/direct-types";
 import { aUnCadre, manque, Saisie } from "../lib/saisie";
+import type { EtatCompo } from "../lib/compo-direct";
 import { ChoixJoueur } from "./ChoixJoueur";
 import { CadreBut, TerrainZones } from "./TerrainZones";
 
 type Vue = Etape | "passeur" | "recap";
 
 export function FeuilleSaisie({
-  saisie, onChange, joueurs, nousCote, dureePeriodeMin, correction, onEnregistrer, onFermer, onSupprimer,
+  saisie, onChange, joueurs, compo = null, nousCote, dureePeriodeMin, correction, onEnregistrer, onFermer, onSupprimer,
 }: {
-  saisie: Saisie; onChange: (s: Saisie) => void; joueurs: JoueurDirect[]; nousCote: Cote; dureePeriodeMin: number;
+  saisie: Saisie; onChange: (s: Saisie) => void; joueurs: JoueurDirect[];
+  /** La compo au moment de l'evenement : notre equipe se designe sur le terrain (sans banc) ; l'entrant d'un remplacement se prend sur le banc. */
+  compo?: EtatCompo | null; nousCote: Cote; dureePeriodeMin: number;
   correction: boolean; onEnregistrer: () => void; onFermer: () => void; onSupprimer?: () => void;
 }) {
   const def = action(saisie.actionId);
@@ -37,10 +40,14 @@ export function FeuilleSaisie({
 
   const etapes = def.etapes;
   const derniere = !correction && vue === etapes[etapes.length - 1];
+  // Chaque frappe demande son passeur avant d'etre enregistree (« Sans passeur » en un geste).
+  const enregistrer = () => { if (aPasseur && !passeurVu && nous) { setPasseurVu(true); setVue("passeur"); } else onEnregistrer(); };
   const suivant = () => { if (!derniere) { setIndice(indice + 1); setVue(etapes[indice + 1]); } };
   const precedent = () => { setIndice(Math.max(0, indice - 1)); setVue(etapes[Math.max(0, indice - 1)]); };
-  const aPasseur = !!def.roleJoueur2 && !etapes.includes("joueur2") && saisie.resultat === "but";
+  const aPasseur = !!def.roleJoueur2 && !etapes.includes("joueur2");        // le passeur se demande sur tous les tirs, pas seulement sur un but
+  const [passeurVu, setPasseurVu] = useState(correction);
 
+  const segments: (string | null)[] = [null, ...etapes, ...(aPasseur && nous ? ["passeur"] : [])];
   const quiTire = joueurLibelle(saisie.joueurNumero, saisie.joueurNom);
   const titre = `${def.libelle} · ${vue !== "joueur" && quiTire ? quiTire : nous ? "notre équipe" : "adversaire"}`;
   const minuteTexte = `${libelleMinute(saisie.minute, saisie.periode, dureePeriodeMin)}'`;
@@ -69,9 +76,9 @@ export function FeuilleSaisie({
           )}
         </header>
 
-        {!correction && etapes.length > 1 && (
-          <div role="img" aria-label={`Étape ${indice + 2} sur ${etapes.length + 1}`} className="flex gap-1.5">
-            {[null, ...etapes].map((e, i) => <div key={e ?? "action"} className={`h-1.5 flex-1 rounded-full ${i <= indice + 1 ? "bg-accentstrong" : "bg-line"}`} />)}
+        {!correction && segments.length > 2 && (
+          <div role="img" aria-label={`Étape ${vue === "passeur" ? segments.length : indice + 2} sur ${segments.length}`} className="flex gap-1.5">
+            {segments.map((e, i) => <div key={e ?? "action"} className={`h-1.5 flex-1 rounded-full ${i <= (vue === "passeur" ? segments.length - 1 : indice + 1) ? "bg-accentstrong" : "bg-line"}`} />)}
           </div>
         )}
 
@@ -93,7 +100,11 @@ export function FeuilleSaisie({
           <div>
             <div className="mb-2 text-sm font-semibold text-ink">{vue === "joueur" ? def.roleJoueur : def.roleJoueur2}</div>
             <ChoixJoueur
-              joueurs={vue === "joueur" ? joueurs : joueurs.filter((j) => j.id !== saisie.joueurId)} adversaire={!nous}
+              // Le tireur, le fautif, le sortant, le passeur : sur le terrain. L'entrant d'un remplacement : sur le banc (la liste habituelle sans compo).
+              joueurs={vue === "joueur" ? joueurs : compo && vue === "joueur2" && def.type === "remplacement" ? compo.banc : joueurs.filter((j) => j.id !== saisie.joueurId)} adversaire={!nous}
+              compo={vue === "joueur2" && def.type === "remplacement" ? null : compo}
+              inactifs={vue === "joueur" ? undefined : saisie.joueurId ? [saisie.joueurId] : undefined}
+              etiquette={vue === "joueur" ? (def.type === "remplacement" ? "Sort" : undefined) : vue === "passeur" || vue === "joueur2" ? "Passeur" : undefined}
               choisi={vue === "joueur" ? joueurPrincipal : joueurSecond}
               aucunLibelle={vue === "passeur" ? "Sans passeur" : "Joueur inconnu"}
               onChoisir={(j) => maj(vue === "joueur"
@@ -136,7 +147,7 @@ export function FeuilleSaisie({
                 {(aPasseur || (def.roleJoueur2 && saisie.resultat === "but")) && !etapes.includes("joueur2") && (
                   <div className="min-w-0 flex-1">
                     <div className="mb-1 text-xs text-muted">Passeur (facultatif)</div>
-                    <button type="button" onClick={() => setVue("passeur")} className="btn !h-11 w-full !justify-start truncate text-left">{joueurLibelle(saisie.joueur2Numero, saisie.joueur2Nom) || "Aucun"}</button>
+                    <button type="button" onClick={() => { setPasseurVu(true); setVue("passeur"); }} className="btn !h-11 w-full !justify-start truncate text-left">{joueurLibelle(saisie.joueur2Numero, saisie.joueur2Nom) || "Aucun"}</button>
                   </div>
                 )}
               </div>
@@ -167,15 +178,19 @@ export function FeuilleSaisie({
           {correction && onSupprimer && vue === "recap" && (
             <button type="button" onClick={onSupprimer} className="btn w-full !border-danger/50 text-danger"><Trash2 size={15} aria-hidden /> Supprimer</button>
           )}
-          {vue === "passeur" ? (
+          {vue === "passeur" && correction ? (
             <button type="button" onClick={() => setVue("zone")} className="btn btn-primary !h-12 w-full text-base">Valider</button>
+          ) : vue === "passeur" ? (
+            <button type="button" disabled={!!manquant} onClick={onEnregistrer} className="btn btn-primary !h-13 w-full text-base disabled:opacity-50">
+              {`Enregistrer ${saisie.resultat === "but" ? "le but" : def.libelle.toLowerCase()} · ${minuteTexte}`}
+            </button>
           ) : !correction && !derniere ? (
             <div className="flex gap-2">
-              {!manquant && <button type="button" onClick={onEnregistrer} className="btn !h-12">Enregistrer ainsi</button>}
+              {!manquant && <button type="button" onClick={enregistrer} className="btn !h-12">Enregistrer ainsi</button>}
               <button type="button" onClick={suivant} className="btn btn-primary !h-12 flex-1 text-base">Suivant</button>
             </div>
           ) : (
-            <button type="button" disabled={!!manquant} onClick={onEnregistrer} className="btn btn-primary !h-13 w-full text-base disabled:opacity-50">
+            <button type="button" disabled={!!manquant} onClick={enregistrer} className="btn btn-primary !h-13 w-full text-base disabled:opacity-50">
               {correction ? "Enregistrer" : `Enregistrer ${saisie.resultat === "but" ? "le but" : ""} · ${minuteTexte}`.replace("  ", " ")}
             </button>
           )}
