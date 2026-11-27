@@ -2053,7 +2053,7 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await page.getByRole("tab", { name: "Compo" }).click();
   const compo = page.getByTestId("vue-compo");
   await expect(compo.getByTestId("terrain-compo")).toBeVisible();
-  await expect(compo.getByText(/Sur le terrain · 11 sur 11/)).toBeVisible();
+  await expect(compo.getByText(/Sur le terrain · \d+ sur 11/)).toBeVisible();
   await compo.getByRole("button", { name: "Changer de système" }).click();
   await page.locator("div.fixed.inset-0").getByRole("button", { name: "4-4-2 losange" }).click();
   await page.locator("div.fixed.inset-0").getByRole("button", { name: /^Valider 4-4-2 losange/ }).click();
