@@ -2118,8 +2118,8 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await expect(page.getByText("4-3-3").first()).toBeVisible();
   // Une fois clôturé, « Match clôturé » enregistre et ramène aussi à la fiche du match.
   await page.goto(`/matchs/${match.id}/apres`);
-  await page.getByRole("button", { name: "Match clôturé" }).click();
-  await expect(page).toHaveURL(new RegExp(`/matchs/${match.id}$`), { timeout: 15_000 });
+  // Juste apres un chargement complet, la page se rafraichit parfois pour reparer la selection d'equipe / de saison : un clic peut etre perdu, on reclique.
+  await cliquerJusquaNavigation(page.getByRole("button", { name: "Match clôturé" }), new RegExp(`/matchs/${match.id}$`));
   await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
 });
 

@@ -92,13 +92,15 @@ export default function ApresMatchPage({ matchId }: { matchId: string }) {
   const retourAuMatch = async () => {
     setOccupe(true);
     try { await sauvegarde.vider(); router.push(`/matchs/${matchId}`); }
-    catch (e) { setErreur(messageApi(e, "Enregistrement impossible.")); setOccupe(false); }
+    catch (e) { setErreur(messageApi(e, "Enregistrement impossible.")); }
+    finally { setOccupe(false); }                  // une navigation perdue (page qui se rafraichit pendant l'hydratation) ne doit pas laisser le bouton bloque
   };
   /** Cloture le match (apres avoir tout enregistre), puis ramene a sa fiche. */
   const cloturer = async () => {
     setOccupe(true);
     try { await sauvegarde.vider(); await api.directCloturer(matchId); router.push(`/matchs/${matchId}`); }
-    catch (e) { setErreur(messageApi(e, "Clôture impossible.")); setOccupe(false); }
+    catch (e) { setErreur(messageApi(e, "Clôture impossible.")); }
+    finally { setOccupe(false); }
   };
 
   return (
