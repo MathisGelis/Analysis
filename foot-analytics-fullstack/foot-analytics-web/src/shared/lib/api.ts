@@ -538,6 +538,14 @@ export const api = {
     return { fichier: await res.blob(), nom: nomFichier(res.headers.get("Content-Disposition")) };
   },
 
+  /** Le rapport d'apres-match d'un de mes matchs en PowerPoint ou en PDF : le fichier et le nom que propose le serveur. */
+  exporterApresMatch: async (matchId: string, format: "pptx" | "pdf" = "pptx") => {
+    const chemin = `/analyse-jeu/matchs/${matchId}/export?format=${format}`;
+    const res = await fetchApi(chemin);
+    if (!res.ok) throw new ApiError(res.status, chemin, await res.json().catch(() => null));
+    return { fichier: await res.blob(), nom: nomFichier(res.headers.get("Content-Disposition")) };
+  },
+
   /* ---- IA : entrainement et modeles de prediction (administrateur) ---- */
   iaEtat: () => req<EtatIa>("/ia/etat"),
   iaEntrainements: () => req<EntrainementResume[]>("/ia/entrainements"),

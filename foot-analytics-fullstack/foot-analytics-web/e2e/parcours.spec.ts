@@ -2107,6 +2107,10 @@ test("direct : un match à venir se joue en saisie (coup d'envoi, but, tir adver
   await expect(page.getByRole("heading", { name: "Le match en chiffres" })).toBeVisible();
   await expect(page.getByRole("img", { name: /Corners : \d pour nous, \d pour eux/ })).toBeVisible();
   for (const theme of ["dark", "light"]) expect(await auditer(null, theme), `axe sur le résumé (${theme})`).toEqual([]);
+  // L'export du rapport d'après-match : un vrai fichier PowerPoint, nommé d'après la date du match.
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+  const [telechargement] = await Promise.all([page.waitForEvent("download", { timeout: 30_000 }), page.getByTestId("export-apres-match").getByRole("button", { name: "PowerPoint" }).click()]);
+  expect(telechargement.suggestedFilename()).toMatch(/^apres-match-.*\.pptx$/);
   // Clôturer enregistre tout puis ramène à la fiche du match, où le dispositif observé de l'adversaire est renseigné.
   await page.getByRole("button", { name: "Clôturer le match" }).click();
   await expect(page).toHaveURL(new RegExp(`/matchs/${match.id}$`), { timeout: 15_000 });

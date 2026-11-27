@@ -1,6 +1,6 @@
 // src/features/analyse-jeu/analyse-jeu.controller.ts
 
-import { BadRequestException, Controller, Get, Param, Query } from "@nestjs/common";
+import { BadRequestException, Controller, Get, Param, Query, StreamableFile } from "@nestjs/common";
 
 import { Acces } from "@/features/acces/acces.decorator";
 import { ContexteAcces } from "@/features/acces/contexte-acces";
@@ -52,5 +52,13 @@ export class AnalyseJeuController {
   }
 
   @Get("matchs/:matchId/resume") resume(@Acces() ctx: ContexteAcces, @Param("matchId") matchId: string) { return this.svc.resume(ctx, matchId); }
+  /** Le rapport d'apres-match en PowerPoint (defaut) ou en PDF. */
+  @Get("matchs/:matchId/export")
+  async exportApresMatch(@Acces() ctx: ContexteAcces, @Param("matchId") matchId: string, @Query("format") format?: string) {
+    if (format !== undefined && format !== "pptx" && format !== "pdf") throw new BadRequestException("format : pptx ou pdf");
+    const pdf = format === "pdf";
+    const { fichier, nom } = await this.svc.exporterApresMatch(ctx, matchId, pdf ? "pdf" : "pptx");
+    return new StreamableFile(fichier, { type: pdf ? "application/pdf" : "application/vnd.openxmlformats-officedocument.presentationml.presentation", disposition: `attachment; filename="${nom}"` });
+  }
   @Get("matchs/:matchId/mi-temps") miTemps(@Acces() ctx: ContexteAcces, @Param("matchId") matchId: string) { return this.svc.miTemps(ctx, matchId); }
 }

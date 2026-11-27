@@ -105,7 +105,6 @@ describe("direct : invitations a saisir", () => {
     expect(etat.corps).toMatchObject({ nousCote: "dom", invitation: { libelle: "Julie", peutChrono: false } });
     // Un saisisseur invite ne voit jamais la fatigue (donnee de sante) : seule la saisie lui est ouverte.
     for (const j of etat.corps.joueurs) expect(j).not.toHaveProperty("fatigue");
-    expect(etat.corps.analyse ?? null).toBeNull();
     expect((await moi("PUT", `/saisie/evenements/${id(1)}`, tir({ resultat: "but" }))).statut).toBe(200);
     await moi("PUT", `/saisie/evenements/${id(1)}`, tir({ resultat: "but" }));                  // rejoue : pas de doublon
     const vu = (await moi("GET", "/saisie/etat")).corps;

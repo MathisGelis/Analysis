@@ -66,6 +66,9 @@ jobs:
       - name: Compilation TypeScript
         run: npx tsc --noEmit -p .
       - name: Tests
+        # pptxgenjs (export du rapport d'apres-match) charge ses modules par import() dynamique, que Jest n'accepte qu'avec ce drapeau.
+        env:
+          NODE_OPTIONS: --experimental-vm-modules
         run: npx jest --ci
 
   api-postgres:
@@ -98,6 +101,8 @@ jobs:
           cache-dependency-path: ${{ env.RACINE }}/foot-analytics-api/package-lock.json
       - run: npm ci
       - name: Tests sur Postgres
+        env:
+          NODE_OPTIONS: --experimental-vm-modules
         run: npx jest --ci
 
   parser:

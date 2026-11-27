@@ -29,7 +29,12 @@ import { analyserHub, MatchHub } from "./analyses-hub";
 import { dataHub, rangsDansEffectif, statsJoueur } from "./data-hub";
 import { fusionnerPresences, presencesDuDirect, presencesDuJoueur } from "./minutes-joueur";
 import { filtrerMatchs, jeuEquipe, Lieu, MatchJeu } from "./jeu-equipe";
+import { pdfDepuisPptx } from "@/features/analyse/pdf-depuis-pptx";
+import { BilanMatch } from "@/features/apres-match/bilan-match.entity";
+import { libelleFormation } from "@/features/matchs/systeme";
+
 import { bilanMiTemps } from "./bilan-mi-temps";
+import { construireRapportApresMatch } from "./rapport-apres-match";
 import { resumerMatch } from "./stats-jeu";
 
 export interface FiltresJeu { equipeId?: string; saisonId?: string; lieu: Lieu; derniers: number | null }
@@ -239,5 +244,31 @@ export class AnalyseJeuService {
     const m = await this.acces.matchGere(ctx, matchId);
     const evs = await this.direct.find({ where: { matchId } });
     return bilanMiTemps({ nousCote: (await this.directSvc.nous(ctx, m)).cote, evenements: evs.filter((e) => !e.supprimeLe) as never });
+  }
+
+  /** Le rapport d'apres-match d'un de MES matchs, en PowerPoint ou en PDF : resume, stats, tirs, compo, mouvements, bilan de l'entraineur. */
+  async exporterApresMatch(ctx: ContexteAcces, matchId: string, format: "pptx" | "pdf") {
+    const m = await this.acces.matchGere(ctx, matchId);
+    const [etat, resume] = await Promise.all([this.directSvc.etat(ctx, matchId), this.resume(ctx, matchId)]);
+    const nous = etat.nousCote;
+    const clubNous = nous === "dom" ? m.clubDom : m.clubExt;
+    const bilan = await this.matchs.manager.getRepository(BilanMatch).findOne({ where: { id: `${matchId}:${clubNous}` } });
+    const parId = new Map(etat.joueurs.map((j) => [j.id, j]));
+    const nomDe = (j: { prenom: string | null; nom: string }) => [j.prenom, j.nom].filter(Boolean).join(" ");
+    const mouvements = etat.evenements.filter((e) => e.cote === nous && ["remplacement", "carton_rouge", "systeme"].includes(e.type))
+      .sort((a, b) => a.periode - b.periode || a.minute - b.minute)
+      .map((e) => ({
+        minute: e.minuteAffichee ?? String(e.minute),
+        texte: e.type === "remplacement" ? `${e.joueur2Numero ?? "–"} ${e.joueur2Nom ?? ""} remplace ${e.joueurNumero ?? "–"} ${e.joueurNom ?? ""}`.replace(/\s+/g, " ").trim()
+          : e.type === "carton_rouge" ? `Carton rouge : ${e.joueurNumero ?? "–"} ${e.joueurNom ?? ""}`.trim() : `Système : ${libelleFormation(e.resultat ?? "")}`,
+      }));
+    const fichierPptx = await construireRapportApresMatch({
+      nomNous: nous === "dom" ? etat.match.nomDom : etat.match.nomExt, nomEux: nous === "dom" ? etat.match.nomExt : etat.match.nomDom,
+      date: etat.match.date, competition: etat.match.competition, journee: etat.match.journee, resume,
+      compo: etat.compo ? { formation: etat.compo.formation, titulaires: etat.compo.titulaires.map((id) => parId.get(id)).filter((j): j is NonNullable<typeof j> => !!j).map((j) => ({ numero: j.numero, nom: nomDe(j) })) } : null,
+      mouvements, bilan: bilan ? { positifs: bilan.positifs, aTravailler: bilan.aTravailler, bilan: bilan.bilan } : null,
+    });
+    const base = `apres-match-${(etat.match.date ?? "match").replace(/[^0-9a-z-]/gi, "-")}`;
+    return format === "pdf" ? { fichier: await pdfDepuisPptx(fichierPptx), nom: `${base}.pdf` } : { fichier: fichierPptx, nom: `${base}.pptx` };
   }
 }
